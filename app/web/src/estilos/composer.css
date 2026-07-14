@@ -1,0 +1,170 @@
+/* Composer de imagem unificado do no de sessao: seletores de formato e
+   proporcao, e os chips de anexos inline. Padrao VK: dark, menta #00c896,
+   alto contraste, glow sutil. Consistente com os seletores ja existentes
+   (seletor-modelo e seletor-estilo do canvas.css). */
+
+.seletor-formato,
+.seletor-proporcao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Linha de opcoes com rotulo e descricao curta em cada uma. */
+.chips-imagem {
+  display: flex;
+  gap: 6px;
+}
+
+.chip-imagem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: var(--fundo);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.chip-imagem:hover {
+  border-color: var(--menta);
+}
+
+.chip-imagem.ativo {
+  background: rgba(var(--menta-rgb), 0.12);
+  border-color: var(--menta);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25), 0 0 18px rgba(var(--menta-rgb), 0.12);
+}
+
+.chip-imagem .nome-op {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.chip-imagem.ativo .nome-op {
+  color: var(--menta-clara);
+}
+
+.chip-imagem .desc-op {
+  font-size: 10px;
+  color: var(--texto-fraco);
+  line-height: 1.3;
+}
+
+/* Anexos inline: chips removiveis antes do disparo. */
+.anexos-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.anexos-inline .rotulo-mini {
+  width: 100%;
+}
+
+.chip-anexo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 9px;
+  border-radius: 100px;
+  font-size: 11px;
+  color: var(--texto-suave);
+  background: var(--fundo-3);
+  border: 1px solid var(--borda);
+}
+
+.chip-anexo svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--menta);
+}
+
+.chip-anexo .nome-anexo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.chip-anexo .remover-anexo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 100px;
+  background: transparent;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.chip-anexo .remover-anexo:hover {
+  color: var(--texto);
+  background: rgba(var(--realce-rgb), 0.08);
+}
+
+.chip-anexo .remover-anexo svg {
+  width: 11px;
+  height: 11px;
+  color: inherit;
+}
+
+/* Tira de estilos do carrossel: rola na horizontal e mostra fade nas bordas
+   quando ha card fora da vista. O wrapper posiciona os gradientes; o filho
+   (.cards-estilo) e que rola. Padrao VK: fade que morre no fundo do no. */
+.tira-estilos {
+  position: relative;
+}
+/* Gradientes de fade: aparecem so quando ha mais conteudo pra aquele lado.
+   Nao capturam clique nem rolagem (pointer-events: none). */
+.tira-estilos::before,
+.tira-estilos::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  width: 34px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+.tira-estilos::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--superficie), transparent);
+}
+.tira-estilos::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--superficie), transparent);
+}
+.tira-estilos.fade-esq::before {
+  opacity: 1;
+}
+.tira-estilos.fade-dir::after {
+  opacity: 1;
+}
+
+/* Cards um pouco mais compactos, pra 3+ caberem na largura do no (com o
+   terceiro espiando pela borda quando ha mais, reforcando o fade). */
+.seletor-estilo .cards-estilo {
+  scrollbar-width: none;
+}
+.seletor-estilo .cards-estilo::-webkit-scrollbar {
+  height: 0;
+}
+.seletor-estilo .card-estilo {
+  width: 92px;
+  padding: 7px 9px;
+}

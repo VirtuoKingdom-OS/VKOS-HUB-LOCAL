@@ -1,0 +1,281 @@
+/* Conexoes MCP: cards por servico, tokens locais, tema escuro e claro.
+   Toda cor vem dos tokens de global.css. Motion sutil, identidade menta. */
+
+.conx-topo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.conx-topo-icone {
+  width: 26px;
+  height: 26px;
+  color: var(--menta);
+  flex-shrink: 0;
+}
+
+.conx-corpo {
+  padding: 22px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Aviso local-first: honesto e sempre visivel no topo do corpo. */
+.conx-aviso-local {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--texto-suave);
+  background: rgba(var(--menta-rgb), 0.08);
+  border: 1px solid rgba(var(--menta-rgb), 0.25);
+  border-radius: var(--raio-p);
+  padding: 12px 14px;
+}
+.conx-aviso-icone {
+  width: 18px;
+  height: 18px;
+  color: var(--menta);
+  flex-shrink: 0;
+}
+
+.conx-erro-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--alerta-suave);
+  background: rgba(var(--alerta-rgb), 0.1);
+  border: 1px solid rgba(var(--alerta-rgb), 0.35);
+  border-radius: var(--raio-p);
+  padding: 12px 14px;
+}
+.conx-erro-topo .botao {
+  padding: 7px 12px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.conx-carregando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+/* Grade de cards. */
+.conx-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
+  align-content: start;
+}
+
+.conx-cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color var(--transicao), box-shadow var(--transicao),
+    transform var(--transicao);
+  animation: entrada-suave 260ms ease both;
+}
+.conx-cartao:hover {
+  border-color: var(--borda-forte);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.26);
+  transform: translateY(-2px);
+}
+.conx-cartao.ligado:hover {
+  transform: translateY(-2px);
+}
+.conx-cartao.ligado {
+  border-color: rgba(var(--menta-rgb), 0.5);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.18), var(--glow);
+}
+.conx-cartao.indisponivel {
+  opacity: 0.62;
+}
+
+.conx-cartao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.conx-cartao-topo h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.conx-selo-breve {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+  color: var(--amarelo);
+  background: rgba(var(--amarelo-rgb), 0.12);
+  border: 1px solid rgba(var(--amarelo-rgb), 0.35);
+  white-space: nowrap;
+}
+
+.conx-descricao {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--texto-suave);
+}
+
+/* Toggle de ligar. */
+.conx-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.conx-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.conx-switch-trilho {
+  width: 42px;
+  height: 24px;
+  border-radius: 100px;
+  background: var(--fundo-3);
+  border: 1px solid var(--borda-forte);
+  transition: background var(--transicao), border-color var(--transicao);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 3px;
+}
+.conx-switch-bola {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--texto-fraco);
+  transition: transform var(--transicao), background var(--transicao);
+}
+.conx-switch input:checked + .conx-switch-trilho {
+  background: rgba(var(--menta-rgb), 0.22);
+  border-color: var(--menta);
+}
+.conx-switch input:checked + .conx-switch-trilho .conx-switch-bola {
+  transform: translateX(18px);
+  background: var(--menta);
+}
+.conx-switch input:focus-visible + .conx-switch-trilho {
+  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.18);
+}
+
+/* Campos de config. */
+.conx-campos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.conx-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.conx-rotulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.conx-entrada {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.conx-entrada input {
+  padding-right: 42px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.conx-olho {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--texto-fraco);
+  transition: color var(--transicao), background var(--transicao);
+}
+.conx-olho:hover {
+  color: var(--menta-clara);
+  background: var(--superficie-2);
+}
+.conx-olho svg {
+  width: 17px;
+  height: 17px;
+}
+.conx-dica {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--texto-fraco);
+}
+
+.conx-erro {
+  font-size: 13px;
+  color: var(--alerta-suave);
+  background: rgba(var(--alerta-rgb), 0.1);
+  border: 1px solid rgba(var(--alerta-rgb), 0.3);
+  border-radius: var(--raio-p);
+  padding: 9px 12px;
+}
+
+/* Rodape do card: estado do token e acoes. */
+.conx-cartao-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--borda);
+  padding-top: 14px;
+  margin-top: auto;
+}
+.conx-estado-token {
+  font-size: 12px;
+  color: var(--texto-fraco);
+}
+.conx-acoes {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.conx-salvo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--menta);
+  animation: entrada-suave 160ms ease both;
+}
+.conx-salvo svg {
+  width: 15px;
+  height: 15px;
+}
+.conx-salvar {
+  padding: 9px 18px;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .conx-corpo {
+    padding: 18px 18px 40px;
+  }
+  .conx-grade {
+    grid-template-columns: 1fr;
+  }
+}

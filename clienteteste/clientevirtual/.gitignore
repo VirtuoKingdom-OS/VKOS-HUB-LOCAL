@@ -1,0 +1,11 @@
+# Dependências
+node_modules/
+
+# Saída gerada pelo comprador (o conteúdo dele é dele; não versionar por padrão)
+conteudo/**/instagram/*.png
+conteudo/**/instagram-stories/*.png
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log

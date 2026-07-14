@@ -1,0 +1,182 @@
+// Tipos do dominio, espelhando app/server/src/tipos.ts (o CONTRATO.md).
+// Manter em sincronia com o backend.
+
+export type StatusSessao =
+  | "fila"
+  | "iniciando"
+  | "rodando"
+  | "concluida"
+  | "erro"
+  | "parada";
+
+export interface Sessao {
+  id: string;
+  titulo: string;
+  prompt: string;
+  skill?: string;
+  status: StatusSessao;
+  criadaEm: string;
+  atualizadaEm: string;
+  sessionIdClaude?: string;
+  custoUsd?: number;
+  pastaTrabalho: string;
+  resultado?: string;
+  erro?: string;
+  // Extensao rodada 5: modelo e tokens.
+  modelo?: string;
+  // tokensEntrada segue como TOTAL (nova + escritas + leituras de cache) por
+  // compatibilidade com sessoes antigas.
+  tokensEntrada?: number;
+  tokensSaida?: number;
+  // Extensao rodada 6: quebra honesta da entrada. Entrada realmente nova,
+  // escrita de cache e leitura de cache (esta custa cerca de 10x menos).
+  tokensEntradaNova?: number;
+  tokensCacheEscrita?: number;
+  tokensCacheLeitura?: number;
+}
+
+// Um turno da conversa de uma sessao, persistido pelo backend.
+export interface TurnoSessao {
+  papel: "usuario" | "assistente";
+  texto: string;
+  em: string;
+  custoUsd?: number;
+}
+
+// Modelo de carrossel do VKOS (templates/carrossel/).
+export interface ModeloCarrossel {
+  id: string;
+  nome: string;
+  descricao: string;
+  arquivo: string;
+  pedeImagem: boolean;
+}
+
+export type TipoPeca = "carrossel" | "post" | "stories" | "site" | "texto" | "outro";
+
+export interface Peca {
+  pasta: string;
+  data: string;
+  tema: string;
+  tipo: TipoPeca;
+  arquivos: string[];
+  previews: string[];
+}
+
+export interface SkillVkos {
+  nome: string;
+  descricao: string;
+}
+
+export interface EstadoVkos {
+  pasta: string | null;
+  valida: boolean;
+  cerebroPreenchido: boolean;
+  totalSkills: number;
+}
+
+export interface Ambiente {
+  plataforma: string;
+  node: string;
+  claude: {
+    instalado: boolean;
+    versao: string | null;
+  };
+}
+
+// Nos de contexto: anexos e notas que alimentam as sessoes.
+export interface ArquivoContexto {
+  nome: string;
+  tamanho: number;
+  tipo: string;
+}
+
+// Tipo do no de contexto. Imutavel depois de criado.
+// texto: bloco de notas. imagens: grade de referencias visuais.
+// links: lista de urls de referencia com descricao.
+export type TipoContexto = "texto" | "imagens" | "links";
+
+export interface Contexto {
+  id: string;
+  nome: string;
+  slug: string;
+  tipo: TipoContexto;
+  texto: string;
+  arquivos: ArquivoContexto[];
+  pastaRelativa: string;
+  criadaEm: string;
+  atualizadaEm: string;
+}
+
+// Workspace de cliente: uma pasta VKOS completa com seu proprio Cerebro. O app
+// troca entre eles; todo o estado visivel (canvas, pecas, contextos, sessoes,
+// custos) e do workspace ativo.
+export interface Workspace {
+  id: string;
+  nome: string;
+  pasta: string;
+  criadoEm: string;
+  ultimoUso: string;
+}
+
+// Resposta de GET /api/workspaces: a lista e qual esta ativo.
+export interface RespostaWorkspaces {
+  workspaces: Workspace[];
+  ativo: string | null;
+}
+
+// Navegacao de pastas no onboarding.
+export interface PastaListada {
+  nome: string;
+  caminho: string;
+  ehVkos: boolean;
+}
+
+export interface RespostaPastas {
+  caminho: string;
+  pai: string | null;
+  pastas: PastaListada[];
+}
+
+export interface RespostaCerebro {
+  caminho: string;
+  texto: string;
+  // Alias legado de "texto", mantido pelo backend por compatibilidade.
+  conteudo: string;
+  atualizadoEm: string;
+  preenchido: boolean;
+}
+
+// Evento cru do stream-json do claude. Repassado pelo backend.
+// So tipamos os campos que o frontend le. O resto fica solto.
+export interface EventoClaude {
+  type?: string;
+  subtype?: string;
+  session_id?: string;
+  result?: string;
+  total_cost_usd?: number;
+  message?: {
+    content?: Array<{ type?: string; text?: string }>;
+  };
+  event?: {
+    type?: string;
+    delta?: { type?: string; text?: string };
+  };
+  [chave: string]: unknown;
+}
+
+// Mensagens que o servidor manda pelo WebSocket.
+// Eventos de sessao carregam workspaceId: o frontend ignora os de um workspace
+// que exista e nao seja o ativo (a sessao do outro cliente segue rodando, so
+// nao aparece). workspace:ativado avisa que outra aba trocou de cliente.
+export type MensagemWs =
+  | { tipo: "sessao:evento"; id: string; evento: EventoClaude; workspaceId?: string }
+  | {
+      tipo: "sessao:status";
+      id: string;
+      status: StatusSessao;
+      detalhe?: string;
+      workspaceId?: string;
+    }
+  | { tipo: "pecas:atualizadas" }
+  | { tipo: "workspace:ativado"; id: string };
