@@ -50,3 +50,6 @@ ehthumbs.db
 # Screenshots/screenshots (from sondes)
 *.png
 !logo.png.PNG
+
+# Referência VKOS (repo externo)
+vkos/
