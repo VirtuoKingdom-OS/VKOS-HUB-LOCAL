@@ -1,0 +1,13 @@
+[
+  {
+    "papel": "usuario",
+    "texto": "/carrossel por que bolo caseiro custa mais caro, usando o modelo vkos05\n\nInstrucoes de formato e dimensao desta geracao:\n- Formato: gere exatamente 1 pagina (uma imagem so), nao um carrossel de varias paginas. O HTML deve ter um unico elemento .slide.\n- Proporcao: Retrato 4:5 (1080x1350), o padrao do template. Nao precisa mexer nas dimensoes.\n- Saida: depois de rodar o render (que salva em instagram/), MOVA as imagens pra subpasta post/ dentro da pasta do conteudo, deixando instagram/ vazia. O app classifica o tipo da peca pela subpasta, e uma imagem esquecida em instagram/ faria a peca ser lida errado.",
+    "em": "2026-07-12T17:18:21.274Z"
+  },
+  {
+    "papel": "assistente",
+    "texto": "Pronto! O slide está renderizado e salvo na pasta correta. Aqui está o resultado:\n\n**Imagem gerada:**\n`conteudo/2026-07-12-bolo-caseiro-caro/post/slide-01.png`\n\n**O slide tem:**\n- Fundo chocolate escuro (#14100D) com destaque caramelo dourado (#E6A852)\n- Título em 3 linhas: \"Por que / *bolo caseiro* / custa mais caro\"\n- Subtítulo na voz do Cérebro: \"ingredientes reais · horas de trabalho · qualidade que dura\"\n- 4 ícones que remetem aos motivos: 🥚 (ovo) 🧈 (manteiga) ⏱️ (tempo) ❤️ (qualidade)\n- @ da marca (@docefarinha.atelie) e categoria (CONFEITARIA)\n- Contador: 01 / 01 (como pedido, 1 página só)\n\nO visual é o VKOS05 (Editorial Claro) recolorido com as cores quentes da marca Doce Farinha — chocolate, caramelo e creme — deixando bem diferente do padrão verde-menta. A copy é direta e concreta, sem exagero, na voz que já existe no Cérebro.\n\n**Próximo passo:** Quer que eu gere a legenda com CTA pra postar? É só pedir `/legenda`.",
+    "em": "2026-07-12T17:19:34.818Z",
+    "custoUsd": 0.11770449999999999
+  }
+]

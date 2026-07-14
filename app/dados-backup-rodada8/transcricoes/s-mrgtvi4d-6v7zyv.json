@@ -1,0 +1,13 @@
+[
+  {
+    "papel": "usuario",
+    "texto": "/carrossel 3 sinais de que o bolo é de verdade, usando o modelo vkos02",
+    "em": "2026-07-11T20:39:30.685Z"
+  },
+  {
+    "papel": "assistente",
+    "texto": "✅ **Carrossel pronto pra postar!**\n\nCriei 6 slides sobre \"3 sinais de que o bolo é de verdade\" no estilo VKOS02, recolorido com caramelo dourado e chocolate do Ateliê Doce Farinha. \n\n**As imagens estão aqui:**\n`conteudo/2026-07-11-bolo-verdadeiro/instagram/`\n- slide-01.png → Capa: \"3 sinais de que o bolo é de VERDADE\"\n- slide-02.png → Sinal 1: Massa fofinha\n- slide-03.png → Sinal 2: Data marcada\n- slide-04.png → Sinal 3: Foto do bolo real\n- slide-05.png → A gente faz tudo na cozinha\n- slide-06.png → CTA: Marca a sua data no WhatsApp\n\nCada slide tem a voz caseira e profissional, tranquiliza o cliente (\"sem susto\") e termina com o CTA apontando pro WhatsApp.\n\n**Próximos passos:**\n1. **Quer ajustar algum texto?** Edito o `carrossel.html` e renderizo de novo.\n2. **Quer uma legenda pra postar?** Digo pra chamar `/legenda` — ela monta a chamada pra ação.\n3. **Pronto pra postar?** Baixa a pasta `instagram` e joga no Instagram. Usa as 6 imagens em sequência.\n\nBora?",
+    "em": "2026-07-11T20:41:11.108Z",
+    "custoUsd": 0.1399906
+  }
+]

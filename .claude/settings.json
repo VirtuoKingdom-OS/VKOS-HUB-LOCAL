@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 4600 -ErrorAction SilentlyContinue)",
+      "PowerShell(try { \\(Invoke-WebRequest -Uri \"http://127.0.0.1:4600/api/conexoes\" -UseBasicParsing -TimeoutSec 3\\).StatusCode } catch { \"OFFLINE\" })"
+    ]
+  }
+}
