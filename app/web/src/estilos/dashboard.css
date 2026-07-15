@@ -1,0 +1,538 @@
+/* Telas da rodada 13: Dashboard (porta de entrada), chips da Galeria unificada,
+   abas "em breve" e o placeholder do Studio. Toda cor via tokens do global.css,
+   funciona nos tres temas. Motion sutil (140-220ms), glow discreto de menta. */
+
+/* ===== Dashboard ===== */
+.tela-dashboard {
+  position: absolute;
+  inset: 0;
+  background: var(--fundo);
+  overflow-y: auto;
+  animation: entrada-suave 220ms ease both;
+}
+.dashboard-scroll {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 48px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.dashboard-cabecalho h1 {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.dashboard-cabecalho .dash-nome {
+  color: var(--menta-clara);
+}
+.dashboard-contexto {
+  margin-top: 6px;
+  color: var(--texto-suave);
+  font-size: 14px;
+}
+
+/* Bloco de criacao: dois botoes lado a lado (rodada 14), o primario de
+   Conteudo Visual e o secundario desabilitado de Site Guiado. */
+.dashboard-criar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.dash-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1 1 320px;
+  text-align: left;
+  padding: 22px 24px;
+  border-radius: var(--raio);
+  border: 1px solid rgba(var(--menta-rgb), 0.35);
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(var(--menta-rgb), 0.14), transparent 60%),
+    var(--superficie);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.04), var(--glow);
+  transition: transform var(--transicao), box-shadow var(--transicao),
+    border-color var(--transicao);
+}
+.dash-hero:hover {
+  transform: translateY(-2px);
+  border-color: var(--menta);
+  box-shadow: var(--glow-forte);
+}
+.dash-hero-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: var(--menta);
+  color: var(--menta-escura);
+  box-shadow: var(--glow);
+}
+.dash-hero-icone svg {
+  width: 26px;
+  height: 26px;
+}
+.dash-hero-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.dash-hero-titulo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.dash-hero-sub {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+.dash-hero-seta {
+  display: inline-flex;
+  color: var(--menta-clara);
+  flex-shrink: 0;
+  transition: transform var(--transicao);
+}
+.dash-hero:hover .dash-hero-seta {
+  transform: translateX(3px);
+}
+
+/* Segundo botao da linha: Site Guiado, desabilitado com selo "Em breve". Cor
+   neutra (nao menta), cursor de bloqueado, sem hover de destaque. */
+.dash-hero-secundario {
+  border-color: var(--borda-forte);
+  background: var(--superficie);
+  box-shadow: none;
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+.dash-hero-secundario:hover {
+  transform: none;
+  border-color: var(--borda-forte);
+  box-shadow: none;
+}
+.dash-hero-icone-neutro {
+  background: rgba(var(--suave-rgb), 0.12);
+  color: var(--texto-suave);
+  box-shadow: none;
+}
+.dash-hero-secundario .dash-card-selo {
+  flex-shrink: 0;
+}
+
+/* Site Guiado habilitado (rodada 17): mesmo cartao secundario (borda neutra,
+   sem o glow do hero principal), mas clicavel: opacidade cheia, cursor normal
+   e hover como o hero principal (sobe, borda e glow de menta). */
+.dash-hero-secundario.dash-hero-ativo {
+  opacity: 1;
+  cursor: pointer;
+}
+.dash-hero-secundario.dash-hero-ativo:hover {
+  transform: translateY(-2px);
+  border-color: var(--menta);
+  box-shadow: var(--glow);
+}
+.dash-hero-secundario.dash-hero-ativo:hover .dash-hero-seta {
+  transform: translateX(3px);
+}
+
+/* Selo "Em breve": pequeno, discreto, com token de cor. */
+.dash-card-selo,
+.em-breve-selo {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 100px;
+  color: var(--texto-fraco);
+  background: rgba(var(--suave-rgb), 0.12);
+  border: 1px solid rgba(var(--suave-rgb), 0.2);
+  white-space: nowrap;
+}
+
+/* Criacoes recentes: tira horizontal de miniaturas. */
+.dashboard-recentes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.recentes-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.recentes-topo h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.recentes-vertodas {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-suave);
+  transition: color var(--transicao);
+}
+.recentes-vertodas svg {
+  width: 15px;
+  height: 15px;
+  transition: transform var(--transicao);
+}
+.recentes-vertodas:hover {
+  color: var(--menta-clara);
+}
+.recentes-vertodas:hover svg {
+  transform: translateX(3px);
+}
+
+.recentes-tira {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+.recente-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 150px;
+  flex-shrink: 0;
+  text-align: left;
+  scroll-snap-align: start;
+}
+.recente-thumb {
+  position: relative;
+  width: 150px;
+  height: 188px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--borda);
+  background: var(--fundo-3);
+  transition: border-color var(--transicao), transform var(--transicao),
+    box-shadow var(--transicao);
+}
+.recente-item:hover .recente-thumb {
+  border-color: var(--menta);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(var(--scrim-rgb), 0.3);
+}
+.recente-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.recente-thumb.vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-fraco);
+}
+/* Miniatura de site na tira de recentes (rodada 17): o MiniaturaSite do
+   cockpit enche o slot inteiro (largura escala, altura corta), entao qualquer
+   proporcao funciona; achatamos o slot pra parecer janela de navegador, nao
+   poster vertical de carrossel. Fundo branco (herdado do .mini-site) evita
+   flash escuro enquanto a pagina carrega. */
+.recente-thumb-site {
+  height: 100px;
+}
+.recente-thumb-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.recente-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-suave);
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.recente-item:hover .recente-titulo {
+  color: var(--texto);
+}
+
+/* Estado vazio das recentes: caprichado, com CTA. */
+.recentes-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 44px 24px;
+  border: 1px dashed var(--borda-forte);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--texto-suave);
+}
+.recentes-vazio svg {
+  color: var(--texto-fraco);
+  opacity: 0.6;
+}
+
+/* Atalhos discretos: cockpit (modo avancado) e galerias. */
+.dashboard-atalhos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.dash-atalho {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--raio-p);
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  color: var(--texto-suave);
+  text-align: left;
+  transition: border-color var(--transicao), color var(--transicao),
+    background var(--transicao);
+}
+.dash-atalho:hover {
+  border-color: var(--menta);
+  color: var(--menta-clara);
+  background: var(--superficie-2);
+}
+.dash-atalho svg {
+  flex-shrink: 0;
+}
+.dash-atalho span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.dash-atalho strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.dash-atalho em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--texto-fraco);
+}
+
+/* Overlay do wizard: o Dashboard escurece atras com scrim SOLIDO (nunca
+   backdrop-filter sobre o canvas), o wizard e um card central por cima. */
+.dash-overlay-wizard {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(var(--scrim-rgb), 0.78);
+  animation: entrada-suave 160ms ease both;
+}
+.dash-wizard-carregando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Seletor "O que vamos criar?" (rodada 14): card central simples com 3
+   opcoes, dentro do mesmo overlay/scrim do wizard. Sem backdrop-filter aqui:
+   o scrim ja e solido (dash-overlay-wizard). */
+.dash-seletor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 560px;
+  padding: 28px;
+  border-radius: var(--raio);
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.45);
+  animation: entrada-suave 180ms ease both;
+}
+.dash-seletor-titulo {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+.dash-seletor-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.dash-seletor-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 16px;
+  text-align: left;
+  border-radius: var(--raio-p);
+  border: 1px solid var(--borda);
+  background: var(--superficie-2);
+  transition: transform var(--transicao), border-color var(--transicao),
+    box-shadow var(--transicao);
+}
+.dash-seletor-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--menta);
+  box-shadow: var(--glow);
+}
+.dash-seletor-card-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(var(--menta-rgb), 0.14);
+  color: var(--menta-clara);
+}
+.dash-seletor-card-titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.dash-seletor-card-descricao {
+  font-size: 12.5px;
+  color: var(--texto-suave);
+  line-height: 1.4;
+}
+
+/* ===== Galeria unificada: chips de filtro no cabecalho ===== */
+.tela-galerias .galerias-topo-linha {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.galerias-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.chip-filtro {
+  padding: 7px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-suave);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao), box-shadow var(--transicao);
+}
+.chip-filtro:hover {
+  color: var(--texto);
+  border-color: var(--borda-forte);
+}
+.chip-filtro.ativo {
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.12);
+  border-color: rgba(var(--menta-rgb), 0.45);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.2);
+}
+
+/* ===== Abas "em breve" (WhatsApp, Instagram) ===== */
+.tela-em-breve {
+  position: absolute;
+  inset: 0;
+  background: var(--fundo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  animation: entrada-suave 220ms ease both;
+}
+.em-breve-caixa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  max-width: 420px;
+}
+.em-breve-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 24px;
+  margin-bottom: 4px;
+  color: var(--menta);
+  background:
+    radial-gradient(120% 120% at 50% 20%, rgba(var(--menta-rgb), 0.16), transparent 70%),
+    var(--superficie);
+  border: 1px solid rgba(var(--menta-rgb), 0.25);
+  box-shadow: var(--glow);
+}
+.em-breve-caixa h1 {
+  font-size: 24px;
+  font-weight: 800;
+}
+.em-breve-caixa p {
+  color: var(--texto-suave);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.em-breve-nota {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--texto-fraco);
+}
+
+/* ===== Placeholder de rota do Studio (fase 1) ===== */
+.tela-studio-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--fundo);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 32px;
+  animation: entrada-suave 220ms ease both;
+}
+.tela-studio-placeholder h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+.studio-placeholder-peca {
+  color: var(--texto);
+  font-size: 15px;
+  font-weight: 600;
+}
+.studio-placeholder-pasta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--texto-fraco);
+}
+
+/* ===== Cartao de peca: acao primaria "Abrir" de um site (rodada 17) =====
+   CartaoPeca e compartilhado por varias telas (TelaFluxo, cockpit, etc), mas
+   como este arquivo carrega junto com o Shell desde o boot, a regra vale em
+   qualquer lugar que o cartao apareca. Mesmo porte do botao "Editar no
+   Studio" ja usado no cabecalho do cartao. */
+.botao-abrir-site {
+  padding: 8px 14px;
+  font-size: 13px;
+  flex-shrink: 0;
+}

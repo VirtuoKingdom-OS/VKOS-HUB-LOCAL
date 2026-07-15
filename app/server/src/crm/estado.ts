@@ -14,6 +14,7 @@ import {
   idWorkspaceAtivo,
   pastaDadosWorkspace,
 } from "../workspaces/estado.js";
+import { emitir } from "../eventos/barramento.js";
 
 // Erro de dominio do CRM: carrega o status HTTP que a rota deve responder.
 export class ErroCrm extends Error {
@@ -41,6 +42,9 @@ export interface Contato {
   email?: string;
   origem?: string;
   valorEstimado?: number;
+  // Data e hora do proximo contato (ISO). Opcional. E a data que a automacao usa
+  // pra criar o evento na agenda. Cartao antigo sem o campo segue valido.
+  proximoContato?: string;
   colunaId: string;
   tags: string[];
   notas: Nota[];
@@ -120,6 +124,9 @@ function saneiaContato(v: unknown): Contato | null {
   if (typeof c.valorEstimado === "number" && Number.isFinite(c.valorEstimado)) {
     contato.valorEstimado = c.valorEstimado;
   }
+  if (typeof c.proximoContato === "string" && !Number.isNaN(Date.parse(c.proximoContato))) {
+    contato.proximoContato = c.proximoContato;
+  }
   return contato;
 }
 
@@ -167,6 +174,15 @@ function salvar(estado: EstadoCrm): void {
   gravarJsonAtomico(join(pastaDadosWorkspace(id), "crm.json"), estado);
 }
 
+// Emite um evento de dominio do CRM no barramento, SEMPRE depois do salvar. O
+// workspace e o ativo, a mesma fonte que resolve o caminho do crm.json. Sem
+// workspace ativo (nao deveria acontecer nas mutacoes), nao emite.
+function emitirCrm(tipo: string, dados: Record<string, unknown>): void {
+  const id = idWorkspaceAtivo();
+  if (!id) return;
+  emitir({ tipo, workspaceId: id, em: new Date().toISOString(), dados });
+}
+
 // Le o estado do workspace ativo. Sem arquivo, cria as colunas padrao e persiste
 // (se ha workspace). Sem workspace ativo, devolve colunas padrao efemeras, pra a
 // tela ter o que mostrar sem quebrar.
@@ -209,6 +225,21 @@ function normalizaValor(v: unknown): number | undefined {
     throw new ErroCrm("Valor estimado precisa ser um numero positivo.", 400);
   }
   return n;
+}
+
+// Normaliza o proximo contato: aceita string de data (ISO ou datetime-local) e
+// devolve o ISO normalizado. null, "" ou undefined limpam o campo (viram null).
+// String que nao e data valida e recusada com 400.
+function normalizaProximoContato(v: unknown): string | null {
+  if (v === undefined || v === null || v === "") return null;
+  if (typeof v !== "string") {
+    throw new ErroCrm("Proximo contato precisa ser uma data.", 400);
+  }
+  const ms = Date.parse(v);
+  if (Number.isNaN(ms)) {
+    throw new ErroCrm("Proximo contato precisa ser uma data valida.", 400);
+  }
+  return new Date(ms).toISOString();
 }
 
 // Normaliza um texto opcional: string aparada, ou undefined se vazia.
@@ -279,9 +310,14 @@ export function criarContato(corpo: Record<string, unknown>): Contato {
   if (origem) contato.origem = origem;
   const valor = normalizaValor(corpo.valorEstimado);
   if (valor !== undefined) contato.valorEstimado = valor;
+  if ("proximoContato" in corpo) {
+    const prox = normalizaProximoContato(corpo.proximoContato);
+    if (prox) contato.proximoContato = prox;
+  }
 
   estado.contatos.push(contato);
   salvar(estado);
+  emitirCrm("crm:contato-criado", { contato });
   return contato;
 }
 
@@ -301,9 +337,15 @@ export function atualizarContato(id: string, corpo: Record<string, unknown>): Co
     else contato.valorEstimado = valor;
   }
   if ("tags" in corpo) contato.tags = normalizaTags(corpo.tags);
+  if ("proximoContato" in corpo) {
+    const prox = normalizaProximoContato(corpo.proximoContato);
+    if (prox === null) delete contato.proximoContato;
+    else contato.proximoContato = prox;
+  }
 
   contato.atualizadoEm = new Date().toISOString();
   salvar(estado);
+  emitirCrm("crm:contato-atualizado", { contato });
   return contato;
 }
 
@@ -320,9 +362,10 @@ function definirOpcional(
 // Remove um contato do funil.
 export function removerContato(id: string): void {
   const estado = lerEstadoMutavel();
-  acharContato(estado, id);
+  const contato = acharContato(estado, id);
   estado.contatos = estado.contatos.filter((c) => c.id !== id);
   salvar(estado);
+  emitirCrm("crm:contato-excluido", { contato });
 }
 
 // Adiciona uma nota a um contato, com a mais nova no topo. Devolve o contato.
@@ -341,10 +384,20 @@ export function moverContato(id: string, corpo: Record<string, unknown>): Contat
   const estado = lerEstadoMutavel();
   const contato = acharContato(estado, id);
   const colunaId = textoObrigatorio(corpo.colunaId, "Coluna");
-  acharColuna(estado, colunaId);
+  const colunaPara = acharColuna(estado, colunaId);
+  // Captura a coluna de origem ANTES de mexer, pro payload do evento.
+  const colunaDe = contato.colunaId;
+  const nomeColunaDe = estado.colunas.find((k) => k.id === colunaDe)?.nome ?? "";
   contato.colunaId = colunaId;
   contato.atualizadoEm = new Date().toISOString();
   salvar(estado);
+  emitirCrm("crm:contato-movido", {
+    contato,
+    colunaDe,
+    colunaPara: colunaId,
+    nomeColunaDe,
+    nomeColunaPara: colunaPara.nome,
+  });
   return contato;
 }
 

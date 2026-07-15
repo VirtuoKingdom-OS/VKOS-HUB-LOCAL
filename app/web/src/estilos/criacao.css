@@ -1,0 +1,953 @@
+/* Assistente de criacao (wizard do Dashboard). Card central estilo
+   Notion/Typeform: uma pergunta por tela, respiro generoso, hierarquia clara.
+   Todas as cores via tokens de global.css, funciona nos 3 temas. Scrim solido,
+   NUNCA backdrop-filter (trava o canvas por baixo). */
+
+.criacao-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(var(--scrim-rgb), 0.72);
+  animation: entrada-suave 180ms ease both;
+}
+
+.criacao-card {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: 0 30px 80px rgba(var(--scrim-rgb), 0.55),
+    0 0 0 1px rgba(var(--menta-rgb), 0.05);
+  overflow: hidden;
+  animation: entrada-no 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Topo: marca discreta e fechar. */
+.criacao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--borda);
+}
+.criacao-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--texto-suave);
+}
+.criacao-marca-icone {
+  color: var(--menta);
+}
+.criacao-fechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--texto-fraco);
+  border: 1px solid transparent;
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao);
+}
+.criacao-fechar:hover {
+  color: var(--texto);
+  border-color: var(--borda);
+  background: var(--superficie-2);
+}
+
+/* Indicador de passos: pontos que enchem conforme avanca. */
+.criacao-passos {
+  display: flex;
+  gap: 7px;
+  padding: 18px 22px 4px;
+}
+.criacao-passo {
+  height: 4px;
+  flex: 1;
+  border-radius: 100px;
+  background: var(--borda);
+  transition: background var(--transicao);
+}
+.criacao-passo.feito {
+  background: rgba(var(--menta-rgb), 0.55);
+}
+.criacao-passo.atual {
+  background: var(--menta);
+  box-shadow: 0 0 10px rgba(var(--menta-rgb), 0.4);
+}
+
+/* Corpo da etapa: rola por dentro se o conteudo passar da altura. */
+.criacao-etapa {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 22px 8px;
+}
+.criacao-etapa.da-frente {
+  animation: criacao-desliza-frente 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.criacao-etapa.da-tras {
+  animation: criacao-desliza-tras 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes criacao-desliza-frente {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes criacao-desliza-tras {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.criacao-titulo {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin-bottom: 18px;
+}
+
+.criacao-campos {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.criacao-rotulo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+.criacao-rotulo-mini {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-fraco);
+}
+.criacao-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.criacao-input-grande {
+  font-size: 17px;
+  padding: 13px 15px;
+}
+.criacao-textarea {
+  min-height: 72px;
+}
+
+.criacao-hint {
+  font-size: 12px;
+  color: var(--texto-fraco);
+}
+.criacao-hint.erro {
+  color: var(--alerta-suave);
+}
+
+/* Chips (quantidade de paginas). */
+.criacao-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.criacao-chip {
+  min-width: 46px;
+  padding: 9px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto-suave);
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  transition: border-color var(--transicao), color var(--transicao),
+    background var(--transicao);
+}
+.criacao-chip:hover {
+  border-color: var(--menta);
+  color: var(--texto);
+}
+.criacao-chip.ativo {
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.12);
+  border-color: var(--menta);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25);
+}
+
+/* Quantidade de paginas: chip Auto + stepper numerico compacto. */
+.criacao-paginas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.criacao-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 100px;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.criacao-stepper.ativo {
+  border-color: var(--menta);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25);
+}
+.criacao-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 100px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--texto-suave);
+  transition: color var(--transicao), background var(--transicao);
+}
+.criacao-stepper-btn:hover {
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.12);
+}
+.criacao-stepper-valor {
+  min-width: 42px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.criacao-stepper:not(.ativo) .criacao-stepper-valor {
+  color: var(--texto-fraco);
+}
+
+/* Grade de modelos com miniatura viva na etapa 2. */
+.criacao-modelos-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.criacao-card-op.com-thumb {
+  padding: 8px;
+  gap: 6px;
+}
+.criacao-modelo-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--fundo-3);
+  border: 1px solid var(--borda);
+}
+.criacao-modelo-thumb.vazia,
+.criacao-modelo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-fraco);
+}
+.criacao-modelo-fallback {
+  position: absolute;
+  inset: 0;
+}
+.criacao-modelo-thumb.vazia svg,
+.criacao-modelo-fallback svg {
+  width: 22px;
+  height: 22px;
+  opacity: 0.6;
+}
+.criacao-modelo-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  border: 0;
+  pointer-events: none;
+  background: #fff;
+}
+@media (max-width: 520px) {
+  .criacao-modelos-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Dropzone de imagens: card que aceita arrastar e soltar. */
+.criacao-dropzone {
+  cursor: pointer;
+}
+.criacao-dropzone.arrastando {
+  border-color: var(--menta);
+  border-style: dashed;
+  background: rgba(var(--menta-rgb), 0.1);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25);
+}
+
+/* Acoes da tela de geracao: cancelar e minimizar lado a lado. */
+.criacao-geracao-acoes {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Cards de opcao: em linha ou em grade. */
+.criacao-cards-lin {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.criacao-cards-lin > .criacao-card-op {
+  flex: 1 1 0;
+  min-width: 120px;
+}
+.criacao-cards-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.criacao-card-op {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 13px 15px;
+  border-radius: var(--raio-p);
+  border: 1px solid var(--borda);
+  background: var(--fundo);
+  cursor: pointer;
+  transition: border-color var(--transicao), background var(--transicao),
+    box-shadow var(--transicao), transform var(--transicao);
+}
+.criacao-card-op.alto {
+  min-height: 78px;
+  justify-content: center;
+}
+.criacao-card-op:hover:not(.desabilitado) {
+  border-color: var(--menta);
+  transform: translateY(-1px);
+}
+.criacao-card-op.ativo {
+  background: rgba(var(--menta-rgb), 0.1);
+  border-color: var(--menta);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25),
+    0 0 20px rgba(var(--menta-rgb), 0.12);
+}
+.criacao-card-op.desabilitado {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.criacao-card-nome {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.criacao-card-op.ativo .criacao-card-nome {
+  color: var(--menta-clara);
+}
+.criacao-card-desc {
+  font-size: 12px;
+  color: var(--texto-fraco);
+  line-height: 1.4;
+}
+.criacao-badge-breve {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 100px;
+  color: var(--amarelo);
+  background: rgba(var(--amarelo-rgb), 0.12);
+  border: 1px solid rgba(var(--amarelo-rgb), 0.3);
+}
+
+/* Origem das imagens e chips de anexo. */
+.criacao-origem {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.criacao-anexos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.criacao-chip-anexo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 5px 8px 5px 11px;
+  border-radius: 100px;
+  font-size: 12px;
+  color: var(--texto-suave);
+  background: var(--fundo-3);
+  border: 1px solid var(--borda);
+}
+.criacao-chip-anexo svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--menta);
+}
+.criacao-nome-anexo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+.criacao-remover-anexo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 100px;
+  color: var(--texto-fraco);
+  transition: color var(--transicao), background var(--transicao);
+}
+.criacao-remover-anexo:hover {
+  color: var(--texto);
+  background: rgba(var(--realce-rgb), 0.08);
+}
+.criacao-remover-anexo svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Visual personalizado: cores e fontes. */
+.criacao-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.criacao-cores {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.criacao-cor {
+  flex: 1 1 0;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+.criacao-cor input[type="color"] {
+  width: 100%;
+  height: 40px;
+  padding: 3px;
+  border-radius: var(--raio-p);
+  border: 1px solid var(--borda);
+  background: var(--fundo);
+  cursor: pointer;
+}
+.criacao-fontes {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.criacao-fontes .criacao-rotulo {
+  flex: 1 1 0;
+  min-width: 160px;
+}
+.criacao-fontes select {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--texto);
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.criacao-fontes select:focus {
+  outline: none;
+  border-color: var(--menta);
+  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.14);
+}
+
+/* Rodape de navegacao. */
+.criacao-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--borda);
+}
+.criacao-rodape .botao-principal {
+  min-width: 150px;
+}
+
+/* ===== Etapa 5: geracao ===== */
+.criacao-geracao {
+  padding: 30px 26px 26px;
+}
+.criacao-progresso,
+.criacao-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.criacao-texto {
+  color: var(--texto-suave);
+  font-size: 14px;
+  max-width: 400px;
+}
+
+/* Selo circular do topo da geracao. */
+.criacao-selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  color: var(--menta);
+  background: rgba(var(--menta-rgb), 0.12);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+}
+.criacao-selo svg {
+  width: 26px;
+  height: 26px;
+}
+.criacao-selo.pulsa {
+  animation: criacao-pulsa-selo 1.8s ease-in-out infinite;
+}
+.criacao-selo.erro {
+  color: var(--alerta-suave);
+  background: rgba(var(--alerta-rgb), 0.12);
+  border-color: rgba(var(--alerta-rgb), 0.32);
+}
+.criacao-selo.aviso {
+  color: var(--amarelo);
+  background: rgba(var(--amarelo-rgb), 0.12);
+  border-color: rgba(var(--amarelo-rgb), 0.3);
+}
+@keyframes criacao-pulsa-selo {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--menta-rgb), 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(var(--menta-rgb), 0);
+  }
+}
+
+/* Lista de fases. */
+.criacao-fases {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 6px 0 4px;
+  align-self: stretch;
+  max-width: 340px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+.criacao-fase {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-fraco);
+  transition: color var(--transicao);
+}
+.criacao-fase svg {
+  width: 15px;
+  height: 15px;
+  color: var(--menta);
+  flex-shrink: 0;
+}
+.criacao-fase-ponto {
+  width: 8px;
+  height: 8px;
+  margin: 0 3.5px;
+  border-radius: 50%;
+  background: var(--borda-forte);
+  flex-shrink: 0;
+}
+.criacao-fase.feita {
+  color: var(--texto-suave);
+}
+.criacao-fase.atual {
+  color: var(--menta-clara);
+}
+.criacao-fase.atual .criacao-fase-ponto {
+  background: var(--menta);
+  box-shadow: 0 0 8px var(--menta);
+  animation: ponto-pulsa 1.1s ease-in-out infinite;
+}
+
+/* Barra de progresso no footer da geracao. */
+.criacao-barra {
+  align-self: stretch;
+  height: 7px;
+  border-radius: 100px;
+  background: var(--fundo-3);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.criacao-barra-cheia {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--menta), var(--menta-clara));
+  box-shadow: 0 0 16px rgba(var(--menta-rgb), 0.4);
+  transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.criacao-cancelar-gerar {
+  margin-top: 4px;
+}
+
+.criacao-estado-acoes {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* Confirmacao de saida: scrim solido sobre o card. */
+.criacao-confirma {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(var(--scrim-rgb), 0.68);
+  animation: entrada-suave 140ms ease both;
+}
+.criacao-confirma-caixa {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: 0 20px 50px rgba(var(--scrim-rgb), 0.5);
+  animation: entrada-no 180ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.criacao-confirma-caixa h3 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.criacao-confirma-caixa p {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+.criacao-confirma-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* ===== Mini card flutuante da geracao minimizada ===== */
+.geracao-flutuante {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 120;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: 0 18px 44px rgba(var(--scrim-rgb), 0.5),
+    0 0 0 1px rgba(var(--menta-rgb), 0.06);
+  animation: geracao-flutuante-sobe 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes geracao-flutuante-sobe {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.geracao-flutuante-topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.geracao-flutuante-selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  color: var(--menta);
+  background: rgba(var(--menta-rgb), 0.12);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+}
+.geracao-flutuante-selo svg {
+  width: 17px;
+  height: 17px;
+}
+.geracao-flutuante.pronta .geracao-flutuante-selo {
+  color: var(--menta-clara);
+}
+.geracao-flutuante.falhou .geracao-flutuante-selo {
+  color: var(--alerta-suave);
+  background: rgba(var(--alerta-rgb), 0.12);
+  border-color: rgba(var(--alerta-rgb), 0.32);
+}
+.geracao-flutuante-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.geracao-flutuante-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.geracao-flutuante-tema {
+  font-size: 12px;
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.geracao-flutuante-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: var(--texto-fraco);
+  transition: color var(--transicao), background var(--transicao);
+}
+.geracao-flutuante-x:hover {
+  color: var(--texto);
+  background: var(--superficie-2);
+}
+.geracao-flutuante-x svg {
+  width: 13px;
+  height: 13px;
+}
+.geracao-flutuante-fase {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--menta-clara);
+}
+.geracao-flutuante-barra {
+  height: 6px;
+  border-radius: 100px;
+  background: var(--fundo-3);
+  overflow: hidden;
+}
+.geracao-flutuante-barra-cheia {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--menta), var(--menta-clara));
+  box-shadow: 0 0 12px rgba(var(--menta-rgb), 0.4);
+  transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.geracao-flutuante-editar {
+  width: 100%;
+  justify-content: center;
+}
+.geracao-flutuante-erro {
+  font-size: 12px;
+  color: var(--texto-suave);
+  line-height: 1.4;
+}
+
+/* ===== Modo compacto: mesmas etapas dentro de um node do cockpit ===== */
+/* O node ja da 14px de gutter no .corpo, entao aqui os paddings horizontais
+   zeram: o conteudo alinha no gutter do node. Titulo menor, respiros curtos,
+   previews de modelo menores. Cabe bem num node de ~460px. */
+.etapas-no {
+  display: flex;
+  flex-direction: column;
+}
+.criacao-passos.compacto {
+  gap: 5px;
+  padding: 2px 0 0;
+}
+.criacao-passos.compacto .criacao-passo {
+  height: 3px;
+}
+.criacao-etapa.compacto {
+  padding: 12px 0 4px;
+  /* Rola por dentro quando a etapa passa da altura (ex: os 14 estilos), pra o
+     node nao crescer sem limite. nowheel (no TSX) evita o zoom do canvas. */
+  max-height: 46vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.criacao-etapa.compacto .criacao-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.criacao-etapa.compacto .criacao-campos {
+  gap: 13px;
+}
+.criacao-etapa.compacto .criacao-bloco {
+  gap: 7px;
+}
+.criacao-etapa.compacto .criacao-rotulo {
+  font-size: 12px;
+  gap: 5px;
+}
+.criacao-etapa.compacto .criacao-input-grande {
+  font-size: 14px;
+  padding: 9px 11px;
+}
+.criacao-etapa.compacto .criacao-textarea {
+  min-height: 52px;
+  font-size: 13px;
+}
+.criacao-etapa.compacto .criacao-cards-lin {
+  gap: 7px;
+}
+.criacao-etapa.compacto .criacao-cards-lin > .criacao-card-op {
+  min-width: 92px;
+}
+.criacao-etapa.compacto .criacao-card-op {
+  padding: 9px 11px;
+}
+.criacao-etapa.compacto .criacao-card-op.alto {
+  min-height: 60px;
+}
+.criacao-etapa.compacto .criacao-card-nome {
+  font-size: 12.5px;
+}
+.criacao-etapa.compacto .criacao-card-desc {
+  font-size: 11px;
+}
+.criacao-etapa.compacto .criacao-modelos-grade {
+  gap: 7px;
+}
+.criacao-etapa.compacto .criacao-card-op.com-thumb {
+  padding: 6px;
+  gap: 5px;
+}
+/* Preview de modelo mais baixo no node: corta a altura da etapa de estilo pra o
+   node nao ficar alto demais. A miniatura viva ainda mostra o topo do modelo. */
+.criacao-etapa.compacto .criacao-modelo-thumb {
+  aspect-ratio: auto;
+  height: 82px;
+}
+.criacao-etapa.compacto .criacao-visual {
+  gap: 12px;
+}
+.criacao-etapa.compacto .criacao-cores,
+.criacao-etapa.compacto .criacao-fontes {
+  gap: 8px;
+}
+.criacao-rodape.compacto {
+  padding: 12px 0 2px;
+  border-top: none;
+}
+.criacao-rodape.compacto .botao {
+  font-size: 13px;
+  padding: 8px 14px;
+}
+.criacao-rodape.compacto .botao-principal {
+  min-width: 0;
+  flex: 1;
+  justify-content: center;
+}
+
+/* Previa discreta do prompt na ultima etapa (so no node). Fonte mono pequena,
+   caixa rolavel, cor apagada: informa sem competir com os campos. */
+.criacao-previa {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--texto-fraco);
+  background: var(--fundo);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ===== Site Guiado: pequenos ajustes proprios do wizard de site ===== */
+/* A descricao do site convida um texto maior que o tema de um post: textarea
+   um pouco mais alta. Herda todo o resto de .criacao-textarea. */
+.criacao-textarea.site-tema {
+  min-height: 92px;
+}
+/* Campo do link/numero do objetivo: respiro acima pra separar dos chips. */
+.criacao-rotulo.site-link {
+  margin-top: 4px;
+}
+
+/* Reduz o movimento pra quem pede menos animacao. */
+@media (prefers-reduced-motion: reduce) {
+  .criacao-etapa.da-frente,
+  .criacao-etapa.da-tras,
+  .criacao-selo.pulsa,
+  .geracao-flutuante {
+    animation: none;
+  }
+}

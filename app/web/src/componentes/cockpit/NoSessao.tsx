@@ -30,6 +30,14 @@ import {
 import { INFO_STATUS } from "../../config/status";
 import { mensagemDeErro } from "../../util/erros";
 import { montarPromptCompleto, type MaterialConectado } from "../../util/prompt";
+import type { TipoCriacao } from "../../estado/geracao";
+import { montarPromptCriacao, pastaUnica, type DadosCriacao } from "../criacao/prompt";
+import {
+  EtapasCriacao,
+  criarDadosEtapas,
+  dadosCriacaoDe,
+  type DadosEtapas,
+} from "../criacao/EtapasCriacao";
 import { usarCanvas } from "./canvasContexto";
 import { IconeClipe, IconeLixeira, IconeParar, IconeRaio, IconeSeta, IconeX } from "../comum/Icones";
 import { Markdown } from "../comum/Markdown";
@@ -79,6 +87,9 @@ export interface DadosSessao extends Record<string, unknown> {
   proporcao?: IdProporcao;
   // Anexos inline ja subidos pro backend, mostrados como chips no composer.
   anexos?: AnexoComposer[];
+  // Rascunho das etapas de criacao (fluxos de imagem). Serializavel, sobrevive
+  // ao reload e a duplicacao, igual ao resto do rascunho do composer.
+  etapas?: DadosEtapas;
   // Ligado pelo menu Renomear pra abrir o campo de edicao do titulo.
   editando?: boolean;
 }
@@ -105,6 +116,7 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   const { setNodes, setEdges } = useReactFlow();
   const { criarContextoConectado } = usarCanvas();
   const {
+    pecas,
     sessoes,
     streams,
     contextos,
@@ -144,6 +156,12 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   const formato: IdFormato = dados.formato ?? preset?.formato ?? "multiplas";
   const proporcao: IdProporcao = dados.proporcao ?? preset?.proporcao ?? "4x5";
   const anexos: AnexoComposer[] = dados.anexos ?? [];
+
+  // Fluxos de imagem (carrossel e os ocultos post/stories) usam o mesmo fluxo de
+  // etapas do wizard do dashboard, em layout compacto. O tipo sai do id do fluxo.
+  const tipoCriacao: TipoCriacao =
+    fluxo?.id === "post" ? "post" : fluxo?.id === "stories" ? "story" : "carrossel";
+  const dadosEtapas: DadosEtapas = dados.etapas ?? criarDadosEtapas(modelo);
 
   const [nomeRascunho, setNomeRascunho] = useState("");
   const [erroLocal, setErroLocal] = useState<string | null>(null);
@@ -205,6 +223,13 @@ function NoSessaoInterno({ id, data }: NodeProps) {
       );
     },
     [id, setNodes]
+  );
+
+  // Reporta mudancas das etapas pro node data (patch), pra sobreviver a reload.
+  const aoMudarEtapas = useCallback(
+    (parcial: Partial<DadosEtapas>) =>
+      patch({ etapas: { ...dadosEtapas, ...parcial } }),
+    [patch, dadosEtapas]
   );
 
   // Fecha o composer ainda nao disparado: tira o no e as arestas dele do canvas.
@@ -393,6 +418,65 @@ function NoSessaoInterno({ id, data }: NodeProps) {
     }
   };
 
+  // Monta o prompt de uma geracao pelas etapas: o /carrossel montado por
+  // montarPromptCriacao (com detalhes, imagens e visual ja embutidos) mais o
+  // bloco de materiais conectados e anexos inline DO NODE. Detalhes nao se
+  // duplicam: ja entram por montarPromptCriacao.
+  const construirPromptEtapas = (dc: DadosCriacao): { pasta: string; prompt: string } => {
+    const pasta = pastaUnica(dc.tema.trim() || "carrossel", pecas);
+    const base = montarPromptCriacao(dc, pasta);
+    const extras: string[] = [];
+    if (materiais.length > 0) {
+      const linhas = materiais
+        .map((m) => `- materiais/cockpit/${m.slug}/ (${m.nome}, tipo ${m.tipo})`)
+        .join("\n");
+      extras.push(
+        "Materiais anexados pelo usuario nesta tarefa (leia o que for util antes de comecar):\n" +
+          linhas
+      );
+    }
+    if (anexos.length > 0) {
+      extras.push(
+        "Materiais anexados pelo usuário (leia conforme precisar):\n" +
+          anexos.map((a) => a.caminhoRelativo).join("\n")
+      );
+    }
+    return { pasta, prompt: [base, ...extras].join("\n\n") };
+  };
+
+  // Disparo pelas etapas compactas: mesmo caminho do disparo antigo (sessao +
+  // turno otimista + patch), so muda a montagem do prompt.
+  const dispararEtapas = async () => {
+    const dc = dadosCriacaoDe(dadosEtapas, tipoCriacao);
+    if (!dc.tema.trim()) {
+      setErroLocal("Escreva o tema primeiro.");
+      return;
+    }
+    setErroLocal(null);
+    setDisparando(true);
+    try {
+      const { prompt } = construirPromptEtapas(dc);
+      const titulo = dados.titulo ?? `${fluxo.rotulo}: ${dc.tema.trim()}`;
+      const nova = await criarSessao({
+        titulo,
+        prompt,
+        skill: "carrossel",
+        modelo: dadosEtapas.modelo,
+      });
+      autoScroll.current = true;
+      baseStream.current = 0;
+      setTurnos([]);
+      setPendentes([
+        { papel: "usuario", texto: prompt, em: new Date().toISOString() },
+      ]);
+      patch({ idSessao: nova.id });
+    } catch (e) {
+      setErroLocal(mensagemDeErro(e));
+    } finally {
+      setDisparando(false);
+    }
+  };
+
   const parar = async () => {
     if (!idSessao) return;
     try {
@@ -485,9 +569,16 @@ function NoSessaoInterno({ id, data }: NodeProps) {
     }
   };
 
+  // Modo etapas: composer de imagem antes de disparar. O node fica mais largo
+  // pra caber o fluxo de etapas em layout denso.
+  const modoEtapas = !idSessao && !!fluxo.imagem;
+  const previaEtapas = modoEtapas
+    ? construirPromptEtapas(dadosCriacaoDe(dadosEtapas, tipoCriacao)).prompt
+    : "";
+
   const classeNo = `no-sessao${rodando ? " rodando" : ""}${deuErro ? " erro" : ""}${
     arrastando ? " arrastando" : ""
-  }`;
+  }${modoEtapas ? " etapas" : ""}`;
 
   // Rodape: modelo, custo e tokens da sessao.
   const modeloExibido = sessao?.modelo ?? modelo;
@@ -597,8 +688,25 @@ function NoSessaoInterno({ id, data }: NodeProps) {
       </div>
 
       <div className="corpo">
-        {/* Modo composer: antes de disparar. */}
-        {!idSessao && (
+        {/* Modo composer de imagem: o mesmo fluxo de etapas do wizard do
+            dashboard, em layout compacto. Ao gerar, cai no modo conversa atual. */}
+        {modoEtapas && (
+          <div className="etapas-no">
+            <EtapasCriacao
+              tipo={tipoCriacao}
+              dados={dadosEtapas}
+              aoMudar={aoMudarEtapas}
+              aoGerar={() => void dispararEtapas()}
+              compacto
+              textoGerar="Disparar fluxo"
+              previa={previaEtapas}
+            />
+            {erroLocal && <div className="erro-local">{erroLocal}</div>}
+          </div>
+        )}
+
+        {/* Modo composer classico: fluxos sem imagem (site e paginas). */}
+        {!idSessao && !fluxo.imagem && (
           <>
             {fluxo.subopcoes.length > 1 && (
               <div className="sub-opcoes">

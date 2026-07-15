@@ -1,0 +1,503 @@
+/* Editor visual do carrossel HTML-first. Overlay tela cheia (reusa
+   overlay-tela-cheia do canvas.css, scrim solido sem blur). Identidade VK:
+   minimalista, menta de destaque via tokens, glow sutil, motion curto.
+   Toda cor vem dos tokens de tema, nada hardcoded, funciona nos 3 temas. */
+
+.editor-shell {
+  width: min(1360px, 96vw);
+  height: min(92vh, 980px);
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--menta-rgb), 0.06), transparent 55%),
+    var(--fundo-2);
+  border: 1px solid var(--borda-forte);
+  border-radius: 20px;
+  box-shadow: 0 40px 100px rgba(var(--scrim-rgb), 0.6), var(--glow);
+  overflow: hidden;
+  will-change: transform, opacity;
+  animation: entrada-modal 240ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes entrada-modal {
+  from { opacity: 0; transform: scale(0.97) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ===== Barra superior ===== */
+.editor-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--borda);
+  background: rgba(var(--painel-rgb), 0.6);
+  flex-shrink: 0;
+}
+.editor-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.editor-titulo h2 {
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor-ponto-salvar {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amarelo);
+  box-shadow: 0 0 8px rgba(var(--amarelo-rgb), 0.6);
+  flex-shrink: 0;
+}
+.editor-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.editor-acoes .botao {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.editor-acoes .botao svg {
+  width: 15px;
+  height: 15px;
+}
+.editor-fechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--raio-p);
+  color: var(--texto-suave);
+  border: 1px solid transparent;
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao);
+}
+.editor-fechar:hover {
+  color: var(--menta-clara);
+  border-color: var(--borda);
+  background: var(--superficie);
+}
+
+.editor-erro {
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--alerta-suave);
+  background: rgba(var(--alerta-rgb), 0.1);
+  border-bottom: 1px solid rgba(var(--alerta-rgb), 0.3);
+  flex-shrink: 0;
+}
+
+/* ===== Corpo: rail de paginas, palco central, painel direito ===== */
+.editor-corpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.editor-rail {
+  width: 62px;
+  flex-shrink: 0;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  border-right: 1px solid var(--borda);
+  background: var(--fundo-2);
+}
+.editor-rail-item {
+  flex-shrink: 0;
+  height: 40px;
+  border-radius: var(--raio-p);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto-suave);
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--transicao), color var(--transicao),
+    background var(--transicao), box-shadow var(--transicao);
+}
+.editor-rail-item:hover {
+  border-color: var(--borda-forte);
+  color: var(--texto);
+}
+.editor-rail-item.ativo {
+  color: var(--menta-clara);
+  border-color: var(--menta);
+  background: rgba(var(--menta-rgb), 0.12);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.3),
+    0 0 16px rgba(var(--menta-rgb), 0.12);
+}
+
+/* Palco: mede o slide e escala pra caber. Fundo pontilhado discreto. */
+.editor-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at center, var(--pontos-canvas) 1px, transparent 1px)
+      0 0 / 22px 22px,
+    var(--fundo);
+}
+.editor-palco {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.5),
+    0 0 0 1px rgba(var(--realce-rgb), 0.06);
+  transition: width 120ms ease, height 120ms ease;
+}
+.editor-frame {
+  border: none;
+  transform-origin: top left;
+  display: block;
+  background: var(--fundo-3);
+}
+
+/* Navegacao flutuante embaixo do palco. */
+.editor-navbar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 100px;
+  background: rgba(var(--painel-rgb), 0.92);
+  border: 1px solid var(--borda);
+  box-shadow: 0 8px 24px rgba(var(--scrim-rgb), 0.45);
+}
+.editor-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--texto);
+  transition: color var(--transicao), background var(--transicao);
+}
+.editor-nav-btn:hover:not(:disabled) {
+  color: var(--menta-clara);
+  background: var(--superficie);
+}
+.editor-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.editor-nav-btn.dir svg {
+  transform: rotate(180deg);
+}
+.editor-nav-contador {
+  min-width: 54px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Painel direito ===== */
+.editor-painel {
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--borda);
+  background: var(--fundo-2);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.painel-secao {
+  padding: 16px;
+  border-bottom: 1px solid var(--borda);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.secao-titulo {
+  margin-bottom: 2px;
+}
+.painel-vazio {
+  font-size: 13px;
+  color: var(--texto-fraco);
+  line-height: 1.5;
+}
+
+/* Cores globais. */
+.lista-cores {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cor-nome {
+  font-size: 13px;
+  color: var(--texto-suave);
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cor-texto {
+  width: 150px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+
+/* Swatch de cor: esconde o input nativo e mostra um quadrado com a cor. */
+.cor-swatch {
+  position: relative;
+  width: 34px;
+  height: 26px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--borda-forte);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.cor-swatch:hover {
+  border-color: var(--menta);
+  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.14);
+}
+.cor-swatch input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+.cor-swatch > span {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* Elemento selecionado. */
+.campos-elemento {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chip-alvo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.1);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  overflow: hidden;
+}
+.chip-alvo code {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+.chip-alvo span {
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.campo > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-fraco);
+}
+.campo textarea,
+.campo input,
+.campo select {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.campo textarea {
+  min-height: 44px;
+  resize: vertical;
+}
+.campo select {
+  appearance: none;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  cursor: pointer;
+}
+.campo-nota {
+  font-size: 11px;
+  color: var(--texto-fraco);
+}
+.campo-linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+.campo-cor {
+  align-items: flex-start;
+}
+.campo-cor .cor-swatch {
+  width: 44px;
+  height: 34px;
+}
+
+/* Toggle aplicar em todas. */
+.toggle-todas {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--raio-p);
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  text-align: left;
+  transition: border-color var(--transicao), background var(--transicao);
+}
+.toggle-todas.ativo {
+  border-color: var(--menta);
+  background: rgba(var(--menta-rgb), 0.1);
+}
+.toggle-marca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid var(--borda-forte);
+  color: var(--menta-escura);
+  background: var(--fundo);
+  transition: background var(--transicao), border-color var(--transicao);
+}
+.toggle-todas.ativo .toggle-marca {
+  background: var(--menta);
+  border-color: var(--menta);
+}
+.toggle-marca svg {
+  width: 14px;
+  height: 14px;
+}
+.toggle-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.toggle-texto small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--texto-fraco);
+  line-height: 1.4;
+}
+
+.botao-fundo {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+/* Posicao do elemento movido: nota e botao de reset. */
+.campo-posicao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--raio-p);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  background: rgba(var(--menta-rgb), 0.08);
+}
+.posicao-nota {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--menta-clara);
+}
+.botao-reset-pos {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* ===== Confirmacao ao fechar (scrim proprio, sem blur) ===== */
+.editor-confirm-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(var(--scrim-rgb), 0.7);
+  animation: entrada-suave 140ms ease both;
+}
+.editor-confirm {
+  width: 100%;
+  max-width: 380px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: 0 24px 64px rgba(var(--scrim-rgb), 0.55);
+  animation: entrada-no 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.editor-confirm h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.editor-confirm p {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+.editor-confirm-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.editor-confirm-acoes .botao {
+  padding: 9px 14px;
+  font-size: 13px;
+}

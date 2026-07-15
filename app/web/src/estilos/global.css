@@ -611,6 +611,30 @@ textarea {
   color: var(--menta-clara);
 }
 
+/* Badge "Em breve" nos itens de navegacao (WhatsApp, Instagram): pequena e
+   discreta, com token de cor. Nao rouba a atencao do item ativo. */
+.item-nav-badge {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 100px;
+  color: var(--texto-fraco);
+  background: rgba(var(--suave-rgb), 0.12);
+  border: 1px solid rgba(var(--suave-rgb), 0.18);
+  white-space: nowrap;
+}
+
+/* A VKOS-IDE fica ancorada no fim da navegacao: margin-top:auto empurra o bloco
+   pro fundo da area de nav, e a borda superior separa visualmente do resto. */
+.sidebar-nav-fim {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--borda);
+}
+
 /* Rodape de status da sidebar. */
 .sidebar-rodape {
   border-top: 1px solid var(--borda);
@@ -667,6 +691,13 @@ textarea {
 .camada-cockpit {
   position: absolute;
   inset: 0;
+}
+
+/* O cockpit fica sempre montado (preserva o canvas e o streaming), mas so
+   aparece quando e a tela ativa. Sem isso, o refresh numa tela pesada (lazy)
+   mostrava o cockpit por baixo enquanto o chunk carregava: o "fantasma". */
+.camada-cockpit.oculta {
+  visibility: hidden;
 }
 
 /* ===== Telas de fluxo (galeria por tipo) ===== */
@@ -752,6 +783,13 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* Card estreito (grid min 320px) + tema longo + ate 3 botoes de acao nao
+     cabem numa linha so. Sem wrap, o titulo era espremido a quase zero de
+     largura e a coluna de texto quebrado ficava por baixo dos botoes
+     (bug de sobreposicao). Com wrap, os botoes que nao cabem descem pra uma
+     segunda linha, sempre abaixo do titulo, nunca por cima dele. */
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 .cartao-peca-titulo {
   display: flex;
@@ -759,11 +797,21 @@ textarea {
   gap: 10px;
   min-width: 0;
   flex-wrap: wrap;
+  /* Espaco reservado: o titulo tenta ficar com pelo menos ~160px antes de
+     ceder linha pros botoes, em vez de sumir espremido entre eles. */
+  flex: 1 1 160px;
 }
 .cartao-peca-topo h3 {
   font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
+  min-width: 0;
+  /* Tema longo trunca com "..." numa linha so, em vez de quebrar palavra por
+     palavra numa coluna ilegivel. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .cartao-peca-data {
   font-size: 11px;
@@ -934,6 +982,22 @@ textarea {
   padding: 22px 24px;
   gap: 18px;
 }
+
+/* Card condensado (rodada 14): so no filtro "Todos" da galeria unificada
+   (TelaGalerias passa a prop, cockpit e telas de fluxo por tipo nao). Tira de
+   paginas menor e mais densa, card mais baixo, pra caber varias pecas na
+   mesma tela sem a rolagem virar a unica forma de ver o conjunto. */
+.cartao-peca.condensado.grande {
+  padding: 14px 16px;
+  gap: 10px;
+}
+.cartao-peca.condensado .tira-imagens.grande {
+  gap: 8px;
+}
+.cartao-peca.condensado .tira-imagens.grande .miniatura {
+  width: 84px;
+  height: 106px;
+}
 .botao-baixar-tudo {
   padding: 8px 14px;
   font-size: 13px;
@@ -1059,6 +1123,71 @@ textarea {
 .baixar-mini:hover {
   border-color: var(--menta);
   color: var(--menta-clara);
+}
+
+/* ===== Rodada 12: miniaturas vivas de carrossel fonteHtml (mesmo principio
+   do MiniaturaSite, a pagina isolada escalada com transform:scale). ===== */
+.miniatura-pagina {
+  padding: 0;
+}
+.miniatura-pagina-caixa {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--fundo);
+}
+.miniatura-pagina-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* Editar um carrossel fonteHtml, ao lado do baixar tudo no cabecalho do card. */
+.botao-editar-peca {
+  padding: 8px 14px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Pagina HTML ampliada no visor: mesma moldura da imagem, o iframe interno e
+   escalado em JS pro tamanho real do slide caber na tela. */
+.visor-pagina-html {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  background: var(--fundo);
+}
+.visor-pagina-html.carregando {
+  width: 360px;
+  height: 450px;
+}
+.visor-pagina-html-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+}
+
+/* Empilha baixar PNG, baixar zip e editar no canto do visor de peca fonteHtml.
+   Mesmo estilo do visor-baixar, um por linha. */
+.visor-acoes-html {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  z-index: 5;
+}
+.visor-acoes-html .visor-baixar {
+  position: static;
 }
 
 /* ===== Telas de fonte (fontes de dados por tipo) ===== */

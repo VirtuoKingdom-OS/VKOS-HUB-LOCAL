@@ -16,6 +16,8 @@ export interface Contato {
   email?: string;
   origem?: string;
   valorEstimado?: number;
+  // Data e hora do proximo contato (ISO). Opcional.
+  proximoContato?: string;
   colunaId: string;
   tags: string[];
   notas: Nota[];
@@ -46,6 +48,8 @@ export interface DadosContato {
   email?: string;
   origem?: string;
   valorEstimado?: number | null;
+  // Aceita null pra LIMPAR o campo, mesma razao do valorEstimado.
+  proximoContato?: string | null;
   colunaId?: string;
   tags?: string[];
 }

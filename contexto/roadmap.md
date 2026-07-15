@@ -43,6 +43,37 @@ Fecha quando: uma sessão usa um MCP conectado pela tela, sem editar JSON na mã
 - Entregue: tela #/crm com kanban personalizável (colunas com renomear inline, criar, excluir), cartões arrastáveis com persistência, painel de detalhe (campos, tags, notas), busca e total por coluna. Dados locais por workspace.
 Fecha quando: o Jesse gerencia os clientes da VK pelo CRM do hub.
 
+## Fase 6.5: duas jornadas (entregue em 2026-07-14, validar em uso real)
+
+- Carrossel HTML-first com editor (rodada 12) e depois Dashboard com criação guiada, Studio de edição com páginas lado a lado e mover elementos, sidebar simplificada (Galerias, em breve WhatsApp/Instagram, IDE por último) e cliente único Estúdio Aura (rodada 13). Ver decisoes/2026-07-14-carrossel-html-first.md e decisoes/2026-07-14-duas-jornadas-dashboard-studio.md.
+Fecha quando: o Jesse cria um carrossel pelo Dashboard e edita no Studio sem tocar no cockpit.
+
+## Fase 6.6: Site Guiado (entregue em 2026-07-14, validar em uso real)
+
+- Segunda jornada do Dashboard: wizard em 4 etapas gera site HTML estático por prompt direto (metodologia da skill /site pro texto, principios-visuais.md pro visual), sem tocar nas skills. Ver decisoes/2026-07-14-site-guiado-html-first.md.
+- Tela #/site/<pasta>: viewport com presets Desktop e Mobile, seletor de páginas, abrir em nova aba, atualização ao vivo e ajuste com IA na própria tela.
+- QA de gesto real em 2026-07-14: jornada completa aprovada, site gerado avaliado como vendável, regressão do carrossel limpa.
+Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e publica.
+
+## Fase 6.8: Studio de Site (entregue em 2026-07-15, validar em uso real)
+
+- A tela do site ganhou o modo Editar: edição manual profissional com painel de propriedades, escopo geral ou só no celular, seções, links, imagens e cores globais, convivendo com o Ajustar com IA. Ver decisoes/2026-07-15-studio-de-site.md.
+- QA de gesto real em 2026-07-15 com regressão do Studio de carrossel e do Site Guiado limpas; bug de especificidade corrigido e revalidado no site real.
+Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem tocar em arquivo.
+
+## Fase 6.7: barramento de eventos + Google Calendar (entregue em 2026-07-15, validar em uso real)
+
+- Barramento de eventos interno com log por workspace, conexão Google Calendar (OAuth pelo app, servidor MCP próprio pras sessões) e tela Automações com regras CRM > agenda, ensaio e histórico. Ver decisoes/2026-07-15-barramento-eventos-google-calendar.md.
+- Tela Calendário (#/calendario, item fixo na sidebar abaixo do CRM), local-first desde 2026-07-15: agenda própria do workspace que funciona sem Google, com visão de mês, criar/editar/excluir evento, e dois toggles: "Sincronizar com CRM" (sempre) e "Sincronizar com Google Calendar" (opcional, pede conexão). Backend em server/src/calendario/.
+- Sincronização CRM > agenda validada com a conta real do Jesse em 2026-07-15: cartão com próximo contato vira compromisso, mantido em dia pelo barramento, no modo local ou no Google. Desconectar o Google agora zera a conexão inteira.
+- QA de gesto real em 2026-07-15: pipeline validado de ponta a ponta sem conta Google; falta o gesto do Jesse (criar credenciais pelo planos/google-calendar/04-setup-google.md, conectar e ver o evento nascer na agenda).
+Fecha quando: um cartão real movido no CRM cria o compromisso na agenda do Google do Jesse.
+
+## Fase 8: fechamento do MVP local (planejada em 2026-07-15, plano pronto)
+
+- Motor multi-IA (Claude + Codex atrás de um contrato de provedor), jornada de instalação de um clique (Instalar/Iniciar .cmd + tela #/setup) e portabilidade do pacote de distribuição. Plano completo em planos/fechamento-mvp/ (rodadas M1, M2, M3), escrito pra qualquer IA executar. Ver decisoes/2026-07-15-fechamento-mvp-multi-ia.md.
+Fecha quando: alguém que não é o Jesse instala numa máquina Windows limpa com dois cliques, escolhe o motor, loga e gera uma peça real sem tocar em terminal.
+
 ## Fase 7: Meta e Google Ads
 
 - Plano de arquitetura pronto em contexto/fase7-meta-plano.md (2026-07-14), aguardando o aval do Jesse e as respostas das 6 perguntas do fim do plano.

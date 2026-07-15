@@ -1,6 +1,27 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Contato } from "../../api/crm";
-import { formatarReais, iniciais } from "./formatos";
+import { formatarDataHoraCurta, formatarReais, iniciais } from "./formatos";
+
+// Reloginho inline, minimalista, no padrao dos icones do app: herda a cor por
+// currentColor e o tamanho pequeno pra linha discreta do cartao.
+function IconeRelogio() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={13}
+      height={13}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
 
 // Cartao de um contato no kanban. Arrastavel entre colunas: o gesto e detectado
 // pela TelaCrm (arrasto move, clique parado abre o detalhe), aqui so avisamos
@@ -46,6 +67,17 @@ export function CartaoContato({
             <span className="crm-tag crm-tag-mais">+{contato.tags.length - 3}</span>
           )}
         </div>
+      )}
+
+      {contato.proximoContato && (
+        <span
+          className="crm-cartao-notas"
+          title="Proximo contato"
+          style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+        >
+          <IconeRelogio />
+          {formatarDataHoraCurta(contato.proximoContato)}
+        </span>
       )}
 
       {contato.notas.length > 0 && (

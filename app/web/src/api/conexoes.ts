@@ -21,9 +21,13 @@ export interface EntradaConexao {
 }
 
 // Estado de um servidor: ligado ou nao, config com os segredos mascarados.
+// contaEmail e conectado so vem no Google Calendar (fluxo OAuth): contaEmail e a
+// conta autorizada (legivel), conectado sinaliza que ha refresh token salvo.
 export interface EstadoServidor {
   habilitado: boolean;
   config: Record<string, string>;
+  contaEmail?: string;
+  conectado?: boolean;
 }
 
 // A resposta do GET: catalogo mais o estado do workspace ativo.
@@ -88,5 +92,23 @@ export function salvarConexao(
   return pedir<{ servidor: EstadoServidor }>(`/api/conexoes/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(dados),
+  });
+}
+
+// Inicia o fluxo OAuth do Google Calendar: o backend abre o navegador na tela de
+// consentimento e so responde quando o usuario autoriza (ou no timeout honesto).
+// A chamada pode levar minutos: sem timeout do lado do front, quem corta e o
+// backend (3 min). Devolve a conta conectada. Erro chega no formato { erro }.
+export function conectarGoogleCalendar(): Promise<{ contaEmail: string }> {
+  return pedir<{ contaEmail: string }>("/api/conexoes/googlecalendar/conectar", {
+    method: "POST",
+  });
+}
+
+// Desconecta o Google Calendar: revoga o token no Google e limpa o refresh token
+// e a conta salvos, mantendo Client ID e Client Secret pra reconectar sem recolar.
+export function desconectarGoogleCalendar(): Promise<{ ok: boolean }> {
+  return pedir<{ ok: boolean }>("/api/conexoes/googlecalendar/desconectar", {
+    method: "POST",
   });
 }

@@ -6,6 +6,28 @@
 // caminho oficial exige login OAuth no navegador (nao serve pro nosso spawn
 // headless com token fixo), a entrada fica disponivel: false com nota honesta.
 
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+// Resolucao do servidor MCP proprio do Google Calendar pros dois modos de
+// execucao. Este modulo mora em src/conexoes (dev, tsx) ou dist/conexoes (build,
+// node). O mcp-calendar e irmao em google/: subir um nivel e descer em google
+// acha o script nos dois casos. Em dev o arquivo e .ts e roda pelo tsx; em build
+// e .js e roda direto no node. A deteccao e pela extensao do proprio modulo.
+const esteArquivo = fileURLToPath(import.meta.url);
+const ehDev = esteArquivo.endsWith(".ts");
+const pastaGoogle = resolve(dirname(esteArquivo), "..", "google");
+const scriptMcpCalendar = resolve(
+  pastaGoogle,
+  ehDev ? "mcp-calendar.ts" : "mcp-calendar.js",
+);
+// Em dev o script TS roda pelo tsx. Resolvemos o CLI do tsx por caminho absoluto
+// (a partir da pasta app, tres niveis acima de src/conexoes) porque o processo
+// filho herda o cwd da sessao, que nao tem o node_modules do hub: npx a partir de
+// la nao acharia o tsx local.
+const pastaApp = resolve(dirname(esteArquivo), "..", "..", "..");
+const tsxCli = resolve(pastaApp, "node_modules", "tsx", "dist", "cli.mjs");
+
 // Um campo de config de um servico (ex: o token de acesso).
 export interface CampoConexao {
   // Chave dentro do Record de config salvo no disco.
@@ -141,6 +163,46 @@ const CATALOGO: EntradaCatalogo[] = [
         args: ["-y", "@notionhq/notion-mcp-server"],
         env: { NOTION_TOKEN: t },
       };
+    },
+  },
+  {
+    id: "googlecalendar",
+    nome: "Google Calendar",
+    descricao:
+      "Agenda da conta Google pras sessoes de IA e pras automacoes. Conecta pelo navegador: cole o Client ID e o Client Secret e clique em Conectar.",
+    disponivel: true,
+    transporte: "stdio",
+    campos: [
+      {
+        chave: "clientId",
+        rotulo: "Client ID",
+        segredo: false,
+        dica: "Crie no Google Cloud, credencial OAuth tipo App para computador. Passo a passo no card.",
+      },
+      {
+        chave: "clientSecret",
+        rotulo: "Client Secret",
+        segredo: true,
+        dica: "Sai junto do Client ID ao criar a credencial OAuth no Google Cloud.",
+      },
+    ],
+    fonte: "OAuth loopback de app instalado, Google Calendar REST v3",
+    // Monta o servidor MCP proprio (mcp-calendar.ts) so quando a conexao ja tem
+    // refresh token, ou seja, o fluxo Conectar concluiu. As credenciais vao por
+    // env: o processo filho nao le o conexoes.json. Dev roda o TS pelo tsx, build
+    // roda o JS compilado direto no node.
+    montarServidor: (config) => {
+      const clientId = token(config, "clientId");
+      const clientSecret = token(config, "clientSecret");
+      const refreshToken = token(config, "refreshToken");
+      if (!clientId || !clientSecret || !refreshToken) return null;
+      const env = {
+        VK_GCAL_CLIENT_ID: clientId,
+        VK_GCAL_CLIENT_SECRET: clientSecret,
+        VK_GCAL_REFRESH_TOKEN: refreshToken,
+      };
+      const args = ehDev ? [tsxCli, scriptMcpCalendar] : [scriptMcpCalendar];
+      return { command: process.execPath, args, env };
     },
   },
   {

@@ -61,6 +61,13 @@ export interface Peca {
   tipo: TipoPeca;
   arquivos: string[];
   previews: string[];
+  // Peca HTML-first: tem carrossel.html na raiz da subpasta e sem PNG legado.
+  fonteHtml?: boolean;
+  // Total de paginas (.slide) do carrossel.html. Presente quando fonteHtml.
+  paginas?: number;
+  // Data e hora de criacao da subpasta (ISO). Birthtime, com fallback pra mtime
+  // quando o sistema de arquivos nao guarda birthtime confiavel.
+  criadoEm?: string;
 }
 
 export interface SkillVkos {

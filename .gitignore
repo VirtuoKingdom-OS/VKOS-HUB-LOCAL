@@ -51,5 +51,10 @@ ehthumbs.db
 *.png
 !logo.png.PNG
 
-# Referência VKOS (repo externo)
-vkos/
+# Referência VKOS (repo externo). Barra inicial de propósito: só a pasta da
+# raiz. Sem ela, o padrão engolia app/server/src/vkos/, que é código do server.
+/vkos/
+
+# Downloads e artefatos de terceiro (ex: ponytail-main.zip). Pasta de rascunho,
+# não é código nosso, não versiona.
+/outros/

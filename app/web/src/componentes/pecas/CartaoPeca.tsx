@@ -1,21 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Peca } from "../../tipos/dominio";
 import { excluirPeca } from "../../api/cliente";
 import {
   baseNome,
-  formatarData,
+  formatarDataHora,
   formatarTema,
   nomeArquivo,
   nomeDownload,
   nomePagina,
 } from "../telas/fluxos";
-import { IconeArquivo, IconeLixeira, IconeSeta } from "../comum/Icones";
+import { IconeArquivo, IconeLapis, IconeLixeira, IconeSeta } from "../comum/Icones";
 import { IconeBaixar } from "../telas/icones";
 
 interface Props {
   peca: Peca;
-  // Abre o visor com a lista de imagens do pedido, na imagem clicada.
-  aoAmpliar: (urls: string[], indice: number) => void;
+  // Abre o visor na peca inteira, na pagina/imagem clicada.
+  aoAmpliar: (peca: Peca, indice: number) => void;
+  // So pecas fonteHtml oferecem editar. Sem prop, o botao nao aparece.
+  aoEditar?: (pasta: string) => void;
+  // So pecas tipo "site" oferecem a acao primaria "Abrir" (rodada 17), que
+  // leva pra tela do site. Sem a prop, o botao nao aparece.
+  aoAbrirSite?: (pasta: string) => void;
+  // Card mais baixo e tira de paginas mais densa (rodada 14: filtro "Todos"
+  // da galeria unificada). Sem a prop, o card fica no tamanho de sempre: nao
+  // afeta o cockpit nem as telas de fluxo por tipo, que nao passam isto.
+  condensado?: boolean;
+}
+
+// Rota do PNG de uma pagina de peca fonteHtml, renderizado sob demanda.
+function urlPngPagina(pasta: string, indice: number): string {
+  return `/api/vkos/pecas/${encodeURIComponent(pasta)}/png/${indice + 1}`;
+}
+
+// Rota do zip com todas as paginas de uma peca fonteHtml.
+function urlPngZip(pasta: string): string {
+  return `/api/vkos/pecas/${encodeURIComponent(pasta)}/png-zip`;
 }
 
 // Diz se a peça é de imagem (carrossel, stories ou post) e tem prévias. O post
@@ -86,20 +105,54 @@ export function BotaoExcluirPeca({ pasta }: { pasta: string }) {
 }
 
 // Card de um pedido (uma subpasta de conteudo). O corpo muda conforme o tipo.
-export function CartaoPeca({ peca, aoAmpliar }: Props) {
+export function CartaoPeca({
+  peca,
+  aoAmpliar,
+  aoEditar,
+  aoAbrirSite,
+  condensado,
+}: Props) {
   const tema = formatarTema(peca.tema);
-  const data = formatarData(peca.data);
+  // criadoEm (interface 3) chega do backend com data e hora; sem ele, cai na
+  // data sozinha, como sempre foi. Cast tolerante: nao trava o typecheck
+  // deste dono enquanto o tipo Peca em dominio.ts ainda nao ganhou o campo.
+  const criadoEm = (peca as Peca & { criadoEm?: string }).criadoEm;
+  const data = formatarDataHora(peca.data, criadoEm);
   const imagem = ehPecaImagem(peca);
   const base = baseNome(peca.tema);
-  const urlZip = `/api/vkos/pecas/${encodeURIComponent(peca.pasta)}/zip`;
+  const urlZip = peca.fonteHtml
+    ? urlPngZip(peca.pasta)
+    : `/api/vkos/pecas/${encodeURIComponent(peca.pasta)}/zip`;
 
   return (
-    <article className={`cartao-peca${imagem ? " grande" : ""}`}>
+    <article
+      className={`cartao-peca${imagem ? " grande" : ""}${condensado ? " condensado" : ""}`}
+    >
       <header className="cartao-peca-topo">
         <div className="cartao-peca-titulo">
           <h3>{tema}</h3>
           {data && <span className="cartao-peca-data">{data}</span>}
         </div>
+        {imagem && peca.fonteHtml && aoEditar && (
+          <button
+            className="botao botao-neutro botao-editar-peca"
+            onClick={() => aoEditar(peca.pasta)}
+            title="Abrir no Studio"
+          >
+            <IconeLapis className="" />
+            Editar no Studio
+          </button>
+        )}
+        {peca.tipo === "site" && aoAbrirSite && (
+          <button
+            className="botao botao-principal botao-abrir-site"
+            onClick={() => aoAbrirSite(peca.pasta)}
+            title="Abrir a tela do site"
+          >
+            <IconeSeta className="" />
+            Abrir
+          </button>
+        )}
         {imagem && (
           <a
             className="botao botao-neutro botao-baixar-tudo"
@@ -123,8 +176,31 @@ function corpo(
   tema: string,
   base: string,
   imagem: boolean,
-  aoAmpliar: (urls: string[], indice: number) => void
+  aoAmpliar: (peca: Peca, indice: number) => void
 ) {
+  if (imagem && peca.fonteHtml) {
+    return (
+      <div className="tira-imagens grande">
+        {peca.previews.map((url, i) => (
+          <div className="miniatura-caixa" key={url}>
+            <MiniaturaPagina
+              url={url}
+              titulo={`${tema}, página ${i + 1}`}
+              aoClicar={() => aoAmpliar(peca, i)}
+            />
+            <a
+              className="baixar-mini"
+              href={urlPngPagina(peca.pasta, i)}
+              title="Baixar o PNG desta página"
+            >
+              <IconeBaixar className="" />
+            </a>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (imagem) {
     return (
       <div className="tira-imagens grande">
@@ -132,7 +208,7 @@ function corpo(
           <div className="miniatura-caixa" key={url}>
             <button
               className="miniatura"
-              onClick={() => aoAmpliar(peca.previews, i)}
+              onClick={() => aoAmpliar(peca, i)}
               title={`${tema}, imagem ${i + 1}`}
             >
               <img
@@ -190,4 +266,97 @@ function corpo(
   }
 
   return <p className="cartao-peca-vazio">Sem arquivos neste pedido.</p>;
+}
+
+// Miniatura viva de uma pagina de carrossel fonteHtml: iframe da pagina isolada
+// (o body do endpoint tem o tamanho exato do slide), escalado com transform:
+// scale() pra caber na moldura da miniatura, mesmo padrao do MiniaturaSite. Sem
+// interacao (pointer-events none no css): o proprio botao em volta e o alvo do
+// clique, o iframe so preenche visualmente. Monta perto da tela (Intersection
+// Observer) pra nao pesar tiras longas com muitos iframes de uma vez.
+function MiniaturaPagina({
+  url,
+  titulo,
+  aoClicar,
+}: {
+  url: string;
+  titulo: string;
+  aoClicar: () => void;
+}) {
+  const refCaixa = useRef<HTMLDivElement>(null);
+  const refIframe = useRef<HTMLIFrameElement>(null);
+  const [visivel, setVisivel] = useState(false);
+  const [dimsPagina, setDimsPagina] = useState<{ largura: number; altura: number } | null>(
+    null
+  );
+  const [fator, setFator] = useState(0);
+
+  // So monta o iframe quando o slot chega perto da tela.
+  useEffect(() => {
+    const caixa = refCaixa.current;
+    if (!caixa) return;
+    const io = new IntersectionObserver(
+      (entradas) => {
+        for (const e of entradas) {
+          if (e.isIntersecting) {
+            setVisivel(true);
+            io.disconnect();
+            break;
+          }
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    io.observe(caixa);
+    return () => io.disconnect();
+  }, []);
+
+  // Mede o slot e reage a mudanca de tamanho (ex: layout responsivo).
+  useEffect(() => {
+    const caixa = refCaixa.current;
+    if (!caixa || !dimsPagina) return;
+    const medir = () => {
+      const f = caixa.clientWidth / dimsPagina.largura;
+      setFator(f > 0 ? f : 0);
+    };
+    const ro = new ResizeObserver(medir);
+    ro.observe(caixa);
+    medir();
+    return () => ro.disconnect();
+  }, [dimsPagina]);
+
+  // Le o tamanho real do slide direto do documento carregado (contentDocument
+  // e acessivel porque a pagina isolada e servida na mesma origem).
+  function aoCarregar() {
+    const doc = refIframe.current?.contentDocument;
+    if (!doc?.body) return;
+    setDimsPagina({ largura: doc.body.scrollWidth, altura: doc.body.scrollHeight });
+  }
+
+  return (
+    <button className="miniatura miniatura-pagina" onClick={aoClicar} title={titulo}>
+      <div className="miniatura-pagina-caixa" ref={refCaixa}>
+        {visivel && (
+          <iframe
+            ref={refIframe}
+            className="miniatura-pagina-frame"
+            src={url}
+            title={titulo}
+            tabIndex={-1}
+            aria-hidden="true"
+            onLoad={aoCarregar}
+            style={
+              dimsPagina && fator > 0
+                ? {
+                    width: `${dimsPagina.largura}px`,
+                    height: `${dimsPagina.altura}px`,
+                    transform: `scale(${fator})`,
+                  }
+                : { opacity: 0 }
+            }
+          />
+        )}
+      </div>
+    </button>
+  );
 }

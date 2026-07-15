@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+  VKOS06 — DEV 3D  (1080x1350)
+  Capa creme com render 3D em menta + headline preta gigante; página creme com bloco de código;
+  final escuro com glow menta e CTA "link na bio". Imagem 3D opcional na capa (img/capa.png).
+  Ajuste cores em :root pelo Cérebro.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{--cream:#F2ECDF;--cream2:#FAF7F0;--accent:#00C896;--accent-dk:#00875F;--ink:#15130F;--soft:#514d44;--text:#F5F5F5;--on-accent:#04241b;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#000;font-family:'Inter',sans-serif;}
+  .slide{position:relative;width:1080px;height:1350px;overflow:hidden;background:var(--cream);color:var(--ink);}
+  .cnt{position:absolute;top:56px;right:60px;z-index:6;font-size:24px;font-weight:700;color:#8a8579;letter-spacing:.1em;}
+  /* capa */
+  .kick{position:absolute;top:120px;left:96px;right:96px;z-index:6;font-weight:700;font-size:65px;letter-spacing:.02em;color:#6b6b60;text-transform:uppercase;}
+  .big{position:absolute;top:230px;left:96px;right:96px;z-index:6;font-weight:900;font-size:147px;letter-spacing:-.03em;color:var(--ink);line-height:.98;}
+  .render{position:absolute;bottom:0;right:0;width:66%;height:66%;z-index:4;background:conic-gradient(from 210deg at 60% 40%,#00C896,#00875F,#3ee0b5,#00875F);border-radius:44% 10% 0 0/60% 10% 0 0;box-shadow:-40px 0 200px rgba(0,200,150,.3);}
+  .nav{position:absolute;bottom:70px;right:64px;z-index:6;width:104px;height:104px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#333;font-size:44px;box-shadow:0 16px 48px rgba(0,0,0,.15);}
+  /* página */
+  .page{background:var(--cream2);}
+  .av{position:absolute;top:80px;left:90px;z-index:6;display:flex;align-items:center;gap:26px;font-size:44px;font-weight:600;color:#514d44;}
+  .av i{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#00C896,#00875F);display:block;}
+  .ph{position:absolute;top:250px;left:90px;right:90px;z-index:6;font-weight:900;font-size:98px;color:var(--accent-dk);letter-spacing:-.01em;line-height:1.02;}
+  .pbody{position:absolute;top:440px;left:90px;right:90px;z-index:6;color:#514d44;font-size:51px;line-height:1.5;}
+  .pbody .li{margin-bottom:30px;} .pbody .li b{color:var(--accent-dk);}
+  .code{position:absolute;bottom:230px;left:90px;right:90px;z-index:6;background:#141414;border-radius:32px;padding:48px;font-family:'Consolas',monospace;font-size:40px;line-height:1.7;color:#cfd3da;box-shadow:0 56px 120px -56px rgba(0,0,0,.5);}
+  .code .bar{display:flex;gap:16px;margin-bottom:28px;} .code .bar i{width:28px;height:28px;border-radius:50%;display:block;}
+  .code .g{color:#00C896;} .code .y{color:#e6c07b;} .code .k{color:#7fdcc2;}
+  .cap{position:absolute;bottom:100px;left:90px;right:90px;z-index:6;font-style:italic;font-size:44px;color:#6b6b60;}
+  /* final */
+  .final{background:radial-gradient(90% 70% at 70% 60%,#0f2019,#0a0a0a 72%);color:var(--text);}
+  .final .av{color:#A1A1A1;}
+  .fh{position:absolute;top:360px;left:90px;right:90px;z-index:6;font-weight:900;font-size:114px;letter-spacing:-.02em;color:var(--text);line-height:1.02;}
+  .fp{position:absolute;top:760px;left:90px;right:90px;z-index:6;color:#A1A1A1;font-size:51px;line-height:1.5;}
+  .fp b{color:var(--text);}
+  .cta{position:absolute;bottom:150px;left:90px;z-index:6;display:inline-flex;align-items:center;gap:36px;background:#fff;color:#141414;font-weight:800;font-size:52px;padding:36px 44px 36px 72px;border-radius:100px;}
+  .cta i{width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,#00C896,#00875F);display:grid;place-items:center;color:var(--on-accent);font-size:44px;}
+</style>
+</head>
+<body>
+<!-- CAPA -->
+<div class="slide">
+  <div class="render"></div>
+  <div class="cnt">01 / 07</div>
+  <div class="kick">O KICKER EM CAIXA ALTA</div>
+  <div class="big">O gancho gigante</div>
+  <div class="nav">→</div>
+</div>
+<!-- PÁGINA CÓDIGO -->
+<div class="slide page">
+  <div class="cnt">03 / 07</div>
+  <div class="av"><i></i>@seunegocio</div>
+  <div class="ph">O subtítulo</div>
+  <div class="pbody"><div class="li"><b>ponto um</b> curto e direto.</div><div class="li"><b>ponto dois</b> que fecha.</div></div>
+  <div class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i></div><span class="k">chave</span>: <span class="g">"valor de exemplo"</span><br/><span class="k">outra</span>: <span class="g">"segundo valor"</span><br/><span class="k">terceira</span>: <span class="y">"contexto"</span></div>
+  <div class="cap">A legenda em itálico fecha a página.</div>
+</div>
+<!-- FINAL -->
+<div class="slide final">
+  <div class="av"><i></i>@seunegocio</div>
+  <div class="fh">A chamada final?</div>
+  <div class="fp">O apoio com uma <b>palavra em destaque</b> e o convite.</div>
+  <div class="cta">LINK NA BIO <i>↗</i></div>
+</div>
+</body>
+</html>

@@ -6,6 +6,7 @@
 import type { FastifyPluginAsync } from "fastify";
 
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
+import { desconectar, iniciarConexao, ErroOAuth } from "../google/oauth.js";
 import { catalogoPublico, entradaCatalogo, listaCatalogo } from "./catalogo.js";
 import { lerConexoes, salvarConexoes, type EstadoServidor } from "./estado.js";
 
@@ -34,7 +35,18 @@ function estadoMascarado(id: string, servidor: EstadoServidor | undefined) {
       config[chave] = mascarar(valor);
     }
   }
-  return { habilitado: servidor?.habilitado ?? false, config };
+  // O contaEmail nao e segredo (o proprio usuario ve qual conta conectou) e nao e
+  // um campo do catalogo, entao vai legivel pro front saber o estado da conexao
+  // OAuth (Google Calendar). O conectado sinaliza a presenca do refresh token sem
+  // vazar o token. Campos so preenchidos quando existem no bruto.
+  const contaEmail = (bruto.contaEmail ?? "").trim();
+  const conectado = (bruto.refreshToken ?? "").trim().length > 0;
+  return {
+    habilitado: servidor?.habilitado ?? false,
+    config,
+    ...(contaEmail ? { contaEmail } : {}),
+    conectado,
+  };
 }
 
 export const rotasConexoes: FastifyPluginAsync = async (app) => {
@@ -94,5 +106,42 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     salvarConexoes(workspaceId, estado);
 
     return { servidor: estadoMascarado(id, estado.servidores[id]) };
+  });
+
+  // Inicia o fluxo OAuth loopback do Google Calendar: abre o navegador na tela de
+  // consentimento e responde quando o callback chegar (ou no timeout honesto).
+  // Exige clientId e clientSecret ja salvos pelo PUT generico acima.
+  app.post("/conexoes/googlecalendar/conectar", async (_requisicao, resposta) => {
+    const workspaceId = idWorkspaceAtivo();
+    if (!workspaceId) {
+      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
+    }
+    try {
+      const { contaEmail } = await iniciarConexao(workspaceId);
+      return { contaEmail };
+    } catch (e) {
+      if (e instanceof ErroOAuth) {
+        return resposta.status(e.status).send({ erro: e.message });
+      }
+      return resposta.status(500).send({ erro: "falha ao conectar com o Google" });
+    }
+  });
+
+  // Desconecta o Google Calendar: revoga o refresh token e limpa refreshToken e
+  // contaEmail, mantendo clientId e clientSecret pra reconectar sem recolar.
+  app.post("/conexoes/googlecalendar/desconectar", async (_requisicao, resposta) => {
+    const workspaceId = idWorkspaceAtivo();
+    if (!workspaceId) {
+      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
+    }
+    try {
+      await desconectar(workspaceId);
+      return { ok: true };
+    } catch (e) {
+      if (e instanceof ErroOAuth) {
+        return resposta.status(e.status).send({ erro: e.message });
+      }
+      return resposta.status(500).send({ erro: "falha ao desconectar do Google" });
+    }
   });
 };

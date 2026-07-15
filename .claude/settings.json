@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm run *)",
       "PowerShell(Get-NetTCPConnection -LocalPort 4600 -ErrorAction SilentlyContinue)",
-      "PowerShell(try { \\(Invoke-WebRequest -Uri \"http://127.0.0.1:4600/api/conexoes\" -UseBasicParsing -TimeoutSec 3\\).StatusCode } catch { \"OFFLINE\" })"
+      "PowerShell(try { \\(Invoke-WebRequest -Uri \"http://127.0.0.1:4600/api/conexoes\" -UseBasicParsing -TimeoutSec 3\\).StatusCode } catch { \"OFFLINE\" })",
+      "Bash(npm view *)",
+      "Bash(curl -s -o /dev/null -w \"backend 4600: %{http_code}\\\\n\" http://localhost:4600/)",
+      "Bash(curl -s -o /dev/null -w \"vite 5173: %{http_code}\\\\n\" http://localhost:5173/)"
     ]
   }
 }

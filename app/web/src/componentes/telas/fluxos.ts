@@ -49,6 +49,24 @@ export function formatarData(data: string): string {
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
+// Formata a data e hora da geracao pro padrao brasileiro "dd/mm/aaaa, hh:mm",
+// a partir do criadoEm ISO (rodada 14, interface 3). Sem criadoEm ou com valor
+// invalido, cai na data sozinha (formatarData), o comportamento de antes.
+export function formatarDataHora(data: string, criadoEm?: string): string {
+  if (criadoEm) {
+    const d = new Date(criadoEm);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const aaaa = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}/${mm}/${aaaa}, ${hh}:${min}`;
+    }
+  }
+  return formatarData(data);
+}
+
 // Ultimo segmento de um caminho relativo, o nome do arquivo pra exibir.
 export function nomeArquivo(caminho: string): string {
   const partes = caminho.split("/");

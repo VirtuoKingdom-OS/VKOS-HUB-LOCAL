@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VirtuoKingdom, Jessee Gomes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ── tokens ── */
+    :root {
+      --bg:        #09100d;
+      --green:     #00875f;
+      --green-lt:  #00c896;
+      --green-dk:  #005c40;
+      --green-mid: #00a87a;
+      --glow:      rgba(0,135,95,.38);
+      --glow-lt:   rgba(0,200,150,.22);
+      --white:     #edfaf5;
+      --soft:      rgba(237,250,245,.55);
+      --softer:    rgba(237,250,245,.25);
+      --line:      rgba(0,175,122,.18);
+      --sans:      'Inter', system-ui, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 52px 20px 88px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ── grid texture ── */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,135,95,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,135,95,.045) 1px, transparent 1px);
+      background-size: 52px 52px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── floating orbs ── */
+    .orbs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+    }
+    .orb--a {
+      width: 560px; height: 560px;
+      background: radial-gradient(circle, var(--green) 0%, transparent 70%);
+      top: -220px; left: -180px;
+      opacity: .16;
+      animation: orbA 20s ease-in-out infinite;
+    }
+    .orb--b {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, var(--green-lt) 0%, transparent 70%);
+      bottom: -140px; right: -120px;
+      opacity: .11;
+      animation: orbB 25s ease-in-out infinite;
+    }
+    .orb--c {
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, var(--green-mid) 0%, transparent 70%);
+      top: 45%; left: 55%;
+      opacity: .13;
+      animation: orbC 17s ease-in-out infinite;
+    }
+
+    @keyframes orbA {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%      { transform: translate(70px,90px) scale(1.12); }
+      66%      { transform: translate(-30px,45px) scale(.93); }
+    }
+    @keyframes orbB {
+      0%,100% { transform: translate(0,0) scale(1); }
+      40%      { transform: translate(-90px,-70px) scale(1.18); }
+      70%      { transform: translate(50px,-25px) scale(.88); }
+    }
+    @keyframes orbC {
+      0%,100% { transform: translate(-50%,-50%) scale(1); }
+      50%      { transform: translate(-50%,-50%) scale(1.35); }
+    }
+
+    /* ── particles ── */
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .p {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--green-lt);
+      opacity: 0;
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(100vh) scale(0);   opacity: 0; }
+      8%   { opacity: .55; }
+      88%  { opacity: .25; }
+      100% { transform: translateY(-30px) scale(1.6); opacity: 0; }
+    }
+
+    /* ── content wrapper ── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── avatar ── */
+    .avatar-ring {
+      position: relative;
+      width: 86px;
+      height: 86px;
+      margin-bottom: 22px;
+    }
+    .avatar-ring::before {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--green-lt) 0deg,
+        var(--green)    120deg,
+        var(--green-dk) 240deg,
+        var(--green-lt) 360deg
+      );
+      animation: spin 5s linear infinite;
+      z-index: 0;
+    }
+    .avatar-ring::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: 50%;
+      background: var(--bg);
+      z-index: 1;
+    }
+    .avatar {
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--green-dk) 0%, var(--green) 60%, var(--green-lt) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      color: var(--white);
+      z-index: 2;
+      box-shadow: 0 0 28px -6px var(--glow);
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* ── heading ── */
+    .heading {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .name {
+      font-size: clamp(22px, 5.5vw, 30px);
+      font-weight: 900;
+      letter-spacing: -.035em;
+      line-height: 1.1;
+      color: var(--white);
+    }
+    .name em {
+      font-style: normal;
+      color: var(--green-lt);
+    }
+    .tagline {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--soft);
+      margin-top: 7px;
+      line-height: 1.55;
+    }
+
+    /* ── divider ── */
+    .divider {
+      width: 44px;
+      height: 2px;
+      margin: 22px 0 30px;
+      background: linear-gradient(90deg, transparent, var(--green-lt), transparent);
+      border-radius: 2px;
+      position: relative;
+    }
+    .divider::before {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      background: inherit;
+      filter: blur(6px);
+      border-radius: 4px;
+      opacity: .5;
+    }
+
+    /* ── section label ── */
+    .section-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--green);
+      width: 100%;
+      text-align: left;
+      margin: 24px 0 10px;
+    }
+    .section-label:first-of-type {
+      margin-top: 0;
+    }
+
+    /* ── links container ── */
+    .links {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ── base button ── */
+    .btn-link {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 15px 20px;
+      border-radius: 14px;
+      text-decoration: none;
+      color: var(--white);
+      background: rgba(255,255,255,.038);
+      border: 1px solid var(--line);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition:
+        transform     .2s cubic-bezier(.2,.7,.2,1),
+        background    .2s ease,
+        border-color  .2s ease,
+        box-shadow    .2s ease;
+    }
+
+    /* shimmer sweep on hover */
+    .btn-link::before {
+      content: "";
+      position: absolute;
+      top: 0; left: -60%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(0,200,150,.09),
+        transparent
+      );
+      transform: skewX(-18deg);
+      transition: left .55s ease;
+      pointer-events: none;
+    }
+    .btn-link:hover::before { left: 120%; }
+
+    .btn-link:hover {
+      transform: translateY(-3px);
+      background: rgba(0,135,95,.11);
+      border-color: rgba(0,200,150,.32);
+      box-shadow: 0 10px 36px -10px var(--glow);
+    }
+    .btn-link:active {
+      transform: translateY(-1px);
+    }
+
+    /* primary */
+    .btn-link--primary {
+      background: linear-gradient(135deg, var(--green-dk) 0%, var(--green) 100%);
+      border-color: rgba(0,200,150,.45);
+      box-shadow: 0 8px 28px -8px var(--glow), inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    .btn-link--primary:hover {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-lt) 100%);
+      border-color: var(--green-lt);
+      box-shadow: 0 14px 44px -10px rgba(0,200,150,.52);
+    }
+
+    /* disabled / coming soon */
+    .btn-link--soon {
+      opacity: .38;
+      cursor: default;
+      pointer-events: none;
+    }
+    .btn-link--soon::before { display: none; }
+
+    /* ── button internals ── */
+    .btn-icon {
+      font-size: 19px;
+      width: 30px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    .btn-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .btn-label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--soft);
+      margin-bottom: 2px;
+    }
+    .btn-primary-label {
+      color: rgba(0,200,150,.75);
+    }
+    .btn-title {
+      display: block;
+      font-size: 14.5px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      color: var(--white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-arrow {
+      font-size: 15px;
+      opacity: .35;
+      flex-shrink: 0;
+      transition: opacity .2s, transform .2s;
+    }
+    .btn-link:hover .btn-arrow {
+      opacity: 1;
+      transform: translateX(4px);
+    }
+
+    /* badge */
+    .badge {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,.07);
+      border-radius: 6px;
+      padding: 3px 8px;
+      color: var(--soft);
+      flex-shrink: 0;
+    }
+
+    /* ── footer ── */
+    .footer {
+      margin-top: 52px;
+      font-size: 11.5px;
+      color: var(--softer);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    /* ── keyframes ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(26px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes avatarIn {
+      from { opacity: 0; transform: scale(.5) translateY(-16px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* ── motion (opt-in) ── */
+    @media (prefers-reduced-motion: no-preference) {
+      .avatar-ring { animation: avatarIn .85s cubic-bezier(.2,.7,.2,1) both; }
+      .heading     { animation: fadeUp .7s .08s cubic-bezier(.2,.7,.2,1) both; }
+      .divider     { animation: fadeUp .6s .18s cubic-bezier(.2,.7,.2,1) both; }
+      /* .reveal items get delay via JS */
+      .reveal { opacity: 0; animation: fadeUp .6s cubic-bezier(.2,.7,.2,1) both; }
+      .footer  { animation: fadeUp .6s .72s cubic-bezier(.2,.7,.2,1) both; }
+    }
+
+    /* ── reduced motion: show everything static ── */
+    @media (prefers-reduced-motion: reduce) {
+      .avatar-ring::before { animation: none; }
+      .orb, .p, .avatar-ring, .heading, .divider, .reveal, .footer {
+        animation: none;
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    /* ── responsive ── */
+    @media (max-width: 480px) {
+      body { padding: 40px 16px 72px; }
+      .btn-title { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- animated bg -->
+  <div class="orbs" aria-hidden="true">
+    <div class="orb orb--a"></div>
+    <div class="orb orb--b"></div>
+    <div class="orb orb--c"></div>
+  </div>
+  <div class="particles" id="js-particles" aria-hidden="true"></div>
+
+  <!-- content -->
+  <div class="wrapper">
+
+    <!-- avatar com anel giratório -->
+    <div class="avatar-ring" aria-hidden="true">
+      <div class="avatar">VK</div>
+    </div>
+
+    <!-- nome e tagline -->
+    <div class="heading">
+      <p class="name">Virtuo<em>Kingdom</em></p>
+      <p class="tagline">IA que trabalha do jeito do seu negócio</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- links -->
+    <div class="links">
+
+      <!-- CTA principal: WhatsApp -->
+      <a class="btn-link btn-link--primary reveal"
+         href="https://wa.me/5533988203660"
+         target="_blank"
+         rel="noopener noreferrer">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.12 1.532 5.845L.057 23.086a.75.75 0 0 0 .916.928l5.42-1.424A11.953 11.953 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.811 9.811 0 0 1-5.007-1.37l-.36-.213-3.218.845.86-3.138-.233-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.567 6.567 2.182 12 2.182c5.433 0 9.818 4.385 9.818 9.818 0 5.433-4.385 9.818-9.818 9.818z"/>
+          </svg>
+        </span>
+        <span class="btn-text">
+          <span class="btn-label btn-primary-label">Fala comigo agora</span>
+          <span class="btn-title">WhatsApp direto</span>
+        </span>
+        <span class="btn-arrow" aria-hidden="true">&#8594;</span>
+      </a>
+
+      <!-- label: produtos -->
+      <p class="section-label reveal">Produtos</p>
+
+      <!-- VKOS SKILL -->
+      <a class="btn-link reveal"
+         href="https://wa.me/5533988203660?text=Quero%20saber%20mais%20sobre%20o%20VKOS%20SKILL"
+         target="_blank"
+         rel="noopener noreferrer">
+        <span class="btn-icon" aria-hidden="true">&#9889;</span>
+        <span class="btn-text">
+          <span class="btn-label">Nivel 1</span>
+          <span class="btn-title">VKOS SKILL</span>
+        </span>
+        <span class="btn-arrow" aria-hidden="true">&#8594;</span>
+      </a>
+
+      <!-- VKOS Hub -->
+      <a class="btn-link reveal"
+         href="https://wa.me/5533988203660?text=Quero%20saber%20mais%20sobre%20o%20VKOS%20Hub"
+         target="_blank"
+         rel="noopener noreferrer">
+        <span class="btn-icon" aria-hidden="true">&#129504;</span>
+        <span class="btn-text">
+          <span class="btn-label">Nivel 2</span>
+          <span class="btn-title">VKOS Hub</span>
+        </span>
+        <span class="btn-arrow" aria-hidden="true">&#8594;</span>
+      </a>
+
+      <!-- SaaS: em breve -->
+      <div class="btn-link btn-link--soon reveal" aria-disabled="true">
+        <span class="btn-icon" aria-hidden="true">&#128640;</span>
+        <span class="btn-text">
+          <span class="btn-label">Nivel 3</span>
+          <span class="btn-title">VKOS SaaS</span>
+        </span>
+        <span class="badge">Em breve</span>
+      </div>
+
+    </div>
+
+    <p class="footer">VirtuoKingdom &copy; 2026, Jessee Gomes</p>
+
+  </div>
+
+  <script>
+    /* particles */
+    (function () {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var c = document.getElementById('js-particles');
+      for (var i = 0; i < 22; i++) {
+        var p = document.createElement('div');
+        p.className = 'p';
+        var sz = Math.random() * 2.5 + 1;
+        p.style.cssText = [
+          'left:' + (Math.random() * 100) + '%',
+          'width:' + sz + 'px',
+          'height:' + sz + 'px',
+          'animation-duration:' + (Math.random() * 14 + 9) + 's',
+          'animation-delay:' + (Math.random() * 12) + 's'
+        ].join(';');
+        c.appendChild(p);
+      }
+    })();
+
+    /* stagger .reveal items */
+    (function () {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var items = document.querySelectorAll('.reveal');
+      items.forEach(function (el, i) {
+        el.style.animationDelay = (0.28 + i * 0.09) + 's';
+      });
+    })();
+  </script>
+
+</body>
+</html>
