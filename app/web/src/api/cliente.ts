@@ -460,9 +460,10 @@ export async function salvarCanvas(
 }
 
 // Monta a URL de uma peca servida em /pecas/. Aceita caminho com barra ou contrabarra.
-// Idempotente: se o backend ja mandou a url pronta (/pecas/...), devolve como veio.
+// Idempotente: se o backend ja mandou a url pronta (/pecas/... ou /pecas-html/...
+// das paginas isoladas de peca fonteHtml), devolve como veio.
 export function urlPeca(caminho: string): string {
-  if (caminho.startsWith("/pecas/")) return caminho;
+  if (caminho.startsWith("/pecas/") || caminho.startsWith("/pecas-html/")) return caminho;
   const limpo = caminho.replace(/^[\\/]+/, "");
   const partes = limpo.split(/[\\/]/).map(encodeURIComponent);
   return `/pecas/${partes.join("/")}`;

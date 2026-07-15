@@ -198,11 +198,17 @@ function slugBase(nome: string): string {
   return limpo || "contexto";
 }
 
-// Slug unico: se ja existe, adiciona sufixo numerico. Imutavel depois de criado.
+// Pastas de materiais/cockpit/ que sao do proprio app, nunca contexto do
+// usuario. "anexos" guarda os uploads do composer e do assistente de criacao.
+const SLUGS_RESERVADOS = new Set(["anexos"]);
+
+// Slug unico: se ja existe (ou e reservado), adiciona sufixo numerico.
+// Imutavel depois de criado.
 function slugUnico(nome: string): string {
   const indice = carregarIndice();
   const base = slugBase(nome);
   const usados = new Set(indice.map((e) => e.slug));
+  for (const reservado of SLUGS_RESERVADOS) usados.add(reservado);
   if (!usados.has(base)) return base;
   let n = 2;
   while (usados.has(`${base}-${n}`)) n += 1;
@@ -336,8 +342,17 @@ function adotarPastasOrfas(): void {
   const indice = carregarIndice();
   const conhecidos = new Set(indice.map((e) => e.slug));
   let mudou = false;
+  // Limpa entradas fantasma de rodadas antigas: pasta reservada do app que
+  // chegou a ser adotada como contexto (ex: o "Anexos" que aparecia sozinho).
+  for (let i = indice.length - 1; i >= 0; i--) {
+    if (SLUGS_RESERVADOS.has(indice[i].slug)) {
+      indice.splice(i, 1);
+      mudou = true;
+    }
+  }
   for (const nome of nomes) {
     if (conhecidos.has(nome)) continue;
+    if (SLUGS_RESERVADOS.has(nome)) continue;
     let estat;
     try {
       estat = statSync(join(raiz, nome));

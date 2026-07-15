@@ -80,7 +80,8 @@ saber de IA, quer saber de cliente e de agenda cheia.
 
 ## Status
 
-Decisão do Jesse em julho de 2026: desenvolver de forma antecipada, mesmo sem
-lançar agora. O objetivo desta fase é construir e iterar, não vender. O app
-amadurece enquanto a VK levanta caixa por serviço. Construir com calma, provar
-na própria operação primeiro.
+Decisão do Jesse em julho de 2026: vender o que já está pronto e continuar
+iterando e construindo em cima disso, ao mesmo tempo. A base entregue (Dashboard,
+Studio, Site Guiado, CRM, IDE) já gera valor e vai pro mercado agora, e o app
+segue evoluindo com o feedback do uso real. O caminho pra isso é o build in
+public: mostrar a construção em público como marketing do negócio.

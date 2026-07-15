@@ -29,6 +29,29 @@ export function formatarDataHora(iso: string): string {
   });
 }
 
+// Converte um ISO pro valor de um input datetime-local (AAAA-MM-DDTHH:mm no
+// fuso local). String vazia se invalido ou ausente.
+export function isoParaDatetimeLocal(iso: string | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+// Data e hora curtas (dia/mes e hora) de um ISO, pro cartao do kanban. Sem ano,
+// pra caber discreto. String vazia se invalido.
+export function formatarDataHoraCurta(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 // Iniciais de um nome pro avatar do cartao. Ate duas letras.
 export function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);

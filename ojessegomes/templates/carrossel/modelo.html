@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<!--
+  MODELO DE CARROSSEL — VKOS
+  ==========================
+  O comando /carrossel copia este arquivo para conteudo/<data-tema>/carrossel.html e preenche
+  os slides com o conteúdo real, usando o Cérebro do negócio (cores, @, voz).
+
+  Como usar (para quem está montando):
+  1) Ajuste as cores em :root conforme o bloco 13 do Cérebro (identidade visual).
+  2) Troque o @seunegocio pelo @ real e o total de slides no .counter.
+  3) Use os TIPOS de slide abaixo como blocos de montar. Duplique/reordene à vontade.
+  4) Coloque o logo do negócio como logo.png nesta mesma pasta (ou remova as tags <img> do logo).
+  5) Rode: node templates/carrossel/render.js conteudo/<data-tema>
+
+  TIPOS DE SLIDE disponíveis (classes):
+   .slide            → fundo escuro padrão (capa, viradas)
+   .slide--alt       → fundo escuro alternativo (intercalar no feed)
+   .slide--light     → fundo branco (ótimo pro CTA final)
+   .num-bg           → número gigante como marca d'água atrás do texto (slides "lista")
+  Regra de ritmo do feed: alterne escuro → alt → escuro. Último slide = CTA.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    /* AJUSTE conforme o Cérebro (bloco 13). Estes são exemplos. */
+    --bg:#0A0A0A;
+    --bg-alt:#141414;
+    --accent:#00C896;
+    --text:#F5F5F5;
+    --soft:#A1A1A1;
+    --line:#262626;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#000;font-family:'Inter',sans-serif;}
+
+  .slide{
+    position:relative;width:1080px;height:1350px;overflow:hidden;
+    display:flex;flex-direction:column;padding:90px 88px 80px;
+    background:var(--bg);color:var(--text);
+  }
+  .slide--alt{background:var(--bg-alt);}
+  .slide--light{background:#FFFFFF;color:#0A0A0A;}
+
+  /* glow suave */
+  .glow{position:absolute;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;}
+  .glow--tr{top:-220px;right:-200px;width:560px;height:560px;
+    background:radial-gradient(circle,rgba(0,200,150,0.18),transparent 70%);}
+  .glow--bl{bottom:-260px;left:-220px;width:600px;height:600px;
+    background:radial-gradient(circle,rgba(0,200,150,0.12),transparent 70%);}
+
+  /* textura de grade pontilhada */
+  .grid{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,0.05) 1px,transparent 1px);
+    background-size:42px 42px;
+    -webkit-mask-image:radial-gradient(circle at 50% 40%,#000 30%,transparent 78%);
+            mask-image:radial-gradient(circle at 50% 40%,#000 30%,transparent 78%);}
+
+  /* topo */
+  .top{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;}
+  .logo{width:66px;height:66px;object-fit:contain;}
+  .counter{font-size:24px;font-weight:600;letter-spacing:0.16em;color:var(--soft);}
+  .slide--light .counter{color:rgba(10,10,10,0.5);}
+
+  /* corpo */
+  .body{position:relative;z-index:3;flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .eyebrow{font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:0.24em;
+    color:var(--accent);margin-bottom:34px;}
+  .rule{width:80px;height:4px;background:var(--accent);border:none;margin:34px 0;}
+  h1{font-family:'Sora',sans-serif;font-weight:800;font-size:96px;line-height:1.0;letter-spacing:-0.035em;}
+  h2{font-family:'Sora',sans-serif;font-weight:700;font-size:66px;line-height:1.06;letter-spacing:-0.03em;}
+  .lead{font-size:34px;font-weight:500;line-height:1.45;color:var(--soft);}
+  .accent-word{color:var(--accent);}
+
+  /* slides "lista": número como marca d'água atrás do texto */
+  .num-bg{position:absolute;z-index:1;top:50%;left:50%;transform:translate(-50%,-54%);
+    font-family:'Sora',sans-serif;font-weight:800;font-size:660px;line-height:0.8;letter-spacing:-0.04em;
+    color:var(--accent);opacity:0.10;white-space:nowrap;pointer-events:none;user-select:none;}
+  .num-content{position:relative;z-index:3;}
+  .support{font-size:33px;font-weight:500;line-height:1.5;color:var(--soft);margin-top:30px;max-width:820px;}
+
+  /* rodapé */
+  .foot{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;
+    font-size:26px;font-weight:600;color:var(--soft);}
+  .foot .swipe{display:flex;align-items:center;gap:12px;font-weight:700;color:var(--accent);}
+
+  /* CTA final (fundo branco) */
+  .cta-center{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .cta-mark{width:124px;height:124px;object-fit:contain;margin:0 auto 38px;display:block;
+    background:#0A0A0A;border-radius:30px;padding:22px;}
+  .cta-head{font-size:56px;line-height:1.1;max-width:880px;margin-bottom:48px;}
+  .cta-head .mark{background:rgba(0,200,150,0.16);border-radius:8px;padding:2px 14px;
+    box-decoration-break:clone;-webkit-box-decoration-break:clone;}
+  .btn{display:inline-block;background:var(--accent);color:#0A0A0A;font-weight:700;font-size:30px;
+    padding:28px 60px;border-radius:16px;letter-spacing:0.01em;}
+</style>
+</head>
+<body>
+
+<!-- ============ TIPO A — CAPA (fundo escuro + glow + gancho forte) ============ -->
+<div class="slide">
+  <div class="grid"></div>
+  <div class="glow glow--tr"></div>
+  <div class="top">
+    <img class="logo" src="logo.png" alt="" />
+    <span class="counter">01 / 06</span>
+  </div>
+  <div class="body">
+    <div class="eyebrow">Eyebrow: pra quem é</div>
+    <h1>O gancho da capa<br/><span class="accent-word">na segunda linha.</span></h1>
+  </div>
+  <div class="foot">
+    <span>@seunegocio</span>
+    <span class="swipe">Arraste &rarr;</span>
+  </div>
+</div>
+
+<!-- ============ TIPO B — TEXTO (abertura/desenvolvimento, com lead) ============ -->
+<div class="slide slide--alt">
+  <div class="grid"></div>
+  <div class="glow glow--bl"></div>
+  <div class="top">
+    <img class="logo" src="logo.png" alt="" />
+    <span class="counter">02 / 06</span>
+  </div>
+  <div class="body">
+    <div class="eyebrow">Eyebrow curto</div>
+    <h2>Uma ideia por slide,<br/>frase natural.</h2>
+    <hr class="rule" />
+    <p class="lead">Um apoio de uma ou duas linhas que desenvolve a ideia sem encher.</p>
+  </div>
+  <div class="foot">
+    <span>@seunegocio</span>
+    <span class="swipe">Arraste &rarr;</span>
+  </div>
+</div>
+
+<!-- ============ TIPO C — LISTA (número gigante atrás do texto) ============ -->
+<div class="slide">
+  <div class="grid"></div>
+  <div class="glow glow--tr"></div>
+  <div class="top">
+    <img class="logo" src="logo.png" alt="" />
+    <span class="counter">03 / 06</span>
+  </div>
+  <div class="body">
+    <span class="num-bg">01</span>
+    <div class="num-content">
+      <h2>O item da lista,<br/>curto e claro.</h2>
+      <p class="support">Uma explicação de apoio que cabe em duas linhas e fecha a ideia.</p>
+    </div>
+  </div>
+  <div class="foot">
+    <span>@seunegocio</span>
+    <span class="swipe">Arraste &rarr;</span>
+  </div>
+</div>
+
+<!-- ============ TIPO D — CTA FINAL (fundo branco) ============ -->
+<div class="slide slide--light">
+  <div class="top">
+    <span class="counter">06 / 06</span>
+    <span class="counter">@seunegocio</span>
+  </div>
+  <div class="body cta-center">
+    <img class="cta-mark" src="logo.png" alt="" />
+    <h2 class="cta-head">A chamada final com uma <span class="mark">palavra marcada</span> no destaque.</h2>
+    <span class="btn">Acesse o link na bio</span>
+  </div>
+</div>
+
+</body>
+</html>

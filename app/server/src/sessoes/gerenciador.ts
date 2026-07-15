@@ -20,6 +20,7 @@ import {
   pastaDadosWorkspace,
 } from "../workspaces/estado.js";
 import { montarConfigMcp } from "../conexoes/mcp.js";
+import { emitir } from "../eventos/barramento.js";
 
 // Teto de sessoes ativas ao mesmo tempo (iniciando ou rodando). GLOBAL: e limite
 // de maquina, nao de cliente. Vale somando as sessoes de todos os workspaces.
@@ -635,6 +636,16 @@ export class GerenciadorSessoes {
 
     if (execucao.recebeuResult && !execucao.resultComErro) {
       this.definirStatus(sessao, "concluida");
+      // Anuncia a conclusao no barramento, depois de definir o status. Se o
+      // workspace for indefinido, o barramento so nao grava no log; nao quebra.
+      if (sessao.workspaceId) {
+        emitir({
+          tipo: "sessao:concluida",
+          workspaceId: sessao.workspaceId,
+          em: new Date().toISOString(),
+          dados: { id: sessao.id, skill: sessao.skill, titulo: sessao.titulo },
+        });
+      }
     } else if (execucao.resultComErro) {
       this.definirStatus(sessao, "erro", sessao.erro);
     } else {

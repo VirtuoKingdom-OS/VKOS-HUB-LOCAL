@@ -101,15 +101,18 @@ export const PROPORCOES: OpcaoProporcao[] = [
 // quando o usuario pede uma diferente dessa.
 const PROPORCAO_NATIVA: IdProporcao = "4x5";
 
-// Monta as instrucoes extras que acompanham o /carrossel conforme o formato, a
-// proporcao e a subpasta escolhidos. E linguagem natural pro fluxo real da
-// skill: o render mede o proprio elemento .slide (nao a viewport), entao ajustar
-// a dimensao do .slide muda o tamanho do PNG; e o render sempre salva em
-// instagram/, entao pra classificar como post ou stories a saida precisa ser
-// movida depois.
+// Monta as instrucoes extras que acompanham o /carrossel conforme o formato e
+// a proporcao escolhidos. E linguagem natural pro fluxo real da skill: o
+// tamanho final da pagina vem da dimensao do proprio elemento .slide (nao da
+// viewport), entao ajustar essa dimensao no HTML muda o tamanho da peca. A
+// entrega agora e so o carrossel.html: o app renderiza o PNG sob demanda
+// quando o usuario baixa, entao a skill nao roda mais o Passo 5 aqui.
 export function instrucoesImagem(
   formato: IdFormato,
   proporcao: IdProporcao,
+  // Nao ha mais PNG pra mover entre subpastas (a peca e classificada pela
+  // presenca do carrossel.html), entao o parametro fica sem uso aqui. Mantido
+  // na assinatura so pra nao quebrar o chamador (NoSessao.tsx passa 3 args).
   subpasta: string
 ): string {
   const prop = PROPORCOES.find((p) => p.id === proporcao) ?? PROPORCOES[0];
@@ -135,11 +138,13 @@ export function instrucoesImagem(
     );
   }
 
-  if (subpasta !== "instagram") {
-    linhas.push(
-      `- Saida: depois de rodar o render (que salva em instagram/), MOVA as imagens pra subpasta ${subpasta}/ dentro da pasta do conteudo, deixando instagram/ vazia. O app classifica o tipo da peca pela subpasta, e uma imagem esquecida em instagram/ faria a peca ser lida errado.`
-    );
-  }
+  linhas.push(
+    "- Entrega: NAO execute o Passo 5 da skill (renderizar). NAO gere nenhum PNG, NAO rode npm install nem playwright install pra isso. A entrega e so o conteudo/<AAAA-MM-DD>-<tema-curto>/carrossel.html completo e pronto (e a pasta img/ dentro dela, se usar imagem). O app renderiza o PNG sob demanda quando o usuario baixa a peca, entao o render aqui nao serve pra nada."
+  );
+
+  linhas.push(
+    "- Modo direto: o Cerebro do negocio e todas as informacoes desta geracao ja foram dados. Nao faca nenhuma pergunta, nao ofereca opcoes nem menus, nao sugira /legenda nem outro comando no meio, nao peca confirmacao de estilo. Qualquer lacuna (angulo, numero de paginas, estilo quando nao veio) voce decide sozinho com base no Cerebro e segue ate o fim. Se o modelo escolhido pede imagem de capa e nao ha imagem disponivel, siga sem imagem: a capa funciona sem ela. A resposta final e curta, uma ou duas frases confirmando o caminho da pasta gerada, sem relatorio longo."
+  );
 
   return linhas.join("\n");
 }

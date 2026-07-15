@@ -41,8 +41,16 @@ Ninguém escreve fora da própria propriedade. Integração final resolve as cos
 - `PUT /api/vkos/cerebro` body `{ texto }`: grava o cerebro.md (atômico, backup automático em `cerebro/.backup-cerebro-<carimbo>.md` antes da primeira gravação de cada boot). 413 acima de 512 KB. Responde o mesmo shape do GET e transmite `{ tipo: "cerebro:atualizado" }`.
 - `POST /api/anexos` body `{ nome, conteudoBase64 }`: salva anexo do composer em `materiais/cockpit/anexos/<AAAA-MM-DD>/` na pasta do VKOS. Extensões: png, jpg, jpeg, webp, gif, svg, md, txt, pdf, csv, json. Limite 15 MB. Responde 201 `{ caminhoRelativo }` (relativo à pasta do VKOS, barras normais). Erros 400/413.
 - `GET /api/vkos/skills` responde `{ skills: SkillVkos[] }`. Lê o frontmatter (name, description) de cada `.claude/skills/*/SKILL.md`. Atenção: description costuma ser YAML multilinha com `>`.
-- `GET /api/vkos/pecas` responde `{ pecas: Peca[] }`. Escaneia `conteudo/*/` na pasta do VKOS. Inferência de tipo: `instagram/*.png` é carrossel, `post/*.png` (ou `instagram-post/*.png`) é post, `instagram-stories/*.png` (ou `stories/*.png`) é stories, `.html` é site, `.md` é texto, resto é outro.
+- `GET /api/vkos/pecas` responde `{ pecas: Peca[] }`. Escaneia `conteudo/*/` na pasta do VKOS. Inferência de tipo: `instagram/*.png` é carrossel, `post/*.png` (ou `instagram-post/*.png`) é post, `instagram-stories/*.png` (ou `stories/*.png`) é stories (tudo legado), `carrossel.html` na raiz da subpasta é carrossel HTML-first (`fonteHtml: true`, `paginas` = total de `.slide`, previews `/pecas-html/<pasta>/pagina/<n>`), `.html` restante é site, `.md` é texto, resto é outro.
 - `GET /pecas/*` (sem prefixo /api): serve arquivo estático de dentro de `conteudo/` da pasta VKOS escolhida. Sanitizar: nunca servir fora de `conteudo/`.
+
+### Carrossel HTML-first (rodada 12, ver decisoes/2026-07-14-carrossel-html-first.md)
+- `GET /pecas-html/:pasta/pagina/:n` (sem /api): serve o carrossel.html com `<base>` injetada e script que isola a página n (o body fica do tamanho exato do slide, pro front medir e escalar).
+- `PUT /api/vkos/pecas/:pasta/carrossel` body `{ texto }` (4 MB): grava o carrossel.html (atômico, backup .bak único por boot) e apaga subpastas de PNG legado da peça (vira HTML-first). Transmite `pecas:atualizadas`.
+- `POST /api/vkos/pecas/:pasta/imagem` body `{ nome, conteudoBase64 }`: salva em `img/` da peça com nome único. Responde `{ caminhoRelativo }`. Teto de 20 MB decodificado.
+- `GET /api/vkos/pecas/:pasta/png/:n` e `GET /api/vkos/pecas/:pasta/png-zip`: renderizam PNG sob demanda em pasta temporária do SO (script `server/scripts/render-paginas.cjs` com o Playwright do VKOS ativo) e streamam como download. Nada de PNG gravado na peça.
+- Editor visual: `web/src/componentes/editor/EditorCarrossel.tsx` (props `{ pasta, aoFechar }`), overlay tela cheia. Cores globais são mescladas no primeiro `:root` do style principal do doc salvo (rodada 13); a tag antiga `<style id="vkos-editor-vars">` só é lida pra migrar peça velha e é removida na serialização.
+- Prompt do composer instrui: não renderizar (pular o Passo 5 da skill), entregar só o carrossel.html, e modo direto (nenhuma pergunta, lacunas decididas pelo Cérebro, resposta final curta).
 - Observador: `fs.watch` (com debounce) em `conteudo/`. Em mudança, `transmitir({ tipo: "pecas:atualizadas" })`.
 
 ### Sessões (orquestrador)
@@ -73,12 +81,14 @@ Cliente não precisa mandar nada. Ações vão por REST.
 
 ## Fluxos do MVP (o que o frontend expõe)
 
-| Fluxo | Prompt disparado |
-|---|---|
-| Carrossel | `/carrossel <tema>` |
-| Post | `/legenda <tema>` (variações: `/ideias`, `/semana`) |
-| Stories | `/stories <tema>` |
-| Site e páginas | `/site`, `/landing <oferta>`, `/blog <tema>` |
+Carrossel, Post e Stories rodam TODOS o mesmo motor (a skill `/carrossel`): muda só o formato (várias páginas ou única), a proporção e a subpasta de saída. Post e Stories estão ocultos dos menus de criação desde o enxugamento de 2026-07-13 (flag `oculto` em `config/fluxos.ts`); sessões e peças antigas continuam renderizando.
+
+| Fluxo | Prompt disparado | Formato |
+|---|---|---|
+| Carrossel | `/carrossel <tema>` | várias páginas, 4:5, subpasta `instagram/` |
+| Post (oculto) | `/carrossel <tema>` | página única, 4:5, subpasta `post/` |
+| Stories (oculto) | `/carrossel <tema>` | página única, 9:16, subpasta `instagram-stories/` |
+| Site e páginas | `/site`, `/landing <oferta>`, `/blog <tema>` | HTML |
 
 ## Portas e dev
 

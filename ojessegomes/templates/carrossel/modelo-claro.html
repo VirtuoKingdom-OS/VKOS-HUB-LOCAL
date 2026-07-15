@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!--
+  MODELO DE CARROSSEL — VKOS · ESTILO CLARO (editorial bright)
+  ===========================================================
+  Terceiro estilo da biblioteca (os outros: modelo.html dark, modelo-editorial.html editorial).
+  Use este quando quiser um visual LIMPO, claro e confiante — texto grande no papel creme,
+  do primeiro ao último slide. É o oposto do editorial: lá a capa abre escura; aqui é CLARO
+  do início ao fim. Modelado nas referências ex04 ("Cursor Cloud Agents") e ex05
+  ("Agent Skills: write once, run everywhere").
+
+  Assinatura deste estilo:
+  - Fundo CLARO/creme em TODOS os slides (inclusive a capa). Alterna papel #FAF7F0 / #F2ECDF
+    no ritmo do feed pra dar respiro sem nunca escurecer.
+  - Título preto sans PESADO (Sora 800) com UMA palavra em ITÁLICO SERIFADO (Playfair) que
+    ganha um SUBLINHADO grosso arredondado no acento — estilo tracado de caneta.
+  - Verde ESCURECIDO (--accent-ink #00875F) em tudo que é acento: o #00C896 não tem contraste
+    no claro, então NÃO se usa aqui.
+  - Tinta bem escura (#15130F) sobre o creme = alto contraste, leitura fácil no feed.
+  - Opcional: uma fileira de "chips" (rótulos tipo "IA PRO SEU NEGÓCIO") no topo, e/ou uma
+    imagem-herói clara gerada por IA integrada na capa (img/capa.png). Mas o que domina é o
+    TEXTO GRANDE no claro — a imagem é apoio, não protagonista.
+
+  Como usar (para quem está montando):
+  1) Ajuste as cores em :root conforme o bloco 13 do Cérebro (identidade visual). Mantenha o
+     fundo claro e um acento com bom contraste no claro (verde escurecido por padrão).
+  2) (Opcional) Gere a imagem-herói clara da capa (Nano Banana / Gemini, algo luminoso, fundo
+     claro, "no text") e salve em img/capa.png nesta mesma pasta. Sem a imagem a capa continua
+     ótima — o texto grande já segura sozinho.
+  3) Troque o @seunegocio pelo @ real e o total de slides que quiser.
+  4) Use os TIPOS de slide abaixo como blocos de montar. Duplique/reordene à vontade.
+  5) Rode: node templates/carrossel/render.js conteudo/<data-tema>
+  Observação importante: link na arte NÃO é clicável no Instagram. Por isso o fecho aponta pro
+  "link na bio" — nunca escreva uma URL como se fosse pra tocar.
+
+  TIPOS DE SLIDE disponíveis (classes):
+   .slide.theme-a           → slide claro creme claro (#FAF7F0)
+   .slide.theme-b           → slide claro creme mais quente (#F2ECDF) — intercalar no feed
+   .hero--capa (dentro de .capa-art)  → imagem-herói IA clara, opcional, ao lado do título
+   .chips + .chip           → fileira de rótulos/pills no topo (ex: "IA PRO SEU NEGÓCIO")
+   .serif.pen               → palavra em itálico serifado com o SUBLINHADO de caneta no acento
+   .num-bg                  → número gigante como marca d'água (fade no accent-ink)
+   .swipe                   → indicador "arraste" no rodapé
+   .vk-cta                  → CTA discreto no fecho (aponta o link na bio; sem URL clicável)
+  TIPOS de slide por papel narrativo:
+   A CAPA  → título grande + palavra serifada sublinhada + chips opcionais + imagem opcional
+   B TEXTO → desenvolvimento claro, eyebrow + acento serifado
+   C NÚMERO→ item de lista com número gigante em marca d'água (fade no accent-ink)
+   D CTA   → fecho claro que aponta pro link na bio (sem link clicável na arte)
+  Regra de ritmo do feed: capa (theme-a) → texto (theme-b) → número (theme-a) → ... → CTA.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&family=Playfair+Display:ital,wght@1,600;1,700;1,800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    /* Papel claro — este estilo é claro do início ao fim. Ajuste pelo Cérebro (bloco 13). */
+    --paper:#FAF7F0;        /* creme claro (fundo dominante) */
+    --paper-alt:#F2ECDF;    /* creme mais quente (alterna no feed) */
+    --ink:#15130F;          /* tinta escura — alto contraste sobre o creme */
+    --ink-soft:#6E6858;     /* tinta suave (apoios, rodapé) */
+    --accent-ink:#00875F;   /* verde ESCURECIDO — acento com contraste no claro */
+    --line:#E4DCCB;         /* fio/linha discreta sobre o creme */
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#ECE4D3;font-family:'Inter',sans-serif;}
+  .slide{position:relative;width:1080px;height:1350px;overflow:hidden;display:flex;
+    flex-direction:column;padding:88px 88px 74px;background:var(--paper);color:var(--ink);}
+
+  /* alternância de papel no feed — claro sempre, só muda a temperatura do creme */
+  .theme-a{background:var(--paper);}
+  .theme-b{background:var(--paper-alt);}
+
+  .body{position:relative;z-index:3;flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .body--bottom{justify-content:flex-end;}
+  .body--top{justify-content:flex-start;}
+
+  /* fileira de chips/pills no topo (opcional) — rótulos tipo "IA PRO SEU NEGÓCIO" */
+  .chips{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:44px;}
+  .chip{display:inline-flex;align-items:center;font-size:21px;font-weight:700;
+    text-transform:uppercase;letter-spacing:0.14em;color:var(--accent-ink);
+    border:2px solid var(--accent-ink);border-radius:999px;padding:11px 22px;}
+  .chip--solid{background:var(--accent-ink);color:var(--paper);border-color:var(--accent-ink);}
+
+  /* eyebrow (rótulo curto acima do título nos slides internos) */
+  .eyebrow{display:inline-block;align-self:flex-start;font-size:22px;font-weight:800;
+    text-transform:uppercase;letter-spacing:0.22em;color:var(--accent-ink);margin-bottom:30px;}
+
+  /* títulos — preto sans pesado, o coração deste estilo */
+  h1{font-family:'Sora',sans-serif;font-weight:800;font-size:104px;line-height:0.98;
+    letter-spacing:-0.04em;color:var(--ink);}
+  h2{font-family:'Sora',sans-serif;font-weight:800;font-size:76px;line-height:1.02;
+    letter-spacing:-0.035em;color:var(--ink);}
+
+  /* palavra em itálico serifado com sublinhado de caneta (a marca visual do CLARO).
+     O texto é TINTA escura; o acento verde é o SUBLINHADO (senão fica verde-sobre-verde). */
+  .serif{font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    letter-spacing:-0.01em;color:var(--ink);}
+  .pen{position:relative;display:inline-block;white-space:nowrap;padding-bottom:6px;}
+  .pen::after{content:"";position:absolute;left:-4px;right:-4px;bottom:2px;height:12px;
+    background:var(--accent-ink);border-radius:999px;opacity:0.92;z-index:-1;}
+
+  /* fio curto de acento (separador) */
+  .rule{width:96px;height:6px;background:var(--accent-ink);border:none;border-radius:999px;margin:38px 0;}
+
+  /* textos de apoio */
+  .lead{font-size:39px;font-weight:500;line-height:1.4;color:var(--ink);max-width:900px;}
+  .support{font-size:37px;font-weight:500;line-height:1.46;color:var(--ink-soft);margin-top:30px;max-width:900px;}
+
+  /* imagem-herói clara opcional na capa (apoio, não protagonista) */
+  .capa-art{position:relative;z-index:3;width:100%;height:360px;border-radius:28px;overflow:hidden;
+    margin-bottom:52px;background:var(--paper-alt);}
+  .hero--capa{position:absolute;inset:0;background-image:url('img/capa.png');
+    background-size:cover;background-position:center;}
+
+  /* número gigante como marca d'água — fade no accent-ink (slides de lista/número) */
+  .num-bg{position:absolute;z-index:1;top:50%;right:36px;transform:translateY(-52%);
+    font-family:'Sora',sans-serif;font-weight:800;font-size:560px;line-height:0.8;letter-spacing:-0.04em;
+    color:var(--accent-ink);opacity:0.10;white-space:nowrap;pointer-events:none;user-select:none;}
+  .num-content{position:relative;z-index:3;}
+
+  /* rodapé — @ do negócio + indicador de arraste */
+  .foot{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;
+    font-size:25px;font-weight:600;color:var(--ink-soft);margin-top:36px;}
+  .foot .swipe{display:flex;align-items:center;gap:12px;font-weight:800;color:var(--accent-ink);}
+
+  /* CTA final discreto — aponta o link na bio (nunca uma URL clicável, o Insta não clica na arte) */
+  .vk-cta{margin-top:44px;padding-left:32px;border-left:6px solid var(--accent-ink);
+    font-size:30px;font-weight:500;line-height:1.44;color:var(--ink-soft);max-width:860px;}
+  .vk-cta b{color:var(--accent-ink);font-weight:800;}
+  .bio-tag{display:inline-flex;align-items:center;gap:12px;margin-top:30px;font-size:27px;
+    font-weight:800;color:var(--accent-ink);}
+</style>
+</head>
+<body>
+
+<!-- ====== TIPO A — CAPA (clara, título grande + palavra serifada sublinhada + chips + img opcional) ====== -->
+<div class="slide theme-a">
+  <div class="body body--top">
+    <!-- chips do topo: opcional. Apague o bloco se não quiser. -->
+    <div class="chips">
+      <span class="chip chip--solid">IA PRO SEU NEGÓCIO</span>
+      <span class="chip">SEM ENROLAÇÃO</span>
+    </div>
+    <!-- imagem-herói clara: opcional. Apague .capa-art se for só texto. -->
+    <div class="capa-art"><div class="hero--capa"></div></div>
+    <h1>O gancho da capa<br/>direto ao ponto,<br/>com uma palavra <span class="serif pen">de peso.</span></h1>
+  </div>
+  <div class="foot"><span>@seunegocio</span><span class="swipe">Arraste &rarr;</span></div>
+</div>
+
+<!-- ====== TIPO B — TEXTO (claro, eyebrow + acento serifado sublinhado) ====== -->
+<div class="slide theme-b">
+  <div class="body">
+    <span class="eyebrow">O ponto de partida</span>
+    <h2>A ideia de abertura<br/>explicada sem rodeio,<br/>com uma palavra <span class="serif pen">que fica.</span></h2>
+    <hr class="rule" />
+    <p class="lead">Um apoio de uma ou duas linhas que desenvolve a ideia sem encher linguiça.</p>
+  </div>
+  <div class="foot"><span>@seunegocio</span><span class="swipe">Arraste &rarr;</span></div>
+</div>
+
+<!-- ====== TIPO C — NÚMERO (claro, número gigante em marca d'água fade no accent-ink) ====== -->
+<div class="slide theme-a">
+  <span class="num-bg">01</span>
+  <div class="body">
+    <div class="num-content">
+      <h2>O item da lista,<br/>curto e claro.</h2>
+      <p class="support">Uma explicação de apoio que cabe em duas linhas e fecha a ideia sem rodeio.</p>
+    </div>
+  </div>
+  <div class="foot"><span>@seunegocio</span><span class="swipe">Arraste &rarr;</span></div>
+</div>
+
+<!-- ====== TIPO C — NÚMERO (segundo item, papel alterna pra dar ritmo no feed) ====== -->
+<div class="slide theme-b">
+  <span class="num-bg">02</span>
+  <div class="body">
+    <div class="num-content">
+      <h2>O segundo item,<br/>na mesma pegada.</h2>
+      <p class="support">Outro apoio curto. Repita o bloco pra quantos itens a sua lista tiver.</p>
+    </div>
+  </div>
+  <div class="foot"><span>@seunegocio</span><span class="swipe">Arraste &rarr;</span></div>
+</div>
+
+<!-- ====== TIPO B — VIRADA (claro, prepara o fecho) ====== -->
+<div class="slide theme-a">
+  <div class="body">
+    <span class="eyebrow">A virada</span>
+    <h2>A frase que amarra<br/>tudo que veio antes,<br/>com <span class="serif pen">contexto.</span></h2>
+    <hr class="rule" />
+    <p class="lead">O fechamento do raciocínio que prepara o convite final do próximo slide.</p>
+  </div>
+  <div class="foot"><span>@seunegocio</span><span class="swipe">Arraste &rarr;</span></div>
+</div>
+
+<!-- ====== TIPO D — CTA (claro, aponta o link na bio; SEM URL clicável na arte) ====== -->
+<div class="slide theme-b">
+  <div class="body">
+    <span class="eyebrow">O próximo passo</span>
+    <h2>A chamada final<br/>que convida a <span class="serif pen">agir agora.</span></h2>
+    <div class="vk-cta">
+      Fecho na voz do <b>seu negócio</b>: diga em uma frase o que a pessoa ganha ao chamar, e mande ir pelo link na bio.
+    </div>
+    <span class="bio-tag">Link na bio &rarr; toque no @ acima</span>
+  </div>
+  <div class="foot"><span>@seunegocio</span><span></span></div>
+</div>
+
+</body>
+</html>

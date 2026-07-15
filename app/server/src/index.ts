@@ -24,6 +24,10 @@ import { rotasWorkspaces } from "./workspaces/rotas.js";
 import { rotasIde } from "./ide/rotas.js";
 import { rotasConexoes } from "./conexoes/rotas.js";
 import { rotasCrm } from "./crm/rotas.js";
+import { rotasAutomacoes } from "./automacoes/rotas.js";
+import { rotasCalendario } from "./calendario/rotas.js";
+import { iniciarSincronizacaoCalendario } from "./calendario/sincronizacao.js";
+import { iniciarExecutor } from "./automacoes/executor.js";
 import { migrarSeNecessario } from "./workspaces/migracao.js";
 
 const PORTA = 4600;
@@ -104,6 +108,13 @@ async function subir(): Promise<void> {
   await app.register(rotasIde, { prefix: "/api" });
   await app.register(rotasConexoes, { prefix: "/api" });
   await app.register(rotasCrm, { prefix: "/api" });
+  await app.register(rotasAutomacoes, { prefix: "/api" });
+  await app.register(rotasCalendario, { prefix: "/api" });
+
+  // Executor de automacoes: assina o barramento e reage aos eventos do hub.
+  iniciarExecutor();
+  // Sincronizacao CRM > Google Calendar: tambem assina o barramento.
+  iniciarSincronizacaoCalendario();
 
   // Arquivos das pecas na raiz, sem /api: o frontend faz proxy de /pecas separado.
   await app.register(rotasPecas);
@@ -114,6 +125,18 @@ async function subir(): Promise<void> {
     await app.register(estatico, {
       root: pastaWebDist,
       prefix: "/",
+      // Cache certo por tipo de arquivo: o index.html nunca fica preso no cache
+      // do navegador (sempre revalida, senao um build novo nao chega no usuario),
+      // e os assets com hash no nome podem cachear pra sempre (mudou o codigo,
+      // muda o nome).
+      cacheControl: false,
+      setHeaders(res, caminho) {
+        const ehAsset = caminho.replace(/\\/g, "/").includes("/assets/");
+        res.setHeader(
+          "Cache-Control",
+          ehAsset ? "public, max-age=31536000, immutable" : "no-cache",
+        );
+      },
     });
   }
 

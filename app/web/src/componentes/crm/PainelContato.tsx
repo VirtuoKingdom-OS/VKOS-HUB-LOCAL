@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Contato, DadosContato } from "../../api/crm";
 import { BotaoConfirmar } from "./BotaoConfirmar";
-import { formatarDataHora } from "./formatos";
+import { formatarDataHora, isoParaDatetimeLocal } from "./formatos";
 import { IconeLixeira, IconeMais, IconeX } from "../comum/Icones";
 
 // Campos de texto simples do detalhe, com rotulo e placeholder.
@@ -36,6 +36,9 @@ export function PainelContato({
   const [origem, setOrigem] = useState(contato.origem ?? "");
   const [valor, setValor] = useState(
     contato.valorEstimado !== undefined ? String(contato.valorEstimado) : ""
+  );
+  const [proximoContato, setProximoContato] = useState(
+    isoParaDatetimeLocal(contato.proximoContato)
   );
   const [novaTag, setNovaTag] = useState("");
   const [novaNota, setNovaNota] = useState("");
@@ -87,6 +90,17 @@ export function PainelContato({
       return;
     }
     if (n !== original) void aoAtualizar(contato.id, { valorEstimado: n });
+  }
+
+  function salvarProximoContato() {
+    const original = isoParaDatetimeLocal(contato.proximoContato);
+    if (proximoContato === original) return;
+    if (proximoContato === "") {
+      // null (nao undefined) pra o backend enxergar a intencao de limpar.
+      if (contato.proximoContato) void aoAtualizar(contato.id, { proximoContato: null });
+      return;
+    }
+    void aoAtualizar(contato.id, { proximoContato });
   }
 
   function adicionarTag() {
@@ -169,6 +183,19 @@ export function PainelContato({
               if (e.key === "Enter") e.currentTarget.blur();
             }}
             placeholder="0"
+          />
+        </label>
+
+        <label className="crm-campo">
+          <span className="crm-rotulo">Proximo contato</span>
+          <input
+            type="datetime-local"
+            value={proximoContato}
+            onChange={(e) => setProximoContato(e.target.value)}
+            onBlur={salvarProximoContato}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
           />
         </label>
 

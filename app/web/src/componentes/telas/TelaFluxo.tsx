@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
-import type { TipoPeca } from "../../tipos/dominio";
+import type { Peca, TipoPeca } from "../../tipos/dominio";
 import { baseNome, ROTULO_TIPO } from "./fluxos";
 import { CartaoPeca } from "../pecas/CartaoPeca";
 import { Lightbox } from "../pecas/Lightbox";
@@ -11,9 +11,8 @@ interface Props {
 }
 
 interface EstadoVisor {
-  urls: string[];
+  peca: Peca;
   indice: number;
-  nomeBase?: string;
 }
 
 // Tela de um fluxo: os pedidos daquele tipo, um card cada, com previews.
@@ -55,13 +54,13 @@ export function TelaFluxo({ tipo }: Props) {
             <CartaoPeca
               key={peca.pasta}
               peca={peca}
-              aoAmpliar={(urls, indice) =>
-                setVisor({
-                  urls,
-                  indice,
-                  nomeBase: empilhado ? baseNome(peca.tema) : undefined,
-                })
-              }
+              aoAmpliar={(peca, indice) => setVisor({ peca, indice })}
+              aoEditar={(pasta) => {
+                window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+              }}
+              aoAbrirSite={(pasta) => {
+                window.location.hash = "#/site/" + encodeURIComponent(pasta);
+              }}
             />
           ))}
         </div>
@@ -69,9 +68,19 @@ export function TelaFluxo({ tipo }: Props) {
 
       {visor && (
         <Lightbox
-          urls={visor.urls}
+          urls={visor.peca.previews}
           indiceInicial={visor.indice}
-          nomeBase={visor.nomeBase}
+          nomeBase={empilhado ? baseNome(visor.peca.tema) : undefined}
+          pecaHtml={visor.peca.fonteHtml ? { pasta: visor.peca.pasta } : undefined}
+          aoEditar={
+            visor.peca.fonteHtml
+              ? () => {
+                  const pasta = visor.peca.pasta;
+                  setVisor(null);
+                  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                }
+              : undefined
+          }
           aoFechar={() => setVisor(null)}
         />
       )}

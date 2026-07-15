@@ -47,7 +47,8 @@ Workspace multi-IA local-first para dono de negócio (não dev). Um cockpit onde
 ## DECIDIDO 2026-07-12: canvas em árvore com contêineres (ver decisoes/)
 - Topologia: Cérebro liga na sessão (fluxo), a sessão liga no contêiner de gerações do tipo. Geração nunca liga direto no Cérebro.
 - Um nó contêiner por tipo de peça (Carrosséis, Posts, Stories, Sites) agrupa todas as gerações em miniatura; clicar abre a galeria em modal. Nós individuais de geração não existem mais (canvas.json versão 3, migração automática da versão 2).
-- Carrossel, post e stories usam o mesmo motor, a skill /carrossel intocada: o composer escolhe formato (múltiplas páginas ou página única) e proporção (1:1, 4:5, 9:16) e manda como instrução no prompt. A subpasta de saída (instagram/, post/, instagram-stories/) define o tipo da peça.
+- Carrossel, post e stories usam o mesmo motor, a skill /carrossel intocada: o composer escolhe formato (múltiplas páginas ou página única) e proporção (1:1, 4:5, 9:16) e manda como instrução no prompt.
+- Desde 2026-07-14 o carrossel é HTML-first (ver decisoes/2026-07-14-carrossel-html-first.md): a peça é o carrossel.html, a geração é direta (sem perguntas, instruída pelo prompt), o PNG só nasce sob demanda no download (render em pasta temporária), e há editor visual no app (texto, fontes, cores globais via variáveis CSS, imagem de fundo). Peça legada com PNG segue classificada pela subpasta (instagram/, post/, instagram-stories/); peça nova classifica pelo carrossel.html na raiz.
 - Cérebro editável pelo app: GET/PUT /api/vkos/cerebro com gravação atômica e backup automático por boot.
 - Anexos universais do composer em materiais/cockpit/anexos/, referenciados por caminho no prompt.
 - Preview de site dentro do app: iframe escalado por transform, presets mobile e desktop, atualização ao vivo via evento de peças.
@@ -64,6 +65,38 @@ Detalhe fino no app/CONTRATO.md e nos arquivos de decisoes/. Aqui só o mapa:
 - Conexões MCP (#/conexoes): catálogo por workspace (GitHub, Netlify, Notion), token só no disco local em conexoes.json, montarConfigMcp injeta --mcp-config nas sessões. Backend em server/src/conexoes/. Vercel saiu do catálogo em 2026-07-14 (ver decisoes/2026-07-14-vercel-fora-do-catalogo.md).
 - CRM (#/crm): kanban por workspace, colunas personalizáveis, cartões arrastáveis, detalhe com tags e notas. Backend em server/src/crm/.
 - Três temas (ver decisoes/2026-07-14-tres-temas.md): Escuro (o padrão), Dark VKOS e Claro, todos via tokens de web/src/estilos/global.css. Mensagens da IA renderizam markdown de verdade (componente comum/Markdown).
+
+## DECIDIDO 2026-07-14: duas jornadas, Dashboard e Studio (rodada 13)
+Ver decisoes/2026-07-14-duas-jornadas-dashboard-studio.md. Mapa:
+- Dashboard (#/dashboard, tela padrão): porta de entrada simplificada. Criação guiada estilo quiz (AssistenteCriacao em web/src/componentes/criacao/): tema/páginas/modelo, estilo/dimensão, imagens (sem/com/intercalado, gerar com IA em breve), visual do Cérebro ou paleta manual, Gerar com progresso por fases. O usuário nunca vê o chat.
+- Studio (#/studio/<pasta>): o único editor de carrossel. Páginas lado a lado num iframe só, zoom, painel de propriedades, mover elementos (drag com guias e snap). Motor de edição compartilhado em web/src/componentes/editor/motor.ts.
+- Sidebar: Dashboard, Cockpit, CRM, WhatsApp (em breve), Instagram (em breve), Conexões, Conteúdo condicional (Galerias unificada de imagens, Site e páginas), Fontes de dados, VKOS-IDE sempre por último.
+- Cliente de trabalho único: Estúdio Aura (designer fictícia, Cérebro completo) em estudio-aura/. A pasta vkos/ segue só como referência, fora do registro.
+
+## DECIDIDO 2026-07-14: Site Guiado HTML-first por prompt (rodada 17)
+Ver decisoes/2026-07-14-site-guiado-html-first.md. Mapa:
+- Wizard do Dashboard (AssistenteCriacao com tipo "site", EtapasSite em web/src/componentes/criacao/): 4 etapas, gera por montarPromptSite (promptSite.ts) com skill "site". A sessão constrói o site HTML estático direto em conteudo/<pasta>/ lendo o Cérebro, a metodologia da skill /site e principios-visuais.md. Nenhuma skill modificada.
+- Estado global de geração aceita tipo "site": peça pronta = pasta alvo com tipo "site" (sem fonteHtml), fases próprias, flutuante com "Ver o site".
+- Tela #/site/<pasta> (web/src/componentes/site/TelaSite.tsx): iframe escalado com presets Desktop 1440x900 e Mobile 390x844, seletor de páginas, cache-bust ao vivo, painel lateral "Ajustar com IA" (criarSessao direto, estado local da tela).
+
+## DECIDIDO 2026-07-15: barramento de eventos e Google Calendar
+Ver decisoes/2026-07-15-barramento-eventos-google-calendar.md. Mapa:
+- Barramento de eventos (server/src/eventos/barramento.ts): emitir/assinar tipados, log auditável por workspace em eventos.jsonl com rotação. Eventos: crm:contato-criado/movido/atualizado, peca:criada, sessao:concluida. Integração nova assina o barramento, não chama módulo direto.
+- Google Calendar: OAuth loopback no app (server/src/google/oauth.ts, token só em conexoes.json), cliente REST fino (calendar.ts), servidor MCP próprio (mcp-calendar.ts, 5 ferramentas de agenda injetadas nas sessões via montarConfigMcp) e card com botão Conectar na tela Conexões.
+- Automações (server/src/automacoes/ e tela #/automacoes): regras por workspace "quando evento então criar evento na agenda", filtro por coluna, templates com variáveis do cartão, modo ensaio sem efeito real, histórico em jsonl. Ação determinística chama a API direto, sem gastar sessão de IA. Cartão do CRM ganhou proximoContato (data do compromisso).
+- Tela Calendário (#/calendario, item fixo na sidebar abaixo do CRM) é LOCAL-FIRST desde 2026-07-15: agenda própria por workspace (eventosLocais em calendario.json, server/src/calendario/eventosLocais.ts), funciona sem Google. Visão de mês, criar/editar/excluir evento, poll de 60s e refresh no foco. Dois toggles no cabeçalho: "Sincronizar com CRM" (sempre disponível) e "Sincronizar com Google Calendar" (opcional; ligar exige conexão e pede pra conectar em Conexões). Modo google = sincronizarGoogle e conectado: a tela opera na agenda do Google, eventos locais são enviados ao ligar, e criações no modo google guardam espelho local. A página de retorno do OAuth redireciona sozinha pra #/calendario.
+- Sincronização CRM > agenda (server/src/calendario/sincronizacao.ts): cartão com proximoContato vira evento pela camada LOCAL, que propaga pro Google quando o modo google está ativo. Mantido em dia pelo barramento (criar, atualizar, remover ao limpar a data ou excluir o cartão; o CRM emite crm:contato-excluido desde 2026-07-15). Desligar não apaga compromissos já criados.
+- Desconectar o Google (oauth.ts) zera a conexão inteira (clientId, clientSecret, refreshToken, contaEmail), desabilita o servidor MCP e desliga a sincronização do calendário. O cockpit fica oculto (visibility hidden) quando não é a tela ativa, pra não vazar por baixo das telas no carregamento.
+
+## DECIDIDO 2026-07-15: Studio de Site (modo Editar na TelaSite)
+Ver decisoes/2026-07-15-studio-de-site.md. Mapa:
+- TelaSite (#/site/<pasta>) tem os modos Visualizar e Editar. Editar liga o usarMotorSite (web/src/componentes/editor/motorSite.ts, contrato no topo do arquivo) e o PainelSite (componentes/site/PainelSite.tsx): texto, tipografia e cores com escopo geral ou só no celular, link com atalho WhatsApp, troca de imagem, seções (mover, duplicar, excluir) e cores globais do site.
+- Sem drag livre (site é layout fluido). Estilos vão pra folha <style id="vkos-ajustes"> com data-vk e !important, nunca inline. Serialização preserva doctype, data-vk e a folha; remove artefatos de editor.
+- Hit-test do motorSite faz descida geométrica no ponto do clique ignorando pointer-events (2026-07-15): elemento "desabilitado" pelo site (ex: botão Em breve com pointer-events none) é selecionável e editável; camada decorativa aria-hidden só é pulada quando cobre a viewport (ícone pequeno aria-hidden é alvo normal). O Ajustar com IA também fica disponível no modo Editar (troca de painel com o de propriedades, salvar antes de disparar).
+- Refino do Studio de Site (2026-07-15, rodada 2): a lista de seções pula camadas decorativas e desce pro wrapper quando o body tem um container só; texto editável por textarea exige filhos com display inline computado (span display block não conta); definirHref converte elemento em <a> in-place quando não há link (campo Link do painel aparece em qualquer bloco elegível); promptSite.ts exige marcação amigável ao Studio (todo clicável é <a>, "em breve" sem href com aria-disabled, nunca pointer-events pra desativar, decorativos com aria-hidden).
+- Primitivas compartilhadas em editor/nucleo.ts; motor.ts (carrossel) manteve API e comportamento.
+- Gravação: PUT /vkos/pecas/:pasta/pagina/:arquivo (server/src/vkos/paginaSite.ts), padrão do carrossel, carrossel.html proibido.
+- Fantasma do cockpit (2026-07-15): a camada do cockpit fica sempre montada e ganha visibility hidden fora da tela dele; a troca de tela no Shell commita com flushSync antes do paint (sem isso, com a thread ocupada pelo canvas, o cockpit vazava uns frames na saída). O servidor serve o dist com Cache-Control: no-cache no index.html e immutable nos assets com hash (build novo chega sem Ctrl+F5).
 
 ## Stack decidida (resumo)
 - Node (Fastify) local + React + Vite + TypeScript no navegador.

@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       "/api": { target: "http://localhost:4600", changeOrigin: true },
       "/pecas": { target: "http://localhost:4600", changeOrigin: true },
+      "/modelos-html": { target: "http://localhost:4600", changeOrigin: true },
       "/ws": { target: "http://localhost:4600", ws: true, changeOrigin: true },
     },
   },

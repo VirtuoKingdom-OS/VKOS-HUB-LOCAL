@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
 import { urlPeca } from "../../api/cliente";
 import type { Peca, TipoPeca } from "../../tipos/dominio";
@@ -19,7 +19,7 @@ const ORDEM_TIPOS: TipoPeca[] = ["carrossel", "post", "stories", "site", "texto"
 export function PainelPecas() {
   const { pecas } = usarEstado();
   const [aberto, setAberto] = useState(true);
-  const [ampliada, setAmpliada] = useState<string | null>(null);
+  const [ampliada, setAmpliada] = useState<Miniatura | null>(null);
 
   const grupos = useMemo(() => {
     const mapa = new Map<TipoPeca, Peca[]>();
@@ -76,11 +76,15 @@ export function PainelPecas() {
                       <div
                         className="mini-peca"
                         key={mini.chave}
-                        onClick={() => mini.url && setAmpliada(mini.url)}
+                        onClick={() => mini.url && setAmpliada(mini)}
                         title={peca.tema}
                       >
                         {mini.url ? (
-                          <img src={mini.url} alt={peca.tema} loading="lazy" />
+                          mini.html ? (
+                            <MiniaturaPaginaPainel url={mini.url} titulo={peca.tema} />
+                          ) : (
+                            <img src={mini.url} alt={peca.tema} loading="lazy" />
+                          )
                         ) : (
                           <div className="sem-preview">{peca.tema}</div>
                         )}
@@ -100,16 +104,142 @@ export function PainelPecas() {
           <button className="fechar" onClick={() => setAmpliada(null)} title="Fechar">
             <IconeX className="" />
           </button>
-          <img src={ampliada} alt="Peça ampliada" onClick={(e) => e.stopPropagation()} />
+          {ampliada.html ? (
+            <PaginaAmpliadaPainel url={ampliada.url!} />
+          ) : (
+            <img
+              src={ampliada.url!}
+              alt="Peça ampliada"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
         </div>
       )}
     </>
   );
 }
 
+// Miniatura viva de uma pagina de carrossel fonteHtml, escalada pra caber no
+// slot 4:5 do grid. Mesmo principio do MiniaturaSite: mede o documento pelo
+// contentDocument e aplica transform:scale(), sem interacao (pointer-events
+// none no css).
+function MiniaturaPaginaPainel({ url, titulo }: { url: string; titulo: string }) {
+  const refCaixa = useRef<HTMLDivElement>(null);
+  const refIframe = useRef<HTMLIFrameElement>(null);
+  const [dimsPagina, setDimsPagina] = useState<{ largura: number; altura: number } | null>(
+    null
+  );
+  const [fator, setFator] = useState(0);
+
+  useEffect(() => {
+    const caixa = refCaixa.current;
+    if (!caixa || !dimsPagina) return;
+    const medir = () => {
+      const f = caixa.clientWidth / dimsPagina.largura;
+      setFator(f > 0 ? f : 0);
+    };
+    const ro = new ResizeObserver(medir);
+    ro.observe(caixa);
+    medir();
+    return () => ro.disconnect();
+  }, [dimsPagina]);
+
+  function aoCarregar() {
+    const doc = refIframe.current?.contentDocument;
+    if (!doc?.body) return;
+    setDimsPagina({ largura: doc.body.scrollWidth, altura: doc.body.scrollHeight });
+  }
+
+  return (
+    <div className="mini-peca-html" ref={refCaixa}>
+      <iframe
+        ref={refIframe}
+        className="mini-peca-html-frame"
+        src={url}
+        title={titulo}
+        loading="lazy"
+        tabIndex={-1}
+        aria-hidden="true"
+        onLoad={aoCarregar}
+        style={
+          dimsPagina && fator > 0
+            ? {
+                width: `${dimsPagina.largura}px`,
+                height: `${dimsPagina.altura}px`,
+                transform: `scale(${fator})`,
+              }
+            : { opacity: 0 }
+        }
+      />
+    </div>
+  );
+}
+
+// Pagina HTML ampliada no lightbox simples do painel. Escala pra caber na
+// tela igual a uma imagem faria, recalculando em resize.
+function PaginaAmpliadaPainel({ url }: { url: string }) {
+  const refIframe = useRef<HTMLIFrameElement>(null);
+  const [dimsPagina, setDimsPagina] = useState<{ largura: number; altura: number } | null>(
+    null
+  );
+  const [fator, setFator] = useState(1);
+
+  function aoCarregar() {
+    const doc = refIframe.current?.contentDocument;
+    if (!doc?.body) return;
+    setDimsPagina({ largura: doc.body.scrollWidth, altura: doc.body.scrollHeight });
+  }
+
+  useEffect(() => {
+    if (!dimsPagina) return;
+    const recalcular = () => {
+      const f = Math.min(
+        (window.innerWidth * 0.86) / dimsPagina.largura,
+        (window.innerHeight * 0.86) / dimsPagina.altura,
+        1
+      );
+      setFator(f > 0 ? f : 1);
+    };
+    recalcular();
+    window.addEventListener("resize", recalcular);
+    return () => window.removeEventListener("resize", recalcular);
+  }, [dimsPagina]);
+
+  return (
+    <div
+      className="pagina-ampliada-painel"
+      onClick={(e) => e.stopPropagation()}
+      style={
+        dimsPagina
+          ? { width: `${dimsPagina.largura * fator}px`, height: `${dimsPagina.altura * fator}px` }
+          : undefined
+      }
+    >
+      <iframe
+        ref={refIframe}
+        className="pagina-ampliada-painel-frame"
+        src={url}
+        title="Página ampliada"
+        onLoad={aoCarregar}
+        style={
+          dimsPagina
+            ? {
+                width: `${dimsPagina.largura}px`,
+                height: `${dimsPagina.altura}px`,
+                transform: `scale(${fator})`,
+              }
+            : undefined
+        }
+      />
+    </div>
+  );
+}
+
 interface Miniatura {
   chave: string;
   url: string | null;
+  // Peca fonteHtml: a url e uma pagina isolada, nao uma imagem.
+  html?: boolean;
 }
 
 // Uma peca pode ter varios previews. Se nao tiver, mostra um card de texto.
@@ -118,6 +248,7 @@ function montarMiniaturas(peca: Peca): Miniatura[] {
     return peca.previews.map((p, i) => ({
       chave: `${peca.pasta}-${i}`,
       url: urlPeca(p),
+      html: peca.fonteHtml,
     }));
   }
   return [{ chave: peca.pasta, url: null }];

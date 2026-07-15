@@ -6,14 +6,10 @@ import { ROTULO_FONTE } from "../telas/fontes";
 import { Marca } from "../comum/Telas";
 import { SeletorWorkspace } from "./SeletorWorkspace";
 import type { TipoContexto, TipoPeca } from "../../tipos/dominio";
-import {
-  IconeCarrossel,
-  IconeGaleria,
-  IconePost,
-  IconeSite,
-  IconeStories,
-} from "../comum/Icones";
 import { IconeImagens, IconeLinks, IconeTextos } from "../telas/icones";
+
+// Tipos de peca que a galeria unificada reune (imagem).
+const TIPOS_GALERIA: TipoPeca[] = ["carrossel", "post", "stories"];
 
 const LIMITE_SESSOES = 5;
 
@@ -30,12 +26,15 @@ export interface ItemFonte {
 interface Props {
   itensFluxo: ItemFluxo[];
   itensFonte: ItemFonte[];
-  // "cockpit", "fluxo:<tipo>" ou "fonte:<tipo>".
+  // "dashboard", "cockpit", "galerias", "whatsapp", "instagram", "crm",
+  // "conexoes", "automacoes", "ide", "fluxo:<tipo>", "fonte:<tipo>" ou
+  // "studio:<pasta>".
   telaAtiva: string;
   aoNavegar: (tela: string) => void;
 }
 
-// Menu lateral fixo: marca, Cockpit, fluxos, fontes e rodape de status.
+// Menu lateral fixo: marca, navegacao do hub, secao de conteudo condicional,
+// fontes de dados, a VKOS-IDE ancorada no fim e o rodape de status.
 export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props) {
   const { ambiente, wsConectado, sessoes, estadoVkos, custos } = usarEstado();
 
@@ -44,6 +43,15 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
   const nomePasta = estadoVkos?.pasta
     ? estadoVkos.pasta.split(/[\\/]/).filter(Boolean).pop() ?? estadoVkos.pasta
     : "sem pasta";
+
+  // Secao "Conteudo": a galeria unificada soma as pecas de imagem (carrossel,
+  // post, stories); o item so aparece quando ha alguma. O "Site e paginas"
+  // aparece so quando existe peca de site e leva ao fluxo de site.
+  const galeriasTotal = itensFluxo
+    .filter((i) => TIPOS_GALERIA.includes(i.tipo))
+    .reduce((soma, i) => soma + i.total, 0);
+  const itemSite = itensFluxo.find((i) => i.tipo === "site");
+  const temConteudo = galeriasTotal > 0 || !!itemSite;
 
   const totalGasto = custos?.totalUsd ?? 0;
   // Total geral somando todos os clientes, quando o backend manda o campo.
@@ -75,18 +83,18 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
 
       <nav className="sidebar-nav">
         <button
+          className={`item-nav${telaAtiva === "dashboard" ? " ativo" : ""}`}
+          onClick={() => aoNavegar("dashboard")}
+        >
+          <IconeDashboard />
+          <span className="item-nav-rotulo">Dashboard</span>
+        </button>
+        <button
           className={`item-nav${telaAtiva === "cockpit" ? " ativo" : ""}`}
           onClick={() => aoNavegar("cockpit")}
         >
           <IconeCockpit className="" />
           <span className="item-nav-rotulo">Cockpit</span>
-        </button>
-        <button
-          className={`item-nav${telaAtiva === "ide" ? " ativo" : ""}`}
-          onClick={() => aoNavegar("ide")}
-        >
-          <IconeIde />
-          <span className="item-nav-rotulo">VKOS-IDE</span>
         </button>
         <button
           className={`item-nav${telaAtiva === "crm" ? " ativo" : ""}`}
@@ -96,34 +104,68 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
           <span className="item-nav-rotulo">CRM</span>
         </button>
         <button
+          className={`item-nav${telaAtiva === "calendario" ? " ativo" : ""}`}
+          onClick={() => aoNavegar("calendario")}
+        >
+          <IconeCalendario />
+          <span className="item-nav-rotulo">Calendário</span>
+        </button>
+        <button
+          className={`item-nav${telaAtiva === "whatsapp" ? " ativo" : ""}`}
+          onClick={() => aoNavegar("whatsapp")}
+        >
+          <IconeWhatsapp />
+          <span className="item-nav-rotulo">WhatsApp</span>
+          <span className="item-nav-badge">Em breve</span>
+        </button>
+        <button
+          className={`item-nav${telaAtiva === "instagram" ? " ativo" : ""}`}
+          onClick={() => aoNavegar("instagram")}
+        >
+          <IconeInstagram />
+          <span className="item-nav-rotulo">Instagram</span>
+          <span className="item-nav-badge">Em breve</span>
+        </button>
+        <button
           className={`item-nav${telaAtiva === "conexoes" ? " ativo" : ""}`}
           onClick={() => aoNavegar("conexoes")}
         >
           <IconeConexoes />
           <span className="item-nav-rotulo">Conexões</span>
         </button>
+        <button
+          className={`item-nav${telaAtiva === "automacoes" ? " ativo" : ""}`}
+          onClick={() => aoNavegar("automacoes")}
+        >
+          <IconeAutomacoes />
+          <span className="item-nav-rotulo">Automações</span>
+        </button>
 
-        {itensFluxo.length > 0 && (
+        {temConteudo && (
           <>
             <div className="sidebar-secao">
-              <span className="rotulo-secao">Fluxos</span>
+              <span className="rotulo-secao">Conteúdo</span>
             </div>
-            {itensFluxo.map((item) => {
-              const alvo = `fluxo:${item.tipo}`;
-              return (
-                <button
-                  key={item.tipo}
-                  className={`item-nav${telaAtiva === alvo ? " ativo" : ""}`}
-                  onClick={() => aoNavegar(alvo)}
-                >
-                  {iconeTipo(item.tipo)}
-                  <span className="item-nav-rotulo">
-                    {ROTULO_TIPO[item.tipo]}
-                  </span>
-                  <span className="item-nav-contagem">{item.total}</span>
-                </button>
-              );
-            })}
+            {galeriasTotal > 0 && (
+              <button
+                className={`item-nav${telaAtiva === "galerias" ? " ativo" : ""}`}
+                onClick={() => aoNavegar("galerias")}
+              >
+                <IconeGalerias />
+                <span className="item-nav-rotulo">Galerias</span>
+                <span className="item-nav-contagem">{galeriasTotal}</span>
+              </button>
+            )}
+            {itemSite && (
+              <button
+                className={`item-nav${telaAtiva === "fluxo:site" ? " ativo" : ""}`}
+                onClick={() => aoNavegar("fluxo:site")}
+              >
+                <IconeSitePagina />
+                <span className="item-nav-rotulo">{ROTULO_TIPO.site}</span>
+                <span className="item-nav-contagem">{itemSite.total}</span>
+              </button>
+            )}
           </>
         )}
 
@@ -150,6 +192,18 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
             })}
           </>
         )}
+
+        {/* A VKOS-IDE fica sempre por ultimo, ancorada no fim da navegacao
+            (margin-top:auto) e separada por uma borda, acima do rodape. */}
+        <div className="sidebar-nav-fim">
+          <button
+            className={`item-nav${telaAtiva === "ide" ? " ativo" : ""}`}
+            onClick={() => aoNavegar("ide")}
+          >
+            <IconeIde />
+            <span className="item-nav-rotulo">VKOS-IDE</span>
+          </button>
+        </div>
       </nav>
 
       <div className="sidebar-rodape">
@@ -318,15 +372,6 @@ function fmtTokens(n?: number): string {
   return `${texto}k`;
 }
 
-// Icone do item de fluxo conforme o tipo da peca.
-function iconeTipo(tipo: TipoPeca) {
-  if (tipo === "carrossel") return <IconeCarrossel className="" />;
-  if (tipo === "stories") return <IconeStories className="" />;
-  if (tipo === "site") return <IconeSite className="" />;
-  if (tipo === "texto") return <IconePost className="" />;
-  return <IconeGaleria className="" />;
-}
-
 // Icone do item de fonte conforme o tipo do contexto.
 function iconeFonte(tipo: TipoContexto) {
   if (tipo === "imagens") return <IconeImagens className="" />;
@@ -354,10 +399,29 @@ function IconeCrm() {
   );
 }
 
+// Calendario: folha de agenda com a barra do topo e os furos.
+function IconeCalendario() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M3.5 9.5h17M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
 function IconeConexoes() {
   return (
     <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 7v4M15 7v4M7 11h10v2a5 5 0 0 1-10 0v-2ZM12 18v3" />
+    </svg>
+  );
+}
+
+// Automacoes: um raio, a regra que dispara sozinha.
+function IconeAutomacoes() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 3 4 14h6l-1 7 9-11h-6l1-7Z" />
     </svg>
   );
 }
@@ -378,6 +442,60 @@ function IconeCockpit({ className }: { className?: string }) {
     >
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M3 9h18M9 9v11" />
+    </svg>
+  );
+}
+
+// Dashboard: grade de blocos, a porta de entrada simplificada.
+function IconeDashboard() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+      <rect x="13" y="4" width="7" height="5" rx="1.5" />
+      <rect x="13" y="11" width="7" height="9" rx="1.5" />
+      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+// WhatsApp: balao de conversa com a cauda, traco simples on-brand.
+function IconeWhatsapp() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5 5.3 16A7.5 7.5 0 1 1 8 18.7L4 19.5Z" />
+      <path d="M9 10.2c.3 1.6 2.2 3.5 3.8 3.8.5.1.9-.1 1.1-.5l.3-.6-1.7-1-.7.7c-.7-.3-1.4-1-1.7-1.7l.7-.7-1-1.7-.6.3c-.4.2-.6.6-.5 1.1Z" />
+    </svg>
+  );
+}
+
+// Instagram: quadrado arredondado com a lente e o ponto da camera.
+function IconeInstagram() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="5" />
+      <circle cx="12" cy="12" r="3.6" />
+      <circle cx="16.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// Galerias: pilha de quadros, a galeria unificada de imagem.
+function IconeGalerias() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="7" y="3.5" width="13" height="13" rx="2" />
+      <path d="m10 12 2.2-2.2 2.3 2.3 1.7-1.6L20 13" />
+      <path d="M4 7.5v11A2 2 0 0 0 6 20.5h11" />
+    </svg>
+  );
+}
+
+// Site e paginas: janela de navegador com a barra superior.
+function IconeSitePagina() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 9h18M7 7h.01M10 7h.01" />
     </svg>
   );
 }

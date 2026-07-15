@@ -188,6 +188,7 @@ const CAMPOS_SESSAO = [
   "formato",
   "proporcao",
   "anexos",
+  "etapas",
 ] as const;
 
 function arestaCerebro(idSessao: string): Edge {

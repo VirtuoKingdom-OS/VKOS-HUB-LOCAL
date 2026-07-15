@@ -340,6 +340,10 @@ body.overlay-aberto .no-cerebro .miolo::after {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   transition: border-color var(--transicao), box-shadow var(--transicao);
 }
+/* Composer de imagem em etapas: node mais largo pra o fluxo caber denso. */
+.no-sessao.etapas {
+  width: 460px;
+}
 .no-sessao.rodando {
   border-color: rgba(var(--menta-rgb), 0.5);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), var(--glow);
@@ -731,6 +735,39 @@ body.overlay-aberto .no-cerebro .miolo::after {
   background: linear-gradient(transparent, rgba(var(--scrim-rgb), 0.9));
   font-size: 10px;
   color: var(--texto-suave);
+}
+
+/* Miniatura viva de pagina de carrossel fonteHtml no painel lateral: iframe
+   da pagina isolada escalado com transform:scale(), sem interacao. */
+.mini-peca-html {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.mini-peca-html-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* Pagina ampliada no lightbox simples do painel: mesma moldura do <img>. */
+.pagina-ampliada-painel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  background: var(--fundo);
+}
+.pagina-ampliada-painel-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
 }
 .vazio-pecas {
   color: var(--texto-fraco);

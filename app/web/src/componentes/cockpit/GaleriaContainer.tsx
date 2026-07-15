@@ -7,6 +7,7 @@ import { Lightbox } from "../pecas/Lightbox";
 import { MiniaturaSite } from "./MiniaturaSite";
 import { PreviewSite, paginaInicialSite } from "./PreviewSite";
 import { IconeSeta, IconeX } from "../comum/Icones";
+import type { Peca } from "../../tipos/dominio";
 
 interface Props {
   // Tipo cru da peca (carrossel, post, stories, site, texto, outro). String pra
@@ -16,9 +17,8 @@ interface Props {
 }
 
 interface EstadoVisor {
-  urls: string[];
+  peca: Peca;
   indice: number;
-  nomeBase?: string;
 }
 
 // Rotulo no plural por tipo. Fallback pro proprio tipo capitalizado.
@@ -67,12 +67,11 @@ export function GaleriaContainer({ tipo, aoFechar }: Props) {
     };
   }, []);
 
-  // Esc fecha a galeria, mas so quando o lightbox nao esta aberto (ele tem o
-  // seu proprio Esc). Captura na fase de captura pra chegar antes do canvas.
+  // Esc fecha a galeria, mas so quando nenhum overlay filho esta aberto (cada
+  // um tem o seu proprio Esc). Captura na fase de captura pra chegar antes do
+  // canvas.
   useEffect(() => {
     const aoTecla = (e: KeyboardEvent) => {
-      // O lightbox e o painel de preview tem o proprio Esc. So fecha a galeria
-      // quando nenhum dos dois esta aberto.
       if (e.key === "Escape" && !visor && !preview) {
         e.stopPropagation();
         aoFechar();
@@ -158,13 +157,11 @@ export function GaleriaContainer({ tipo, aoFechar }: Props) {
                 <CartaoPeca
                   key={peca.pasta}
                   peca={peca}
-                  aoAmpliar={(urls, indice) =>
-                    setVisor({
-                      urls,
-                      indice,
-                      nomeBase: empilhado ? baseNome(peca.tema) : undefined,
-                    })
-                  }
+                  aoAmpliar={(peca, indice) => setVisor({ peca, indice })}
+                  aoEditar={(pasta) => {
+                    aoFechar();
+                    window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                  }}
                 />
               ))}
             </div>
@@ -174,9 +171,20 @@ export function GaleriaContainer({ tipo, aoFechar }: Props) {
 
       {visor && (
         <Lightbox
-          urls={visor.urls}
+          urls={visor.peca.previews}
           indiceInicial={visor.indice}
-          nomeBase={visor.nomeBase}
+          nomeBase={empilhado ? baseNome(visor.peca.tema) : undefined}
+          pecaHtml={visor.peca.fonteHtml ? { pasta: visor.peca.pasta } : undefined}
+          aoEditar={
+            visor.peca.fonteHtml
+              ? () => {
+                  const pasta = visor.peca.pasta;
+                  setVisor(null);
+                  aoFechar();
+                  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                }
+              : undefined
+          }
           aoFechar={() => setVisor(null)}
         />
       )}
