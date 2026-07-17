@@ -1,5 +1,5 @@
 /*
- * VKOS Hub — camada visual unificada.
+ * VKOS Hub: camada visual unificada.
  *
  * Este arquivo carrega por ultimo e refina a interface sem mudar a estrutura
  * ou o comportamento dos componentes. Os seletores seguem as classes
@@ -47,6 +47,10 @@
   --suave-rgb: 177, 186, 198;
   --fraco-rgb: 126, 137, 151;
   --pontos-canvas: #29313b;
+  --confirmar-perigo-fundo: rgba(60, 16, 16, 0.97);
+  --confirmar-perigo-botao: rgba(90, 22, 22, 0.98);
+  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.55);
+  --confirmar-perigo-texto: #ffd7d7;
   --grad-cerebro: radial-gradient(
     120% 130% at 50% 0%,
     #1d453a 0%,
@@ -75,6 +79,10 @@
   --suave-rgb: 168, 187, 180;
   --fraco-rgb: 116, 139, 131;
   --pontos-canvas: #183128;
+  --confirmar-perigo-fundo: rgba(60, 16, 16, 0.97);
+  --confirmar-perigo-botao: rgba(90, 22, 22, 0.98);
+  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.55);
+  --confirmar-perigo-texto: #ffd7d7;
 }
 
 :root[data-theme="claro"] {
@@ -98,6 +106,10 @@
   --suave-rgb: 82, 100, 93;
   --fraco-rgb: 96, 115, 107;
   --pontos-canvas: #cfdbd6;
+  --confirmar-perigo-fundo: rgba(190, 45, 45, 0.97);
+  --confirmar-perigo-botao: rgba(158, 34, 34, 0.98);
+  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.6);
+  --confirmar-perigo-texto: #fff;
   --grad-cerebro: radial-gradient(
     120% 130% at 50% 0%,
     #d8f3e9 0%,

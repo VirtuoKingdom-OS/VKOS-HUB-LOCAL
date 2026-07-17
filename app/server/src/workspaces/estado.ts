@@ -8,7 +8,7 @@
 
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 
@@ -194,6 +194,17 @@ export function renomearWorkspace(id: string, nome: string): Workspace | null {
   ws.nome = nome;
   salvarRegistro(reg);
   return ws;
+}
+
+// Apaga a pasta de dados do hub de um workspace (app/dados/workspaces/<id>/):
+// conexoes.json com segredos, crm.json com PII, calendario, transcricoes. A pasta
+// VKOS do cliente (workspace.pasta) NUNCA e tocada aqui: e o conteudo dele.
+// Tolerante: pasta ausente nao e erro.
+export function apagarPastaDadosWorkspace(id: string): void {
+  const pasta = pastaDadosWorkspace(id);
+  if (existsSync(pasta)) {
+    rmSync(pasta, { recursive: true, force: true });
+  }
 }
 
 // Remove um workspace SO do registro. Nunca apaga a pasta VKOS nem a pasta de

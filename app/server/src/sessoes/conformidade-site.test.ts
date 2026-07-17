@@ -32,14 +32,18 @@ function montarLaco(opcoes: {
   ehPecaSite?: boolean;
   status?: StatusSessao;
   retomarOk?: boolean;
+  auditarLanca?: boolean;
 }) {
   const conferencias: ConferenciaSite[] = [];
   const retomadas: { id: string; prompt: string }[] = [];
   let chamadasAuditar = 0;
   const deps: DepsConformidade = {
     auditar: async () => {
-      const r = opcoes.auditar[Math.min(chamadasAuditar, opcoes.auditar.length - 1)];
       chamadasAuditar += 1;
+      if (opcoes.auditarLanca) {
+        throw new Error("auditoria estourou");
+      }
+      const r = opcoes.auditar[Math.min(chamadasAuditar - 1, opcoes.auditar.length - 1)];
       return r;
     },
     retomar: (id, prompt) => {
@@ -179,6 +183,55 @@ test("retomada que falha vira pendencias", async () => {
   await laco.aoConcluir(sessaoSite());
   assert.equal(retomadas.length, 1);
   assert.equal(conferencias.at(-1)?.estado, "pendencias");
+});
+
+test("auditoria que lanca vira pendencias e nao deixa preso em conferindo", async () => {
+  const { laco, conferencias, retomadas } = montarLaco({
+    auditar: [],
+    auditarLanca: true,
+  });
+  // Silencia o console.error esperado da blindagem durante o teste.
+  const erroOriginal = console.error;
+  console.error = () => {};
+  try {
+    await laco.aoConcluir(sessaoSite());
+  } finally {
+    console.error = erroOriginal;
+  }
+  assert.deepEqual(
+    conferencias.map((c) => c.estado),
+    ["conferindo", "pendencias"],
+  );
+  assert.equal(retomadas.length, 0);
+});
+
+test("depois da excecao o laco aceita rodar de novo (emAndamento liberado)", async () => {
+  // Primeiro passe estoura; um segundo aoConcluir precisa auditar de novo, prova
+  // que o finally liberou a trava de reentrancia mesmo no caminho de erro.
+  const conferencias: ConferenciaSite[] = [];
+  let chamadas = 0;
+  const deps: DepsConformidade = {
+    auditar: async () => {
+      chamadas += 1;
+      if (chamadas === 1) throw new Error("estourou na primeira");
+      return { verificavel: true, valido: true, erros: [] };
+    },
+    retomar: () => ({ ok: true }),
+    definirConferencia: (_id, c) => conferencias.push(c),
+    ehPecaSite: () => true,
+    statusSessao: () => "concluida",
+  };
+  const laco = criarLacoConformidade(deps);
+  const erroOriginal = console.error;
+  console.error = () => {};
+  try {
+    await laco.aoConcluir(sessaoSite());
+    await laco.aoConcluir(sessaoSite());
+  } finally {
+    console.error = erroOriginal;
+  }
+  assert.equal(chamadas, 2);
+  assert.equal(conferencias.at(-1)?.estado, "aprovada");
 });
 
 test("montarPromptCorrecao lista cada erro em bullet literal", () => {

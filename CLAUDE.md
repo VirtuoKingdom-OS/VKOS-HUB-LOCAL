@@ -51,7 +51,7 @@ Em decisões estratégicas ele gosta de debater antes de travar. Apresentar opç
 
 Em execução ele quer velocidade e iteração. Quando ele disser "bora torar", é pra construir, não pra planejar mais.
 
-Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta #00C896, glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. Toda cor passa pelos tokens de tema de `app/web/src/estilos/global.css`, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
+Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. O tema sai de duas camadas: `app/web/src/estilos/global.css` define a base dos tokens e `app/web/src/estilos/visual-hub.css` carrega por último e é a camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
 
 ## Código
 

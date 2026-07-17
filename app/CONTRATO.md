@@ -6,7 +6,7 @@ Fonte da verdade entre os módulos do app. Quem constrói um módulo segue este 
 
 Cockpit web local. Backend Node (Fastify) na porta **4600**. Frontend React + Vite (dev na 5173 com proxy pro 4600). O backend abre a pasta de um VKOS instalado, orquestra sessões Claude Code ou Codex em paralelo e serve as peças geradas. Uma cópia de referência do VKOS pode existir em `../vkos` (relativa à pasta `app/`) apenas para desenvolvimento e nunca entra no pacote do usuário.
 
-Identidade visual do app: minimalista, verde-menta como destaque e contraste confortável. A interface funciona nos temas Escuro, Dark VKOS e Claro. Toda cor passa pelos tokens de `web/src/estilos/global.css`. UI inteira em português brasileiro.
+Identidade visual do app: minimalista, verde-menta como destaque (menta real dos temas #2fd4a7) e contraste confortável. A interface funciona nos temas Escuro, Dark VKOS e Claro. O tema vem de duas camadas: `web/src/estilos/global.css` é a base dos tokens e `web/src/estilos/visual-hub.css` carrega por último, camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens. UI inteira em português brasileiro.
 
 ## Pastas e propriedade (quem escreve onde)
 
@@ -467,6 +467,7 @@ Arquivos: `server/src/crm/` (novo), `web/src/componentes/crm/` (novo), `web/src/
 - `GET /api/crm` devolve o estado inteiro. Contatos usam `POST /contatos`, `PATCH /contatos/:id` e `DELETE /contatos/:id`. Excluir contato remove seus negócios. `POST /contatos/:id/interacoes` registra os cinco tipos e `/notas` permanece como alias de transição.
 - Tarefas usam `POST /contatos/:id/tarefas`, `PATCH /tarefas/:id` e `DELETE /tarefas/:id`. Negócios usam `POST /negocios`, `PATCH /negocios/:id`, `DELETE /negocios/:id` e `PATCH /negocios/:id/mover`. As rotas de coluna continuam criar, renomear, excluir e reordenar. Erros seguem `{ erro }`.
 - Os eventos antigos continuam compatíveis. Criar, atualizar e excluir contato mantêm `{ contato }`. Mover negócio emite `crm:contato-movido` com `{ contato, negocio, colunaDe, colunaPara, nomeColunaDe, nomeColunaPara }`. Registrar interação emite `crm:interacao-registrada` com `{ contato, interacao }`. Automações leem o valor do negócio com fallback para eventos históricos.
+- Desde 2026-07-17: criar, atualizar e excluir negócio emitem `crm:negocio-criado`, `crm:negocio-atualizado` e `crm:negocio-excluido` com `{ contato, negocio }` (excluir sem contato encontrado emite só `{ negocio }`). Os eventos antigos não mudam.
 - `TelaCrm` tem Hoje, Quadro e Contatos sobre o mesmo estado. O Quadro move negócios; a lista busca, filtra e ordena contatos; a ficha reúne negócios, linha do tempo, tarefas, tags e próximo contato. Hoje mostra follow-ups, esquecidos, valor por estágio e tarefas abertas. Três temas, motion sutil e `prefers-reduced-motion`.
 - `server/src/crm/resumo.ts` monta um resumo agregado de até 8 KB com funil, follow-ups, tags, esquecidos e vozes recentes. Telefone e email são removidos inclusive quando aparecem no texto da interação.
 - Se o prompt de uma sessão nova contém a palavra inteira `crm`, o servidor persiste o resumo em `contextoCrm` e o acrescenta a `instrucoesExtras`. Claude e Codex recebem também a regra dura que proíbe publicar nome completo, telefone, email ou qualquer dado identificável. A retomada repete o mesmo contexto; sem menção ao CRM, nada é injetado.
@@ -592,3 +593,31 @@ QA (3o Opus): todos os itens passaram, zero erros de console. Rolagem de bloco d
 - `DadosCriacao` mantém `estilo` para o cockpit e ganha `estiloCapa` e `estiloPaginas` para o wizard. Iguais ou somente um definido geram `usando o modelo X`; diferentes geram `usando a capa do modelo A e as paginas do modelo B`.
 - O wizard mostra capa com `slide=1` e páginas de conteúdo com `slide=2`. Escolher a capa espelha as páginas até o usuário mexer no segundo grupo; deixar a IA escolher zera os dois.
 - A skill `/carrossel` usa o modelo das páginas como base, transplanta a primeira `.slide` do modelo da capa e escopa o CSS transplantado com classe própria. O cockpit continua com um seletor único.
+
+# Conserto geral (2026-07-17)
+
+Endurecimento de contratos existentes, sem mudança de arquitetura. Ver decisoes/2026-07-17-dados-sagrados.md e 2026-07-17-camada-tema-oficial.md.
+
+## Dados sagrados
+
+- Leitura do CRM nunca sobrescreve arquivo existente: crm.json que existe mas não parseia (ou não tem forma de CRM) vai pra quarentena `crm.json.corrompido-<timestamp>` por rename e a rota responde `ErroCrm` 409 legível. Estado inicial só nasce quando o arquivo não existe.
+- Migração e saneamento do CRM usam fallback, nunca descarte: contato sem nome vira "Sem nome", sem coluna cai na primeira coluna, id ausente ganha id novo. Negócio com coluna órfã cai na primeira coluna.
+- A sincronização CRM agenda é serializada por `workspaceId::contatoId` (fila de promessas): operações rápidas no mesmo contato não duplicam evento nem deixam vínculo órfão.
+- `DELETE /workspaces/:id` revoga o refresh token do Google em best effort e apaga `app/dados/workspaces/<id>/` (conexões, CRM, publicações). A pasta VKOS do cliente fica intacta. Contrato HTTP inalterado.
+
+## Publicação fiel
+
+- O conversor Astro valida que todo nó com conteúdo do body está coberto por nav marcada, `[data-vk-pagina]`, footer marcado ou script direto; conteúdo fora vira `ConversaoInviavel` citando o elemento (fallback HTML com aviso). Os heads das páginas precisam ser idênticos fora de `title` e `meta description`; divergência cita a página e o elemento.
+- O corpo de cada página sai por `Fragment set:html`, então chaves literais no texto nunca viram expressão Astro. Scripts diretos do body continuam `is:inline` reais.
+- A conferência de site tem núcleo único `conferirPeca` em `publicacao/auditoria.ts`, usado pelo deploy (com cache de 2 min) e pelo laço de conformidade (sem cache), ambos com o host resolvido no server (`hostLocalDoHub`). `invalidarCacheAuditoria(workspaceId, pasta)` invalida o cache do deploy; o laço invalida ao fim de cada volta.
+- `modoPrevisto` só anuncia "astro" com marcadores válidos, estrutura coberta E motor viável (astro instalado ou npm no PATH, checagem cacheada). Sem motor viável, o badge não aparece.
+- O watcher de `conteudo/` ignora eventos com `.astro-build` no caminho. Remoções de árvore de build (e a exclusão de peça em `DELETE /vkos/pecas/:pasta`) passam por `limparBuildAstro`, que desfaz um junction remanescente antes de qualquer rm recursivo.
+
+## Laço robusto
+
+- No boot, `conferenciaSite` em estado não terminal (`conferindo`/`corrigindo`) vira `pendencias` (a barreira do deploy reconfere de qualquer jeito). Exceção dentro do laço também termina em `pendencias` com o motivo logado, nunca preso.
+- `geracaoVisualEmAndamento` considera em andamento a sessão de site com conferência não terminal: POST de site/carrossel nessa janela leva 409.
+- No frontend, a fase de conferência tem guarda de 90 segundos: estourou, o flutuante mostra "A conferência está demorando; o site está em Sites" e pode ser dispensado.
+- A retomada interna do laço não sobrescreve `sessao.prompt` e o turno entra com `interno: true` no `TurnoSessao`; as transcrições exibem como nota discreta "Correção automática do Hub". Retomada manual continua igual.
+- Result com erro não soma custo (sessão nem workspace) e não marca custo estimado.
+- Sessões e custos persistidos passam por saneamento defensivo na carga: entrada malformada é ignorada com log, campo faltando ganha padrão seguro.

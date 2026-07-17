@@ -10,7 +10,8 @@
 import { join } from "node:path";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
-import { gravarJsonAtomico, gravarTextoAtomico } from "../util/gravarJson.js";
+import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { criarRotacaoLog } from "../util/rotacaoLog.js";
 import { garantirPastaDadosWorkspace, pastaDadosWorkspace } from "../workspaces/estado.js";
 
 // Erro de dominio das automacoes: carrega o status HTTP que a rota deve responder.
@@ -76,10 +77,9 @@ export interface ExecucaoHistorico {
 const NOME_ARQUIVO = "automacoes.json";
 const NOME_HISTORICO = "automacoes-historico.jsonl";
 
-// Rotacao do historico: mesmo padrao preguicoso do barramento de eventos.
-const TETO_LINHAS = 2000;
-const MANTER_LINHAS = 1000;
-const CHECAR_A_CADA = 50;
+// Rotacao do historico: mesmo util preguicoso do barramento de eventos, com
+// contador proprio por chamador.
+const talvezRotacionar = criarRotacaoLog("automacoes");
 
 function gerarId(prefixo: string): string {
   return `${prefixo}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -249,9 +249,6 @@ export function removerRegra(workspaceId: string, id: string): void {
 
 // === Historico ===
 
-// Contador de gravacoes por workspace, pra rotacionar so de vez em quando.
-const gravacoesPorWorkspace = new Map<string, number>();
-
 // Registra uma execucao no historico do workspace. Falha de escrita nunca
 // derruba o executor: log honesto no console e segue.
 export function registrarExecucao(workspaceId: string, execucao: ExecucaoHistorico): void {
@@ -262,21 +259,6 @@ export function registrarExecucao(workspaceId: string, execucao: ExecucaoHistori
     talvezRotacionar(workspaceId, caminho);
   } catch (erro) {
     console.error(`[automacoes] falha ao gravar historico do workspace ${workspaceId}:`, erro);
-  }
-}
-
-function talvezRotacionar(workspaceId: string, caminho: string): void {
-  const n = (gravacoesPorWorkspace.get(workspaceId) ?? 0) + 1;
-  gravacoesPorWorkspace.set(workspaceId, n);
-  if (n % CHECAR_A_CADA !== 0) return;
-  try {
-    const bruto = readFileSync(caminho, "utf8");
-    const linhas = bruto.split("\n").filter((l) => l.length > 0);
-    if (linhas.length <= TETO_LINHAS) return;
-    const mantidas = linhas.slice(linhas.length - MANTER_LINHAS);
-    gravarTextoAtomico(caminho, mantidas.join("\n") + "\n");
-  } catch (erro) {
-    console.error(`[automacoes] falha ao rotacionar historico do workspace ${workspaceId}:`, erro);
   }
 }
 

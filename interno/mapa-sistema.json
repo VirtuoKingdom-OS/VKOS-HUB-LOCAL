@@ -71,7 +71,7 @@
       "grupo": "entrada",
       "nome": "Site Guiado e TelaSite",
       "resumo": "O caminho que transforma uma intenção em site e depois permite revisar cada página.",
-      "descricao": "É a dupla arquiteto e sala de visita. Primeiro, o guia reúne objetivo, estrutura, imagens e direção visual; o servidor confirma o destino e submete a entrega à mesma auditoria do deploy; depois, a TelaSite deixa conferir, editar e preparar a publicação sem esconder pendências.",
+      "descricao": "É a dupla arquiteto e sala de visita. Primeiro, o guia reúne objetivo, estrutura, imagens e direção visual; o servidor confirma o destino e submete a entrega à mesma auditoria do deploy; depois, a TelaSite deixa conferir, editar e preparar a publicação sem esconder pendências. Depois de gerar, o Hub confere o site sozinho com a mesma inspeção da publicação e manda a própria sessão corrigir o que reprovar, até duas voltas, antes de entregar como pronto.",
       "conversaCom": [
         "cerebro",
         "anexos",
@@ -113,7 +113,7 @@
       "grupo": "ia",
       "nome": "Skills do VKOS",
       "resumo": "As receitas de trabalho que ensinam a IA a construir cada tipo de entrega.",
-      "descricao": "São como cadernos de método de uma equipe experiente. Cada receita explica a ordem do trabalho, os cuidados e o padrão de qualidade, para que a sessão não precise improvisar o processo inteiro.",
+      "descricao": "São como cadernos de método de uma equipe experiente. Cada receita explica a ordem do trabalho, os cuidados e o padrão de qualidade, para que a sessão não precise improvisar o processo inteiro. As skills visuais leem a camada de design do workspace: a cartela de direções e a biblioteca de estilos concretos (templates/design/estilos/), que dão a personalidade e os tokens de cada peça.",
       "conversaCom": [
         "sessoes",
         "pecas"

@@ -1,5 +1,4 @@
 import {
-  existsSync,
   readFileSync,
   readdirSync,
   statSync,

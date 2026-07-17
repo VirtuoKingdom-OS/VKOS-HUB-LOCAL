@@ -395,11 +395,23 @@ export function ChatIde() {
           </div>
         ) : (
           <>
-            {turnos.map((t, i) => (
-              <div key={i} className={`ide-turno ${t.papel}`}>
-                {t.papel === "assistente" ? <Markdown texto={t.texto} /> : t.texto}
-              </div>
-            ))}
+            {turnos.map((t, i) =>
+              t.interno ? (
+                // Turno interno do Hub (retomada automatica do laco): fala de
+                // maquina, mostrada so como nota discreta na transcricao (M9).
+                <div
+                  key={i}
+                  className="ide-turno-interno"
+                  style={{ opacity: 0.6, fontSize: "0.85em", textAlign: "center", padding: "4px 0" }}
+                >
+                  Correção automática do Hub
+                </div>
+              ) : (
+                <div key={i} className={`ide-turno ${t.papel}`}>
+                  {t.papel === "assistente" ? <Markdown texto={t.texto} /> : t.texto}
+                </div>
+              ),
+            )}
             {pendentes.map((t, i) => (
               <div key={`p${i}`} className="ide-turno usuario pendente">
                 {t.texto}

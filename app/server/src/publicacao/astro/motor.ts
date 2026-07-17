@@ -103,6 +103,45 @@ function versaoAstroInstalada(): string | null {
   }
 }
 
+// Procura npm no PATH sem gastar spawn: varre as pastas do PATH atras do
+// executavel. Barato e sincrono, cabe na rota de badge.
+function npmNoPath(): boolean {
+  const win = process.platform === "win32";
+  const nomes = win ? ["npm.cmd", "npm.exe", "npm.bat", "npm"] : ["npm"];
+  const separador = win ? ";" : ":";
+  const pastas = (process.env.PATH || process.env.Path || "").split(separador);
+  for (const pasta of pastas) {
+    const dir = pasta.trim();
+    if (!dir) continue;
+    for (const nome of nomes) {
+      try {
+        if (existsSync(join(dir, nome))) return true;
+      } catch {
+        // PATH pode ter entrada invalida: ignora e segue.
+      }
+    }
+  }
+  return false;
+}
+
+// Regra pura da viabilidade do motor, isolada pra teste dos dois lados.
+export function decidirMotorViavel(astroInstalado: boolean, npmDisponivel: boolean): boolean {
+  return astroInstalado || npmDisponivel;
+}
+
+let npmDisponivelCache: boolean | null = null;
+
+// Viabilidade barata do motor Astro pro badge da UI: ou o Astro ja esta
+// instalado, ou ha npm no PATH pra instalar sob demanda. Sem isso o deploy
+// cairia no HTML puro logo apos o clique, entao o badge nao pode prometer Astro.
+// O Astro instalado e reconferido a cada chamada (so passa de ausente a
+// presente); a presenca de npm no PATH e cacheada (nao some durante a execucao).
+export function motorViavel(): boolean {
+  if (versaoAstroInstalada() !== null) return true;
+  if (npmDisponivelCache === null) npmDisponivelCache = npmNoPath();
+  return decidirMotorViavel(false, npmDisponivelCache);
+}
+
 function garantirPackageJsonMotor(): void {
   mkdirSync(PASTA_MOTOR, { recursive: true });
   const alvo = join(PASTA_MOTOR, "package.json");

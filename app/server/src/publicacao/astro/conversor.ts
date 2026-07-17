@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { parse, type HTMLElement } from "node-html-parser";
+import { NodeType, parse, type HTMLElement, type TextNode } from "node-html-parser";
 
 import {
   auditarSiteEstatico,
@@ -105,6 +105,46 @@ function removerAriaCurrent(html: string): string {
   return html.replace(/\s*aria-current\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
 }
 
+// Descreve um elemento pra mensagem legivel: tag mais id ou primeira classe.
+function descreverElemento(el: HTMLElement): string {
+  const tag = (el.rawTagName || "elemento").toLowerCase();
+  const id = el.getAttribute("id");
+  if (id) return `<${tag} id="${id}">`;
+  const classe = el.getAttribute("class")?.trim().split(/\s+/)[0];
+  if (classe) return `<${tag} class="${classe}">`;
+  return `<${tag}>`;
+}
+
+// Garante que nada do corpo se perde na conversao. O projeto Astro remonta a
+// pagina como nav + [data-vk-pagina] + footer + scripts diretos, entao todo no
+// com conteudo do body precisa estar coberto por um desses. Sobrou conteudo fora
+// (section solta, banner, modal fora do main, segundo main), a peca perderia
+// esse pedaco no site: ConversaoInviavel e o deploy mantem o HTML fiel.
+function validarCoberturaDoCorpo(
+  corpo: HTMLElement,
+  caminho: string,
+  navEl: HTMLElement,
+  footerEl: HTMLElement,
+  mainEl: HTMLElement,
+): void {
+  for (const no of corpo.childNodes) {
+    if (no.nodeType === NodeType.COMMENT_NODE) continue;
+    if (no.nodeType === NodeType.TEXT_NODE) {
+      if ((no as TextNode).isWhitespace) continue;
+      const trecho = normalizarEspacos(no.text).slice(0, 40);
+      throw new ConversaoInviavel(
+        `A pagina ${caminho} tem texto solto no corpo, fora dos marcadores: "${trecho}". Ele nao entraria no site multipagina, entao a publicacao mantem o HTML fiel.`,
+      );
+    }
+    const el = no as HTMLElement;
+    if (el === navEl || el === footerEl || el === mainEl) continue;
+    if (el.tagName?.toUpperCase() === "SCRIPT") continue;
+    throw new ConversaoInviavel(
+      `A pagina ${caminho} tem conteudo fora dos marcadores: ${descreverElemento(el)}. Ele nao entraria no site multipagina, entao a publicacao mantem o HTML fiel.`,
+    );
+  }
+}
+
 interface PaginaLida {
   caminho: string;
   raiz: HTMLElement;
@@ -149,6 +189,9 @@ function lerPagina(pastaPeca: string, caminho: string): PaginaLida {
     raiz.querySelector('meta[name="description"]')?.getAttribute("content")?.trim() ?? "";
 
   const corpo = raiz.querySelector("body");
+  if (corpo) {
+    validarCoberturaDoCorpo(corpo, caminho, navEl, footerEl, mainEl);
+  }
   const scriptsCorpo = corpo
     ? corpo.childNodes
         .filter((no) => (no as HTMLElement).tagName?.toUpperCase() === "SCRIPT")
@@ -173,6 +216,54 @@ function lerPagina(pastaPeca: string, caminho: string): PaginaLida {
   };
 }
 
+// Elementos do head que o layout unico compartilha entre todas as paginas. O
+// title e a meta description saem de fora porque viram props por pagina. Cada
+// elemento restante entra normalizado, pra comparar identidade sem tropecar em
+// espaco ou quebra de linha.
+function elementosCompartilhaveisDoHead(raiz: HTMLElement, caminho: string): string[] {
+  const headEl = raiz.querySelector("head");
+  if (!headEl) {
+    throw new ConversaoInviavel(`A pagina ${caminho} nao tem <head>.`);
+  }
+  const linhas: string[] = [];
+  for (const no of headEl.childNodes) {
+    if (no.nodeType !== NodeType.ELEMENT_NODE) continue;
+    const el = no as HTMLElement;
+    const tag = el.tagName?.toUpperCase();
+    if (tag === "TITLE") continue;
+    if (tag === "META" && el.getAttribute("name")?.toLowerCase() === "description") {
+      continue;
+    }
+    linhas.push(normalizarEspacos(el.toString()));
+  }
+  return linhas;
+}
+
+// O Base.astro nasce do head do index. Se outra pagina tiver um link, fonte ou
+// meta que o index nao tem (ou faltar um que o index tem), esse head divergente
+// se perderia no layout unico. Valida identidade dos heads compartilhaveis (fora
+// title e description); divergiu, ConversaoInviavel citando a pagina e o elemento.
+function validarHeadsCompartilhados(paginas: PaginaLida[]): void {
+  const refLinhas = elementosCompartilhaveisDoHead(paginas[0].raiz, paginas[0].caminho);
+  const refSet = new Set(refLinhas);
+  for (const pagina of paginas.slice(1)) {
+    const linhas = elementosCompartilhaveisDoHead(pagina.raiz, pagina.caminho);
+    const set = new Set(linhas);
+    const extra = linhas.find((linha) => !refSet.has(linha));
+    if (extra) {
+      throw new ConversaoInviavel(
+        `O <head> da pagina ${pagina.caminho} tem um elemento que o head compartilhado (index) nao traz: ${extra.slice(0, 80)}. O layout Astro usa um head unico, entao esse elemento se perderia.`,
+      );
+    }
+    const faltando = refLinhas.find((linha) => !set.has(linha));
+    if (faltando) {
+      throw new ConversaoInviavel(
+        `O <head> da pagina ${pagina.caminho} nao tem um elemento do head compartilhado (index): ${faltando.slice(0, 80)}. Fora do title e da descricao, o head precisa ser identico em todas as paginas.`,
+      );
+    }
+  }
+}
+
 function validarPartesCompartilhadas(paginas: PaginaLida[]): void {
   const referencia = paginas[0];
   const navRef = normalizarEspacos(removerAriaCurrent(referencia.nav));
@@ -190,6 +281,7 @@ function validarPartesCompartilhadas(paginas: PaginaLida[]): void {
       );
     }
   }
+  validarHeadsCompartilhados(paginas);
 }
 
 // Monta o head do Base.astro a partir do head do index.html: mantem tudo menos
@@ -284,11 +376,16 @@ function montarPaginaAstro(pagina: PaginaLida): string {
   const scripts = pagina.scriptsCorpo.trim()
     ? `\n${marcarScriptsInline(pagina.scriptsCorpo.trim())}`
     : "";
+  // O corpo sai por <Fragment set:html={`...`}>: chaves literais { } no texto
+  // viram caractere de string, nunca expressao Astro (que quebraria o build).
+  // escaparAstroExpr blinda so o que fecha a template string (crase, ${ e barra).
+  // O que o preview mostrou e exatamente o que o build emite.
+  const corpoHtml = escaparAstroExpr(pagina.main.trim());
   return `---
 import Base from ${importarLayout(pagina.caminho)};
 ---
 <Base titulo={\`${titulo}\`}${propDescricao}>
-${pagina.main.trim()}${scripts}
+<Fragment set:html={\`${corpoHtml}\`} />${scripts}
 </Base>
 `;
 }
@@ -370,6 +467,21 @@ function escreverArquivo(pasta: string, relativo: string, conteudo: string): voi
   writeFileSync(alvo, conteudo, "utf8");
 }
 
+// Remove a arvore de build Astro com seguranca. O build cria um junction
+// node_modules apontando pro motor compartilhado real; um processo morto no meio
+// pode deixar esse junction pra tras. Antes de qualquer rm recursivo, desfaz
+// primeiro o junction: rmSync sobre a propria ligacao faz lstat, ve o reparse
+// point e desfaz so o link, nunca o alvo. Assim o rm da arvore jamais cruza o
+// reparse point pra dentro do motor real, mesmo em runtime que siga junction.
+export function limparBuildAstro(pastaProjeto: string): void {
+  try {
+    rmSync(join(pastaProjeto, "node_modules"), { recursive: true, force: true });
+  } catch {
+    // A ligacao pode nao existir: segue pro rm da arvore.
+  }
+  rmSync(pastaProjeto, { recursive: true, force: true });
+}
+
 export async function converterParaAstro(
   pastaPeca: string,
   opcoes: OpcoesConversao = {},
@@ -401,7 +513,7 @@ export async function converterParaAstro(
   }
 
   const pastaProjeto = join(pastaPeca, PASTA_BUILD);
-  rmSync(pastaProjeto, { recursive: true, force: true });
+  limparBuildAstro(pastaProjeto);
   mkdirSync(pastaProjeto, { recursive: true });
 
   const headCompartilhado = montarHeadCompartilhado(referencia.raiz);

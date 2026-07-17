@@ -23,7 +23,7 @@
     var(--fundo-2);
   border: 1px solid var(--borda-forte);
   border-radius: 20px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55), var(--glow);
+  box-shadow: 0 40px 100px rgba(var(--scrim-rgb), 0.55), var(--glow);
   overflow: hidden;
   will-change: transform, opacity;
   animation: entrada-modal 240ms cubic-bezier(0.2, 0.7, 0.3, 1) both;

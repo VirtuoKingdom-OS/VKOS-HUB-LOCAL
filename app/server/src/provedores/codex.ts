@@ -17,6 +17,7 @@ import type {
   ProvedorIA,
   RemoverOuvinte,
 } from "./contrato.js";
+import { citarArg } from "./util.js";
 
 const TIMEOUT_INATIVIDADE_MS = 30 * 60 * 1000;
 const LIMITE_STDERR = 20000;
@@ -382,11 +383,6 @@ function localizarCodex(): CodexLocalizado {
     }
   }
   return { binario: "codex", usarShell: ehWindows };
-}
-
-function citarArg(arg: string): string {
-  if (arg.length > 0 && !/[\s"()<>|&^]/.test(arg)) return arg;
-  return `"${arg.replace(/"/g, '\\"')}"`;
 }
 
 export function montarArgsCodex(opcoes: OpcoesSessaoProvedor): string[] {

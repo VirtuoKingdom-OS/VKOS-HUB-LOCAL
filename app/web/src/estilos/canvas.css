@@ -96,7 +96,7 @@
   backdrop-filter: blur(14px);
   border: 1px solid var(--borda-forte);
   border-radius: 16px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 22px rgba(var(--menta-rgb), 0.08);
+  box-shadow: 0 18px 50px rgba(var(--scrim-rgb), 0.55), 0 0 22px rgba(var(--menta-rgb), 0.08);
   animation: entrada-popover 180ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 @keyframes entrada-popover {
@@ -171,7 +171,7 @@
   border: 1px solid var(--borda);
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(var(--scrim-rgb), 0.4);
 }
 .react-flow__controls-button {
   background: var(--superficie);
@@ -337,7 +337,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   border-radius: var(--raio);
   overflow: hidden;
   animation: entrada-no 350ms ease both;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.35);
   transition: border-color var(--transicao), box-shadow var(--transicao);
 }
 /* Composer de imagem em etapas: node mais largo pra o fluxo caber denso. */
@@ -346,7 +346,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
 }
 .no-sessao.rodando {
   border-color: rgba(var(--menta-rgb), 0.5);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), var(--glow);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.35), var(--glow);
 }
 .no-sessao.erro {
   border-color: rgba(var(--alerta-rgb), 0.4);
@@ -439,19 +439,19 @@ body.overlay-aberto .no-cerebro .miolo::after {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  color: #ffd7d7;
-  background: rgba(60, 16, 16, 0.97);
-  border: 1px solid rgba(var(--alerta-rgb), 0.55);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color: var(--confirmar-perigo-texto);
+  background: var(--confirmar-perigo-fundo);
+  border: 1px solid var(--confirmar-perigo-borda);
+  box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
   pointer-events: auto;
   cursor: pointer;
   z-index: 40;
   animation: surgir-aviso-fluxo 0.12s ease-out;
 }
 .no-sessao .remover-fluxo .aviso-remover-fluxo:hover {
-  background: rgba(90, 22, 22, 0.98);
+  background: var(--confirmar-perigo-botao);
   border-color: rgba(var(--alerta-rgb), 0.85);
-  color: #fff;
+  color: var(--confirmar-perigo-texto);
 }
 @keyframes surgir-aviso-fluxo {
   from { opacity: 0; transform: translateY(-3px); }
@@ -566,7 +566,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   border-left: 1px solid var(--borda);
   display: flex;
   flex-direction: column;
-  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
+  box-shadow: -20px 0 60px rgba(var(--scrim-rgb), 0.5);
   animation: desliza-esq 260ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 @keyframes desliza-esq {
@@ -759,7 +759,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.6);
   background: var(--fundo);
 }
 .pagina-ampliada-painel-frame {
@@ -793,7 +793,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   max-width: 90vw;
   max-height: 88vh;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.6);
 }
 .lightbox .fechar {
   position: absolute;
@@ -816,7 +816,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   background: var(--fundo-2);
   border: 1px solid var(--borda);
   border-radius: 20px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.5);
   overflow: hidden;
   animation: entrada-suave 400ms ease both;
 }
@@ -1026,7 +1026,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   backdrop-filter: blur(14px);
   border: 1px solid var(--borda-forte);
   border-radius: 12px;
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 16px 44px rgba(var(--scrim-rgb), 0.55);
   animation: entrada-menu 140ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 .menu-contexto.submenu {
@@ -1115,7 +1115,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   border-radius: 18px;
   padding: 26px;
   text-align: center;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.6);
   animation: entrada-no 220ms ease both;
 }
 .cartao-confirmacao .selo-alerta {
@@ -1172,7 +1172,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   border-radius: var(--raio);
   overflow: hidden;
   animation: entrada-no 350ms ease both;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.3);
   transition: border-color var(--transicao), box-shadow var(--transicao);
 }
 .no-contexto.carregando {
@@ -1181,7 +1181,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
 }
 .no-contexto.arrastando {
   border-color: var(--menta);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), var(--glow);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.3), var(--glow);
 }
 .no-contexto .cabeca-contexto {
   display: flex;
@@ -1438,7 +1438,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
     var(--fundo-2);
   border: 1px solid var(--borda-forte);
   border-radius: 20px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6), var(--glow);
+  box-shadow: 0 40px 100px rgba(var(--scrim-rgb), 0.6), var(--glow);
   overflow: hidden;
   animation: entrada-modal 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
@@ -1714,7 +1714,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   gap: 10px;
   overflow: hidden;
   animation: entrada-no 350ms ease both;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.3);
   transition: border-color var(--transicao), box-shadow var(--transicao);
 }
 .no-container:hover {
@@ -1873,7 +1873,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
     var(--fundo-2);
   border: 1px solid var(--borda-forte);
   border-radius: 20px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6), var(--glow);
+  box-shadow: 0 40px 100px rgba(var(--scrim-rgb), 0.6), var(--glow);
   overflow: hidden;
   /* Anima so transform e opacity (baratos, rodam no compositor). O
      will-change avisa o navegador pra promover a camada antes do primeiro
@@ -2022,7 +2022,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   background: rgba(var(--painel-rgb), 0.9);
   border: 1px solid var(--borda);
   backdrop-filter: blur(8px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(var(--scrim-rgb), 0.4);
   transition: color var(--transicao), border-color var(--transicao),
     background var(--transicao);
 }
@@ -2063,7 +2063,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   text-align: center;
   background: rgba(var(--painel-rgb), 0.92);
   border: 1px solid var(--borda-forte);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 22px rgba(var(--menta-rgb), 0.07);
+  box-shadow: 0 18px 50px rgba(var(--scrim-rgb), 0.5), 0 0 22px rgba(var(--menta-rgb), 0.07);
   backdrop-filter: blur(10px);
   animation: entrada-no 340ms ease both;
 }
@@ -2439,7 +2439,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
 }
 .cartao-site:hover {
   border-color: rgba(var(--menta-rgb), 0.4);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.3);
 }
 .cartao-site-capa {
   position: relative;
@@ -2516,7 +2516,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   flex-direction: column;
   background: var(--fundo-2);
   border-left: 1px solid var(--borda-forte);
-  box-shadow: -24px 0 70px rgba(0, 0, 0, 0.55);
+  box-shadow: -24px 0 70px rgba(var(--scrim-rgb), 0.55);
   animation: desliza-preview 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 @keyframes desliza-preview {
@@ -2710,7 +2710,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
   border-radius: 6px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(var(--menta-rgb), 0.06);
+  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.5), 0 0 0 1px rgba(var(--menta-rgb), 0.06);
 }
 .frame-preview {
   border: 0;

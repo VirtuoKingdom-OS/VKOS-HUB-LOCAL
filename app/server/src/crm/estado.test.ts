@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -101,4 +108,101 @@ test("persiste a migracao uma vez e a segunda leitura nao duplica dados", () => 
   } finally {
     rmSync(pasta, { recursive: true, force: true });
   }
+});
+
+// C1: arquivo corrompido nunca pode ser sobrescrito por estado vazio.
+test("arquivo corrompido vai pra quarentena e nunca e sobrescrito", () => {
+  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-corrompido-"));
+  const arquivo = join(pasta, "crm.json");
+  const conteudoOriginal = "{ isto nao e json valido";
+  try {
+    writeFileSync(arquivo, conteudoOriginal, "utf8");
+    assert.throws(() => lerEstadoCrmDeArquivo(arquivo), /corrompido/i);
+    // O crm.json saiu do lugar (nao foi sobrescrito) e virou quarentena.
+    assert.equal(existsSync(arquivo), false);
+    const quarentenas = readdirSync(pasta).filter((n) => n.startsWith("crm.json.corrompido-"));
+    assert.equal(quarentenas.length, 1);
+    // O conteudo original ficou preservado byte a byte na quarentena.
+    assert.equal(readFileSync(join(pasta, quarentenas[0]), "utf8"), conteudoOriginal);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("json valido mas sem forma de CRM tambem vai pra quarentena", () => {
+  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-forma-"));
+  const arquivo = join(pasta, "crm.json");
+  try {
+    writeFileSync(arquivo, '"apenas uma string"', "utf8");
+    assert.throws(() => lerEstadoCrmDeArquivo(arquivo), /invalido|corrompido/i);
+    assert.equal(existsSync(arquivo), false);
+    assert.equal(
+      readdirSync(pasta).filter((n) => n.startsWith("crm.json.corrompido-")).length,
+      1,
+    );
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("arquivo ausente devolve null sem criar quarentena", () => {
+  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-ausente-"));
+  const arquivo = join(pasta, "crm.json");
+  try {
+    assert.equal(lerEstadoCrmDeArquivo(arquivo), null);
+    assert.equal(readdirSync(pasta).length, 0);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+// M7: migracao e saneamento com fallback, nunca descarte de contato.
+test("migra contato v1 sem colunaId para a primeira coluna", () => {
+  const resultado = normalizarEstadoCrm({
+    colunas: [
+      { id: "k1", nome: "Novo", ordem: 0 },
+      { id: "k2", nome: "Fechado", ordem: 1 },
+    ],
+    contatos: [{ id: "c1", nome: "Sem Coluna" }],
+  });
+  assert.ok(resultado);
+  assert.equal(resultado.estado.contatos.length, 1);
+  assert.equal(resultado.estado.negocios.length, 1);
+  assert.equal(resultado.estado.negocios[0].colunaId, "k1");
+});
+
+test("migra contato v1 sem nome para 'Sem nome' sem descartar", () => {
+  const resultado = normalizarEstadoCrm({
+    colunas: [{ id: "k1", nome: "Novo", ordem: 0 }],
+    contatos: [{ id: "c1", colunaId: "k1" }],
+  });
+  assert.ok(resultado);
+  assert.equal(resultado.estado.contatos.length, 1);
+  assert.equal(resultado.estado.contatos[0].nome, "Sem nome");
+  assert.equal(resultado.estado.negocios[0].titulo, "Sem nome");
+});
+
+test("sanea contato v2 com nome invalido para 'Sem nome' sem descartar", () => {
+  const resultado = normalizarEstadoCrm({
+    versao: 2,
+    colunas: [{ id: "k1", nome: "Novo", ordem: 0 }],
+    contatos: [{ id: "c1", nome: 123 }],
+    negocios: [],
+  });
+  assert.ok(resultado);
+  assert.equal(resultado.estado.contatos.length, 1);
+  assert.equal(resultado.estado.contatos[0].id, "c1");
+  assert.equal(resultado.estado.contatos[0].nome, "Sem nome");
+});
+
+test("contato v2 saneado nao derruba o negocio que aponta pra ele", () => {
+  const resultado = normalizarEstadoCrm({
+    versao: 2,
+    colunas: [{ id: "k1", nome: "Novo", ordem: 0 }],
+    contatos: [{ id: "c1", nome: null }],
+    negocios: [{ id: "n1", titulo: "Deal", contatoId: "c1", colunaId: "k1" }],
+  });
+  assert.ok(resultado);
+  assert.equal(resultado.estado.negocios.length, 1);
+  assert.equal(resultado.estado.negocios[0].contatoId, "c1");
 });

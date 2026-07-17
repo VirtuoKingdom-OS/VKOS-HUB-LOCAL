@@ -184,7 +184,7 @@
   border-radius: 8px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5),
+  box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.5),
     0 0 0 1px rgba(var(--menta-rgb), 0.06);
   transition: width 140ms ease, height 140ms ease;
 }

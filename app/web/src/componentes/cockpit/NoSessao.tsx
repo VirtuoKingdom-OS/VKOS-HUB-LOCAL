@@ -913,17 +913,29 @@ function NoSessaoInterno({ id, data }: NodeProps) {
               {conversaVazia && (
                 <div className="conversa-vazia">Sem mensagens ainda.</div>
               )}
-              {[...turnos, ...pendentes].map((t, i) => (
-                <div key={`${t.papel}-${i}-${t.em}`} className={`turno ${t.papel}`}>
-                  <div className="balao">
-                    {t.papel === "assistente" ? (
-                      <Markdown texto={t.texto} />
-                    ) : (
-                      t.texto
-                    )}
+              {[...turnos, ...pendentes].map((t, i) =>
+                t.interno ? (
+                  // Turno interno do Hub (retomada automatica do laco): a fala e de
+                  // maquina, entao a transcricao mostra so uma nota discreta (M9).
+                  <div
+                    key={`${t.papel}-${i}-${t.em}`}
+                    className="turno-interno"
+                    style={{ opacity: 0.6, fontSize: "0.85em", textAlign: "center", padding: "4px 0" }}
+                  >
+                    Correção automática do Hub
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div key={`${t.papel}-${i}-${t.em}`} className={`turno ${t.papel}`}>
+                    <div className="balao">
+                      {t.papel === "assistente" ? (
+                        <Markdown texto={t.texto} />
+                      ) : (
+                        t.texto
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
               {rodando && (
                 <div className="turno assistente">
                   <div className="balao">

@@ -473,9 +473,9 @@ export function TelaCrm() {
         </div>
       </header>
 
-      <nav className="crm-abas" aria-label="Visoes do CRM">
+      <nav className="crm-abas" role="tablist" aria-label="Visoes do CRM">
         {(["hoje", "quadro", "contatos"] as AbaCrm[]).map((item) => (
-          <button className={aba === item ? "ativa" : ""} onClick={() => setAba(item)} type="button" key={item}>
+          <button className={aba === item ? "ativa" : ""} onClick={() => setAba(item)} type="button" role="tab" aria-selected={aba === item} key={item}>
             {item === "hoje" ? "Hoje" : item === "quadro" ? "Quadro" : "Contatos"}
           </button>
         ))}

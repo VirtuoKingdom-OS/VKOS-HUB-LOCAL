@@ -12,7 +12,7 @@ import {
   inspecionarMarcadores,
   type ProjetoAstro,
 } from "./conversor.js";
-import { buildarProjeto, conferirDist, garantirMotor } from "./motor.js";
+import { buildarProjeto, conferirDist, garantirMotor, motorViavel } from "./motor.js";
 
 export type ModoPublicacao = "astro" | "html";
 
@@ -21,8 +21,16 @@ export type ModoPublicacao = "astro" | "html";
 // o motor via junction. Nada disso pertence a arvore fonte do projeto.
 const EXCLUIR_DA_FONTE = new Set(["node_modules", "dist", ".astro"]);
 
+// Decisao pura do modo: so promete Astro com marcadores validos E motor viavel.
+export function decidirModo(temMarcadores: boolean, motorOk: boolean): ModoPublicacao {
+  return temMarcadores && motorOk ? "astro" : "html";
+}
+
+// Modo previsto pra UI e pro deploy. Alem dos marcadores, confere a viabilidade
+// barata do motor: sem Astro instalado e sem npm no PATH, o deploy cairia no
+// HTML puro logo apos o clique, entao o badge nao pode prometer Astro.
 export function resolverModoPublicacao(pastaPeca: string): ModoPublicacao {
-  return inspecionarMarcadores(pastaPeca) ? "astro" : "html";
+  return decidirModo(inspecionarMarcadores(pastaPeca), motorViavel());
 }
 
 function coletar(
