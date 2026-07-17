@@ -9,6 +9,7 @@ import { obterPastaVkos } from "./estado.js";
 import { transmitir } from "../ws.js";
 import { emitir } from "../eventos/barramento.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
+import { auditarSiteEstatico } from "./siteEstatico.js";
 
 // Le todas as pecas da pasta do VKOS, mais recente primeiro.
 export function lerPecas(pastaVkos: string): Peca[] {
@@ -53,6 +54,7 @@ function montarPeca(pastaConteudo: string, nomePasta: string): Peca {
   );
 
   let previews: string[];
+  let auditoriaSite: ReturnType<typeof auditarSiteEstatico> | undefined;
   if (fonteHtml && paginas) {
     // Peca HTML-first: previews sao as URLs das paginas isoladas, em ordem.
     // O nome da pasta vai URL-encoded num unico segmento.
@@ -61,6 +63,11 @@ function montarPeca(pastaConteudo: string, nomePasta: string): Peca {
     for (let n = 1; n <= paginas; n++) {
       previews.push(`/pecas-html/${pastaEnc}/pagina/${n}`);
     }
+  } else if (tipo === "site") {
+    auditoriaSite = auditarSiteEstatico(join(pastaConteudo, nomePasta));
+    previews = auditoriaSite.paginas.map((interno) =>
+      urlPeca(`${nomePasta}/${interno}`),
+    );
   } else {
     // previews: urls /pecas/<caminho relativo a conteudo>, prontas pro frontend.
     previews = internosPreview.map((interno) => urlPeca(`${nomePasta}/${interno}`));
@@ -70,6 +77,13 @@ function montarPeca(pastaConteudo: string, nomePasta: string): Peca {
   if (fonteHtml) {
     peca.fonteHtml = true;
     peca.paginas = paginas;
+  }
+  if (auditoriaSite) {
+    peca.site = {
+      valido: auditoriaSite.valido,
+      erros: auditoriaSite.erros,
+      avisos: auditoriaSite.avisos,
+    };
   }
   const criadoEm = lerCriadoEm(join(pastaConteudo, nomePasta));
   if (criadoEm) {

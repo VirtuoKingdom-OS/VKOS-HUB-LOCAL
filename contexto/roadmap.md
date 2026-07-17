@@ -30,34 +30,45 @@ Fecha quando: um cliente novo de verdade sai da cerimônia com o Cérebro preenc
 - Entregue: tela #/ide com árvore de arquivos do workspace (criar, renomear, excluir com confirmação padrão), editor com números de linha e Ctrl+S, e chat do Claude com ferramentas ao vivo (eventos tool_use no WS).
 - Permissão por sessão: "Seguro" (acceptEdits) ou "Poder total" (bypassPermissions), escolhida antes de criar a sessão.
 - Desde 2026-07-14: seletor de modelo (Opus, Sonnet, Haiku) antes de criar a sessão, e respostas do Claude renderizadas em markdown.
+- Desde 2026-07-15: virou camada universal sobre qualquer tela, sem desmontar a tela de trás. O controle único escolhe motor, modelo e permissão para a próxima conversa.
+- Desde 2026-07-16: virou janela flutuante sem véu, arrastável, minimizável para o chat e responsiva pela largura real da camada. Posição e minimização persistem entre aberturas.
 Fecha quando: o Jesse opera arquivos e conversa com o Claude sem abrir o VS Code.
 
 ## Fase 5: conexões (MCP) (entregue em 2026-07-13, validar em uso real)
 
-- Entregue: tela #/conexoes por workspace. GitHub (endpoint remoto oficial), Netlify e Notion (npx + token) disponíveis. Vercel saiu do catálogo em 2026-07-14 (o MCP oficial deles é só OAuth de navegador, sem token fixo; ver decisoes/2026-07-14-vercel-fora-do-catalogo.md). Sessões recebem --mcp-config dos habilitados.
+- Entregue: tela #/conexoes por workspace. GitHub, Netlify, Notion e Google Calendar disponíveis. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config dos habilitados. Os tokens de GitHub e Netlify também alimentam a publicação REST de sites, têm configuração guiada e são validados nas APIs oficiais ao salvar.
 - Pendência anotada pelo QA: falta ação de "remover token" na tela (desabilitar mantém o segredo no arquivo local).
 Fecha quando: uma sessão usa um MCP conectado pela tela, sem editar JSON na mão.
 
-## Fase 6: CRM (entregue em 2026-07-13, validar em uso real)
+## Fase 6: CRM (v2 entregue em 2026-07-16, validar em uso real)
 
-- Entregue: tela #/crm com kanban personalizável (colunas com renomear inline, criar, excluir), cartões arrastáveis com persistência, painel de detalhe (campos, tags, notas), busca e total por coluna. Dados locais por workspace.
+- Entregue: CRM v2 com contatos separados de negócios, migração idempotente dos cartões antigos, linha do tempo de interações, tarefas, próximo contato integrado ao Calendário e eventos compatíveis com Automações.
+- A tela #/crm tem Hoje, Quadro e Contatos. O Quadro move negócios; a lista busca, filtra e ordena fichas; a ficha concentra negócios, interações, tarefas, tags e follow-up.
+- Sessões cujo pedido cita CRM recebem um resumo agregado do funil e das vozes dos clientes, com telefone e email removidos e regra dura contra publicar dado pessoal.
+- O Mapa interno em #/mapa documenta os módulos como uma rede didática. Seus dados vivem em `interno/`, fora do pacote de cliente, e o item desaparece quando eles não existem.
 Fecha quando: o Jesse gerencia os clientes da VK pelo CRM do hub.
 
 ## Fase 6.5: duas jornadas (entregue em 2026-07-14, validar em uso real)
 
-- Carrossel HTML-first com editor (rodada 12) e depois Dashboard com criação guiada, Studio de edição com páginas lado a lado e mover elementos, sidebar simplificada (Galerias, em breve WhatsApp/Instagram, IDE por último) e cliente único Estúdio Aura (rodada 13). Ver decisoes/2026-07-14-carrossel-html-first.md e decisoes/2026-07-14-duas-jornadas-dashboard-studio.md.
+- Carrossel HTML-first com editor, Dashboard com criação guiada e Studio. A sidebar final tem um hub único de Fontes de dados, não mostra promessas de WhatsApp ou Instagram e abre a IDE como camada universal.
+- Em 2026-07-16, o wizard passou a escolher separadamente o estilo da capa e das páginas, com miniaturas reais de capa e página interna. O Studio reutiliza imagens das Fontes de dados copiando-as para dentro da peça.
 Fecha quando: o Jesse cria um carrossel pelo Dashboard e edita no Studio sem tocar no cockpit.
 
 ## Fase 6.6: Site Guiado (entregue em 2026-07-14, validar em uso real)
 
 - Segunda jornada do Dashboard: wizard em 4 etapas gera site HTML estático por prompt direto (metodologia da skill /site pro texto, principios-visuais.md pro visual), sem tocar nas skills. Ver decisoes/2026-07-14-site-guiado-html-first.md.
 - Tela #/site/<pasta>: viewport com presets Desktop e Mobile, seletor de páginas, abrir em nova aba, atualização ao vivo e ajuste com IA na própria tela.
+- Em 2026-07-15, a TelaSite ganhou publicação direta e independente no GitHub e na Netlify. O código vai completo para um repositório privado e o ZIP estático vai para a Netlify, sem sessão de IA.
+- Em 2026-07-16, a geração ganhou a camada de design v2 (principios-visuais.md reescrito com leitura de design, cartela de 13 direções e proibições anti-IA, destilado de impeccable, taste-skill, ui-ux-pro-max e astryx) e a TelaSite ganhou o atalho Revisão de design no painel de IA. As sessões utilitárias ganharam o Modo enxuto opcional (economia de tokens, toggle na sidebar, ver decisoes/2026-07-16-modo-enxuto.md). Parte 02 futura: levar a camada de design pro carrossel (entregue no VKOS 2 em 2026-07-16, ver decisoes/2026-07-16-vkos2.md; retrofit pro vkos v1 e cópias de cliente segue em aberto).
+- Em 2026-07-16, o fluxo ganhou um contrato estático único e barreira de deploy. MIME, cache, páginas aninhadas, recursos relativos e URLs limpas funcionam no preview. A geração só conclui com auditoria estrutural válida. GitHub e Netlify só recebem o site depois de conferir todas as páginas em 390 px e 1440 px no navegador local.
 - QA de gesto real em 2026-07-14: jornada completa aprovada, site gerado avaliado como vendável, regressão do carrossel limpa.
+- Em 2026-07-17, rodada Sites Astro e Design: prompt design-first com declaração obrigatória, biblioteca de 13 estilos concretos propagada com a camada v2 pros workspaces reais, e publicação de multipágina como projeto Astro (conversor determinístico com fallback HTML, motor compartilhado). Ver decisoes/2026-07-17-astro-na-publicacao.md e 2026-07-17-biblioteca-estilos-design-first.md. No mesmo dia o vkos2 estendeu a biblioteca pros demais formatos visuais: stories, carrossel em criação livre (modelo travado continua mandando) e interface de projeto, com a mesma declaração e teste final.
 Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e publica.
 
 ## Fase 6.8: Studio de Site (entregue em 2026-07-15, validar em uso real)
 
 - A tela do site ganhou o modo Editar: edição manual profissional com painel de propriedades, escopo geral ou só no celular, seções, links, imagens e cores globais, convivendo com o Ajustar com IA. Ver decisoes/2026-07-15-studio-de-site.md.
+- Em 2026-07-16, o editor de imagem ganhou a galeria das Fontes de dados e o Ajustar com IA passou a priorizar anexos prontos, sem gerar substituto quando o pedido manda usar o arquivo enviado.
 - QA de gesto real em 2026-07-15 com regressão do Studio de carrossel e do Site Guiado limpas; bug de especificidade corrigido e revalidado no site real.
 Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem tocar em arquivo.
 
@@ -69,14 +80,21 @@ Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem
 - QA de gesto real em 2026-07-15: pipeline validado de ponta a ponta sem conta Google; falta o gesto do Jesse (criar credenciais pelo planos/google-calendar/04-setup-google.md, conectar e ver o evento nascer na agenda).
 Fecha quando: um cartão real movido no CRM cria o compromisso na agenda do Google do Jesse.
 
-## Fase 8: fechamento do MVP local (planejada em 2026-07-15, plano pronto)
+## Fase 8: fechamento do MVP local (implementação entregue em 2026-07-15)
 
-- Motor multi-IA (Claude + Codex atrás de um contrato de provedor), jornada de instalação de um clique (Instalar/Iniciar .cmd + tela #/setup) e portabilidade do pacote de distribuição. Plano completo em planos/fechamento-mvp/ (rodadas M1, M2, M3), escrito pra qualquer IA executar. Ver decisoes/2026-07-15-fechamento-mvp-multi-ia.md.
-Fecha quando: alguém que não é o Jesse instala numa máquina Windows limpa com dois cliques, escolhe o motor, loga e gera uma peça real sem tocar em terminal.
+- Motor multi-IA entregue: Claude e Codex atrás do contrato de provedor, eventos compatíveis, sessões presas ao motor de origem, modelos dinâmicos, skills e AGENTS.md compatíveis, custo Codex estimado e MCP limitado ao Claude de forma visível.
+- Jornada de instalação entregue: `Instalar VKOS Hub.cmd`, `Iniciar VKOS Hub.cmd` e `#/setup` com detecção, login, teste real e atalho.
+- O pacote agora leva o VKOS junto. A pasta `VKOS/` interna nasce limpa e é registrada automaticamente como workspace, sem a pergunta de onde está o VKOS.
+- Portabilidade preparada: dados ignorados, pacote integrado documentado, contrato e LEIA-ME revisados. A remoção de 138 arquivos privados já rastreados ficou preparada, sem executar `git rm` sem aprovação do Jesse.
+- QA local em 2026-07-15: 14 testes, dois typechecks e build verdes; teste real mínimo aprovado nos dois motores; instalação limpa aprovada em caminho com espaços e acentos; bundle `assets/index-B16N0nmS.js` servido na porta isolada 46210. A porta 4600 de outra cópia ficou intacta.
+- Faltam três gestos fora da implementação: Jesse aprovar a limpeza do índice Git, testar o pacote numa segunda máquina Windows limpa e escolher o canal do ZIP.
+
+Fecha em uso real quando alguém que não é o Jesse instala numa máquina Windows limpa com dois cliques, escolhe o motor, loga e gera uma peça sem tocar em terminal.
 
 ## Fase 7: Meta e Google Ads
 
 - Plano de arquitetura pronto em contexto/fase7-meta-plano.md (2026-07-14), aguardando o aval do Jesse e as respostas das 6 perguntas do fim do plano.
+- Os aperitivos de WhatsApp, Instagram, Meta e Google Ads saíram da interface em 2026-07-15. O plano continua guardado e volta ao menu somente quando a integração funcionar.
 - WhatsApp: tela Mensagens estilo WhatsApp dentro do hub (webhook via túnel + coexistence com o app do celular).
 - Instagram: publicar e agendar os carrosséis da galeria, DMs na mesma caixa.
 - Automações em degraus: regras simples primeiro, rascunho de resposta com IA (com aprovação humana) depois.

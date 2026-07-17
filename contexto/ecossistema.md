@@ -48,6 +48,14 @@ Modelo de cobrança do VKOS: pagamento único mais upgrades opcionais, nunca
 mensalidade obrigatória, local-first (a VK não hospeda o contexto do cliente).
 O app deve respeitar essa cultura até haver motivo forte para mudar.
 
+Desde 2026-07-16 existe o VKOS 2 (`vkos2/` na raiz, fora do versionamento):
+o VKOS puro com as melhorias de `outros/` fundidas no sistema. Cérebro em
+branco pronto pro /instalar, cartela de 20 direções em templates/design/,
+principios-visuais em todos os formatos (carrossel, stories, site), /site e
+/landing com construção opcional em HTML, e as skills novas /revisar-design,
+/refinar, /enxuto, /enxuto-revisao e /projeto (projetos livres além do
+marketing). Mantém o contrato de pasta do Hub. Ver decisoes/2026-07-16-vkos2.md.
+
 ## A relação app - repo VKOS
 
 O "Workspace" (painel web de CRM, vendas e relatórios) sempre esteve marcado

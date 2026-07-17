@@ -30,7 +30,7 @@ export class ErroWorkspace extends Error {
 }
 
 // Pastas de estrutura que o cliente novo herda do ativo.
-const PASTAS_ESTRUTURA = [".claude", "templates", "identidade"];
+const PASTAS_ESTRUTURA = [".claude", "templates", "identidade", "marca"];
 
 // Lista branca dos arquivos de raiz que o cliente novo herda. So estrutura leve:
 // nunca copiar arquivo solto qualquer da raiz do ativo (um .env ou notas.md

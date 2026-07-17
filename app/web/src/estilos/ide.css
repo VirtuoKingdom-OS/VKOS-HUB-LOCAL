@@ -1,13 +1,82 @@
-/* VKOS-IDE: arvore, editor e chat. Tela cheia, tres colunas. Toda cor vem dos
-   tokens de global.css, entao os dois temas saem de graca. Motion sutil. */
+/* VKOS-IDE: painel contido com arvore, editor e chat. Toda cor vem dos tokens
+   de global.css, entao os temas permanecem coerentes. */
 
 .tela-ide {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: min(1180px, 100%);
+  height: min(780px, 100%);
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
   display: flex;
+  flex-direction: column;
+  pointer-events: auto;
   background: var(--fundo);
+  border: 1px solid var(--borda-forte);
+  border-radius: 18px;
+  box-shadow: var(--sombra-forte);
   animation: entrada-suave 220ms ease both;
   overflow: hidden;
+}
+.ide-barra {
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px 0 13px;
+  color: var(--texto-suave);
+  background: var(--fundo-2);
+  border-bottom: 1px solid var(--borda);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.tela-ide.arrastando .ide-barra {
+  cursor: grabbing;
+}
+.ide-barra strong {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.ide-barra-acoes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ide-barra-botao {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-fraco);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao);
+}
+.ide-barra-botao:hover {
+  color: var(--menta-clara);
+  border-color: var(--borda);
+  background: var(--superficie);
+}
+.ide-barra-botao svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.ide-corpo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ide-mobile-topo {
+  display: none;
 }
 
 /* ===== Coluna da arvore ===== */
@@ -378,7 +447,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 13px 14px 12px 18px;
+  padding: 13px 18px 12px;
   border-bottom: 1px solid var(--borda);
   flex-shrink: 0;
 }
@@ -404,27 +473,123 @@
   background: rgba(var(--alerta-rgb), 0.12);
   border-color: rgba(var(--alerta-rgb), 0.4);
 }
-.ide-chat-nova {
+.ide-controle-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.ide-controle-botao {
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  color: var(--texto-fraco);
-  border: 1px solid transparent;
+  gap: 7px;
+  padding: 5px 9px;
+  color: var(--texto-suave);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 9px;
   transition: color var(--transicao), border-color var(--transicao),
     background var(--transicao);
 }
-.ide-chat-nova:hover {
+.ide-controle-botao:hover,
+.ide-controle-botao.ativo {
   color: var(--menta-clara);
-  border-color: var(--borda);
-  background: var(--superficie);
+  border-color: rgba(var(--menta-rgb), 0.45);
+  background: var(--superficie-2);
 }
-.ide-chat-nova svg {
-  width: 16px;
-  height: 16px;
+.ide-controle-popover {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 12;
+  width: min(340px, calc(100vw - 40px));
+  max-height: min(640px, calc(100vh - 100px));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 15px;
+  color: var(--texto);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda-forte);
+  border-radius: 15px;
+  box-shadow: var(--sombra-forte);
+  animation: ide-popover-entra 160ms ease both;
+}
+@keyframes ide-popover-entra {
+  from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ide-controle-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ide-controle-grupo + .ide-controle-grupo {
+  padding-top: 13px;
+  border-top: 1px solid var(--borda);
+}
+.ide-controle-grupo h4 {
+  color: var(--texto-fraco);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ide-controle-opcoes {
+  display: grid;
+  gap: 7px;
+}
+.ide-controle-opcoes.duas {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ide-controle-opcao {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  text-align: left;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  transition: border-color var(--transicao), background var(--transicao),
+    transform var(--transicao);
+}
+.ide-controle-opcao:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--borda-forte);
+  background: var(--superficie-2);
+}
+.ide-controle-opcao.ativa {
+  border-color: var(--menta);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.28);
+}
+.ide-controle-opcao.perigo.ativa {
+  border-color: var(--alerta);
+  box-shadow: inset 0 0 0 1px rgba(var(--alerta-rgb), 0.25);
+}
+.ide-controle-opcao:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.ide-controle-opcao strong {
+  font-size: 12px;
+}
+.ide-controle-opcao span,
+.ide-controle-nota {
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.ide-controle-nota {
+  margin: 0;
+}
+.ide-controle-aplicar {
+  width: 100%;
+  justify-content: center;
 }
 
 .ide-chat-conversa {
@@ -467,98 +632,26 @@
   color: var(--texto-suave);
   line-height: 1.55;
 }
-/* Seletor de modelo (Opus, Sonnet, Haiku): pilulas lado a lado, no mesmo
-   idioma visual do seletor de permissao logo abaixo. */
-.ide-modelo {
+.ide-chat-escolhas {
   display: flex;
-  gap: 8px;
-  width: 100%;
-  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
 }
-.ide-modelo-opcao {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: center;
-  text-align: center;
-  padding: 9px 8px;
-  border-radius: 11px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  transition: border-color var(--transicao), background var(--transicao),
-    box-shadow var(--transicao), transform var(--transicao);
-}
-.ide-modelo-opcao:hover {
-  border-color: var(--borda-forte);
-  background: var(--superficie-2);
-  transform: translateY(-1px);
-}
-.ide-modelo-opcao.ativa {
-  border-color: var(--menta);
-  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.4), var(--glow);
-}
-.ide-modelo-nome {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--texto);
-}
-.ide-modelo-opcao.ativa .ide-modelo-nome {
+.ide-chat-escolhas span {
+  padding: 4px 9px;
   color: var(--menta-clara);
-}
-.ide-modelo-nota {
   font-size: 11px;
-  color: var(--texto-fraco);
-  line-height: 1.3;
-}
-
-.ide-permissao {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  margin-top: 6px;
-}
-.ide-permissao-opcao {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: left;
-  padding: 11px 13px;
-  border-radius: 11px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  transition: border-color var(--transicao), background var(--transicao),
-    box-shadow var(--transicao), transform var(--transicao);
-}
-.ide-permissao-opcao:hover {
-  border-color: var(--borda-forte);
-  background: var(--superficie-2);
-  transform: translateY(-1px);
-}
-.ide-permissao-opcao.ativa {
-  border-color: var(--menta);
-  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.4), var(--glow);
-}
-.ide-permissao-opcao.perigo.ativa {
-  border-color: var(--alerta);
-  box-shadow: inset 0 0 0 1px rgba(var(--alerta-rgb), 0.4);
-}
-.ide-permissao-nome {
-  font-size: 13px;
   font-weight: 700;
-  color: var(--texto);
+  background: rgba(var(--menta-rgb), 0.1);
+  border: 1px solid rgba(var(--menta-rgb), 0.28);
+  border-radius: 999px;
 }
-.ide-permissao-opcao.ativa .ide-permissao-nome {
-  color: var(--menta-clara);
-}
-.ide-permissao-opcao.perigo.ativa .ide-permissao-nome {
+.ide-chat-escolhas span.perigo {
   color: var(--alerta-suave);
-}
-.ide-permissao-desc {
-  font-size: 12px;
-  color: var(--texto-suave);
-  line-height: 1.45;
+  background: rgba(var(--alerta-rgb), 0.09);
+  border-color: rgba(var(--alerta-rgb), 0.3);
 }
 .ide-chat-dica {
   font-size: 12px;
@@ -682,9 +775,159 @@
   height: 16px;
 }
 
-/* Responsivo: em telas estreitas o chat encolhe antes da arvore. */
-@media (max-width: 900px) {
-  .ide-coluna-chat {
-    width: 280px;
-  }
+.tela-ide.minimizada {
+  width: min(380px, calc(100% - 16px));
+  height: min(600px, calc(100% - 32px));
+  /* O seletor de motor/modelo abre fora do header. Se a janela estiver
+     encostada no limite inferior, o overflow do painel não pode recortá-lo;
+     o próprio popover controla a rolagem do conteúdo. */
+  overflow: visible;
+}
+.tela-ide.minimizada .ide-mobile-topo,
+.tela-ide.minimizada .ide-coluna-arvore,
+.tela-ide.minimizada .ide-coluna-editor {
+  display: none;
+}
+.tela-ide.minimizada .ide-coluna-chat,
+.tela-ide.minimizada .ide-coluna-chat.recolhida {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.tela-ide.ide-media .ide-coluna-arvore {
+  width: 200px;
+}
+.tela-ide.ide-media .ide-coluna-chat {
+  width: 300px;
+}
+
+/* Em telas compactas cada area ocupa o painel inteiro. Isso evita colunas
+   comprimidas, controles cortados e qualquer overflow horizontal. */
+.tela-ide.ide-compacta {
+  position: relative !important;
+  inset: auto !important;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+}
+.tela-ide.ide-compacta .ide-barra {
+  cursor: default;
+}
+.tela-ide.ide-compacta .ide-minimizar {
+  display: none;
+}
+.tela-ide.ide-compacta .ide-corpo {
+  flex-direction: column;
+  padding-top: 46px;
+}
+.tela-ide.ide-compacta .ide-mobile-topo {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    height: 46px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 6px;
+    background: var(--fundo-2);
+    border-bottom: 1px solid var(--borda);
+}
+.tela-ide.ide-compacta .ide-mobile-topo button {
+    min-width: 0;
+    padding: 0 5px;
+    border-radius: 8px;
+    color: var(--texto-fraco);
+    font-size: 11px;
+    font-weight: 700;
+}
+.tela-ide.ide-compacta .ide-mobile-topo button.ativo {
+    color: var(--menta-clara);
+    background: rgba(var(--menta-rgb), 0.12);
+}
+.tela-ide.ide-compacta .ide-coluna-arvore,
+.tela-ide.ide-compacta .ide-coluna-editor,
+.tela-ide.ide-compacta .ide-coluna-chat,
+.tela-ide.ide-compacta .ide-coluna-chat.recolhida {
+    display: none;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    border: 0;
+}
+.tela-ide.ide-compacta .ide-coluna-arvore.compacta-ativa,
+.tela-ide.ide-compacta .ide-coluna-editor.compacta-ativa,
+.tela-ide.ide-compacta .ide-coluna-chat.compacta-ativa {
+    display: flex;
+}
+.tela-ide.ide-compacta .ide-chat-toggle {
+    display: none;
+}
+.tela-ide.ide-compacta .ide-chat-topo {
+    position: relative;
+    min-width: 0;
+    padding: 10px 12px;
+}
+.tela-ide.ide-compacta .ide-chat-titulo {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tela-ide.ide-compacta .ide-chat-selo {
+    display: none;
+}
+.tela-ide.ide-compacta .ide-controle-botao {
+    min-width: 0;
+}
+.tela-ide.ide-compacta .ide-controle-wrap {
+    position: static;
+    min-width: 0;
+}
+.tela-ide.ide-compacta .ide-controle-botao {
+    max-width: min(190px, 52vw);
+}
+.tela-ide.ide-compacta .ide-controle-botao span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tela-ide.ide-compacta .ide-controle-popover {
+    top: calc(100% + 8px);
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-width: none;
+    max-height: min(640px, calc(100dvh - 150px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+/* Em uma janela minimizada baixa, o dropdown deve sempre caber na viewport e
+   continuar navegável por toque/rodinha, sem alterar a altura do painel. */
+.tela-ide.minimizada .ide-controle-popover {
+  max-height: min(640px, calc(100dvh - 118px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.tela-ide.ide-compacta .ide-turno,
+.tela-ide.ide-compacta .ide-ferramenta {
+    min-width: 0;
+    max-width: 94%;
+    overflow-wrap: anywhere;
+}
+.tela-ide.ide-compacta .ide-turno pre,
+.tela-ide.ide-compacta .ide-turno code {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.tela-ide.ide-estreita .ide-controle-opcoes.duas {
+    grid-template-columns: 1fr;
+}
+.tela-ide.ide-estreita .ide-controle-popover {
+    padding: 12px;
 }

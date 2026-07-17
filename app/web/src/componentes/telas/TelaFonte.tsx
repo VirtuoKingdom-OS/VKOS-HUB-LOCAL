@@ -18,10 +18,11 @@ import {
 
 interface Props {
   tipo: TipoContexto;
+  aoVoltar?: () => void;
 }
 
 // Tela de uma fonte de dados: os contextos daquele tipo em cards generosos.
-export function TelaFonte({ tipo }: Props) {
+export function TelaFonte({ tipo, aoVoltar }: Props) {
   const { contextos, criarContexto, excluirContexto } = usarEstado();
   const [editando, setEditando] = useState<Contexto | null>(null);
   const [criando, setCriando] = useState(false);
@@ -66,6 +67,12 @@ export function TelaFonte({ tipo }: Props) {
     <section className="tela-fluxo">
       <header className="tela-fluxo-topo tela-fonte-topo">
         <div>
+          {aoVoltar && (
+            <button className="botao-voltar-fontes" onClick={aoVoltar}>
+              <span aria-hidden="true">←</span>
+              Fontes de dados
+            </button>
+          )}
           <h1>{ROTULO_FONTE[tipo]}</h1>
           <p className="subtitulo">{rotuloContagem}</p>
         </div>

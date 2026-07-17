@@ -41,9 +41,16 @@ interface Props {
   aoConcluir: (pasta: string) => void;
   // Chamado quando o usuario desiste (cancelou ou minimizou a geracao).
   aoCancelar: () => void;
+  // Destinos internos usados pelos estados de recuperacao do assistente.
+  aoAbrirDestino: (destino: "cockpit" | "galerias") => void;
 }
 
-export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }: Props) {
+export function AssistenteCriacao({
+  tipo = "carrossel",
+  aoConcluir,
+  aoCancelar,
+  aoAbrirDestino,
+}: Props) {
   const { pecas, sessoes, modeloPadrao, pararSessao } = usarEstado();
   const {
     ativa,
@@ -52,6 +59,8 @@ export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }
     pecaSumiu,
     erro: erroGeracao,
     pastaPronta,
+    faseConferencia,
+    resultadoSemPeca,
     iniciar,
     minimizar,
     restaurar,
@@ -111,6 +120,9 @@ export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }
 
   // A sessao desta geracao, so pra ler a mensagem de erro do backend.
   const sessao = ativa ? sessoes.find((s) => s.id === ativa.sessaoId) : undefined;
+  const precisaMontarCerebro = Boolean(
+    erroGeracao?.toLocaleLowerCase("pt-BR").includes("cérebro")
+  );
 
   // Conclusao: a peca ficou pronta. Vai pro Studio e limpa o estado global.
   useEffect(() => {
@@ -252,13 +264,26 @@ export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }
                   <button className="botao botao-neutro" onClick={() => limpar()}>
                     Voltar
                   </button>
-                  <button
-                    className="botao botao-principal"
-                    onClick={() => void dispararGeracao()}
-                  >
-                    <IconeRaio className="" />
-                    Tentar de novo
-                  </button>
+                  {precisaMontarCerebro ? (
+                    <button
+                      className="botao botao-principal"
+                      onClick={() => {
+                        limpar();
+                        aoAbrirDestino("cockpit");
+                      }}
+                    >
+                      <IconeRaio className="" />
+                      Montar o Cérebro
+                    </button>
+                  ) : (
+                    <button
+                      className="botao botao-principal"
+                      onClick={() => void dispararGeracao()}
+                    >
+                      <IconeRaio className="" />
+                      Tentar de novo
+                    </button>
+                  )}
                 </div>
               </div>
             ) : pecaSumiu ? (
@@ -266,11 +291,16 @@ export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }
                 <div className="criacao-selo aviso">
                   <IconeAlerta className="" />
                 </div>
-                <h2 className="criacao-titulo">Quase lá</h2>
+                <h2 className="criacao-titulo">
+                  {tipo === "site" ? "O site ainda não está pronto" : "O arquivo não foi criado"}
+                </h2>
                 <p className="criacao-texto">
-                  A sessão terminou, mas o {cfg.substantivo} ainda não apareceu por
-                  aqui. Ele pode estar sendo salvo. Continuamos verificando sozinhos e
-                  levamos você assim que aparecer, ou veja nas Galerias.
+                  {tipo === "site"
+                    ? "A sessão terminou mas nenhum site apareceu na pasta."
+                    : `A sessão terminou sem criar o arquivo esperado do ${cfg.substantivo}.`}
+                  {resultadoSemPeca
+                    ? ` A resposta da IA foi: ${resultadoSemPeca.slice(0, 700)}`
+                    : " Verifique a orientação abaixo ou tente novamente."}
                 </p>
                 <div className="criacao-estado-acoes">
                   <button className="botao botao-neutro" onClick={() => void sairDeVez()}>
@@ -279,9 +309,8 @@ export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }
                   <button
                     className="botao botao-principal"
                     onClick={() => {
-                      window.location.hash = "#/galerias";
                       limpar();
-                      aoCancelar();
+                      aoAbrirDestino("galerias");
                     }}
                   >
                     <IconeGaleria className="" />
@@ -294,10 +323,13 @@ export function AssistenteCriacao({ tipo = "carrossel", aoConcluir, aoCancelar }
                 <div className="criacao-selo pulsa">
                   <cfg.Icone className="" />
                 </div>
-                <h2 className="criacao-titulo">Gerando seu {cfg.substantivo}</h2>
+                <h2 className="criacao-titulo">
+                  {faseConferencia ?? `Gerando seu ${cfg.substantivo}`}
+                </h2>
                 <p className="criacao-texto">
-                  Isso leva um tempo. Pode acompanhar por aqui ou minimizar e seguir
-                  usando o app.
+                  {faseConferencia
+                    ? "O Hub está conferindo o site e ajustando o que a auditoria apontou antes de abrir."
+                    : "Isso leva um tempo. Pode acompanhar por aqui ou minimizar e seguir usando o app."}
                 </p>
                 <div className="criacao-fases">
                   {FASES.map((f, i) => (

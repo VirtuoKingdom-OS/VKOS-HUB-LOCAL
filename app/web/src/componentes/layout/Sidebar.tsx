@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { atualizarConfig, obterConfig } from "../../api/cliente";
 import { usarEstado } from "../../estado/contexto";
 import { INFO_STATUS } from "../../config/status";
 import { ROTULO_TIPO } from "../telas/fluxos";
-import { ROTULO_FONTE } from "../telas/fontes";
 import { Marca } from "../comum/Telas";
+import { IconeAlerta } from "../comum/Icones";
 import { SeletorWorkspace } from "./SeletorWorkspace";
 import type { TipoContexto, TipoPeca } from "../../tipos/dominio";
-import { IconeImagens, IconeLinks, IconeTextos } from "../telas/icones";
 
 // Tipos de peca que a galeria unificada reune (imagem).
 const TIPOS_GALERIA: TipoPeca[] = ["carrossel", "post", "stories"];
@@ -26,16 +26,27 @@ export interface ItemFonte {
 interface Props {
   itensFluxo: ItemFluxo[];
   itensFonte: ItemFonte[];
-  // "dashboard", "cockpit", "galerias", "whatsapp", "instagram", "crm",
-  // "conexoes", "automacoes", "ide", "fluxo:<tipo>", "fonte:<tipo>" ou
+  // "dashboard", "cockpit", "galerias", "fontes", "crm", "conexoes",
+  // "automacoes", "fluxo:<tipo>", "fonte:<tipo>" ou
   // "studio:<pasta>".
   telaAtiva: string;
   aoNavegar: (tela: string) => void;
+  ideAberta: boolean;
+  aoAlternarIde: () => void;
+  mapaDisponivel: boolean;
 }
 
 // Menu lateral fixo: marca, navegacao do hub, secao de conteudo condicional,
 // fontes de dados, a VKOS-IDE ancorada no fim e o rodape de status.
-export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props) {
+export function Sidebar({
+  itensFluxo,
+  itensFonte,
+  telaAtiva,
+  aoNavegar,
+  ideAberta,
+  aoAlternarIde,
+  mapaDisponivel,
+}: Props) {
   const { ambiente, wsConectado, sessoes, estadoVkos, custos } = usarEstado();
 
   const ativas = sessoes.filter((s) => INFO_STATUS[s.status].ativa).length;
@@ -52,11 +63,14 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
     .reduce((soma, i) => soma + i.total, 0);
   const itemSite = itensFluxo.find((i) => i.tipo === "site");
   const temConteudo = galeriasTotal > 0 || !!itemSite;
+  const totalFontes = itensFonte.reduce((soma, item) => soma + item.total, 0);
 
   const totalGasto = custos?.totalUsd ?? 0;
   // Total geral somando todos os clientes, quando o backend manda o campo.
   const temTotalGeral = typeof custos?.totalGeralUsd === "number";
   const totalGeral = custos?.totalGeralUsd ?? 0;
+  const custoEstimado = custos?.estimado === true;
+  const totalGeralEstimado = custos?.totalGeralEstimado === true;
   // Quebra honesta da entrada acumulada, quando o backend manda os campos novos.
   const temDetalheEntrada = typeof custos?.tokensEntradaNova === "number";
   const cacheAcum =
@@ -74,9 +88,18 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-marca">
-        <Marca />
-        <BotaoTema />
+      <div className="sidebar-marca-bloco">
+        <div className="sidebar-marca">
+          <Marca />
+          <BotaoTema />
+        </div>
+        <span
+          className="sidebar-marca-beta"
+          title="Versão em testes: alguns fluxos ainda podem apresentar erros."
+        >
+          Versão Beta
+          <IconeAlerta className="sidebar-marca-beta-icone" />
+        </span>
       </div>
 
       <SeletorWorkspace />
@@ -111,22 +134,6 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
           <span className="item-nav-rotulo">Calendário</span>
         </button>
         <button
-          className={`item-nav${telaAtiva === "whatsapp" ? " ativo" : ""}`}
-          onClick={() => aoNavegar("whatsapp")}
-        >
-          <IconeWhatsapp />
-          <span className="item-nav-rotulo">WhatsApp</span>
-          <span className="item-nav-badge">Em breve</span>
-        </button>
-        <button
-          className={`item-nav${telaAtiva === "instagram" ? " ativo" : ""}`}
-          onClick={() => aoNavegar("instagram")}
-        >
-          <IconeInstagram />
-          <span className="item-nav-rotulo">Instagram</span>
-          <span className="item-nav-badge">Em breve</span>
-        </button>
-        <button
           className={`item-nav${telaAtiva === "conexoes" ? " ativo" : ""}`}
           onClick={() => aoNavegar("conexoes")}
         >
@@ -140,6 +147,15 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
           <IconeAutomacoes />
           <span className="item-nav-rotulo">Automações</span>
         </button>
+        {mapaDisponivel && (
+          <button
+            className={`item-nav${telaAtiva === "mapa" ? " ativo" : ""}`}
+            onClick={() => aoNavegar("mapa")}
+          >
+            <IconeMapa />
+            <span className="item-nav-rotulo">Mapa</span>
+          </button>
+        )}
 
         {temConteudo && (
           <>
@@ -174,22 +190,18 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
             <div className="sidebar-secao">
               <span className="rotulo-secao">Fontes de dados</span>
             </div>
-            {itensFonte.map((item) => {
-              const alvo = `fonte:${item.tipo}`;
-              return (
-                <button
-                  key={item.tipo}
-                  className={`item-nav${telaAtiva === alvo ? " ativo" : ""}`}
-                  onClick={() => aoNavegar(alvo)}
-                >
-                  {iconeFonte(item.tipo)}
-                  <span className="item-nav-rotulo">
-                    {ROTULO_FONTE[item.tipo]}
-                  </span>
-                  <span className="item-nav-contagem">{item.total}</span>
-                </button>
-              );
-            })}
+            <button
+              className={`item-nav${
+                telaAtiva === "fontes" || telaAtiva.startsWith("fonte:")
+                  ? " ativo"
+                  : ""
+              }`}
+              onClick={() => aoNavegar("fontes")}
+            >
+              <IconeFontes />
+              <span className="item-nav-rotulo">Fontes de dados</span>
+              <span className="item-nav-contagem">{totalFontes}</span>
+            </button>
           </>
         )}
 
@@ -197,8 +209,9 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
             (margin-top:auto) e separada por uma borda, acima do rodape. */}
         <div className="sidebar-nav-fim">
           <button
-            className={`item-nav${telaAtiva === "ide" ? " ativo" : ""}`}
-            onClick={() => aoNavegar("ide")}
+            className={`item-nav${ideAberta ? " ativo" : ""}`}
+            onClick={aoAlternarIde}
+            aria-pressed={ideAberta}
           >
             <IconeIde />
             <span className="item-nav-rotulo">VKOS-IDE</span>
@@ -221,21 +234,28 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
             {ativas} / {LIMITE_SESSOES}
           </span>
         </div>
+        <LinhaModoEnxuto />
         <div
           className="rodape-custo"
           title={
             temTotalGeral
-              ? `Geral (todos os clientes): $${totalGeral.toFixed(2)}. ${dicaTokens}`
+              ? `Geral (todos os clientes): ${totalGeralEstimado ? "~" : ""}$${totalGeral.toFixed(2)}. ${dicaTokens}`
               : dicaTokens
           }
         >
           <div className="rodape-custo-linha">
             <span className="rodape-custo-rotulo">Gasto do cliente</span>
-            <span className="rodape-custo-valor">${totalGasto.toFixed(2)}</span>
+            <span className="rodape-custo-valor">
+              {custoEstimado ? "~" : ""}${totalGasto.toFixed(2)}
+            </span>
           </div>
+          {custoEstimado && (
+            <div className="rodape-custo-detalhe">estimado por tokens</div>
+          )}
           {temTotalGeral && (
             <div className="rodape-custo-detalhe">
-              Geral, todos os clientes: ${totalGeral.toFixed(2)}
+              Geral, todos os clientes: {totalGeralEstimado ? "~" : ""}${totalGeral.toFixed(2)}
+              {totalGeralEstimado ? ", estimado por tokens" : ""}
             </div>
           )}
           {temDetalheEntrada && (
@@ -251,6 +271,58 @@ export function Sidebar({ itensFluxo, itensFonte, telaAtiva, aoNavegar }: Props)
         </div>
       </div>
     </aside>
+  );
+}
+
+const TITLE_MODO_ENXUTO =
+  "Sessões novas recebem a regra de economia: respostas mais diretas, " +
+  "menos tokens. Pode mudar o estilo dos resultados. Não afeta a geração " +
+  "guiada de site e carrossel.";
+
+// Toggle do Modo enxuto, vizinho do gasto do cliente. Estado vem do GET
+// /api/config; a gravacao e otimista no PUT, com rollback em erro.
+function LinhaModoEnxuto() {
+  const [ligado, setLigado] = useState(false);
+  const [pronto, setPronto] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    obterConfig()
+      .then((config) => {
+        if (!vivo) return;
+        setLigado(config.modoEnxuto === true);
+        setPronto(true);
+      })
+      .catch(() => {
+        // Servidor fora: o toggle fica desabilitado ate a proxima montagem.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const alternar = (valor: boolean) => {
+    const anterior = ligado;
+    setLigado(valor);
+    atualizarConfig({ modoEnxuto: valor }).catch(() => setLigado(anterior));
+  };
+
+  return (
+    <div className="rodape-enxuto" title={TITLE_MODO_ENXUTO}>
+      <span className="rodape-enxuto-rotulo">Modo enxuto</span>
+      <label className="enxuto-switch">
+        <input
+          type="checkbox"
+          checked={ligado}
+          disabled={!pronto}
+          onChange={(e) => alternar(e.target.checked)}
+          aria-label="Modo enxuto"
+        />
+        <span className="enxuto-switch-trilho">
+          <span className="enxuto-switch-bola" />
+        </span>
+      </label>
+    </div>
   );
 }
 
@@ -372,14 +444,16 @@ function fmtTokens(n?: number): string {
   return `${texto}k`;
 }
 
-// Icone do item de fonte conforme o tipo do contexto.
-function iconeFonte(tipo: TipoContexto) {
-  if (tipo === "imagens") return <IconeImagens className="" />;
-  if (tipo === "links") return <IconeLinks className="" />;
-  return <IconeTextos className="" />;
+// Icones das telas fixas do hub, inline como o do Cockpit.
+function IconeFontes() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="3" />
+      <path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6" />
+    </svg>
+  );
 }
 
-// Icones das telas fixas do hub, inline como o do Cockpit.
 function IconeIde() {
   return (
     <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -426,6 +500,18 @@ function IconeAutomacoes() {
   );
 }
 
+// Mapa: tres pontos ligados, uma rede lida sem alterar o sistema.
+function IconeMapa() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="2.5" />
+      <circle cx="5" cy="18" r="2.5" />
+      <circle cx="19" cy="18" r="2.5" />
+      <path d="m10.8 7.2-4.5 8.6M13.2 7.2l4.5 8.6M7.5 18h9" />
+    </svg>
+  );
+}
+
 // Icone proprio do Cockpit (o canvas). Inline pra nao depender do modulo cockpit.
 function IconeCockpit({ className }: { className?: string }) {
   return (
@@ -454,27 +540,6 @@ function IconeDashboard() {
       <rect x="13" y="4" width="7" height="5" rx="1.5" />
       <rect x="13" y="11" width="7" height="9" rx="1.5" />
       <rect x="4" y="13" width="7" height="7" rx="1.5" />
-    </svg>
-  );
-}
-
-// WhatsApp: balao de conversa com a cauda, traco simples on-brand.
-function IconeWhatsapp() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5 5.3 16A7.5 7.5 0 1 1 8 18.7L4 19.5Z" />
-      <path d="M9 10.2c.3 1.6 2.2 3.5 3.8 3.8.5.1.9-.1 1.1-.5l.3-.6-1.7-1-.7.7c-.7-.3-1.4-1-1.7-1.7l.7-.7-1-1.7-.6.3c-.4.2-.6.6-.5 1.1Z" />
-    </svg>
-  );
-}
-
-// Instagram: quadrado arredondado com a lente e o ponto da camera.
-function IconeInstagram() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="4" width="16" height="16" rx="5" />
-      <circle cx="12" cy="12" r="3.6" />
-      <circle cx="16.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
     </svg>
   );
 }

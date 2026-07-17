@@ -16,6 +16,12 @@ import {
   temTextoProprio,
   type VarCss,
 } from "./nucleo";
+import {
+  extrairUrlFundo,
+  removerUrlFundo,
+  substituirUrlFundo,
+  type AlvoImagemCapturado,
+} from "./imagens";
 
 // Motor de edicao compartilhado do carrossel HTML-first. Um hook por iframe
 // montado. Ele instrumenta o contentDocument (estilo runtime, listeners de
@@ -51,6 +57,16 @@ export interface PropsSel {
   cor: string; // hex, pro color picker
   // Verdadeiro quando o editor injetou left/top no elemento (posicao movida).
   posicaoAjustada: boolean;
+  // Imagem selecionada diretamente, seja uma tag img ou background-image num
+  // elemento HTML real. Nao depende de ser a maior imagem da pagina.
+  ehImagem: boolean;
+  tipoImagem: "img" | "fundo" | null;
+  srcImagem: string;
+  // A hierarquia fica navegavel no painel. Assim um img pode levar ao frame
+  // que carrega borda, sombra ou mascara, sem depender do clique acertar a
+  // pequena faixa visivel do container.
+  podeSubirNivel: boolean;
+  podeExcluir: boolean;
 }
 
 export interface OpcoesMotor {
@@ -86,6 +102,12 @@ export interface MotorEdicao {
   trocarImagemFundo(pagina: number, file: File): Promise<void>;
   // Extra util pro painel: diz se a pagina tem um fundo trocavel.
   paginaTemFundo(pagina: number): boolean;
+  trocarImagemSelecionada(file: File): Promise<void>;
+  excluirImagemSelecionada(): void;
+  selecionarPai(): void;
+  excluirSelecionado(): void;
+  adicionarImagemFundoPagina(pagina: number, caminhoRelativo: string): void;
+  capturarImagemSelecionada(): AlvoImagemCapturado | null;
   desfazer(): void;
   podeDesfazer: boolean;
   salvar(): Promise<void>;
@@ -197,6 +219,11 @@ export function usarMotorEdicao(
       "[data-ed-sel]{outline:2px solid #00c896 !important;outline-offset:-2px !important;cursor:move !important;}" +
       "[data-ed-editando]{outline:2px dashed #00c896 !important;outline-offset:2px !important;cursor:text !important;}" +
       "[data-ed-editando] *{cursor:text !important;}" +
+      // Muitos carrosseis usam um frame decorativo com pointer-events:none.
+      // A propriedade e herdada, entao o img interno ficava impossivel de
+      // selecionar. O override so existe no runtime do Studio e nao vaza pro
+      // HTML salvo: qualquer imagem real de um slide volta a ser um alvo.
+      ".slide img{pointer-events:auto !important;cursor:move !important;}" +
       ".vkos-ed-arrastando,.vkos-ed-arrastando *{cursor:grabbing !important;}" +
       ".vkos-ed-guia{position:absolute;background:#00c896;pointer-events:none;z-index:2147483646;box-shadow:0 0 4px rgba(0,200,150,0.6);}" +
       ".vkos-ed-guia-v{width:1px;top:0;bottom:0;}" +
@@ -233,6 +260,15 @@ export function usarMotorEdicao(
     return null;
   }
 
+  function imagemDoElemento(el: HTMLElement): { tipo: "img" | "bg"; src: string } | null {
+    if (el.tagName === "IMG") {
+      return { tipo: "img", src: (el as HTMLImageElement).getAttribute("src") || "" };
+    }
+    const valor = el.ownerDocument.defaultView?.getComputedStyle(el).backgroundImage || "";
+    const src = extrairUrlFundo(valor);
+    return src ? { tipo: "bg", src } : null;
+  }
+
   // ===== Selecao.
   function propsDe(el: HTMLElement): PropsSel {
     const win = el.ownerDocument.defaultView!;
@@ -240,6 +276,9 @@ export function usarMotorEdicao(
     const familia = primeiraFonte(el.style.fontFamily || cs.fontFamily);
     setFontesOpc((prev) => (prev.includes(familia) ? prev : [familia, ...prev]));
     const semBloco = soFilhosInline(el);
+    const imagem = imagemDoElemento(el);
+    const slide = el.closest<HTMLElement>(".slide");
+    const pai = el.parentElement;
     return {
       tag: el.tagName.toLowerCase(),
       classes: Array.from(el.classList).join(" "),
@@ -252,12 +291,23 @@ export function usarMotorEdicao(
       peso: String(cs.fontWeight || "400"),
       cor: rgbParaHex(cs.color) || "#ffffff",
       posicaoAjustada: el.hasAttribute("data-ed-mov"),
+      ehImagem: imagem !== null,
+      tipoImagem: imagem?.tipo === "bg" ? "fundo" : imagem?.tipo ?? null,
+      srcImagem: imagem?.src ?? "",
+      podeSubirNivel: !!(slide && pai && pai !== slide),
+      podeExcluir: !!slide && el !== slide,
     };
   }
 
   function selecionar(el: HTMLElement) {
     const doc = el.ownerDocument;
     if (!doc.defaultView) return;
+    // O slide e o canvas da pagina, nunca um objeto editavel. Seleciona-lo
+    // permitia arrastar a pagina inteira e gravar left/top no carrossel.
+    if (el.matches(".slide,body,html")) {
+      limparSelecao();
+      return;
+    }
     doc.querySelectorAll("[data-ed-sel]").forEach((n) => n.removeAttribute("data-ed-sel"));
     el.setAttribute("data-ed-sel", "1");
     selRef.current = el;
@@ -276,6 +326,26 @@ export function usarMotorEdicao(
     doc?.querySelectorAll("[data-ed-sel]").forEach((n) => n.removeAttribute("data-ed-sel"));
     selRef.current = null;
     setSelecao(null);
+  }
+
+  function selecionarPai(): void {
+    const el = selRef.current;
+    const slide = el?.closest<HTMLElement>(".slide");
+    const pai = el?.parentElement;
+    if (!el || !slide || !pai || pai === slide) return;
+    selecionar(pai);
+  }
+
+  function excluirSelecionado(): void {
+    const el = selRef.current;
+    const slide = el?.closest<HTMLElement>(".slide");
+    if (!el || !slide || el === slide) return;
+    if (editandoRef.current === el) finalizarEdicao();
+    snapshot();
+    el.remove();
+    selRef.current = null;
+    setSelecao(null);
+    marcarMudou();
   }
 
   // ===== Edicao de texto in-place (duplo clique). Liga contentEditable no
@@ -406,7 +476,7 @@ export function usarMotorEdicao(
 
   function moverSelecao(dx: number, dy: number) {
     const el = selRef.current;
-    if (!el) return;
+    if (!el || el.matches(".slide,body,html")) return;
     snapshot();
     deslocar(el, dx, dy);
     marcarMudou();
@@ -453,7 +523,12 @@ export function usarMotorEdicao(
     const alvo = e.target as HTMLElement | null;
     // So arrasta o proprio selecionado (ou um filho dele). Clique em outro
     // elemento segue como selecao normal.
-    if (!sel || !alvo || !(alvo === sel || sel.contains(alvo))) return;
+    if (
+      !sel ||
+      sel.matches(".slide,body,html") ||
+      !alvo ||
+      !(alvo === sel || sel.contains(alvo))
+    ) return;
     const win = sel.ownerDocument.defaultView;
     if (!win) return;
     e.preventDefault();
@@ -702,6 +777,90 @@ export function usarMotorEdicao(
     marcarMudou();
   }
 
+  function aplicarImagemNoAlvo(el: HTMLElement, tipo: "img" | "bg", rel: string) {
+    if (!el.isConnected) throw new Error("A imagem original não está mais no carrossel.");
+    snapshot();
+    const url = `${rel}?vk=${Date.now()}`;
+    if (tipo === "img") (el as HTMLImageElement).setAttribute("src", url);
+    else {
+      const atual = el.ownerDocument.defaultView?.getComputedStyle(el).backgroundImage || "";
+      el.style.backgroundImage = substituirUrlFundo(atual, url);
+    }
+    marcarMudou();
+    if (selRef.current === el) ressincronizarSelecao();
+  }
+
+  async function trocarImagemSelecionada(file: File): Promise<void> {
+    const el = selRef.current;
+    if (!el) throw new Error("Selecione uma imagem primeiro.");
+    const imagem = imagemDoElemento(el);
+    if (!imagem) throw new Error("O elemento selecionado não é uma imagem editável.");
+    const rel = await enviarImagem(optsRef.current.pasta, file);
+    aplicarImagemNoAlvo(el, imagem.tipo, rel);
+  }
+
+  function excluirImagemSelecionada(): void {
+    const el = selRef.current;
+    if (!el) return;
+    const imagem = imagemDoElemento(el);
+    if (!imagem) return;
+    snapshot();
+    if (imagem.tipo === "img") {
+      el.remove();
+      selRef.current = null;
+      setSelecao(null);
+    } else {
+      const atual = el.ownerDocument.defaultView?.getComputedStyle(el).backgroundImage || "";
+      el.style.setProperty("background-image", removerUrlFundo(atual));
+      marcarMudou();
+      ressincronizarSelecao();
+      return;
+    }
+    marcarMudou();
+  }
+
+  function capturarImagemSelecionada(): AlvoImagemCapturado | null {
+    const el = selRef.current;
+    if (!el) return null;
+    const imagem = imagemDoElemento(el);
+    if (!imagem) return null;
+    const slide = el.closest<HTMLElement>(".slide");
+    const alt = el.tagName === "IMG" ? (el as HTMLImageElement).alt : "";
+    const contexto = [alt, slide?.innerText || slide?.textContent || ""]
+      .filter(Boolean)
+      .join(". ");
+    return {
+      contexto,
+      aplicar: (caminhoRelativo) => aplicarImagemNoAlvo(el, imagem.tipo, caminhoRelativo),
+    };
+  }
+
+  function adicionarImagemFundoPagina(pagina: number, caminhoRelativo: string): void {
+    const doc = getDoc();
+    const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
+    if (!doc || !slide) throw new Error("A página indicada não existe no carrossel.");
+    snapshot();
+    let img = slide.querySelector<HTMLImageElement>("img[data-vkos-image-bg]");
+    if (!img) {
+      img = doc.createElement("img");
+      img.setAttribute("data-vkos-image-bg", "1");
+      img.alt = "Imagem de fundo contextual";
+      img.style.position = "absolute";
+      img.style.inset = "0";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      img.style.objectPosition = "center";
+      img.style.opacity = "0.38";
+      img.style.zIndex = "1";
+      img.style.pointerEvents = "none";
+      slide.insertBefore(img, slide.firstChild);
+    }
+    img.src = `${caminhoRelativo}?vk=${Date.now()}`;
+    marcarMudou();
+    selecionar(img);
+  }
+
   // ===== Serializacao limpa e save.
   function serializar(doc: Document): string {
     const editVals: Record<string, string> = {};
@@ -722,6 +881,12 @@ export function usarMotorEdicao(
     // extras de arrasto. Os left/top/position inline ficam: sao a posicao real
     // editada.
     limparArtefatosSelecao(clone);
+    // Defesa final contra pecas antigas que ja salvaram o deslocamento do
+    // proprio slide. Pagina nunca carrega posicao editorial via inline left/top.
+    clone.querySelectorAll<HTMLElement>(".slide").forEach((slide) => {
+      slide.style.removeProperty("left");
+      slide.style.removeProperty("top");
+    });
     clone
       .querySelectorAll("[data-ed-atual],[data-ed-mov],[data-ed-relpos]")
       .forEach((n) => {
@@ -798,6 +963,10 @@ export function usarMotorEdicao(
       },
     );
     if (!resp.ok) throw new Error("Não foi possível salvar.");
+    // Salvar confirma o estado atual como nova base. A confirmação de exclusão
+    // avisa que, depois daqui, o elemento não volta pelo Desfazer.
+    undoRef.current.limpar();
+    setPodeDesfazer(false);
     setNaoSalvo(false);
   }
 
@@ -898,6 +1067,12 @@ export function usarMotorEdicao(
     fontesOpc,
     trocarImagemFundo,
     paginaTemFundo,
+    trocarImagemSelecionada,
+    excluirImagemSelecionada,
+    selecionarPai,
+    excluirSelecionado,
+    adicionarImagemFundoPagina,
+    capturarImagemSelecionada,
     desfazer,
     podeDesfazer,
     salvar,

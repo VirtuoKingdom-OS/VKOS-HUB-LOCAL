@@ -18,6 +18,12 @@ build/
 app/dados/
 app/web/dist/
 
+# Dados privados e cópias locais. As barras iniciais limitam os padrões à raiz.
+/app/dados-backup-*/
+/estudio-aura/
+/ojessegomes/
+/clienteteste/
+
 # IDE
 .vscode/
 .idea/
@@ -50,10 +56,15 @@ ehthumbs.db
 # Screenshots/screenshots (from sondes)
 *.png
 !logo.png.PNG
+!app/web/public/logo.png
 
 # Referência VKOS (repo externo). Barra inicial de propósito: só a pasta da
 # raiz. Sem ela, o padrão engolia app/server/src/vkos/, que é código do server.
 /vkos/
+
+# VKOS 2 (workspace-template, referência externa como o vkos). Barra inicial
+# de propósito: só a pasta da raiz.
+/vkos2/
 
 # Downloads e artefatos de terceiro (ex: ponytail-main.zip). Pasta de rascunho,
 # não é código nosso, não versiona.

@@ -64,6 +64,7 @@ export function regraCompativel(regra: Regra, evento: EventoDominio): boolean {
 // Variavel ausente vira string vazia, nunca "undefined" no texto.
 export function variaveisDoEvento(evento: EventoDominio): Record<string, string> {
   const contato = (evento.dados.contato ?? {}) as Record<string, unknown>;
+  const negocio = (evento.dados.negocio ?? {}) as Record<string, unknown>;
   const coluna =
     typeof evento.dados.nomeColunaPara === "string"
       ? evento.dados.nomeColunaPara
@@ -74,7 +75,12 @@ export function variaveisDoEvento(evento: EventoDominio): Record<string, string>
     nome: typeof contato.nome === "string" ? contato.nome : "",
     empresa: typeof contato.empresa === "string" ? contato.empresa : "",
     coluna,
-    valorEstimado: typeof contato.valorEstimado === "number" ? String(contato.valorEstimado) : "",
+    valorEstimado:
+      typeof negocio.valorEstimado === "number"
+        ? String(negocio.valorEstimado)
+        : typeof contato.valorEstimado === "number"
+          ? String(contato.valorEstimado)
+          : "",
     proximoContato: typeof contato.proximoContato === "string" ? contato.proximoContato : "",
   };
 }

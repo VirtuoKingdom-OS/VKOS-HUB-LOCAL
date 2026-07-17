@@ -7,6 +7,7 @@ import type {
   EstadoVkos,
   ModeloCarrossel,
   Peca,
+  ProvedorIA,
   RespostaCerebro,
   RespostaPastas,
   RespostaWorkspaces,
@@ -17,8 +18,33 @@ import type {
   Workspace,
 } from "../tipos/dominio";
 
-// Modelo de linguagem que a sessao pode usar.
-export type ModeloIA = "opus" | "sonnet" | "haiku";
+// Alias de modelo entregue pelo provedor ativo. A lista valida vem da API.
+export type ModeloIA = string;
+
+export interface EscopoPecaSessao {
+  pasta: string;
+  tipo: "carrossel" | "site";
+  // Obrigatorio para site. Carrossel usa sempre carrossel.html no servidor.
+  arquivo?: string;
+  // Injeta o contrato visual e autoriza revisar todas as paginas da peca.
+  revisaoDesign?: boolean;
+}
+
+export interface OpcaoModeloIA {
+  alias: string;
+  rotulo: string;
+  observacaoCusto: string;
+}
+
+export interface ProvedorComModelos {
+  id: ProvedorIA;
+  modelos: OpcaoModeloIA[];
+}
+
+export interface RespostaProvedores {
+  ativo: ProvedorIA;
+  provedores: ProvedorComModelos[];
+}
 
 // Custos acumulados de todas as sessoes (mesmo as ja apagadas).
 export interface Custos {
@@ -35,11 +61,20 @@ export interface Custos {
   // Total somado de todos os clientes (workspaces). O totalUsd acima e so do
   // cliente ativo. Opcional: backend antigo pode nao mandar.
   totalGeralUsd?: number;
+  // Um total e estimado quando inclui ao menos uma sessao Codex.
+  estimado?: boolean;
+  totalGeralEstimado?: boolean;
 }
 
-// Config do app. Por enquanto so o modelo padrao das sessoes.
+// Config global. modeloPadrao e o alias legado do modelo Claude.
 export interface ConfigApp {
   modeloPadrao: ModeloIA;
+  provedorPadrao?: ProvedorIA;
+  modeloPadraoClaude?: ModeloIA;
+  modeloPadraoCodex?: string;
+  // Modo enxuto: sessoes novas recebem a regra de economia. Opcional: backend
+  // antigo pode nao mandar.
+  modoEnxuto?: boolean;
 }
 
 // Erro de rede: servidor fora do ar ou inalcancavel.
@@ -99,8 +134,112 @@ function corpoJson(dados: unknown): RequestInit {
 }
 
 // Ambiente e onboarding.
-export function obterAmbiente(): Promise<Ambiente> {
-  return pedir<Ambiente>("/api/ambiente");
+export function obterAmbiente(atualizar = false): Promise<Ambiente> {
+  return pedir<Ambiente>(`/api/ambiente${atualizar ? "?atualizar=1" : ""}`);
+}
+
+export function abrirLoginMotor(provedor: ProvedorIA): Promise<{ ok: true }> {
+  return pedir<{ ok: true }>(
+    "/api/ambiente/login",
+    corpoJson({ provedor })
+  );
+}
+
+export function criarAtalhoHub(): Promise<{ ok: true; caminho: string }> {
+  return pedir<{ ok: true; caminho: string }>("/api/ambiente/atalho", {
+    method: "POST",
+  });
+}
+
+export type EventoTesteSetup =
+  | { tipo: "inicio"; modelo: string }
+  | { tipo: "texto"; texto: string }
+  | {
+      tipo: "resultado";
+      texto: string;
+      custoUsd: number;
+      estimado: boolean;
+    }
+  | { tipo: "erro"; mensagem: string }
+  | { tipo: "fim"; sucesso: boolean; modelo?: string };
+
+export type EventoInstalacaoMotor =
+  | { tipo: "inicio"; provedor: ProvedorIA; pacote: string }
+  | { tipo: "texto"; texto: string }
+  | { tipo: "erro"; mensagem: string }
+  | { tipo: "fim"; sucesso: boolean };
+
+async function lerFluxoNdjson<T>(
+  url: string,
+  dados: unknown,
+  mensagemSemFluxo: string,
+  aoEvento: (evento: T) => void,
+): Promise<void> {
+  let resposta: Response;
+  try {
+    resposta = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+  } catch {
+    throw new ErroRede();
+  }
+
+  if (!resposta.ok) {
+    let mensagem = `Erro ${resposta.status}`;
+    try {
+      const corpo = (await resposta.json()) as { erro?: string };
+      if (corpo.erro) mensagem = corpo.erro;
+    } catch {
+      // Corpo sem JSON, mantém a mensagem curta.
+    }
+    throw new ErroApi(mensagem, resposta.status);
+  }
+
+  if (!resposta.body) throw new ErroRede(mensagemSemFluxo);
+
+  const leitor = resposta.body.getReader();
+  const decodificador = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await leitor.read();
+    buffer += decodificador.decode(value, { stream: !done });
+    const linhas = buffer.split("\n");
+    buffer = linhas.pop() ?? "";
+    for (const linha of linhas) {
+      if (!linha.trim()) continue;
+      aoEvento(JSON.parse(linha) as T);
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) aoEvento(JSON.parse(buffer) as T);
+}
+
+export function instalarMotorSetup(
+  provedor: ProvedorIA,
+  aoEvento: (evento: EventoInstalacaoMotor) => void,
+): Promise<void> {
+  return lerFluxoNdjson(
+    "/api/ambiente/instalar",
+    { provedor },
+    "O servidor não abriu o fluxo da instalação.",
+    aoEvento,
+  );
+}
+
+// Le a resposta NDJSON do teste de motor conforme ela chega. Esse caminho nao
+// cria uma Sessao do hub e funciona antes de existir workspace.
+export async function testarMotorSetup(
+  provedor: ProvedorIA,
+  aoEvento: (evento: EventoTesteSetup) => void
+): Promise<void> {
+  return lerFluxoNdjson(
+    "/api/ambiente/teste",
+    { provedor },
+    "O servidor não abriu o fluxo do teste.",
+    aoEvento,
+  );
 }
 
 // Abre o seletor de pasta NATIVO do Windows (o do Explorer) na maquina do
@@ -162,6 +301,11 @@ export function criarSessao(dados: {
   prompt: string;
   skill?: string;
   modelo?: ModeloIA;
+  permissao?: "padrao" | "total";
+  escopoPeca?: EscopoPecaSessao;
+  // Geracao guiada de site: subpasta alvo em conteudo/. Liga o laco de
+  // conformidade a peca certa depois que a sessao conclui.
+  pastaAlvo?: string;
 }): Promise<{ sessao: Sessao }> {
   return pedir<{ sessao: Sessao }>("/api/sessoes", corpoJson(dados));
 }
@@ -293,13 +437,86 @@ export function obterConfig(): Promise<ConfigApp> {
   return pedir<ConfigApp>("/api/config");
 }
 
+// Provedor ativo e modelos disponiveis. O frontend nunca inventa aliases.
+export function obterProvedores(): Promise<RespostaProvedores> {
+  return pedir<RespostaProvedores>("/api/provedores");
+}
+
 export function atualizarConfig(dados: {
   modeloPadrao?: ModeloIA;
+  provedorPadrao?: ProvedorIA;
+  modeloPadraoClaude?: ModeloIA;
+  modeloPadraoCodex?: string;
+  modoEnxuto?: boolean;
 }): Promise<ConfigApp> {
   return pedir<ConfigApp>("/api/config", {
-    method: "PATCH",
+    method: "PUT",
     body: JSON.stringify(dados),
   });
+}
+
+export interface RegistroPublicacaoGithub {
+  repo: string;
+  url: string;
+  branch: string;
+  em: string;
+}
+
+export interface RegistroPublicacaoNetlify {
+  siteId: string;
+  url: string;
+  em: string;
+  pendente?: boolean;
+}
+
+// Modo de publicacao: astro converte o multipagina marcado em projeto Astro;
+// html sobe a pasta crua. Contrato da peca 4 da rodada Sites Astro e Design.
+export type ModoPublicacao = "astro" | "html";
+
+export interface RespostaPublicacao {
+  github: { conectado: boolean };
+  netlify: { conectado: boolean };
+  registro: {
+    github?: RegistroPublicacaoGithub;
+    netlify?: RegistroPublicacaoNetlify;
+  };
+  auditoria: {
+    valido: boolean;
+    paginas: string[];
+    erros: string[];
+    avisos: string[];
+  };
+  // Como esta peca sera publicada se nada mudar. Opcional: servidores antigos
+  // ainda nao enviam o campo.
+  modoPrevisto?: ModoPublicacao;
+}
+
+// A resposta dos POSTs ganha modo e avisos (peca 4). O registro continua na raiz.
+export type RespostaPublicarGithub = RegistroPublicacaoGithub & {
+  modo?: ModoPublicacao;
+  avisos?: string[];
+};
+export type RespostaPublicarNetlify = RegistroPublicacaoNetlify & {
+  modo?: ModoPublicacao;
+  avisos?: string[];
+};
+
+export function obterPublicacao(pasta: string): Promise<RespostaPublicacao> {
+  return pedir<RespostaPublicacao>(`/api/publicacao/${encodeURIComponent(pasta)}`);
+}
+
+export function publicarGithub(pasta: string): Promise<RespostaPublicarGithub> {
+  return pedir<RespostaPublicarGithub>(
+    `/api/publicacao/${encodeURIComponent(pasta)}/github`,
+    { method: "POST" },
+  );
+}
+
+export function publicarNetlify(pasta: string): Promise<RespostaPublicarNetlify> {
+  return pedir<RespostaPublicarNetlify>(
+    `/api/publicacao/${encodeURIComponent(pasta)}/netlify`,
+    { method: "POST" },
+  );
 }
 
 // Modelos de carrossel do VKOS (templates/carrossel/).
@@ -319,6 +536,26 @@ export function enviarAnexo(dados: {
   conteudoBase64: string;
 }): Promise<RespostaAnexo> {
   return pedir<RespostaAnexo>("/api/anexos", corpoJson(dados));
+}
+
+export function enviarAnexoPeca(
+  pasta: string,
+  dados: { nome: string; conteudoBase64: string },
+): Promise<RespostaAnexo> {
+  return pedir<RespostaAnexo>(
+    `/api/vkos/pecas/${encodeURIComponent(pasta)}/anexo`,
+    corpoJson(dados),
+  );
+}
+
+export function enviarImagemPeca(
+  pasta: string,
+  dados: { nome: string; conteudoBase64: string },
+): Promise<RespostaAnexo> {
+  return pedir<RespostaAnexo>(
+    `/api/vkos/pecas/${encodeURIComponent(pasta)}/imagem`,
+    corpoJson(dados),
+  );
 }
 
 export function enviarMensagem(id: string, texto: string): Promise<{ ok: true }> {

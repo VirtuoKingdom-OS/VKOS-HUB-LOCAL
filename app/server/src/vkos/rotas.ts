@@ -12,8 +12,10 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
+import { dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import archiver from "archiver";
 
@@ -27,6 +29,7 @@ import {
   lerCerebroCompleto,
 } from "./cerebro.js";
 import { ErroCarrossel, gravarCarrossel, salvarImagem } from "./carrossel.js";
+import { salvarAnexoPeca } from "./anexoPeca.js";
 import { ErroPaginaSite, gravarPaginaSite } from "./paginaSite.js";
 import { ErroRender, renderizarPaginas } from "./render.js";
 import { transmitir } from "../ws.js";
@@ -35,6 +38,8 @@ import { lerSkills } from "./skills.js";
 import { contarSlides, extrairDataTema, lerPecas, reinstalarObservador } from "./pecas.js";
 import { baseDoTema, servirZip } from "./zip.js";
 import { lerModelosCarrossel } from "./modelos.js";
+import { tipoConteudo } from "./tipoConteudo.js";
+import { neutralizarScriptsParaEdicao } from "./siteEstatico.js";
 
 // Monta o EstadoVkos a partir da pasta atual (ou null).
 function montarEstado(pasta: string | null): EstadoVkos {
@@ -262,14 +267,16 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
   // backup .bak unico por boot, carrossel.html proibido (e a classificacao da
   // peca). Depois transmite pecas:atualizadas. Limite de corpo 4MB.
   app.put(
-    "/vkos/pecas/:pasta/pagina/:arquivo",
+    "/vkos/pecas/:pasta/pagina/*",
     { bodyLimit: 4 * 1024 * 1024 },
     async (req: FastifyRequest, resposta: FastifyReply) => {
       const pastaVkos = obterPastaVkos();
       if (!pastaVkos) {
         return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
       }
-      const { pasta, arquivo } = req.params as { pasta: string; arquivo: string };
+      const params = req.params as { pasta: string; "*": string };
+      const pasta = params.pasta;
+      const arquivo = params["*"];
       const resolvida = resolverPeca(pastaVkos, pasta);
       if (!resolvida) {
         return resposta.status(400).send({ erro: "Nome de peça inválido." });
@@ -314,6 +321,41 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
       try {
         const caminhoRelativo = salvarImagem(resolvida.alvo, corpo.nome, corpo.conteudoBase64);
         return { caminhoRelativo };
+      } catch (erro) {
+        if (erro instanceof ErroCarrossel) {
+          return resposta.status(erro.status).send({ erro: erro.message });
+        }
+        throw erro;
+      }
+    },
+  );
+
+  // Salva um anexo de referencia em <peca>/anexos/. Ele fica dentro do escopo
+  // confinado do ajuste e nunca vira parte do site ou carrossel publicado.
+  app.post(
+    "/vkos/pecas/:pasta/anexo",
+    { bodyLimit: 32 * 1024 * 1024 },
+    async (req: FastifyRequest, resposta: FastifyReply) => {
+      const pastaVkos = obterPastaVkos();
+      if (!pastaVkos) {
+        return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
+      }
+      const { pasta } = req.params as { pasta: string };
+      const resolvida = resolverPeca(pastaVkos, pasta);
+      if (!resolvida) {
+        return resposta.status(400).send({ erro: "Nome de peça inválido." });
+      }
+      if (!existsSync(resolvida.alvo) || !statSync(resolvida.alvo).isDirectory()) {
+        return resposta.status(404).send({ erro: "Peça não encontrada." });
+      }
+      const corpo = (req.body ?? {}) as { nome?: unknown; conteudoBase64?: unknown };
+      try {
+        const caminhoRelativo = salvarAnexoPeca(
+          resolvida.alvo,
+          corpo.nome,
+          corpo.conteudoBase64,
+        );
+        return resposta.status(201).send({ caminhoRelativo });
       } catch (erro) {
         if (erro instanceof ErroCarrossel) {
           return resposta.status(erro.status).send({ erro: erro.message });
@@ -452,8 +494,10 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
 export const rotasPecas: FastifyPluginAsync = async (app) => {
   // Pagina isolada de um carrossel HTML-first, pro iframe do front medir e escalar.
   app.get("/pecas-html/:pasta/pagina/:n", servirPaginaHtml);
+  app.get("/pecas-edicao/*", servirPecaEdicao);
   app.get("/pecas/*", servirPeca);
-  // Preview de um modelo de carrossel (templates/carrossel/), primeiro slide isolado.
+  app.get("/modelos-html/_exemplo-capa.svg", servirExemploCapa);
+  // Preview de um modelo de carrossel (templates/carrossel/), slide pedido isolado.
   app.get("/modelos-html/:id/preview", servirPreviewModelo);
 };
 
@@ -475,7 +519,8 @@ function injetarScriptIsolador(html: string, n: number): string {
   const script = `<script>
 (function(){
   var slides = document.querySelectorAll('.slide');
-  var alvo = slides[${n - 1}];
+  var indice = Math.min(Math.max(${n - 1}, 0), Math.max(slides.length - 1, 0));
+  var alvo = slides[indice];
   if(!alvo){ return; }
   for(var i=slides.length-1;i>=0;i--){
     if(slides[i]!==alvo && slides[i].parentNode){ slides[i].parentNode.removeChild(slides[i]); }
@@ -540,11 +585,31 @@ async function servirPaginaHtml(
   return resposta.send(html);
 }
 
+const CAMINHO_EXEMPLO_CAPA = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "assets",
+  "exemplo-capa.svg",
+);
+
+async function servirExemploCapa(
+  _req: FastifyRequest,
+  resposta: FastifyReply,
+): Promise<FastifyReply> {
+  try {
+    const svg = readFileSync(CAMINHO_EXEMPLO_CAPA, "utf8");
+    resposta.header("Content-Type", "image/svg+xml; charset=utf-8");
+    resposta.header("Cache-Control", "public, max-age=86400");
+    return resposta.send(svg);
+  } catch {
+    return resposta.status(404).send({ erro: "Imagem de exemplo não encontrada." });
+  }
+}
+
 // GET /modelos-html/:id/preview: serve o modelo-<id>.html de templates/carrossel/
 // com a mesma injecao da /pecas-html: <base> pra recursos relativos e o script
-// isolador, que aqui isola o PRIMEIRO .slide (a miniatura do modelo). Os modelos
-// sao self-contained (fontes via Google Fonts), recurso relativo ausente (ex:
-// img/capa.png) da 404 silencioso no proprio HTML, tolerado.
+// isolador. A query ?slide=N escolhe a miniatura e faz clamp no ultimo slide.
 async function servirPreviewModelo(
   req: FastifyRequest,
   resposta: FastifyReply,
@@ -555,6 +620,7 @@ async function servirPreviewModelo(
   }
 
   const { id } = req.params as { id: string };
+  const { slide: slideCru } = req.query as { slide?: string };
   if (!/^[a-z0-9-]+$/.test(id)) {
     return resposta.status(404).send({ erro: "Modelo não encontrado." });
   }
@@ -572,39 +638,39 @@ async function servirPreviewModelo(
     return resposta.status(404).send({ erro: "Modelo não encontrado." });
   }
 
+  const slideLido = Number.parseInt(slideCru ?? "1", 10);
+  const slidePedido = Number.isInteger(slideLido) && slideLido > 0 ? slideLido : 1;
+  const totalSlides = contarSlides(html);
+  const slide = Math.min(slidePedido, Math.max(totalSlides, 1));
+  html = html
+    .replaceAll("img/capa.png", "/modelos-html/_exemplo-capa.svg")
+    .replaceAll("img/produto.png", "/modelos-html/_exemplo-capa.svg");
   html = injetarBase(html, `<base href="/modelos-html/${id}/">`);
-  html = injetarScriptIsolador(html, 1);
+  html = injetarScriptIsolador(html, slide);
 
   resposta.header("Content-Type", "text/html; charset=utf-8");
   return resposta.send(html);
-}
-
-// Mapa simples de content-type pelas extensoes que as pecas usam.
-const TIPOS: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".svg": "image/svg+xml",
-  ".html": "text/html; charset=utf-8",
-  ".md": "text/markdown; charset=utf-8",
-  ".txt": "text/plain; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".pdf": "application/pdf",
-  ".mp4": "video/mp4",
-};
-
-function contentType(caminho: string): string {
-  const ponto = caminho.lastIndexOf(".");
-  const ext = ponto >= 0 ? caminho.slice(ponto).toLowerCase() : "";
-  return TIPOS[ext] ?? "application/octet-stream";
 }
 
 // Serve um arquivo de dentro de conteudo/ da pasta VKOS escolhida.
 // Seguranca: resolve o alvo e garante que ele esta dentro de conteudo/. Bloqueia
 // qualquer tentativa de sair da pasta (../, caminho absoluto, byte nulo).
 async function servirPeca(req: FastifyRequest, resposta: FastifyReply): Promise<FastifyReply> {
+  return servirArquivoPeca(req, resposta, false);
+}
+
+async function servirPecaEdicao(
+  req: FastifyRequest,
+  resposta: FastifyReply,
+): Promise<FastifyReply> {
+  return servirArquivoPeca(req, resposta, true);
+}
+
+async function servirArquivoPeca(
+  req: FastifyRequest,
+  resposta: FastifyReply,
+  modoEdicao: boolean,
+): Promise<FastifyReply> {
   const pasta = obterPastaVkos();
   if (!pasta) {
     return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
@@ -624,7 +690,7 @@ async function servirPeca(req: FastifyRequest, resposta: FastifyReply): Promise<
   }
 
   const base = resolve(join(pasta, "conteudo"));
-  const alvo = resolve(base, relativo);
+  let alvo = resolve(base, relativo);
 
   // Garante que o alvo esta dentro de conteudo/. rel comeca com .. ou vira
   // absoluto quando o caminho escapa da base.
@@ -639,11 +705,30 @@ async function servirPeca(req: FastifyRequest, resposta: FastifyReply): Promise<
   } catch {
     return resposta.status(404).send({ erro: "Arquivo nao encontrado." });
   }
+  // URLs relativas como "./" e "sobre/" sao comuns em sites estaticos. Quando
+  // o alvo e uma pasta, serve o index.html dela, igual aos hosts de deploy.
+  if (estat.isDirectory()) {
+    alvo = join(alvo, "index.html");
+    try {
+      estat = statSync(alvo);
+    } catch {
+      return resposta.status(404).send({ erro: "Arquivo nao encontrado." });
+    }
+  }
   if (!estat.isFile()) {
     return resposta.status(404).send({ erro: "Arquivo nao encontrado." });
   }
 
-  resposta.header("Content-Type", contentType(alvo));
+  resposta.header("Content-Type", tipoConteudo(alvo));
+  // Preview e editor precisam enxergar troca de CSS, JS e imagem com o mesmo
+  // nome imediatamente. no-cache revalida sem proibir o cache do navegador.
+  resposta.header("Cache-Control", "no-cache");
+  resposta.header("X-Content-Type-Options", "nosniff");
+  if (modoEdicao && /\.html?$/i.test(alvo)) {
+    const html = neutralizarScriptsParaEdicao(readFileSync(alvo, "utf8"));
+    resposta.header("Content-Length", Buffer.byteLength(html, "utf8"));
+    return resposta.send(html);
+  }
   resposta.header("Content-Length", estat.size);
   return resposta.send(createReadStream(alvo));
 }

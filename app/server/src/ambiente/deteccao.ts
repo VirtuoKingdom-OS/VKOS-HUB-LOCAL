@@ -1,27 +1,32 @@
-// Deteccao do ambiente da maquina.
-// Descobre se o Claude Code esta instalado e em que versao, a versao do Node
-// e a plataforma. A deteccao do claude e lenta, entao fica em cache por minutos.
+// Deteccao dos motores de IA instalados na maquina.
+// Claude e Codex seguem o mesmo shape e ficam em cache por cinco minutos.
 
 import { exec } from "node:child_process";
+import { access } from "node:fs/promises";
 import { homedir, platform as plataformaOs } from "node:os";
 import { join } from "node:path";
-import { access } from "node:fs/promises";
 
 import type { Ambiente } from "../tipos.js";
 
-// Tempo de vida do cache da deteccao do claude. Cinco minutos.
 const CACHE_MS = 5 * 60 * 1000;
-// Limite pra cada tentativa de rodar o claude. Ele pode demorar pra responder.
 const TIMEOUT_MS = 10 * 1000;
 
-interface ResultadoClaude {
+export interface ResultadoDeteccaoProvedor {
   instalado: boolean;
   versao: string | null;
+  logado: boolean | null;
+  binario: string | null;
 }
 
-let cache: { resultado: ResultadoClaude; expira: number } | null = null;
+type ProvedorDetectavel = "claude" | "codex";
 
-// Traduz o codigo cru do process.platform pra um nome legivel ao usuario leigo.
+const caches: Partial<
+  Record<
+    ProvedorDetectavel,
+    { resultado: ResultadoDeteccaoProvedor; expira: number }
+  >
+> = {};
+
 function traduzirPlataforma(codigo: string): string {
   const mapa: Record<string, string> = {
     win32: "Windows",
@@ -31,7 +36,6 @@ function traduzirPlataforma(codigo: string): string {
   return mapa[codigo] ?? codigo;
 }
 
-// Roda um comando e devolve a saida. Nunca lanca: erro vira null.
 function rodar(comando: string): Promise<string | null> {
   return new Promise((resolver) => {
     exec(
@@ -49,25 +53,95 @@ function rodar(comando: string): Promise<string | null> {
   });
 }
 
-// Extrai a versao no formato "2.1.195 (Claude Code)". Fica com o numero.
+function rodarComErro(comando: string): Promise<string> {
+  return new Promise((resolver) => {
+    exec(
+      comando,
+      { timeout: TIMEOUT_MS, windowsHide: true },
+      (_erro, stdout, stderr) => {
+        resolver((stdout || stderr || "").trim());
+      },
+    );
+  });
+}
+
+function citarBinario(binario: string): string {
+  return `"${binario.replace(/"/g, '\\"')}"`;
+}
+
+async function rodarVersao(binario: string): Promise<string | null> {
+  return rodar(`${citarBinario(binario)} --version`);
+}
+
+async function checarLoginCodex(binario: string): Promise<boolean | null> {
+  const saida = await rodarComErro(`${citarBinario(binario)} login status`);
+  if (/not logged in|nao esta logado|login required/i.test(saida)) {
+    return false;
+  }
+  if (/logged in using|authenticated/i.test(saida)) {
+    return true;
+  }
+  return null;
+}
+
+async function checarLoginClaude(binario: string): Promise<boolean | null> {
+  const saida = await rodarComErro(`${citarBinario(binario)} auth status`);
+  try {
+    const dados = JSON.parse(saida) as { loggedIn?: unknown };
+    if (dados.loggedIn === true) return true;
+    if (dados.loggedIn === false) return false;
+  } catch {
+    // Versao sem JSON, tenta as mensagens legiveis abaixo.
+  }
+  if (/not logged in|nao esta logado|login required/i.test(saida)) return false;
+  if (/logged in|authenticated/i.test(saida)) return true;
+  return null;
+}
+
+async function checarLogin(
+  provedor: ProvedorDetectavel,
+  binario: string,
+): Promise<boolean | null> {
+  return provedor === "codex"
+    ? checarLoginCodex(binario)
+    : checarLoginClaude(binario);
+}
+
 function extrairVersao(saida: string): string {
-  const achado = saida.match(/\d+\.\d+\.\d+[^\s]*/);
+  const achado = saida.match(/\d+\.\d+(?:\.\d+)?[^\s]*/);
   return achado ? achado[0] : saida.trim();
 }
 
-// Monta os caminhos onde o claude costuma ficar instalado no Windows e no Unix.
-// Serve de reserva quando ele nao esta no PATH do processo do servidor.
-async function caminhosCandidatos(): Promise<string[]> {
+async function caminhosCandidatos(provedor: ProvedorDetectavel): Promise<string[]> {
   const casa = homedir();
+  const nomes = [`${provedor}.exe`, `${provedor}.cmd`, provedor];
   const brutos = [
-    join(casa, ".local", "bin", "claude.exe"),
-    join(casa, ".local", "bin", "claude.cmd"),
-    join(casa, ".local", "bin", "claude"),
-    process.env.APPDATA ? join(process.env.APPDATA, "npm", "claude.cmd") : null,
-    process.env.APPDATA ? join(process.env.APPDATA, "npm", "claude") : null,
-    "/usr/local/bin/claude",
-    "/opt/homebrew/bin/claude",
-  ].filter((c): c is string => c !== null);
+    ...nomes.map((nome) => join(casa, ".local", "bin", nome)),
+    ...(process.env.APPDATA
+      ? nomes.map((nome) => join(process.env.APPDATA as string, "npm", nome))
+      : []),
+    ...(process.env.LOCALAPPDATA
+      ? [
+          ...nomes.map((nome) =>
+            join(process.env.LOCALAPPDATA as string, "Microsoft", "WinGet", "Links", nome),
+          ),
+          ...(provedor === "codex"
+            ? nomes.map((nome) =>
+                join(
+                  process.env.LOCALAPPDATA as string,
+                  "Programs",
+                  "OpenAI",
+                  "Codex",
+                  "bin",
+                  nome,
+                ),
+              )
+            : []),
+        ]
+      : []),
+    ...nomes.map((nome) => join("/usr/local/bin", nome)),
+    ...nomes.map((nome) => join("/opt/homebrew/bin", nome)),
+  ];
 
   const existentes: string[] = [];
   for (const caminho of brutos) {
@@ -75,54 +149,99 @@ async function caminhosCandidatos(): Promise<string[]> {
       await access(caminho);
       existentes.push(caminho);
     } catch {
-      // Nao existe, ignora.
+      // Caminho ausente, segue para o proximo.
     }
   }
   return existentes;
 }
 
-// Detecta o claude de verdade. Tenta o PATH primeiro, depois os caminhos conhecidos.
-async function detectarClaudeSemCache(): Promise<ResultadoClaude> {
-  // Tentativa direta pelo PATH. No Windows o exec usa o shell, entao resolve o .cmd.
-  const doPath = await rodar("claude --version");
-  if (doPath) {
-    return { instalado: true, versao: extrairVersao(doPath) };
+async function detectarSemCache(
+  provedor: ProvedorDetectavel,
+): Promise<ResultadoDeteccaoProvedor> {
+  const chaveOverride =
+    provedor === "claude" ? "VKOS_CLAUDE_BIN" : "VKOS_CODEX_BIN";
+  const override = process.env[chaveOverride]?.trim();
+
+  if (override) {
+    const saida = await rodarVersao(override);
+    if (!saida) {
+      return { instalado: false, versao: null, logado: null, binario: null };
+    }
+    return {
+      instalado: true,
+      versao: extrairVersao(saida),
+      logado: await checarLogin(provedor, override),
+      binario: override,
+    };
   }
 
-  // Reserva: procura o binario nos locais de instalacao conhecidos.
-  const candidatos = await caminhosCandidatos();
+  const doPath = await rodarVersao(provedor);
+  if (doPath) {
+    return {
+      instalado: true,
+      versao: extrairVersao(doPath),
+      logado: await checarLogin(provedor, provedor),
+      binario: provedor,
+    };
+  }
+
+  const candidatos = await caminhosCandidatos(provedor);
   for (const caminho of candidatos) {
-    const saida = await rodar(`"${caminho}" --version`);
+    const saida = await rodarVersao(caminho);
     if (saida) {
-      return { instalado: true, versao: extrairVersao(saida) };
+      return {
+        instalado: true,
+        versao: extrairVersao(saida),
+        logado: await checarLogin(provedor, caminho),
+        binario: caminho,
+      };
     }
   }
 
-  return { instalado: false, versao: null };
+  return { instalado: false, versao: null, logado: null, binario: null };
 }
 
-// Detecta o claude com cache. A primeira chamada e lenta, as seguintes sao rapidas.
-export async function detectarClaude(): Promise<ResultadoClaude> {
+async function detectar(
+  provedor: ProvedorDetectavel,
+): Promise<ResultadoDeteccaoProvedor> {
   const agora = Date.now();
+  const cache = caches[provedor];
   if (cache && cache.expira > agora) {
     return cache.resultado;
   }
-  const resultado = await detectarClaudeSemCache();
-  cache = { resultado, expira: agora + CACHE_MS };
+
+  const resultado = await detectarSemCache(provedor);
+  caches[provedor] = { resultado, expira: Date.now() + CACHE_MS };
   return resultado;
 }
 
-// Limpa o cache. Util pra forcar uma nova deteccao apos o usuario instalar o claude.
-export function limparCacheClaude(): void {
-  cache = null;
+export function detectarClaude(): Promise<ResultadoDeteccaoProvedor> {
+  return detectar("claude");
 }
 
-// Monta o objeto Ambiente completo conforme o contrato.
+export function detectarCodex(): Promise<ResultadoDeteccaoProvedor> {
+  return detectar("codex");
+}
+
+export function limparCacheClaude(): void {
+  delete caches.claude;
+}
+
+export function limparCacheCodex(): void {
+  delete caches.codex;
+}
+
+export function limparCacheProvedores(): void {
+  limparCacheClaude();
+  limparCacheCodex();
+}
+
 export async function detectarAmbiente(): Promise<Ambiente> {
-  const claude = await detectarClaude();
+  const [claude, codex] = await Promise.all([detectarClaude(), detectarCodex()]);
   return {
     plataforma: traduzirPlataforma(plataformaOs()),
     node: process.version,
     claude,
+    codex,
   };
 }

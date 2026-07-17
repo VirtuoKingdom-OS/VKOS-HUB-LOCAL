@@ -7,7 +7,8 @@
 //
 // Salva slide-01.png, slide-02.png... em <outDir>. Mesmo pipeline do
 // vkos/templates/carrossel/render.js: viewport 1080x1350, deviceScaleFactor 2.
-// O Playwright vem do VKOS ativo, resolvido por VKOS_NODE_MODULES.
+// Prefere o Playwright completo do VKOS ativo. Se ele nao estiver instalado,
+// usa o playwright-core empacotado no Hub e um Edge ou Chrome do sistema.
 
 const path = require("node:path");
 const fs = require("node:fs");
@@ -22,26 +23,56 @@ if (!htmlPath || !outDir) {
   process.exit(1);
 }
 
-// node_modules do VKOS ativo chega por env (ou por arg extra, se um dia mudar).
 const nodeModules = process.env.VKOS_NODE_MODULES || process.argv[5];
+const nodeModulesHub = process.env.VKOS_HUB_NODE_MODULES;
 
 let playwright;
+let usandoCore = false;
 try {
   const alvo = require.resolve("playwright", { paths: [nodeModules] });
   playwright = require(alvo);
 } catch (erro) {
-  console.error("PLAYWRIGHT_AUSENTE: nao achei o playwright em " + nodeModules);
-  process.exit(2);
+  try {
+    const alvo = require.resolve("playwright-core", { paths: [nodeModulesHub] });
+    playwright = require(alvo);
+    usandoCore = true;
+  } catch (erroCore) {
+    console.error("PLAYWRIGHT_AUSENTE: nao achei playwright nem playwright-core");
+    process.exit(2);
+  }
 }
 
 const { chromium } = playwright;
+
+async function abrirNavegador() {
+  if (!usandoCore) {
+    try {
+      return await chromium.launch();
+    } catch {
+      // A dependencia pode existir sem o Chromium baixado. Cai no navegador
+      // do sistema antes de declarar falha.
+    }
+  }
+  const canais = process.platform === "win32"
+    ? ["msedge", "chrome"]
+    : ["chrome", "msedge"];
+  let ultimoErro;
+  for (const channel of canais) {
+    try {
+      return await chromium.launch({ channel });
+    } catch (erro) {
+      ultimoErro = erro;
+    }
+  }
+  throw ultimoErro || new Error("Edge ou Chrome nao encontrado");
+}
 
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });
 
   let browser;
   try {
-    browser = await chromium.launch();
+    browser = await abrirNavegador();
   } catch (erro) {
     console.error("CHROMIUM_AUSENTE: " + (erro && erro.message));
     process.exit(3);

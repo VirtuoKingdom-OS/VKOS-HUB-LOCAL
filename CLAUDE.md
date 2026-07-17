@@ -30,6 +30,8 @@ Antes de reabrir um debate já fechado, checar a pasta `decisoes/`. Se já exist
 
 Quando uma fase do roadmap concluir, ou a arquitetura mudar, atualizar o arquivo de contexto correspondente na linha certa. Editar o ponto que mudou, não reescrever o arquivo inteiro.
 
+Toda tarefa que criar, remover, renomear ou mudar a responsabilidade de um módulo, tela, integração ou fluxo entre sistemas deve conferir `interno/mapa-sistema.json` antes de fechar. Se a mudança altera quem alimenta quem, atualizar os nós e ligações na mesma tarefa. O Mapa é parte do contrato vivo da arquitetura, não documentação opcional.
+
 ## Git
 
 NUNCA fazer commit, push ou PR sem ordem explícita do Jesse. Sem exceção.
@@ -53,4 +55,4 @@ Motion e UI caprichados importam muito para ele. A identidade da VK é minimalis
 
 ## Código
 
-O código do app nasce em `app/`, pasta a criar quando o desenvolvimento começar de fato.
+O código do app vive em `app/` (server Fastify + web React/Vite). O contrato técnico das rodadas fica em `app/CONTRATO.md`.

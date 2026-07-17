@@ -29,18 +29,40 @@ import { rotasCalendario } from "./calendario/rotas.js";
 import { iniciarSincronizacaoCalendario } from "./calendario/sincronizacao.js";
 import { iniciarExecutor } from "./automacoes/executor.js";
 import { migrarSeNecessario } from "./workspaces/migracao.js";
+import { garantirWorkspaceIntegrado } from "./workspaces/integrado.js";
+import { rotasProvedores } from "./provedores/rotas.js";
+import { rotasPublicacao } from "./publicacao/rotas.js";
+import { rotasMapa } from "./mapa.js";
 
-const PORTA = 4600;
+const PORTA_PADRAO = 4600;
 const HOST = "127.0.0.1";
 const ORIGEM_DEV = "http://localhost:5173";
+
+// VKOS_PORT existe apenas para QA e execucoes isoladas. O produto continua na
+// 4600. Uma porta invalida falha cedo, antes de inicializar qualquer modulo.
+function obterPorta(): number {
+  const valor = process.env.VKOS_PORT?.trim();
+  if (!valor) return PORTA_PADRAO;
+
+  const porta = Number(valor);
+  if (!Number.isInteger(porta) || porta < 1 || porta > 65_535) {
+    console.error(
+      `VKOS_PORT invalida: "${valor}". Use um numero entre 1 e 65535.`,
+    );
+    process.exit(1);
+  }
+  return porta;
+}
+
+const PORTA = obterPorta();
 
 // Hosts aceitos no header Host. So o loopback local, com ou sem a porta. Bloqueia
 // requisicao com Host estranho (defesa contra DNS rebinding de site malicioso que
 // tente falar com o servidor local). O proxy do Vite manda changeOrigin, entao no
 // dev o Host chega como localhost:4600, ja coberto aqui.
 const HOSTS_PERMITIDOS = new Set([
-  "127.0.0.1:4600",
-  "localhost:4600",
+  `127.0.0.1:${PORTA}`,
+  `localhost:${PORTA}`,
   "127.0.0.1",
   "localhost",
 ]);
@@ -66,6 +88,10 @@ async function subir(): Promise<void> {
   // Migracao do estado global antigo pro primeiro workspace. Roda antes de tudo,
   // pra o registro de workspaces ja existir quando as sessoes carregarem.
   migrarSeNecessario();
+  const integrado = garantirWorkspaceIntegrado();
+  if (!integrado.pronto) {
+    console.warn("O VKOS integrado nao foi encontrado ao lado da pasta app.");
+  }
   // Carrega as sessoes de todos os workspaces (depende do registro ja pronto).
   gerenciador.inicializar();
 
@@ -104,12 +130,15 @@ async function subir(): Promise<void> {
   await app.register(rotasAnexos, { prefix: "/api" });
   await app.register(rotasCanvas, { prefix: "/api" });
   await app.register(rotasConfig, { prefix: "/api" });
+  await app.register(rotasProvedores, { prefix: "/api" });
   // Telas do hub (rodada 10): IDE, conexoes MCP e CRM.
   await app.register(rotasIde, { prefix: "/api" });
   await app.register(rotasConexoes, { prefix: "/api" });
   await app.register(rotasCrm, { prefix: "/api" });
   await app.register(rotasAutomacoes, { prefix: "/api" });
   await app.register(rotasCalendario, { prefix: "/api" });
+  await app.register(rotasPublicacao, { prefix: "/api" });
+  await app.register(rotasMapa, { prefix: "/api" });
 
   // Executor de automacoes: assina o barramento e reage aos eventos do hub.
   iniciarExecutor();

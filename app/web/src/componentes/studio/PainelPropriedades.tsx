@@ -1,6 +1,15 @@
-import { useRef } from "react";
-import { IconeCheck } from "../comum/Icones";
+import { useRef, useState } from "react";
+import { IconeCheck, IconeLixeira, IconeSubir } from "../comum/Icones";
+import { Confirmacao } from "../comum/Confirmacao";
 import type { MotorEdicao } from "../editor/motor";
+import { ControlesImagem } from "../editor/ControlesImagem";
+import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
+import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
+import {
+  aplicarImagemDaFonte,
+  type AlvoImagemCapturado,
+  urlImagemPreview,
+} from "../editor/imagens";
 import "../../estilos/editor.css";
 
 // Painel direito de propriedades do Studio. Mesmo conteudo do overlay, mas
@@ -24,27 +33,63 @@ interface Props {
   motor: MotorEdicao;
   // Pagina em foco (indice 0-based), pra imagem de fundo.
   foco: number;
-  temFundo: boolean;
+  pecaPasta: string;
   aplicarTodas: boolean;
   aoAlternarTodas: () => void;
-  aoTrocarImagem: (file: File) => void;
 }
 
 export function PainelPropriedades({
   motor,
   foco,
-  temFundo,
+  pecaPasta,
   aplicarTodas,
   aoAlternarTodas,
-  aoTrocarImagem,
 }: Props) {
-  const refArquivo = useRef<HTMLInputElement>(null);
   const sel = motor.selecao;
+  const [enviando, setEnviando] = useState(false);
+  const [erroUpload, setErroUpload] = useState<string | null>(null);
+  const [confirmarExclusao, setConfirmarExclusao] = useState<"elemento" | "imagem" | null>(null);
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
+  const alvoGaleria = useRef<AlvoImagemCapturado | null>(null);
+  const geracaoImagem = usarGeracaoImagemIA();
 
-  function aoEscolher(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (file) aoTrocarImagem(file);
+  async function aoEscolher(file: File) {
+    setErroUpload(null);
+    geracaoImagem.limparErro();
+    setEnviando(true);
+    try {
+      await motor.trocarImagemSelecionada(file);
+    } catch (erro) {
+      setErroUpload(erro instanceof Error ? erro.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function aoGerar() {
+    setErroUpload(null);
+    const alvo = motor.capturarImagemSelecionada();
+    if (!alvo) {
+      setErroUpload("Selecione uma imagem antes de gerar outra.");
+      return;
+    }
+    void geracaoImagem.gerar(pecaPasta, alvo);
+  }
+
+  function abrirGaleria() {
+    setErroUpload(null);
+    const alvo = motor.capturarImagemSelecionada();
+    if (!alvo) {
+      setErroUpload("Selecione uma imagem antes de abrir as fontes de dados.");
+      return;
+    }
+    alvoGaleria.current = alvo;
+    setGaleriaAberta(true);
+  }
+
+  async function escolherDaGaleria(arquivo: ArquivoGaleriaFonte) {
+    if (!alvoGaleria.current) throw new Error("A imagem selecionada não está mais disponível.");
+    await aplicarImagemDaFonte(pecaPasta, arquivo, alvoGaleria.current);
   }
 
   return (
@@ -101,6 +146,28 @@ export function PainelPropriedades({
             <div className="chip-alvo">
               <code>{sel.tag}</code>
               {sel.classes && <span>.{sel.classes.split(" ").join(".")}</span>}
+            </div>
+
+            <div className="studio-elemento-acoes">
+              {sel.podeSubirNivel && (
+                <button
+                  className="botao botao-fantasma"
+                  onClick={motor.selecionarPai}
+                  title="Selecionar o bloco que envolve este elemento"
+                >
+                  <IconeSubir className="" />
+                  Selecionar contêiner
+                </button>
+              )}
+              {sel.podeExcluir && (
+                <button
+                  className="botao botao-perigo"
+                  onClick={() => setConfirmarExclusao("elemento")}
+                >
+                  <IconeLixeira className="" />
+                  Excluir elemento
+                </button>
+              )}
             </div>
 
             <label className="campo">
@@ -206,21 +273,54 @@ export function PainelPropriedades({
         </button>
       </section>
 
-      {/* Imagem de fundo da pagina em foco. */}
+      {/* Qualquer imagem selecionada, pequena ou grande, img ou fundo CSS. */}
       <section className="painel-secao">
         <div className="secao-titulo rotulo-secao">Imagem da página {foco + 1}</div>
-        {temFundo ? (
-          <button
-            className="botao botao-neutro botao-fundo"
-            onClick={() => refArquivo.current?.click()}
-          >
-            Trocar imagem
-          </button>
+        {sel?.ehImagem ? (
+          <ControlesImagem
+            srcPreview={urlImagemPreview(sel.srcImagem, pecaPasta)}
+            enviando={enviando}
+            gerando={geracaoImagem.gerando}
+            iaDisponivel={geracaoImagem.disponivel}
+            erro={erroUpload || geracaoImagem.erro}
+            aoArquivo={(file) => void aoEscolher(file)}
+            aoAbrirGaleria={abrirGaleria}
+            aoGerar={aoGerar}
+            aoExcluir={() => setConfirmarExclusao("imagem")}
+          />
         ) : (
-          <p className="painel-vazio">A página em foco não tem imagem de fundo.</p>
+          <p className="painel-vazio">
+            Clique em qualquer imagem desta página para trocar, gerar outra ou excluir.
+          </p>
         )}
-        <input ref={refArquivo} type="file" accept="image/*" hidden onChange={aoEscolher} />
       </section>
+      {confirmarExclusao && sel && (
+        <Confirmacao
+          dados={{
+            titulo:
+              confirmarExclusao === "imagem"
+                ? "Excluir esta imagem?"
+                : "Excluir este elemento?",
+            mensagem:
+              "Você ainda poderá desfazer enquanto estiver editando. Depois de salvar o carrossel, esta exclusão será irreversível.",
+            rotuloConfirmar:
+              confirmarExclusao === "imagem" ? "Excluir imagem" : "Excluir elemento",
+            aoConfirmar:
+              confirmarExclusao === "imagem"
+                ? motor.excluirImagemSelecionada
+                : motor.excluirSelecionado,
+          }}
+          aoFechar={() => setConfirmarExclusao(null)}
+        />
+      )}
+      <GaleriaFontes
+        aberta={galeriaAberta}
+        aoFechar={() => {
+          setGaleriaAberta(false);
+          alvoGaleria.current = null;
+        }}
+        aoEscolher={escolherDaGaleria}
+      />
     </aside>
   );
 }

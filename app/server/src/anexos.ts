@@ -10,7 +10,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { obterPastaVkos } from "./vkos/estado.js";
 
 // Extensoes aceitas.
-const EXTENSOES = new Set([
+export const EXTENSOES_ANEXO_GERAL = new Set([
   ".png",
   ".jpg",
   ".jpeg",
@@ -25,7 +25,7 @@ const EXTENSOES = new Set([
 ]);
 
 // Limite de 15MB por arquivo (bytes decodificados).
-const LIMITE_ARQUIVO = 15 * 1024 * 1024;
+export const LIMITE_ANEXO_BYTES = 15 * 1024 * 1024;
 
 // Teto do corpo da requisicao: 15MB viram ~20MB em base64, mais o JSON em volta.
 const LIMITE_CORPO = 32 * 1024 * 1024;
@@ -44,7 +44,7 @@ function temControle(texto: string): boolean {
 // Sanitiza o nome do arquivo. Recusa path traversal (barra, contrabarra, "..") e
 // caracteres de controle ou proibidos no Windows. Normaliza espacos. Devolve null
 // quando nao sobra nada valido.
-function sanitizarNome(bruto: string): string | null {
+export function sanitizarNome(bruto: string): string | null {
   // Barra, contrabarra ou ".." seria sair da pasta.
   if (/[\\/]/.test(bruto) || bruto.includes("..")) return null;
   if (temControle(bruto)) return null;
@@ -63,7 +63,7 @@ function dataHoje(): string {
 }
 
 // Escolhe um nome livre na pasta. Colisao ganha sufixo -2, -3 antes da extensao.
-function nomeLivre(pasta: string, nome: string): string {
+export function nomeLivre(pasta: string, nome: string): string {
   const ext = extname(nome);
   const base = ext ? nome.slice(0, -ext.length) : nome;
   let escolhido = nome;
@@ -76,7 +76,7 @@ function nomeLivre(pasta: string, nome: string): string {
 }
 
 // Valida e decodifica o base64. Devolve null se o texto nao for base64 valido.
-function decodificarBase64(bruto: string): Buffer | null {
+export function decodificarBase64(bruto: string): Buffer | null {
   // Aceita data URL (data:...;base64,) e ignora espacos e quebras de linha.
   const limpo = bruto.replace(/^data:[^;,]*;base64,/, "").replace(/\s+/g, "");
   if (limpo.length === 0) return null;
@@ -109,7 +109,7 @@ export const rotasAnexos: FastifyPluginAsync = async (app) => {
       }
 
       const ext = extname(nome).toLowerCase();
-      if (!EXTENSOES.has(ext)) {
+      if (!EXTENSOES_ANEXO_GERAL.has(ext)) {
         return resposta.status(400).send({
           erro: `Extensao "${ext || "sem extensao"}" nao aceita.`,
         });
@@ -119,7 +119,7 @@ export const rotasAnexos: FastifyPluginAsync = async (app) => {
       if (!dados) {
         return resposta.status(400).send({ erro: "conteudoBase64 invalido." });
       }
-      if (dados.length > LIMITE_ARQUIVO) {
+      if (dados.length > LIMITE_ANEXO_BYTES) {
         return resposta.status(413).send({ erro: "Arquivo passou do limite de 15MB." });
       }
 

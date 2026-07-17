@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -9,6 +7,7 @@ import {
   type ReactElement,
 } from "react";
 import { usarEstado } from "../../estado/contexto";
+import { usarGeracao, type TipoGeracao } from "../../estado/geracao";
 import type { Peca } from "../../tipos/dominio";
 import { formatarTema } from "../telas/fluxos";
 import {
@@ -24,18 +23,12 @@ import { MiniaturaSite } from "../cockpit/MiniaturaSite";
 import { paginaInicialSite } from "../cockpit/PreviewSite";
 import "../../estilos/dashboard.css";
 
-// O assistente de criacao (wizard) vive noutro modulo, em construcao por outro
-// agente. Import dinamico: so pesa quando o usuario abre "Criar carrossel", e o
-// Dashboard nao quebra a build enquanto o modulo ainda nao existe em runtime.
-const AssistenteCriacao = lazy(() =>
-  import("../criacao/AssistenteCriacao").then((m) => ({
-    default: m.AssistenteCriacao,
-  }))
-);
-
-// Tipo de conteudo visual que o seletor oferece: espelha a prop `tipo` do
-// AssistenteCriacao (interface 1 do contrato da rodada 14).
+// Tipo de conteudo visual que o seletor oferece.
 type TipoConteudoVisual = "carrossel" | "post" | "story";
+
+interface Props {
+  aoCriar: (tipo: TipoGeracao) => void;
+}
 
 // Vai pro Studio de uma peca (pasta URL-encoded no hash).
 function irParaStudio(pasta: string) {
@@ -63,17 +56,11 @@ function abrirPeca(peca: Peca) {
 
 // Porta de entrada simplificada: saudacao, criacao guiada de carrossel, cards
 // "em breve", criacoes recentes e atalhos discretos pro modo avancado.
-export function TelaDashboard() {
+export function TelaDashboard({ aoCriar }: Props) {
   const { pecas, workspaces, workspaceAtivo, estadoVkos } = usarEstado();
-  // Seletor de tipo (Carrossel/Post/Story) abre antes do wizard; escolher um
-  // fecha o seletor e abre o AssistenteCriacao com a prop tipo correspondente.
+  const { ativa } = usarGeracao();
+  // Seletor de tipo (Carrossel/Post/Story) abre antes da rota do assistente.
   const [seletorAberto, setSeletorAberto] = useState(false);
-  const [tipoEscolhido, setTipoEscolhido] =
-    useState<TipoConteudoVisual>("carrossel");
-  const [criando, setCriando] = useState(false);
-  // Site Guiado abre o AssistenteCriacao direto com tipo="site", sem passar
-  // pelo seletor Carrossel/Post/Story (fluxo proprio, estado separado).
-  const [criandoSite, setCriandoSite] = useState(false);
 
   // Nome do cliente ativo: prefere o rotulo do workspace, cai no nome da pasta.
   const nomeWorkspace = useMemo(() => {
@@ -106,21 +93,29 @@ export function TelaDashboard() {
     [pecas]
   );
 
-  const aoConcluir = useCallback((pasta: string) => {
-    // Conclusao do wizard: cai direto no Studio da peca gerada.
-    irParaStudio(pasta);
-  }, []);
+  const restaurarGeracaoAtiva = useCallback((): boolean => {
+    if (!ativa) return false;
+    setSeletorAberto(false);
+    aoCriar(ativa.tipo);
+    return true;
+  }, [ativa, aoCriar]);
 
-  // Conclusao do Site Guiado: cai direto na tela do site gerado, nao no Studio.
-  const aoConcluirSite = useCallback((pasta: string) => {
-    irParaSite(pasta);
-  }, []);
+  const abrirConteudoVisual = useCallback(() => {
+    if (!restaurarGeracaoAtiva()) setSeletorAberto(true);
+  }, [restaurarGeracaoAtiva]);
+
+  const abrirSiteGuiado = useCallback(() => {
+    if (!restaurarGeracaoAtiva()) aoCriar("site");
+  }, [restaurarGeracaoAtiva, aoCriar]);
 
   const escolherTipo = useCallback((tipo: TipoConteudoVisual) => {
-    setTipoEscolhido(tipo);
+    if (restaurarGeracaoAtiva()) return;
     setSeletorAberto(false);
-    setCriando(true);
-  }, []);
+    aoCriar(tipo);
+  }, [restaurarGeracaoAtiva, aoCriar]);
+
+  const rotuloGeracao = (tipo: TipoGeracao) =>
+    tipo === "site" ? "site" : tipo === "story" ? "story" : tipo === "post" ? "post" : "carrossel";
 
   const linhaContexto =
     criadasSemana > 0
@@ -143,7 +138,7 @@ export function TelaDashboard() {
         <div className="dashboard-criar">
           <button
             className="dash-hero"
-            onClick={() => setSeletorAberto(true)}
+            onClick={abrirConteudoVisual}
             type="button"
           >
             <span className="dash-hero-icone">
@@ -152,7 +147,9 @@ export function TelaDashboard() {
             <span className="dash-hero-texto">
               <span className="dash-hero-titulo">Criar Conteúdo Visual</span>
               <span className="dash-hero-sub">
-                Carrossel, post ou story, guiado por perguntas simples.
+                {ativa
+                  ? `Há um ${rotuloGeracao(ativa.tipo)} em geração. Clique para acompanhar.`
+                  : "Carrossel, post ou story, guiado por perguntas simples."}
               </span>
             </span>
             <span className="dash-hero-seta">
@@ -162,7 +159,7 @@ export function TelaDashboard() {
 
           <button
             className="dash-hero dash-hero-secundario dash-hero-ativo"
-            onClick={() => setCriandoSite(true)}
+            onClick={abrirSiteGuiado}
             type="button"
           >
             <span className="dash-hero-icone">
@@ -171,7 +168,9 @@ export function TelaDashboard() {
             <span className="dash-hero-texto">
               <span className="dash-hero-titulo">Site Guiado</span>
               <span className="dash-hero-sub">
-                Um site inteiro, passo a passo, direto do Cérebro.
+                {ativa
+                  ? `Uma criação já está em andamento. Clique para acompanhar.`
+                  : "Um site inteiro, passo a passo, direto do Cérebro."}
               </span>
             </span>
             <span className="dash-hero-seta">
@@ -203,7 +202,7 @@ export function TelaDashboard() {
               <p>Nada por aqui ainda. Crie seu primeiro conteúdo.</p>
               <button
                 className="botao botao-principal"
-                onClick={() => setSeletorAberto(true)}
+                onClick={abrirConteudoVisual}
                 type="button"
               >
                 Criar conteúdo
@@ -293,47 +292,12 @@ export function TelaDashboard() {
         </div>
       )}
 
-      {criando && (
-        <div className="dash-overlay-wizard">
-          <Suspense
-            fallback={
-              <div className="dash-wizard-carregando">
-                <div className="giro" />
-              </div>
-            }
-          >
-            <AssistenteCriacao
-              tipo={tipoEscolhido}
-              aoConcluir={aoConcluir}
-              aoCancelar={() => setCriando(false)}
-            />
-          </Suspense>
-        </div>
-      )}
-
-      {criandoSite && (
-        <div className="dash-overlay-wizard">
-          <Suspense
-            fallback={
-              <div className="dash-wizard-carregando">
-                <div className="giro" />
-              </div>
-            }
-          >
-            <AssistenteCriacao
-              tipo="site"
-              aoConcluir={aoConcluirSite}
-              aoCancelar={() => setCriandoSite(false)}
-            />
-          </Suspense>
-        </div>
-      )}
     </section>
   );
 }
 
-// Card de um tipo no seletor "O que vamos criar?" (rodada 14). Escolher abre
-// o AssistenteCriacao com a prop tipo correspondente.
+// Card de um tipo no seletor "O que vamos criar?". Escolher abre a rota do
+// assistente com o tipo correspondente.
 function CardTipo({
   titulo,
   descricao,

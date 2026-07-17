@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
+import { usarProvedoresIA } from "../../estado/provedores";
+import type { ModeloIA } from "../../api/cliente";
+import type { AnexoAjuste } from "../../tipos/dominio";
 import { formatarTema } from "../telas/fluxos";
 import { usarMotorEdicao } from "../editor/motor";
+import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import { PainelPropriedades } from "./PainelPropriedades";
-import { IconeSeta, IconeArquivo, IconeGaleria, IconeChevron } from "../comum/Icones";
+import { PainelAjusteCarrossel } from "./PainelAjusteCarrossel";
+import { blocoDeAnexos } from "../comum/AnexosAjuste";
+import { IconeSeta, IconeArquivo, IconeGaleria, IconeChevron, IconeRaio } from "../comum/Icones";
 import "../../estilos/editor.css";
 import "../../estilos/studio.css";
 
@@ -21,6 +27,31 @@ const ZOOMS: { id: ZoomModo; rotulo: string }[] = [
   { id: "100", rotulo: "100%" },
 ];
 
+function pedidoCriaImagem(texto: string): boolean {
+  return /\b(crie|criar|gere|gerar|adicione|adicionar|coloque|inserir|inclua|troque|substitua)\b[\s\S]{0,80}\b(imagem|foto|ilustra[cç][aã]o|fundo)\b/i.test(texto);
+}
+
+function paginaPedida(texto: string, atual: number, total: number): number {
+  const ordinais: Array<[RegExp, number]> = [
+    [/\b(primeira|primeiro)\b/i, 0],
+    [/\b(segunda|segundo)\b/i, 1],
+    [/\b(terceira|terceiro)\b/i, 2],
+    [/\b(quarta|quarto)\b/i, 3],
+    [/\b(quinta|quinto)\b/i, 4],
+    [/\b(sexta|sexto)\b/i, 5],
+    [/\b(s[eé]tima|s[eé]timo)\b/i, 6],
+    [/\b(oitava|oitavo)\b/i, 7],
+    [/\b(nona|nono)\b/i, 8],
+    [/\b(d[eé]cima|d[eé]cimo)\b/i, 9],
+  ];
+  const numero = texto.match(/\bp[aá]gina\s*(?:n[uú]mero\s*)?(\d{1,2})\b/i);
+  if (numero) return Math.max(0, Math.min(total - 1, Number(numero[1]) - 1));
+  for (const [padrao, indice] of ordinais) {
+    if (padrao.test(texto)) return Math.min(total - 1, indice);
+  }
+  return Math.max(0, Math.min(total - 1, atual));
+}
+
 // Geometria de um slide no documento (coordenadas do corpo, sem escala).
 interface Geo {
   left: number;
@@ -33,20 +64,31 @@ interface Geo {
 // compartilhado; este componente cuida do layout (side-by-side), do zoom, da
 // pagina em foco, do header e dos atalhos. Nao e overlay.
 export function TelaStudio({ pasta }: Props) {
-  const { pecas, carregandoInicial, trocandoWorkspace } = usarEstado();
+  const { pecas, carregandoInicial, trocandoWorkspace, criarSessao, sessoes } = usarEstado();
+  const { modelos, modeloPadrao } = usarProvedoresIA();
 
   const [zoom, setZoom] = useState<ZoomModo>("fit");
   const [escala, setEscala] = useState(0.1);
   const [conteudo, setConteudo] = useState({ w: 1080, h: 1350, slideH: 1350 });
   const [geos, setGeos] = useState<Geo[]>([]);
   const [foco, setFoco] = useState(0);
-  const [temFundo, setTemFundo] = useState(false);
   const [aplicarTodas, setAplicarTodas] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [menuBaixar, setMenuBaixar] = useState(false);
-  const [ts] = useState(() => Date.now());
+  const [ts, setTs] = useState(() => Date.now());
+  const [painelIa, setPainelIa] = useState(false);
+  const [pedidoIa, setPedidoIa] = useState("");
+  const [anexosAjuste, setAnexosAjuste] = useState<AnexoAjuste[]>([]);
+  const [modeloIa, setModeloIa] = useState<ModeloIA>(modeloPadrao);
+  const [ajustandoIa, setAjustandoIa] = useState(false);
+  const [sessaoAjuste, setSessaoAjuste] = useState<string | null>(null);
+  const [erroAjuste, setErroAjuste] = useState<string | null>(null);
+  const [ajusteConcluido, setAjusteConcluido] = useState(false);
+  const [confirmarAjuste, setConfirmarAjuste] = useState(false);
+  const [inicioAjusteImagem, setInicioAjusteImagem] = useState<number | null>(null);
+  const geracaoImagemAjuste = usarGeracaoImagemIA();
 
   const refIframe = useRef<HTMLIFrameElement>(null);
   const refCanvas = useRef<HTMLDivElement>(null);
@@ -59,6 +101,11 @@ export function TelaStudio({ pasta }: Props) {
   zoomRef.current = zoom;
   escalaRef.current = escala;
   focoRef.current = foco;
+
+  useEffect(() => {
+    if (modelos.length === 0 || modelos.some((item) => item.alias === modeloIa)) return;
+    setModeloIa(modeloPadrao || modelos[0].alias);
+  }, [modelos, modeloPadrao, modeloIa]);
 
   const getDoc = (): Document | null => refIframe.current?.contentDocument ?? null;
 
@@ -184,12 +231,6 @@ export function TelaStudio({ pasta }: Props) {
     atualizarFoco();
   }, [escala, geos, atualizarFoco]);
 
-  // Detecta se a pagina em foco tem imagem de fundo trocavel.
-  useEffect(() => {
-    if (motor.pronto) setTemFundo(motor.paginaTemFundo(foco));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foco, motor.pronto, geos]);
-
   // Scroll do canvas atualiza o foco (via rAF pra nao saturar).
   const rafRef = useRef(0);
   function aoRolar() {
@@ -215,6 +256,125 @@ export function TelaStudio({ pasta }: Props) {
       setSalvando(false);
     }
   }
+
+  const dispararAjuste = useCallback(async () => {
+    const pedido = pedidoIa.trim();
+    if (!pedido || ajustandoIa || !modeloIa) return;
+    const promptFinal = pedido + blocoDeAnexos(anexosAjuste);
+    setErroAjuste(null);
+    setAjusteConcluido(false);
+    setAjustandoIa(true);
+    if (anexosAjuste.length === 0 && pedidoCriaImagem(pedido)) {
+      const inicio = Date.now();
+      const pagina = paginaPedida(pedido, focoRef.current, motor.paginas);
+      const doc = getDoc();
+      const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
+      setInicioAjusteImagem(inicio);
+      await geracaoImagemAjuste.gerar(
+        pasta,
+        {
+          contexto: [
+            `Pedido do usuário: ${pedido}`,
+            `Página ${pagina + 1} de ${motor.paginas}`,
+            slide?.innerText || slide?.textContent || "",
+          ].join(". "),
+          aplicar: (caminhoRelativo) =>
+            motor.adicionarImagemFundoPagina(pagina, caminhoRelativo),
+        },
+        modeloPadrao,
+      );
+      return;
+    }
+    try {
+      const sessao = await criarSessao({
+        titulo: `Ajuste do carrossel: ${formatarTema(peca?.tema ?? pasta)}`,
+        prompt: promptFinal,
+        modelo: modeloIa,
+        escopoPeca: { pasta, tipo: "carrossel" },
+      });
+      setSessaoAjuste(sessao.id);
+    } catch (erro) {
+      setAjustandoIa(false);
+      setErroAjuste(
+        erro instanceof Error ? erro.message : "Não foi possível iniciar o ajuste."
+      );
+    }
+  }, [
+    pedidoIa,
+    anexosAjuste,
+    ajustandoIa,
+    modeloIa,
+    modeloPadrao,
+    criarSessao,
+    peca,
+    pasta,
+    motor,
+    geracaoImagemAjuste,
+  ]);
+
+  useEffect(() => {
+    if (inicioAjusteImagem === null) return;
+    if (geracaoImagemAjuste.erro) {
+      setAjustandoIa(false);
+      setInicioAjusteImagem(null);
+      setErroAjuste(geracaoImagemAjuste.erro);
+      return;
+    }
+    if (geracaoImagemAjuste.ultimaConcluidaEm < inicioAjusteImagem) return;
+    setAjustandoIa(false);
+    setInicioAjusteImagem(null);
+    setAjusteConcluido(true);
+    setPedidoIa("");
+    setAnexosAjuste([]);
+  }, [
+    inicioAjusteImagem,
+    geracaoImagemAjuste.erro,
+    geracaoImagemAjuste.ultimaConcluidaEm,
+  ]);
+
+  function solicitarAjuste() {
+    if (!pedidoIa.trim() || ajustandoIa) return;
+    if (motor.naoSalvo) {
+      setConfirmarAjuste(true);
+      return;
+    }
+    void dispararAjuste();
+  }
+
+  async function salvarEAjustar() {
+    const ok = await salvarWrap();
+    if (!ok) return;
+    setConfirmarAjuste(false);
+    await dispararAjuste();
+  }
+
+  useEffect(() => {
+    if (!sessaoAjuste) return;
+    const sessao = sessoes.find((item) => item.id === sessaoAjuste);
+    if (!sessao) return;
+    if (sessao.status === "concluida") {
+      const resposta = sessao.resultado?.trim() || "";
+      if (/não consegui|nao consegui|não foi possível alterar|nao foi possivel alterar|não alterei|nao alterei|bloqueou a leitura|preciso que você|preciso que voce/i.test(resposta)) {
+        setAjustandoIa(false);
+        setSessaoAjuste(null);
+        setErroAjuste(resposta || "O provedor não conseguiu alterar o carrossel.");
+        return;
+      }
+      setAjustandoIa(false);
+      setSessaoAjuste(null);
+      setAjusteConcluido(true);
+      setPedidoIa("");
+      setAnexosAjuste([]);
+      motor.limparSelecao();
+      setTs(Date.now());
+    } else if (sessao.status === "erro" || sessao.status === "parada") {
+      setAjustandoIa(false);
+      setSessaoAjuste(null);
+      setErroAjuste(
+        sessao.erro?.trim() || "O ajuste não foi concluído. Tente um pedido mais direto."
+      );
+    }
+  }, [sessoes, sessaoAjuste, motor]);
 
   // ===== Sair: volta pra de onde veio, com aviso se houver mudanca nao salva.
   // history.back() so e seguro quando existe uma entrada anterior DO PROPRIO app:
@@ -288,15 +448,6 @@ export function TelaStudio({ pasta }: Props) {
     a.remove();
   }
 
-  async function aoTrocarImagem(file: File) {
-    try {
-      await motor.trocarImagemFundo(foco, file);
-      setTemFundo(motor.paginaTemFundo(foco));
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Falha ao enviar a imagem.");
-    }
-  }
-
   // ===== Guard: peca inexistente ou sem fonteHtml (e ja carregou) => erro.
   if (!carregandoPeca && (!peca || !peca.fonteHtml)) {
     return (
@@ -339,7 +490,7 @@ export function TelaStudio({ pasta }: Props) {
           <button
             className="botao botao-fantasma"
             onClick={motor.desfazer}
-            disabled={!motor.podeDesfazer}
+            disabled={!motor.podeDesfazer || ajustandoIa}
             title="Desfazer (Ctrl+Z)"
           >
             Desfazer
@@ -383,9 +534,19 @@ export function TelaStudio({ pasta }: Props) {
           </div>
 
           <button
+            className={`botao ${painelIa ? "botao-neutro" : "botao-principal"}`}
+            onClick={() => setPainelIa((aberto) => !aberto)}
+            disabled={ajustandoIa}
+            title="Ajustar este carrossel com IA"
+          >
+            <IconeRaio className="" />
+            Ajustar com IA
+          </button>
+
+          <button
             className="botao botao-principal"
             onClick={() => void salvarWrap()}
-            disabled={!motor.naoSalvo || salvando}
+            disabled={!motor.naoSalvo || salvando || ajustandoIa}
             title="Salvar (Ctrl+S)"
           >
             {salvando ? "Salvando..." : "Salvar"}
@@ -437,14 +598,38 @@ export function TelaStudio({ pasta }: Props) {
           )}
         </div>
 
-        <PainelPropriedades
-          motor={motor}
-          foco={foco}
-          temFundo={temFundo}
-          aplicarTodas={aplicarTodas}
-          aoAlternarTodas={() => setAplicarTodas((v) => !v)}
-          aoTrocarImagem={aoTrocarImagem}
-        />
+        {painelIa ? (
+          <PainelAjusteCarrossel
+            pasta={pasta}
+            pedido={pedidoIa}
+            anexos={anexosAjuste}
+            modelo={modeloIa}
+            modelos={modelos}
+            ajustando={ajustandoIa}
+            concluido={ajusteConcluido}
+            erro={erroAjuste}
+            aoMudarPedido={setPedidoIa}
+            aoMudarAnexos={setAnexosAjuste}
+            aoMudarModelo={setModeloIa}
+            aoAjustar={solicitarAjuste}
+            aoFechar={() => setPainelIa(false)}
+          />
+        ) : (
+          <PainelPropriedades
+            motor={motor}
+            foco={foco}
+            pecaPasta={pasta}
+            aplicarTodas={aplicarTodas}
+            aoAlternarTodas={() => setAplicarTodas((v) => !v)}
+          />
+        )}
+
+        {ajustandoIa && (
+          <div className="studio-ajuste-travado">
+            <div className="giro" />
+            <span>A IA está ajustando este carrossel. Aguarde.</span>
+          </div>
+        )}
 
         {/* Barra flutuante: pagina em foco e zoom (padrao Figma/Canva). */}
         <div className="studio-barra">
@@ -480,6 +665,30 @@ export function TelaStudio({ pasta }: Props) {
               </button>
               <button className="botao botao-principal" onClick={() => void salvarESair()}>
                 Salvar e sair
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmarAjuste && (
+        <div className="studio-confirm-scrim" onMouseDown={() => setConfirmarAjuste(false)}>
+          <div className="studio-confirm" onMouseDown={(e) => e.stopPropagation()}>
+            <h3>Salvar antes de ajustar com IA?</h3>
+            <p>
+              A IA trabalha sobre o carrossel salvo no disco. Salve suas edições para ela
+              receber a versão mais recente desta peça.
+            </p>
+            <div className="studio-confirm-acoes">
+              <button className="botao botao-fantasma" onClick={() => setConfirmarAjuste(false)}>
+                Cancelar
+              </button>
+              <button
+                className="botao botao-principal"
+                onClick={() => void salvarEAjustar()}
+                disabled={salvando}
+              >
+                {salvando ? "Salvando..." : "Salvar e continuar"}
               </button>
             </div>
           </div>

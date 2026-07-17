@@ -35,6 +35,8 @@
   --realce-rgb: 255, 255, 255;
   --suave-rgb: 159, 176, 171;
   --fraco-rgb: 107, 125, 120;
+  --overlay-imagem-leve: rgba(7, 16, 13, 0.28);
+  --overlay-imagem-forte: rgba(7, 16, 13, 0.58);
 
   /* Compostos. */
   --glow: 0 0 24px rgba(var(--menta-rgb), 0.28);
@@ -79,6 +81,8 @@
   --realce-rgb: 18, 31, 26;
   --suave-rgb: 87, 105, 98;
   --fraco-rgb: 132, 148, 142;
+  --overlay-imagem-leve: rgba(17, 26, 23, 0.24);
+  --overlay-imagem-forte: rgba(17, 26, 23, 0.54);
 
   --glow: 0 0 20px rgba(var(--menta-rgb), 0.14);
   --glow-forte: 0 0 30px rgba(var(--menta-rgb), 0.22);
@@ -118,6 +122,8 @@
   --realce-rgb: 255, 255, 255;
   --suave-rgb: 168, 176, 189;
   --fraco-rgb: 110, 118, 129;
+  --overlay-imagem-leve: rgba(8, 9, 12, 0.28);
+  --overlay-imagem-forte: rgba(8, 9, 12, 0.58);
 
   --glow: 0 0 24px rgba(var(--menta-rgb), 0.2);
   --glow-forte: 0 0 40px rgba(var(--menta-rgb), 0.36);
@@ -282,6 +288,270 @@ textarea {
 .botao-perigo:hover:not(:disabled) {
   background: rgba(var(--alerta-rgb), 0.12);
 }
+
+/* Controles de imagem compartilhados pelos Studios de carrossel e site. */
+.editor-imagem-controles {
+  display: grid;
+  gap: 10px;
+}
+
+.editor-imagem-preview {
+  width: 100%;
+  max-height: 128px;
+  object-fit: cover;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--superficie-2);
+}
+
+.editor-imagem-acoes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.editor-imagem-troca {
+  position: relative;
+  min-width: 0;
+}
+
+.editor-imagem-principal {
+  width: 100%;
+}
+
+.editor-imagem-excluir {
+  gap: 6px;
+}
+
+.editor-imagem-excluir svg {
+  width: 15px;
+  height: 15px;
+}
+
+.editor-imagem-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 230px;
+  padding: 6px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: 0 12px 28px rgba(var(--scrim-rgb), 0.34);
+}
+
+.editor-imagem-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--texto);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.editor-imagem-menu button:hover:not(:disabled) {
+  background: var(--superficie-2);
+}
+
+.editor-imagem-menu button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.editor-imagem-menu svg {
+  width: 17px;
+  height: 17px;
+  color: var(--menta);
+  flex: 0 0 auto;
+}
+
+.editor-imagem-menu span {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.editor-imagem-menu small,
+.editor-imagem-erro {
+  color: var(--texto-suave);
+  font-size: 10px;
+  font-weight: 450;
+}
+
+.editor-imagem-erro {
+  color: var(--alerta);
+  line-height: 1.4;
+}
+
+.galeria-fontes-camada {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(var(--scrim-rgb), 0.7);
+  animation: entrada-suave 160ms ease both;
+}
+.galeria-fontes-modal {
+  width: min(820px, 100%);
+  max-height: min(760px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--texto);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda-forte);
+  border-radius: 18px;
+  box-shadow: var(--sombra-forte);
+  animation: entrada-modal 180ms ease both;
+}
+.galeria-fontes-topo,
+.galeria-fontes-topo > div {
+  display: flex;
+  align-items: center;
+}
+.galeria-fontes-topo {
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--borda);
+}
+.galeria-fontes-topo > div {
+  gap: 11px;
+  min-width: 0;
+}
+.galeria-fontes-topo h2 {
+  font-size: 16px;
+}
+.galeria-fontes-topo p {
+  margin-top: 2px;
+  color: var(--texto-fraco);
+  font-size: 12px;
+}
+.galeria-fontes-marca,
+.galeria-fontes-topo > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.galeria-fontes-marca {
+  width: 38px;
+  height: 38px;
+  color: var(--menta);
+  background: rgba(var(--menta-rgb), 0.1);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  border-radius: 11px;
+}
+.galeria-fontes-topo > button {
+  width: 32px;
+  height: 32px;
+  color: var(--texto-suave);
+  border-radius: 9px;
+}
+.galeria-fontes-topo > button:hover:not(:disabled) {
+  color: var(--menta-clara);
+  background: var(--superficie);
+}
+.galeria-fontes-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 18px;
+}
+.galeria-fontes-grupo {
+  display: grid;
+  gap: 10px;
+}
+.galeria-fontes-grupo h3 {
+  color: var(--texto-suave);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.galeria-fontes-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+.galeria-fontes-grade button {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--texto);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  transition: transform var(--transicao), border-color var(--transicao),
+    background var(--transicao);
+}
+.galeria-fontes-grade button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--menta);
+  background: var(--superficie-2);
+}
+.galeria-fontes-grade button:disabled {
+  opacity: 0.58;
+}
+.galeria-fontes-grade img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--fundo-3);
+}
+.galeria-fontes-grade span {
+  display: block;
+  padding: 8px 9px;
+  overflow: hidden;
+  color: var(--texto-suave);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.galeria-fontes-vazia {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--texto-fraco);
+  text-align: center;
+}
+.galeria-fontes-vazia svg {
+  width: 30px;
+  height: 30px;
+}
+.galeria-fontes-erro {
+  padding: 10px 12px;
+  color: var(--alerta-suave);
+  font-size: 12px;
+  background: rgba(var(--alerta-rgb), 0.1);
+  border: 1px solid rgba(var(--alerta-rgb), 0.3);
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .galeria-fontes-camada,
+  .galeria-fontes-modal {
+    animation: none;
+  }
+}
 .botao-fantasma {
   background: transparent;
   color: var(--texto-suave);
@@ -377,13 +647,12 @@ textarea {
   align-items: center;
   gap: 10px;
 }
-.marca-ponto {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--menta);
-  box-shadow: var(--glow);
-  animation: ponto-pulsa 2s ease-in-out infinite;
+.marca-img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  flex-shrink: 0;
+  border-radius: 6px;
 }
 
 /* Badge de status. */
@@ -462,12 +731,32 @@ textarea {
   flex-direction: column;
   padding: 18px 14px 14px;
 }
-.sidebar-marca {
+.sidebar-marca-bloco {
   padding: 6px 8px 16px;
+}
+.sidebar-marca {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.sidebar-marca-beta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding-left: 32px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--texto-fraco);
+  opacity: 0.75;
+  cursor: default;
+}
+.sidebar-marca-beta-icone {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 /* Casca de carregamento das telas do hub (chunks assincronos). */
@@ -672,6 +961,63 @@ textarea {
   color: var(--menta-clara);
   font-variant-numeric: tabular-nums;
 }
+/* Modo enxuto: linha com rotulo e switch pequeno, vizinha do gasto do
+   cliente. Tudo por tokens, entao funciona nos tres temas. */
+.rodape-enxuto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rodape-enxuto-rotulo {
+  color: var(--texto-suave);
+}
+.enxuto-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.enxuto-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.enxuto-switch input:disabled + .enxuto-switch-trilho {
+  opacity: 0.55;
+  cursor: default;
+}
+.enxuto-switch-trilho {
+  width: 32px;
+  height: 18px;
+  border-radius: 100px;
+  background: var(--fundo-3);
+  border: 1px solid var(--borda-forte);
+  transition: background var(--transicao), border-color var(--transicao);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+}
+.enxuto-switch-bola {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--texto-fraco);
+  transition: transform var(--transicao), background var(--transicao);
+}
+.enxuto-switch input:checked + .enxuto-switch-trilho {
+  background: rgba(var(--menta-rgb), 0.22);
+  border-color: var(--menta);
+}
+.enxuto-switch input:checked + .enxuto-switch-trilho .enxuto-switch-bola {
+  transform: translateX(14px);
+  background: var(--menta);
+}
+.enxuto-switch input:focus-visible + .enxuto-switch-trilho {
+  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.18);
+}
+
 .rodape-pasta {
   font-family: var(--mono);
   font-size: 11px;
@@ -698,6 +1044,117 @@ textarea {
    mostrava o cockpit por baixo enquanto o chunk carregava: o "fantasma". */
 .camada-cockpit.oculta {
   visibility: hidden;
+}
+
+/* A IDE e uma camada universal. Quando fechada continua montada para preservar
+   o arquivo, o chat e os streams, mas nao participa do foco nem do clique. */
+.camada-ide {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  overflow: hidden;
+  transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms;
+}
+.camada-ide.aberta {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .camada-ide {
+    transform: none;
+    transition: none;
+  }
+}
+
+.fontes-hub-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  width: min(920px, 100%);
+  padding: 32px;
+}
+.fontes-hub-card {
+  min-height: 128px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+  color: var(--texto);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 18px;
+  box-shadow: var(--sombra-suave);
+  animation: entrada-suave 220ms ease both;
+  transition: transform var(--transicao), border-color var(--transicao),
+    box-shadow var(--transicao), background var(--transicao);
+}
+.fontes-hub-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--menta-rgb), 0.48);
+  box-shadow: var(--glow);
+  background: var(--superficie-2);
+}
+.fontes-hub-icone {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.1);
+  border: 1px solid rgba(var(--menta-rgb), 0.22);
+  border-radius: 14px;
+}
+.fontes-hub-icone svg {
+  width: 22px;
+  height: 22px;
+}
+.fontes-hub-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+.fontes-hub-texto strong {
+  font-size: 16px;
+}
+.fontes-hub-texto span {
+  color: var(--texto-suave);
+  font-size: 13px;
+}
+.fontes-hub-seta {
+  color: var(--menta);
+  font-size: 20px;
+  transition: transform var(--transicao);
+}
+.fontes-hub-card:hover .fontes-hub-seta {
+  transform: translateX(3px);
+}
+.botao-voltar-fontes {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  color: var(--texto-suave);
+  font-size: 12px;
+  font-weight: 650;
+  transition: color var(--transicao);
+}
+.botao-voltar-fontes:hover {
+  color: var(--menta-clara);
 }
 
 /* ===== Telas de fluxo (galeria por tipo) ===== */

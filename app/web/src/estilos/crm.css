@@ -456,7 +456,7 @@ body.crm-arrastando .crm-cartao {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(400px, 92vw);
+  width: min(560px, 96vw);
   display: flex;
   flex-direction: column;
   background: var(--fundo-2);
@@ -615,4 +615,585 @@ body.crm-arrastando .crm-cartao {
 @keyframes crm-surgir {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Navegacao principal das tres lentes do CRM. */
+.crm-abas {
+  display: flex;
+  gap: 6px;
+  padding: 0 32px 12px;
+  border-bottom: 1px solid var(--borda);
+}
+.crm-abas button {
+  min-width: 92px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  color: var(--texto-suave);
+  font-size: 13px;
+  font-weight: 700;
+  transition: color var(--transicao), background var(--transicao), box-shadow var(--transicao);
+}
+.crm-abas button:hover {
+  color: var(--texto);
+  background: var(--superficie);
+}
+.crm-abas button.ativa {
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.11);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.24);
+}
+.crm-erro-faixa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.crm-erro-faixa button {
+  display: inline-flex;
+  color: inherit;
+}
+.crm-erro-faixa svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Hoje. */
+.crm-hoje {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 32px 32px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.crm-hoje-bloco {
+  min-height: 250px;
+  padding: 18px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-2);
+  animation: crm-surgir 0.2s ease both;
+}
+.crm-hoje-topo,
+.crm-secao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.crm-hoje-topo > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 9px;
+}
+.crm-hoje-topo strong {
+  font-size: 28px;
+  line-height: 1;
+  color: var(--menta-clara);
+}
+.crm-hoje-topo h2,
+.crm-secao-topo h2 {
+  font-size: 15px;
+}
+.crm-hoje-topo > span,
+.crm-ajuda {
+  color: var(--texto-fraco);
+  font-size: 11.5px;
+}
+.crm-hoje-lista,
+.crm-funil-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 16px;
+}
+.crm-item-hoje {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  text-align: left;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--superficie);
+  transition: border-color var(--transicao), transform var(--transicao);
+}
+.crm-item-hoje:hover {
+  border-color: var(--borda-forte);
+  transform: translateY(-1px);
+}
+.crm-item-hoje.atrasado {
+  border-color: rgba(var(--alerta-rgb), 0.5);
+  background: rgba(var(--alerta-rgb), 0.07);
+}
+.crm-item-hoje > span,
+.crm-item-hoje b,
+.crm-item-hoje small {
+  min-width: 0;
+  display: block;
+}
+.crm-item-hoje b {
+  color: var(--texto);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-item-hoje small,
+.crm-item-hoje time {
+  color: var(--texto-fraco);
+  font-size: 11px;
+}
+.crm-item-hoje.atrasado time {
+  color: var(--alerta-suave);
+}
+.crm-funil-lista {
+  width: 100%;
+  text-align: left;
+}
+.crm-funil-linha {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.crm-funil-linha > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.crm-funil-linha b {
+  color: var(--texto);
+  font-size: 12px;
+}
+.crm-funil-linha small {
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+}
+.crm-funil-linha i {
+  display: block;
+  height: 5px;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--menta);
+  transition: width var(--transicao);
+}
+.crm-hero-hoje {
+  margin-top: 24px;
+}
+
+/* Lista de contatos. */
+.crm-contatos-visao {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 32px 32px;
+}
+.crm-filtros {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.crm-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.crm-filtros label > span {
+  color: var(--texto-fraco);
+  font-size: 11px;
+  font-weight: 600;
+}
+.crm-filtros select {
+  min-width: 180px;
+}
+.crm-resultados {
+  margin-left: auto;
+  color: var(--texto-fraco);
+  font-size: 12px;
+}
+.crm-tabela-caixa {
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-2);
+}
+.crm-tabela {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+.crm-tabela th,
+.crm-tabela td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--borda);
+  font-size: 12.5px;
+}
+.crm-tabela th {
+  color: var(--texto-fraco);
+  background: var(--superficie);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.crm-tabela th button {
+  color: inherit;
+  font: inherit;
+}
+.crm-tabela tbody tr {
+  cursor: pointer;
+  transition: background var(--transicao);
+}
+.crm-tabela tbody tr:hover,
+.crm-tabela tbody tr:focus-visible {
+  background: var(--superficie);
+  outline: none;
+}
+.crm-tabela tbody tr:last-child td {
+  border-bottom: 0;
+}
+.crm-tabela td > small {
+  display: block;
+  color: var(--texto-fraco);
+  margin-top: 2px;
+}
+.crm-tabela-pessoa,
+.crm-tabela-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.crm-tabela-pessoa .crm-avatar {
+  width: 27px;
+  height: 27px;
+}
+.crm-lista-vazia {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--texto-fraco);
+  font-size: 13px;
+}
+
+/* Ficha completa. */
+.crm-painel-sobre {
+  display: block;
+  color: var(--menta);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.crm-painel-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--superficie);
+}
+.crm-painel-secao h3 {
+  color: var(--texto);
+  font-size: 13px;
+}
+.crm-campos-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.crm-botao-compacto {
+  padding: 7px 10px;
+  font-size: 11.5px;
+}
+.crm-botao-compacto svg {
+  width: 13px;
+  height: 13px;
+}
+.crm-negocios-lista,
+.crm-linha-tempo,
+.crm-tarefas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+.crm-negocio-linha {
+  padding: 10px;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--fundo-2);
+}
+.crm-negocio-linha.destaque {
+  border-color: var(--menta);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25);
+}
+.crm-negocio-linha > input {
+  width: 100%;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+.crm-negocio-campos {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  gap: 7px;
+}
+.crm-excluir-negocio {
+  min-width: 38px;
+}
+.crm-interacao-nova,
+.crm-tarefa-nova {
+  display: grid;
+  gap: 7px;
+}
+.crm-interacao-nova {
+  grid-template-columns: 120px 1fr;
+}
+.crm-interacao-nova textarea,
+.crm-interacao-nova button {
+  grid-column: 1 / -1;
+}
+.crm-interacao-nova button,
+.crm-tarefa-nova button {
+  justify-self: start;
+}
+.crm-interacao {
+  position: relative;
+  padding: 10px 11px 10px 16px;
+  border-left: 2px solid var(--menta);
+  background: var(--fundo-2);
+  border-radius: 0 9px 9px 0;
+}
+.crm-interacao-tipo {
+  color: var(--menta-clara);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.crm-interacao time {
+  float: right;
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+}
+.crm-interacao p {
+  margin-top: 5px;
+  color: var(--texto);
+  font-size: 12.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.crm-tarefa-nova {
+  grid-template-columns: 1fr 190px;
+}
+.crm-tarefa-nova button {
+  grid-column: 1 / -1;
+}
+.crm-tarefa {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--fundo-2);
+}
+.crm-tarefa label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12.5px;
+}
+.crm-tarefa.feita label span {
+  color: var(--texto-fraco);
+  text-decoration: line-through;
+}
+.crm-tarefa time {
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+}
+.crm-acao-icone {
+  display: inline-flex;
+  color: var(--texto-fraco);
+  padding: 4px;
+  border-radius: 6px;
+}
+.crm-acao-icone:hover {
+  color: var(--alerta);
+  background: rgba(var(--alerta-rgb), 0.1);
+}
+.crm-acao-icone svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Criacao de negocio. */
+.crm-modal-fundo {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(var(--scrim-rgb), 0.72);
+  backdrop-filter: blur(5px);
+}
+.crm-modal {
+  width: min(450px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  background: var(--fundo-2);
+  box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.55);
+  animation: crm-surgir 0.18s ease both;
+}
+.crm-modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.crm-autocomplete {
+  position: relative;
+}
+.crm-autocomplete-lista {
+  position: absolute;
+  top: 62px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 9px;
+  background: var(--fundo-2);
+  box-shadow: 0 14px 32px rgba(var(--scrim-rgb), 0.42);
+}
+.crm-autocomplete-opcao {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  text-align: left;
+  color: var(--texto);
+  transition: background var(--transicao), color var(--transicao);
+}
+.crm-autocomplete-opcao:hover,
+.crm-autocomplete-opcao:focus-visible {
+  color: var(--menta-clara);
+  background: var(--superficie);
+  outline: none;
+}
+.crm-autocomplete-opcao span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.crm-autocomplete-opcao small {
+  flex-shrink: 0;
+  color: var(--texto-fraco);
+  font-size: 11px;
+}
+.crm-contato-selecionado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  border-radius: 8px;
+  background: rgba(var(--menta-rgb), 0.07);
+}
+.crm-contato-selecionado span,
+.crm-contato-selecionado b,
+.crm-contato-selecionado small {
+  min-width: 0;
+  display: block;
+}
+.crm-contato-selecionado b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto);
+  font-size: 12px;
+}
+.crm-contato-selecionado small {
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+}
+.crm-contato-selecionado button {
+  flex-shrink: 0;
+  color: var(--menta-clara);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .crm-hoje {
+    grid-template-columns: 1fr;
+  }
+  .crm-abas,
+  .crm-hoje,
+  .crm-contatos-visao,
+  .crm-quadro {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .crm-abas button {
+    min-width: 0;
+    flex: 1;
+  }
+  .crm-campos-grade,
+  .crm-negocio-campos,
+  .crm-interacao-nova,
+  .crm-tarefa-nova {
+    grid-template-columns: 1fr;
+  }
+  .crm-interacao-nova textarea,
+  .crm-interacao-nova button,
+  .crm-tarefa-nova button {
+    grid-column: auto;
+  }
+  .crm-tarefa {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .crm-tarefa time {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-cartao,
+  .crm-coluna,
+  .crm-hoje-bloco,
+  .crm-hero,
+  .crm-modal,
+  .crm-painel,
+  .crm-nota,
+  .crm-placeholder,
+  .crm-aviso-confirmar {
+    animation: none;
+  }
+  .crm-item-hoje:hover {
+    transform: none;
+  }
 }

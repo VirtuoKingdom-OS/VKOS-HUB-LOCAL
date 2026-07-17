@@ -49,6 +49,9 @@ Faca um retrato rapido do estado real do repositorio. Nao julgue nada ainda, so 
 - **O codigo recente.** Olhe o que mudou de fato em `app/`: telas novas em `app/web/src/`, modulos
   novos em `app/server/src/`, o que o `CONTRATO.md` registra nas ultimas rodadas. Sinta o que o
   desenvolvimento andou produzindo.
+- **O mapa interno.** Confira se `interno/mapa-sistema.json` reflete os modulos reais do app. Um no
+  faltando, sobrando ou com ligacao no sentido errado e defasagem a corrigir. Mudanca de modulo,
+  responsabilidade ou fluxo aprovada nesta rodada atualiza o mapa antes do fechamento.
 - **As decisoes.** Liste `decisoes/` pelas datas. Veja se as ultimas decisoes ja estao refletidas no
   roadmap e na arquitetura, ou se ficaram soltas.
 - **A memoria.** Leia o `MEMORY.md` e repare se algum aprendizado registrado ja virou codigo (ou

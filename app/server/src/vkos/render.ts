@@ -30,13 +30,13 @@ function traduzirFalha(stderr: string, code: number | null): ErroRender {
   if (stderr.includes("PLAYWRIGHT_AUSENTE")) {
     return new ErroRender(
       500,
-      "Nao achei o Playwright na pasta do seu VKOS. O download de imagem precisa dele.",
+      "O renderizador do Hub nao foi instalado corretamente. Reinstale as dependencias do app.",
     );
   }
   if (stderr.includes("CHROMIUM_AUSENTE")) {
     return new ErroRender(
       500,
-      "O navegador de render nao esta instalado. Rode a instalacao do Playwright no seu VKOS.",
+      "Nao achei Edge ou Chrome para gerar as imagens do carrossel.",
     );
   }
   if (stderr.includes("SEM_SLIDES")) {
@@ -56,12 +56,17 @@ export function renderizarPaginas(
   n?: number,
 ): Promise<void> {
   const nodeModules = join(pastaVkos, "node_modules");
+  const nodeModulesHub = resolve(pastaServer, "..", "node_modules");
   const args = [caminhoScript, htmlPath, outDir];
   if (n !== undefined) args.push(String(n));
 
   return new Promise<void>((resolver, rejeitar) => {
     const proc = spawn(process.execPath, args, {
-      env: { ...process.env, VKOS_NODE_MODULES: nodeModules },
+      env: {
+        ...process.env,
+        VKOS_NODE_MODULES: nodeModules,
+        VKOS_HUB_NODE_MODULES: nodeModulesHub,
+      },
       windowsHide: true,
     });
 

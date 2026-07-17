@@ -1,6 +1,6 @@
 // Escrita de uma pagina HTML de site gerado (peca tipo "site"). Mesmo padrao de
-// gravacao atomica e backup unico por boot do carrossel.ts, mas aqui a rota so
-// REGRAVA uma pagina que ja existe na raiz da peca: nunca cria pagina nova.
+// gravacao atomica e backup unico por boot do carrossel.ts. A rota regrava uma
+// pagina que ja existe na peca, inclusive em subpasta, e nunca cria pagina nova.
 
 import {
   copyFileSync,
@@ -10,7 +10,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { join } from "node:path";
+import { resolverArquivoSite } from "./siteEstatico.js";
 
 // Teto de gravacao de uma pagina: 4 MB. Vale pra bytes utf8.
 const TAMANHO_MAXIMO_HTML = 4 * 1024 * 1024;
@@ -42,47 +43,18 @@ function backupUmaVez(caminho: string): void {
   backupsFeitos.add(caminho);
 }
 
-// Resolve e valida o nome do arquivo de pagina dentro da raiz da peca. Regras:
-// um unico segmento (sem "/" nem "\"), termina em ".html", sem ponto inicial,
-// sem byte nulo, sem traversal, e "carrossel.html" e proibido porque e a
-// classificacao da peca (ver pecas.ts), nao uma pagina de site. Devolve o
-// caminho absoluto dentro da peca ou lanca ErroPaginaSite 400.
+// Resolve e valida o caminho da pagina dentro da raiz da peca. Aceita paginas
+// na raiz e em subpastas, sem traversal. Isto cobre sites multipagina com URLs
+// limpas, como servicos/index.html, sem abrir escrita fora da peca.
 export function resolverPagina(pastaPeca: string, arquivoBruto: unknown): string {
-  if (typeof arquivoBruto !== "string" || !arquivoBruto) {
-    throw new ErroPaginaSite(400, "Nome de página inválido.");
-  }
-  let arquivo: string;
   try {
-    arquivo = decodeURIComponent(arquivoBruto);
-  } catch {
-    throw new ErroPaginaSite(400, "Nome de página inválido.");
-  }
-  if (
-    !arquivo ||
-    arquivo.includes("/") ||
-    arquivo.includes("\\") ||
-    arquivo.includes("..") ||
-    arquivo.startsWith(".") ||
-    arquivo.includes("\0")
-  ) {
-    throw new ErroPaginaSite(400, "Nome de página inválido.");
-  }
-  if (!arquivo.toLowerCase().endsWith(".html")) {
-    throw new ErroPaginaSite(400, "A página precisa terminar em .html.");
-  }
-  if (arquivo.toLowerCase() === "carrossel.html") {
+    return resolverArquivoSite(pastaPeca, arquivoBruto);
+  } catch (erro) {
     throw new ErroPaginaSite(
       400,
-      "carrossel.html é a classificação da peça, não uma página de site.",
+      erro instanceof Error ? erro.message : "Nome de página inválido.",
     );
   }
-
-  const raiz = resolve(pastaPeca);
-  const alvo = resolve(raiz, arquivo);
-  if (alvo !== join(raiz, arquivo) || !alvo.startsWith(raiz + sep)) {
-    throw new ErroPaginaSite(400, "Nome de página inválido.");
-  }
-  return alvo;
 }
 
 // Grava a pagina da peca de forma atomica (tmp + rename), com backup unico por

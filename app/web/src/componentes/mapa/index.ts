@@ -1,0 +1,1 @@
+export { TelaMapa } from "./TelaMapa";

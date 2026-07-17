@@ -108,6 +108,74 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     return { servidor: estadoMascarado(id, estado.servidores[id]) };
   });
 
+  // Valida as credenciais de publicacao sem expor o token ao frontend. O teste
+  // confirma autenticacao e acesso basico; as permissoes de escrita continuam
+  // descritas na trilha guiada antes do token ser criado.
+  app.post("/conexoes/:id/testar", async (requisicao, resposta) => {
+    const { id } = requisicao.params as { id: string };
+    if (id !== "github" && id !== "netlify") {
+      return resposta.status(400).send({ erro: "esta conexao nao tem teste remoto" });
+    }
+
+    const workspaceId = idWorkspaceAtivo();
+    if (!workspaceId) {
+      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
+    }
+
+    const servidor = lerConexoes(workspaceId).servidores[id];
+    const token = (servidor?.config?.token ?? "").trim();
+    if (!servidor?.habilitado || !token) {
+      return resposta
+        .status(400)
+        .send({ erro: "ative a conexao e salve um token antes de testar" });
+    }
+
+    const url =
+      id === "github"
+        ? "https://api.github.com/user"
+        : "https://api.netlify.com/api/v1/accounts";
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "User-Agent": "VKOS-Hub",
+    };
+    if (id === "github") {
+      headers.Accept = "application/vnd.github+json";
+      headers["X-GitHub-Api-Version"] = "2022-11-28";
+    }
+
+    let remota: Response;
+    try {
+      remota = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch {
+      return resposta
+        .status(502)
+        .send({ erro: `nao foi possivel falar com ${id === "github" ? "o GitHub" : "a Netlify"}` });
+    }
+
+    if (!remota.ok) {
+      if (remota.status === 401 || remota.status === 403) {
+        return resposta.status(401).send({
+          erro: "o token foi recusado. Confira se ele foi copiado inteiro e se ainda esta valido",
+        });
+      }
+      return resposta.status(502).send({
+        erro: `o servico respondeu com erro ${remota.status}. Tente novamente em instantes`,
+      });
+    }
+
+    if (id === "github") {
+      const dados = (await remota.json()) as { login?: string };
+      return { ok: true, ...(dados.login ? { conta: dados.login } : {}) };
+    }
+    const contas = (await remota.json()) as Array<{ slug?: string }>;
+    const slug = contas.find((conta) => conta.slug?.trim())?.slug?.trim();
+    return { ok: true, ...(slug ? { conta: slug } : {}) };
+  });
+
   // Inicia o fluxo OAuth loopback do Google Calendar: abre o navegador na tela de
   // consentimento e responde quando o callback chegar (ou no timeout honesto).
   // Exige clientId e clientSecret ja salvos pelo PUT generico acima.

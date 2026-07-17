@@ -13,6 +13,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import { usarEstado, type EstadoStream } from "./contexto";
@@ -90,6 +91,15 @@ interface ValorGeracao {
   // Pasta resolvida quando a peca esta pronta E a sessao concluiu, senao null.
   // Match exato de pastaAlvo, ou a peca "nova" do fallback dos 10s.
   pastaPronta: string | null;
+  // Pendencias da auditoria nao escondem um site que existe. A TelaSite usa a
+  // propria peca pra exibir o aviso; este campo mantem o contrato da geracao.
+  pendenciasSite: string[];
+  // Rotulo curto da fase do laco de conformidade de site, ou null quando o laco
+  // nao esta ativo. "Conferindo o site" / "Corrigindo pendências (volta 1 de 2)".
+  faseConferencia: string | null;
+  // Resposta final do provedor quando ele encerrou sem criar o arquivo esperado.
+  // Permite explicar a causa real em vez de sugerir salvamento infinito.
+  resultadoSemPeca: string | null;
   status: StatusSessao | undefined;
   stream: EstadoStream | undefined;
   iniciar: (dados: DadosIniciar) => Promise<void>;
@@ -115,24 +125,55 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   const [concluidaEm, setConcluidaEm] = useState<number | null>(null);
   // Pasta resolvida quando pronta+concluida (match exato ou fallback).
   const [pastaPronta, setPastaPronta] = useState<string | null>(null);
+  // Trava sincrona contra dois cliques antes do React concluir o proximo
+  // render. O servidor repete a guarda para cobrir outras abas.
+  const ativaRef = useRef<GeracaoAtiva | null>(null);
+  ativaRef.current = ativa;
 
   // A sessao e o stream desta geracao.
   const sessao = ativa ? sessoes.find((s) => s.id === ativa.sessaoId) : undefined;
   const stream = ativa ? streams[ativa.sessaoId] : undefined;
   const status = sessao?.status;
-  const falhou =
-    status === "erro" || status === "parada" || (ativa !== null && erro !== null);
-
   // A peca alvo, quando ja apareceu pronta em pecas. O criterio de "pronta" muda
   // por tipo: carrossel/post/story exigem HTML-first (fonteHtml + paginas); site
-  // e uma pasta com .html classificada como tipo "site", sem exigir fonteHtml.
+  // e uma pasta classificada como site. A auditoria protege o deploy, mas nao
+  // esconde uma geracao que existe e pode ser aberta.
   const pecaPronta = useMemo(() => {
     if (!ativa?.pastaAlvo) return false;
     const peca = pecas.find((p) => p.pasta === ativa.pastaAlvo);
     if (!peca) return false;
-    if (ativa.tipo === "site") return peca.tipo === "site";
+    if (ativa.tipo === "site") {
+      const ehSite = peca.tipo === "site" && peca.site !== undefined;
+      if (!ehSite) return false;
+      // Site so entra em "pronta" quando o laco de conformidade termina, pra o
+      // usuario nao abrir o site no meio da correcao. Enquanto conferindo ou
+      // corrigindo, ainda nao. Sem laco (sessao antiga), mantem o antigo.
+      const conf = sessao?.conferenciaSite;
+      if (!conf) return true;
+      return conf.estado === "aprovada" || conf.estado === "pendencias";
+    }
     return Boolean(peca.fonteHtml && (peca.paginas ?? 0) > 0);
-  }, [pecas, ativa]);
+  }, [pecas, ativa, sessao?.conferenciaSite]);
+
+  const pendenciasSite = useMemo(() => {
+    if (ativa?.tipo !== "site" || !ativa.pastaAlvo) return [];
+    const peca = pecas.find((item) => item.pasta === ativa.pastaAlvo);
+    return peca?.tipo === "site" && peca.site?.valido === false
+      ? peca.site.erros
+      : [];
+  }, [ativa, pecas]);
+
+  // Se a sessao encerrou de forma anormal depois de gravar um site legivel, a
+  // peca continua sendo o resultado. O erro da sessao nao deve apagar o arquivo.
+  const falhou =
+    !pecaPronta &&
+    (status === "erro" || status === "parada" || (ativa !== null && erro !== null));
+
+  const resultadoSemPeca = useMemo(() => {
+    if (status !== "concluida" || pecaPronta) return null;
+    const texto = sessao?.resultado?.trim() || stream?.texto.trim() || "";
+    return texto || null;
+  }, [status, pecaPronta, sessao?.resultado, stream?.texto]);
 
   // Fase atual: derivada do status e do tamanho do stream, nunca do texto.
   const fase = useMemo(() => {
@@ -146,6 +187,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   }, [ativa, status, stream, pecaPronta]);
 
   const limpar = useCallback(() => {
+    ativaRef.current = null;
     setAtiva(null);
     setMinimizada(false);
     setErro(null);
@@ -160,24 +202,32 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
 
   const iniciar = useCallback(
     async (dados: DadosIniciar) => {
+      if (ativaRef.current) {
+        setErro("Finalize ou cancele a criação em andamento antes de iniciar outra.");
+        return;
+      }
       setErro(null);
       setPecaSumiu(false);
       setConcluidaEm(null);
       setPastaPronta(null);
       setPastasNoDisparo(new Set(pecas.map((p) => p.pasta)));
       setMinimizada(false);
-      setAtiva({
+      const proxima: GeracaoAtiva = {
         sessaoId: "",
         pastaAlvo: dados.pastaAlvo,
         tema: dados.tema,
         tipo: dados.tipo,
-      });
+      };
+      ativaRef.current = proxima;
+      setAtiva(proxima);
       try {
         const nova = await criarSessao({
           titulo: dados.titulo,
           prompt: dados.prompt,
           skill: dados.skill,
           modelo: dados.modelo,
+          // So o site guiado carrega pastaAlvo: liga o laco de conformidade.
+          pastaAlvo: dados.tipo === "site" ? dados.pastaAlvo : undefined,
         });
         setAtiva((atual) =>
           atual ? { ...atual, sessaoId: nova.id } : atual
@@ -195,21 +245,30 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     if (status === "concluida" && concluidaEm === null) setConcluidaEm(Date.now());
   }, [status, concluidaEm]);
 
-  // Conclusao exata: peca pronta E sessao concluida. Registra a pasta resolvida.
+  // Conclusao exata: peca pronta e processo encerrado. Uma sessao parada ou com
+  // erro pode ter gravado o site inteiro antes de perder o evento final.
   useEffect(() => {
     if (!ativa) return;
-    if (pecaPronta && status === "concluida" && pastaPronta === null) {
+    const terminou = status === "concluida" || status === "erro" || status === "parada";
+    if (pecaPronta && terminou && pastaPronta === null) {
       setPastaPronta(ativa.pastaAlvo);
     }
   }, [ativa, pecaPronta, status, pastaPronta]);
 
-  // Timeout honesto: sessao concluiu mas a peca nao apareceu em 30s. Mostra o
-  // aviso; a checagem de conclusao e o fallback continuam rodando.
+  // Timeout honesto: a escrita do arquivo acontece antes do result do provedor.
+  // Oito segundos cobrem o observador e dois polls sem prender o usuario por
+  // meio minuto quando a IA apenas respondeu e nao criou nenhum artefato.
+  // O laco de conformidade de site pode levar mais que 8s conferindo ou
+  // corrigindo: enquanto ele roda, nao declara peca sumida.
+  const conferenciaAtiva =
+    sessao?.conferenciaSite?.estado === "conferindo" ||
+    sessao?.conferenciaSite?.estado === "corrigindo";
   useEffect(() => {
-    if (!ativa || status !== "concluida" || pecaPronta) return;
-    const t = window.setTimeout(() => setPecaSumiu(true), 30000);
+    if (!ativa || status !== "concluida" || pecaPronta || conferenciaAtiva) return;
+    void recarregarPecas();
+    const t = window.setTimeout(() => setPecaSumiu(true), 8000);
     return () => window.clearTimeout(t);
-  }, [ativa, status, pecaPronta]);
+  }, [ativa, status, pecaPronta, conferenciaAtiva, recarregarPecas]);
 
   // Poll de reforco: a lista de pecas normalmente atualiza por WS
   // (pecas:atualizadas, disparado por fs.watch no backend). fs.watch pode perder
@@ -235,7 +294,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     const ehNova = (p: (typeof pecas)[number]) => !pastasNoDisparo.has(p.pasta);
     const nova =
       ativa.tipo === "site"
-        ? pecas.find((p) => p.tipo === "site" && ehNova(p))
+        ? pecas.find((p) => p.tipo === "site" && p.site !== undefined && ehNova(p))
         : pecas.find(
             (p) => p.fonteHtml && (p.paginas ?? 0) > 0 && ehNova(p)
           );
@@ -244,6 +303,15 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
 
   // Rotulos das fases pro tipo ativo. Sem geracao viva, o conjunto padrao.
   const fases = ativa ? fasesDoTipo(ativa.tipo) : FASES;
+
+  // Rotulo do laco de conformidade, so enquanto conferindo ou corrigindo.
+  const conf = sessao?.conferenciaSite;
+  const faseConferencia =
+    conf?.estado === "conferindo"
+      ? "Conferindo o site"
+      : conf?.estado === "corrigindo"
+        ? `Corrigindo pendências (volta ${conf.volta} de 2)`
+        : null;
 
   const valor: ValorGeracao = {
     ativa,
@@ -254,6 +322,9 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     pecaSumiu,
     erro,
     pastaPronta,
+    pendenciasSite,
+    faseConferencia,
+    resultadoSemPeca,
     status,
     stream,
     iniciar,

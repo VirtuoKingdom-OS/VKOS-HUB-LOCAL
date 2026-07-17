@@ -13,8 +13,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-// Fuso padrao da maquina do Jesse (Windows em America/Sao_Paulo). Todo evento
-// criado leva o timeZone explicito pra nao depender do padrao da agenda.
+// Fuso padrao do produto. Todo evento criado leva o timeZone explicito pra
+// nao depender do padrao da agenda.
 const FUSO_PADRAO = "America/Sao_Paulo";
 // Base da API REST v3 do Google Calendar.
 const BASE = "https://www.googleapis.com/calendar/v3";

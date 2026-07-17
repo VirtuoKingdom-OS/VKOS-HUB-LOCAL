@@ -1,20 +1,28 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { usarEstado } from "../../estado/contexto";
-import { ProvedorGeracao } from "../../estado/geracao";
+import { ProvedorGeracao, type TipoGeracao } from "../../estado/geracao";
 import { GeracaoFlutuante } from "../criacao/GeracaoFlutuante";
 import { Cockpit } from "../cockpit/Cockpit";
 import { Sidebar, type ItemFluxo, type ItemFonte } from "./Sidebar";
 import { TelaFluxo } from "../telas/TelaFluxo";
 import { TelaFonte } from "../telas/TelaFonte";
+import { TelaFontes } from "../telas/TelaFontes";
 import { TelaDashboard } from "../dashboard/TelaDashboard";
 import { TelaGalerias } from "../telas/TelaGalerias";
-import { TelaEmBreve } from "../embreve/TelaEmBreve";
 import { ORDEM_TIPOS } from "../telas/fluxos";
 import { ORDEM_TIPOS_FONTE } from "../telas/fontes";
 import type { TipoContexto, TipoPeca } from "../../tipos/dominio";
+import {
+  destinoAposCriacao,
+  hashParaTela,
+  retornoSeguroDaCriacao,
+  telaParaHash,
+  TELAS_FIXAS,
+  tipoCriacaoDaTela,
+} from "./rotas";
 
-// Telas do hub (IDE, Conexoes, CRM, Studio) entram por import dinamico: cada
+// Telas do hub (Conexoes, CRM, Studio) entram por import dinamico: cada
 // uma so pesa no bundle quando aberta pela primeira vez, como o terminal fazia.
 const TelaIde = lazy(() =>
   import("../ide").then((m) => ({ default: m.TelaIde }))
@@ -35,54 +43,19 @@ const TelaCalendario = lazy(() =>
     default: m.TelaCalendario,
   }))
 );
+const TelaMapa = lazy(() =>
+  import("../mapa").then((m) => ({ default: m.TelaMapa }))
+);
 const TelaStudio = lazy(() =>
   import("../studio/TelaStudio").then((m) => ({ default: m.TelaStudio }))
 );
 // TelaSite ja exporta default: import dinamico direto, sem remapear.
 const TelaSite = lazy(() => import("../site/TelaSite"));
-
-// Telas fixas do hub: sempre existem, independem de peca ou contexto. O Cockpit
-// e a camada base (sempre montada por baixo), entao nao entra neste conjunto.
-// O Dashboard e a tela padrao: "#/" resolve pra ele.
-const TELAS_FIXAS = new Set([
-  "dashboard",
-  "galerias",
-  "whatsapp",
-  "instagram",
-  "crm",
-  "calendario",
-  "conexoes",
-  "automacoes",
-  "ide",
-]);
-
-// Rota por hash, sem biblioteca: "#/" e "#/dashboard" abrem o Dashboard,
-// "#/cockpit" o cockpit, "#/fluxo/<tipo>" uma tela de fluxo, "#/fonte/<tipo>"
-// uma tela de fonte, "#/studio/<pasta>" o estudio de uma peca, e as demais sao
-// telas fixas do hub. O F5 mantem a tela aberta e o voltar do navegador funciona.
-function telaParaHash(tela: string): string {
-  if (tela.startsWith("fluxo:")) return `#/fluxo/${tela.slice("fluxo:".length)}`;
-  if (tela.startsWith("fonte:")) return `#/fonte/${tela.slice("fonte:".length)}`;
-  // O segmento do studio ja viaja URL-encoded dentro da string da tela.
-  if (tela.startsWith("studio:")) return `#/studio/${tela.slice("studio:".length)}`;
-  // O site segue o mesmo padrao do studio: pasta URL-encoded no segmento.
-  if (tela.startsWith("site:")) return `#/site/${tela.slice("site:".length)}`;
-  if (tela === "cockpit") return "#/cockpit";
-  if (TELAS_FIXAS.has(tela)) return `#/${tela}`;
-  return "#/dashboard";
-}
-
-function hashParaTela(hash: string): string {
-  const caminho = hash.replace(/^#\/?/, "");
-  if (caminho.startsWith("fluxo/")) return `fluxo:${caminho.slice("fluxo/".length)}`;
-  if (caminho.startsWith("fonte/")) return `fonte:${caminho.slice("fonte/".length)}`;
-  if (caminho.startsWith("studio/")) return `studio:${caminho.slice("studio/".length)}`;
-  if (caminho.startsWith("site/")) return `site:${caminho.slice("site/".length)}`;
-  if (caminho === "cockpit") return "cockpit";
-  if (TELAS_FIXAS.has(caminho)) return caminho;
-  // "#/" legado e qualquer rota desconhecida caem no Dashboard, a porta padrao.
-  return "dashboard";
-}
+const AssistenteCriacao = lazy(() =>
+  import("../criacao/AssistenteCriacao").then((modulo) => ({
+    default: modulo.AssistenteCriacao,
+  }))
+);
 
 // Layout raiz do app depois do onboarding: menu lateral e area de conteudo.
 // O Cockpit fica sempre montado por baixo, as telas de fluxo e fonte cobrem por cima.
@@ -91,28 +64,91 @@ export function Shell() {
     usarEstado();
   // A tela nasce da URL: F5 numa tela de fluxo volta pra mesma tela.
   const [tela, setTela] = useState<string>(() =>
-    hashParaTela(window.location.hash)
+    window.location.hash.replace(/^#\/?/, "") === "ide"
+      ? "dashboard"
+      : hashParaTela(window.location.hash)
   );
+  const [ideAberta, setIdeAberta] = useState(
+    () => window.location.hash.replace(/^#\/?/, "") === "ide"
+  );
+  const [ideJaAberta, setIdeJaAberta] = useState(ideAberta);
+  const [mapaDisponivel, setMapaDisponivel] = useState(false);
+
+  // O dado interno vive fora do app. Se ele nao estiver nesta instalacao, o
+  // item simplesmente nao entra na navegacao.
+  useEffect(() => {
+    let ativo = true;
+    fetch("/api/mapa", { cache: "no-store" })
+      .then((resposta) => (resposta.ok ? resposta.json() : null))
+      .then((resposta: { disponivel?: boolean } | null) => {
+        if (ativo) setMapaDisponivel(resposta?.disponivel === true);
+      })
+      .catch(() => {
+        if (ativo) setMapaDisponivel(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  // Compatibilidade de entrada direta: abre a camada, mas limpa a rota antiga.
+  // Assim um F5 futuro volta para a tela real, sem tratar a IDE como pagina.
+  useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, "") !== "ide") return;
+    history.replaceState(null, "", telaParaHash(tela));
+    // A tela inicial para o hash legado e sempre o Dashboard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Voltar/avancar do navegador mudam o hash: a tela acompanha. O flushSync
   // commita a troca ANTES do proximo paint: sem ele, com a thread ocupada (o
   // canvas do cockpit animando), o navegador pintava frames com o hash novo e o
   // cockpit ainda visivel, o "fantasma" na saida do cockpit.
   useEffect(() => {
-    const aoMudarHash = () =>
-      flushSync(() => setTela(hashParaTela(window.location.hash)));
+    const aoMudarHash = () => {
+      if (window.location.hash.replace(/^#\/?/, "") === "ide") {
+        flushSync(() => {
+          setIdeJaAberta(true);
+          setIdeAberta(true);
+        });
+        history.replaceState(null, "", telaParaHash(tela));
+        return;
+      }
+      flushSync(() => {
+        setIdeAberta(false);
+        setTela(hashParaTela(window.location.hash));
+      });
+    };
     window.addEventListener("hashchange", aoMudarHash);
     return () => window.removeEventListener("hashchange", aoMudarHash);
+  }, [tela]);
+
+  const alternarIde = useCallback(() => {
+    setIdeJaAberta(true);
+    setIdeAberta((aberta) => !aberta);
   }, []);
 
   // Navegar pela sidebar atualiza o estado e grava o hash (vira historico).
   // Mesmo flushSync do hashchange: a tela nova commita antes do paint.
   const navegar = useCallback((proxima: string) => {
-    flushSync(() => setTela(proxima));
+    flushSync(() => {
+      setIdeAberta(false);
+      setTela(proxima);
+    });
     const hash = telaParaHash(proxima);
     if (window.location.hash !== hash) {
       window.location.hash = hash;
     }
+  }, []);
+
+  // Substitui a entrada corrente. Usado ao cancelar ou concluir uma criacao,
+  // para o botao Voltar nunca reabrir um assistente encerrado.
+  const substituirTela = useCallback((proxima: string) => {
+    flushSync(() => {
+      setIdeAberta(false);
+      setTela(proxima);
+    });
+    history.replaceState(null, "", telaParaHash(proxima));
   }, []);
 
   // Itens de fluxo derivados das pecas: um por tipo presente, com contagem.
@@ -157,8 +193,8 @@ export function Shell() {
       ? tipoFonte
       : null;
 
-  // Tela fixa do hub pedida (Dashboard, Galerias, WhatsApp, Instagram, CRM,
-  // Conexoes, IDE): sempre valida.
+  // Tela fixa do hub pedida (Dashboard, Galerias, Fontes, CRM e Conexoes):
+  // sempre valida.
   const telaFixa = TELAS_FIXAS.has(tela) ? tela : null;
 
   // Studio de uma peca: o segmento URL-encoded da pasta. A validade da peca e
@@ -174,19 +210,49 @@ export function Shell() {
     ? tela.slice("site:".length)
     : null;
 
-  const telaAtiva = fluxoAtivo
-    ? `fluxo:${fluxoAtivo}`
-    : fonteAtiva
-      ? `fonte:${fonteAtiva}`
-      : paramStudio
-        ? `studio:${paramStudio}`
-        : paramSite
-          ? `site:${paramSite}`
-          : telaFixa
-            ? telaFixa
-            : tela === "cockpit"
-              ? "cockpit"
-              : "dashboard";
+  // Criacao guiada e uma rota de verdade. Assim F5, Voltar e entrada vinda de
+  // qualquer tela mantêm URL e interface na mesma verdade.
+  const tipoCriacao = tipoCriacaoDaTela(tela);
+
+  const telaAtiva = tipoCriacao
+    ? `criar:${tipoCriacao}`
+    : fluxoAtivo
+      ? `fluxo:${fluxoAtivo}`
+      : fonteAtiva
+        ? `fonte:${fonteAtiva}`
+        : paramStudio
+          ? `studio:${paramStudio}`
+          : paramSite
+            ? `site:${paramSite}`
+            : telaFixa
+              ? telaFixa
+              : tela === "cockpit"
+                ? "cockpit"
+                : "dashboard";
+
+  const abrirCriacao = useCallback((tipo: TipoGeracao) => {
+    const proxima = `criar:${tipo}`;
+    if (telaAtiva === proxima) return;
+    const retorno = tipoCriacao ? "dashboard" : telaAtiva;
+    flushSync(() => {
+      setIdeAberta(false);
+      setTela(proxima);
+    });
+    history.pushState(
+      { vkosRetornoTela: retorno },
+      "",
+      telaParaHash(proxima),
+    );
+  }, [telaAtiva, tipoCriacao]);
+
+  const cancelarCriacao = useCallback(() => {
+    const estado = history.state as { vkosRetornoTela?: unknown } | null;
+    substituirTela(retornoSeguroDaCriacao(estado?.vkosRetornoTela));
+  }, [substituirTela]);
+
+  const concluirCriacao = useCallback((pasta: string) => {
+    substituirTela(destinoAposCriacao(tipoCriacao ?? "carrossel", pasta));
+  }, [substituirTela, tipoCriacao]);
 
   // A URL nunca mente: se a tela pedida no hash nao existe mais (tipo sem
   // peca, workspace trocado), o estado e o hash resetam JUNTOS pra tela real.
@@ -209,8 +275,11 @@ export function Shell() {
       <Sidebar
         itensFluxo={itensFluxo}
         itensFonte={itensFonte}
-        telaAtiva={telaAtiva}
+        telaAtiva={tipoCriacao ? "dashboard" : telaAtiva}
         aoNavegar={navegar}
+        ideAberta={ideAberta}
+        aoAlternarIde={alternarIde}
+        mapaDisponivel={mapaDisponivel}
       />
       <div className="shell-conteudo">
         <div
@@ -223,29 +292,40 @@ export function Shell() {
         </div>
         {fluxoAtivo && <TelaFluxo key={fluxoAtivo} tipo={fluxoAtivo} />}
         {!fluxoAtivo && fonteAtiva && (
-          <TelaFonte key={fonteAtiva} tipo={fonteAtiva} />
+          <TelaFonte
+            key={fonteAtiva}
+            tipo={fonteAtiva}
+            aoVoltar={() => navegar("fontes")}
+          />
         )}
         {/* Telas fixas leves, sempre no bundle principal: o Dashboard e a porta
             de entrada e a Galeria/Em breve sao telas simples. Key por workspace:
             trocar de cliente remonta a tela com os dados do cliente novo. */}
-        {telaFixa === "dashboard" && (
-          <TelaDashboard key={`dash-${workspaceAtivo}`} />
+        {(telaFixa === "dashboard" || tipoCriacao) && (
+          <TelaDashboard
+            key={`dash-${workspaceAtivo}`}
+            aoCriar={abrirCriacao}
+          />
         )}
         {telaFixa === "galerias" && (
           <TelaGalerias key={`gal-${workspaceAtivo}`} />
         )}
-        {telaFixa === "whatsapp" && <TelaEmBreve tipo="whatsapp" />}
-        {telaFixa === "instagram" && <TelaEmBreve tipo="instagram" />}
+        {telaFixa === "fontes" && (
+          <TelaFontes
+            key={`fontes-${workspaceAtivo}`}
+            itens={itensFonte}
+            aoNavegar={navegar}
+          />
+        )}
         {/* Telas fixas pesadas, por import dinamico. */}
-        {(telaFixa === "ide" ||
-          telaFixa === "conexoes" ||
+        {(telaFixa === "conexoes" ||
           telaFixa === "automacoes" ||
           telaFixa === "calendario" ||
+          telaFixa === "mapa" ||
           telaFixa === "crm") && (
           <Suspense
             fallback={<div className="tela-hub-carregando">Abrindo...</div>}
           >
-            {telaFixa === "ide" && <TelaIde key={`ide-${workspaceAtivo}`} />}
             {telaFixa === "conexoes" && (
               <TelaConexoes key={`cx-${workspaceAtivo}`} />
             )}
@@ -256,6 +336,7 @@ export function Shell() {
               <TelaCalendario key={`cal-${workspaceAtivo}`} />
             )}
             {telaFixa === "crm" && <TelaCrm key={`crm-${workspaceAtivo}`} />}
+            {telaFixa === "mapa" && <TelaMapa />}
           </Suspense>
         )}
         {/* Studio de uma peca: cobre por cima como as demais telas. A pasta vai
@@ -283,6 +364,36 @@ export function Shell() {
               pasta={decodeURIComponent(paramSite)}
             />
           </Suspense>
+        )}
+        {tipoCriacao && (
+          <Suspense
+            fallback={
+              <div className="dash-overlay-wizard">
+                <div className="dash-wizard-carregando">
+                  <div className="giro" />
+                </div>
+              </div>
+            }
+          >
+            <AssistenteCriacao
+              tipo={tipoCriacao}
+              aoConcluir={concluirCriacao}
+              aoCancelar={cancelarCriacao}
+              aoAbrirDestino={substituirTela}
+            />
+          </Suspense>
+        )}
+        {ideJaAberta && (
+          <div className={`camada-ide${ideAberta ? " aberta" : ""}`}>
+            <Suspense
+              fallback={<div className="tela-hub-carregando">Abrindo a IDE...</div>}
+            >
+              <TelaIde
+                key={`ide-${workspaceAtivo}`}
+                aoFechar={() => setIdeAberta(false)}
+              />
+            </Suspense>
+          </div>
         )}
         {/* Veu de transicao: cobre o conteudo durante a troca pra nao piscar
             dados do cliente anterior. */}

@@ -1,17 +1,29 @@
-// Gerenciador das sessoes claude -p em paralelo. O coracao do orquestrador.
-// Spawna processos do Claude Code, faz o parse do stream-json linha a linha,
-// transmite eventos e status pelo WebSocket, respeita o limite de sessoes
-// simultaneas e persiste o indice em app/dados/sessoes.json.
+// Gerenciador das sessoes de IA em paralelo. O coracao do orquestrador.
+// Recebe eventos do provedor, transmite eventos e status pelo WebSocket,
+// respeita o limite de sessoes simultaneas e persiste o indice.
 
-import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Sessao, StatusSessao } from "../tipos.js";
+import type { ConferenciaSite, Sessao, StatusSessao } from "../tipos.js";
+import type { ProcessoSessao } from "../provedores/contrato.js";
+import {
+  conferirSiteParaConformidade,
+  type ConferenciaConformidade,
+} from "../publicacao/auditoria.js";
+import { listarArquivosSite } from "../vkos/siteEstatico.js";
+import { pastaDaPeca } from "../publicacao/arquivos.js";
+import {
+  criarLacoConformidade,
+  deveDispararLaco,
+  type LacoConformidade,
+} from "./conformidade-site.js";
+import { obterProvedorAtivo, obterProvedorDaSessao } from "../provedores/index.js";
+import { prepararPromptEWorkspace } from "../provedores/skills.js";
 import { transmitir } from "../ws.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
-import { localizarClaude } from "./localizar-claude.js";
-import { obterModeloPadrao } from "../config/estado.js";
+import { obterConfigApp, obterModeloPadraoDoProvedor } from "../config/estado.js";
+import { REGRA_MODO_ENXUTO } from "./modo-enxuto.js";
 import { anexarTurno, apagarTranscricao } from "./transcricao.js";
 import { registrarResult } from "./custos.js";
 import {
@@ -30,11 +42,9 @@ const LIMITE_ATIVAS = 5;
 const NOME_ARQUIVO_SESSOES = "sessoes.json";
 
 // Estado de runtime de cada sessao, separado do dado persistido.
-// Guarda o processo vivo, os buffers e o que enviar no proximo spawn.
+// Guarda o processo vivo e o que enviar no proximo spawn.
 interface Execucao {
-  processo: ChildProcess | null;
-  bufferLinha: string;
-  stderr: string;
+  processo: ProcessoSessao | null;
   // Texto a mandar pro claude via stdin no proximo spawn.
   promptPendente: string;
   // Se true, o proximo spawn usa --resume sessionIdClaude.
@@ -50,12 +60,54 @@ interface Execucao {
   modeloAlias: string;
 }
 
+export function resolverModeloDaExecucao(
+  sessao: Pick<Sessao, "provedor" | "modelo">,
+  modeloEmMemoria: string,
+  ehResume: boolean,
+): string {
+  if (modeloEmMemoria) return modeloEmMemoria;
+  if (ehResume && sessao.provedor === "codex") {
+    return sessao.modelo ?? obterModeloPadraoDoProvedor("codex");
+  }
+  // O Claude historicamente omite --model depois de um restart e deixa o
+  // proprio resume herdar o modelo. Mantemos esse comportamento.
+  return "";
+}
+
+const REGRA_CONTEXTO_CRM =
+  "REGRA DURA: use o contexto-crm como insight para orientar conteudo e decisao. " +
+  "E PROIBIDO publicar em qualquer peca, site, carrossel ou texto publico: nome completo, " +
+  "telefone, email ou qualquer dado identificavel de cliente. Insight agregado sim, dado pessoal nunca.";
+
+export function montarInstrucoesExtrasSessao(
+  sessao: Pick<Sessao, "modoEnxuto" | "contextoCrm">,
+): string | undefined {
+  const blocos: string[] = [];
+  if (sessao.modoEnxuto) blocos.push(REGRA_MODO_ENXUTO);
+  if (sessao.contextoCrm) {
+    blocos.push(
+      `<contexto-crm>\nResumo do CRM do usuario (agregado, gerado agora):\n${sessao.contextoCrm}\n</contexto-crm>\n${REGRA_CONTEXTO_CRM}`,
+    );
+  }
+  return blocos.length > 0 ? blocos.join("\n\n") : undefined;
+}
+
 export class GerenciadorSessoes {
   private sessoes: Sessao[] = [];
   private execucoes = new Map<string, Execucao>();
   private timerSalvar: NodeJS.Timeout | null = null;
 
   private iniciado = false;
+
+  // Laco de conformidade de site. Injeta a auditoria real, a retomada da propria
+  // sessao e o setter de conferencia. Fica pronto na criacao do gerenciador.
+  private laco: LacoConformidade = criarLacoConformidade({
+    auditar: (sessao) => this.auditarPecaDaSessao(sessao),
+    retomar: (id, prompt) => this.continuar(id, prompt),
+    definirConferencia: (id, conferencia) => this.definirConferencia(id, conferencia),
+    ehPecaSite: (sessao) => this.pecaEhSite(sessao),
+    statusSessao: (id) => this.acharSessao(id)?.status,
+  });
 
   constructor() {
     // O carregamento e explicito (iniciar), chamado pelo index.ts depois da
@@ -92,12 +144,27 @@ export class GerenciadorSessoes {
     modelo?: string;
     workspaceId: string;
     permissao?: "padrao" | "total";
+    contextoCrm?: string;
+    pastaAlvo?: string;
   }): Sessao {
     const agora = new Date().toISOString();
-    // Sem modelo escolhido, cai no padrao da config.
-    const modeloAlias = entrada.modelo ?? obterModeloPadrao();
+    const provedor = obterProvedorAtivo();
+    // Sem modelo escolhido, cai no padrao do provedor que a sessao vai guardar.
+    const modeloConfigurado = obterModeloPadraoDoProvedor(provedor.id);
+    const modelosDisponiveis = provedor.modelos().map((modelo) => modelo.alias);
+    const modeloPadrao = modelosDisponiveis.includes(modeloConfigurado)
+      ? modeloConfigurado
+      : modelosDisponiveis[0] ?? modeloConfigurado;
+    const modeloAlias = entrada.modelo ?? modeloPadrao;
+    // Modo enxuto decidido UMA vez, na criacao, e travado na sessao como
+    // permissao e modelo. A geracao guiada (carrossel, site) nunca recebe.
+    const enxuto =
+      obterConfigApp().modoEnxuto &&
+      entrada.skill !== "carrossel" &&
+      entrada.skill !== "site";
     const sessao: Sessao = {
       id: this.gerarId(),
+      provedor: provedor.id,
       titulo: (entrada.titulo ?? entrada.prompt).trim().slice(0, 120) || "Sessao",
       prompt: entrada.prompt,
       skill: entrada.skill,
@@ -109,12 +176,14 @@ export class GerenciadorSessoes {
       // Modo de permissao do spawn. Sem escolha, o padrao seguro (acceptEdits).
       // Persiste na sessao, entao vale tambem nas continuacoes via --resume.
       permissao: entrada.permissao ?? "padrao",
+      modoEnxuto: enxuto,
+      contextoCrm: entrada.contextoCrm,
+      // So a geracao guiada de site preenche. E a chave do laco de conformidade.
+      pastaAlvo: entrada.skill === "site" ? entrada.pastaAlvo : undefined,
     };
 
     this.execucoes.set(sessao.id, {
       processo: null,
-      bufferLinha: "",
-      stderr: "",
       promptPendente: entrada.prompt,
       ehResume: false,
       recebeuResult: false,
@@ -149,7 +218,7 @@ export class GerenciadorSessoes {
       return { ok: false, erro: "sessao nao encontrada" };
     }
     if (!sessao.sessionIdClaude) {
-      return { ok: false, erro: "sessao ainda nao tem id do claude pra retomar" };
+      return { ok: false, erro: "sessao ainda nao tem id da conversa pra retomar" };
     }
 
     const execucao = this.garantirExecucao(id);
@@ -158,8 +227,6 @@ export class GerenciadorSessoes {
     execucao.recebeuResult = false;
     execucao.resultComErro = false;
     execucao.paradaManual = false;
-    execucao.stderr = "";
-    execucao.bufferLinha = "";
 
     sessao.prompt = texto;
 
@@ -189,7 +256,7 @@ export class GerenciadorSessoes {
     const execucao = this.execucoes.get(id);
     if (execucao) {
       execucao.paradaManual = true;
-      this.matarProcesso(execucao.processo);
+      execucao.processo?.parar();
       execucao.processo = null;
     }
 
@@ -211,10 +278,11 @@ export class GerenciadorSessoes {
     if (execucao) {
       // Marca parada manual pra o close nao virar erro, e mata o processo.
       execucao.paradaManual = true;
-      this.matarProcesso(execucao.processo);
+      execucao.processo?.parar();
       execucao.processo = null;
     }
     this.execucoes.delete(id);
+    this.laco.esquecer(id);
 
     // A transcricao vai junto. O custos.json fica, o acumulado nao se perde.
     apagarTranscricao(sessao.workspaceId ?? "", id);
@@ -238,8 +306,6 @@ export class GerenciadorSessoes {
     if (!execucao) {
       execucao = {
         processo: null,
-        bufferLinha: "",
-        stderr: "",
         promptPendente: "",
         ehResume: false,
         recebeuResult: false,
@@ -298,84 +364,105 @@ export class GerenciadorSessoes {
     this.agendarSalvar();
   }
 
-  // Spawna o processo do claude pra uma sessao e liga o parser do stdout.
+  // Atualiza o estado do laco de conformidade na sessao e emite no WS, do mesmo
+  // jeito que uma transicao de status: o frontend usa pra mostrar a fase.
+  private definirConferencia(id: string, conferencia: ConferenciaSite): void {
+    const sessao = this.sessoes.find((s) => s.id === id);
+    if (!sessao) return;
+    sessao.conferenciaSite = conferencia;
+    sessao.atualizadaEm = new Date().toISOString();
+    transmitir({
+      tipo: "sessao:conferencia",
+      id: sessao.id,
+      workspaceId: sessao.workspaceId,
+      conferencia,
+    });
+    this.agendarSalvar();
+  }
+
+  // A pastaAlvo existe como peca de site: tem index.html na raiz e nao e um
+  // carrossel HTML-first. Guarda o laco de auditar carrossel ou pasta vazia.
+  private pecaEhSite(sessao: Sessao): boolean {
+    const workspaceId = sessao.workspaceId;
+    const pasta = sessao.pastaAlvo;
+    if (!workspaceId || !pasta) return false;
+    try {
+      const arquivos = listarArquivosSite(pastaDaPeca(workspaceId, pasta)).map((c) =>
+        c.toLowerCase(),
+      );
+      return arquivos.includes("index.html") && !arquivos.includes("carrossel.html");
+    } catch {
+      return false;
+    }
+  }
+
+  // Host local do proprio Hub, base da conferencia visual da peca. Segue a porta
+  // real (VKOS_PORT no QA, 4600 no produto), o mesmo host que as rotas usam.
+  private hostLocal(): string {
+    const porta = process.env.VKOS_PORT?.trim() || "4600";
+    return `127.0.0.1:${porta}`;
+  }
+
+  // Roda a auditoria completa (estrutural + visual) na peca da sessao e traduz
+  // pro formato que o laco espera.
+  private async auditarPecaDaSessao(sessao: Sessao): Promise<ConferenciaConformidade> {
+    if (!sessao.workspaceId || !sessao.pastaAlvo) {
+      return { verificavel: false, valido: false, erros: [], avisos: [] };
+    }
+    return conferirSiteParaConformidade(
+      { workspaceId: sessao.workspaceId, pasta: sessao.pastaAlvo },
+      this.hostLocal(),
+    );
+  }
+
+  // Pede o processo ao provedor e liga os mesmos tratadores historicos.
   private iniciar(sessao: Sessao): void {
     const execucao = this.garantirExecucao(sessao.id);
 
-    const { binario, usarShell } = localizarClaude();
-    // Modo de permissao da sessao. total = bypassPermissions (poder total),
-    // padrao = acceptEdits (comportamento historico). Vale tambem no resume,
-    // porque le da propria sessao, que persiste o campo.
-    const modoPermissao = sessao.permissao === "total" ? "bypassPermissions" : "acceptEdits";
-    const args: string[] = [
-      "-p",
-      "--output-format",
-      "stream-json",
-      "--verbose",
-      "--include-partial-messages",
-      "--permission-mode",
-      modoPermissao,
-    ];
-    // Modelo escolhido pra sessao (opus/sonnet/haiku). Reusado nas continuacoes.
-    if (execucao.modeloAlias) {
-      args.push("--model", execucao.modeloAlias);
-    }
-    // Retoma a conversa anterior quando for continuacao.
-    if (execucao.ehResume && sessao.sessionIdClaude) {
-      args.push("--resume", sessao.sessionIdClaude);
-    }
-
-    // Conexoes MCP habilitadas no workspace desta sessao. Se ha config, aponta o
-    // arquivo e libera as ferramentas de cada servidor (prefixo mcp__<idServidor>).
-    // Sem nenhum servidor habilitado, montarConfigMcp devolve null e nada muda.
-    const ferramentasMcp: string[] = [];
-    const configMcp = montarConfigMcp(sessao.workspaceId ?? "");
-    if (configMcp) {
-      args.push("--mcp-config", configMcp.caminho);
-      for (const idServidor of configMcp.servidores) {
-        ferramentasMcp.push(`mcp__${idServidor}`);
-      }
-    }
-
-    // allowedTools por ultimo: e variadico, para no proximo "--".
-    // Sintaxe confirmada nesta maquina: Bash(node:*) etc liberam o Bash pro render.
-    // As ferramentas MCP entram na mesma lista variadica.
-    args.push(
-      "--allowedTools",
-      "Bash(node:*)",
-      "Bash(npm:*)",
-      "Bash(npx:*)",
-      ...ferramentasMcp,
-    );
-
     this.definirStatus(sessao, "iniciando");
-    execucao.bufferLinha = "";
-    execucao.stderr = "";
     execucao.recebeuResult = false;
     execucao.resultComErro = false;
-    // O prompt vai por stdin, nunca como argumento, pra fugir do inferno de
-    // aspas no shell do Windows (e do problema de parenteses do cmd.exe).
-    const prompt = execucao.promptPendente;
 
-    let processo: ChildProcess;
+    let processo: ProcessoSessao;
     try {
-      if (usarShell) {
-        const linha = [binario, ...args].map((a) => this.citarArg(a)).join(" ");
-        processo = spawn(linha, {
-          cwd: sessao.pastaTrabalho,
-          shell: true,
-          stdio: ["pipe", "pipe", "pipe"],
-        });
-      } else {
-        processo = spawn(binario, args, {
-          cwd: sessao.pastaTrabalho,
-          shell: false,
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+      const provedor = obterProvedorDaSessao(sessao);
+      const preparado = prepararPromptEWorkspace(
+        sessao.pastaTrabalho,
+        execucao.promptPendente,
+        provedor.id,
+      );
+      if (preparado.agents === "manual-preservado") {
+        console.warn(
+          `AGENTS.md manual preservado em ${sessao.pastaTrabalho}. O Codex usara esse arquivo.`,
+        );
       }
+
+      // Conexoes MCP habilitadas no workspace desta sessao. Se ha config, aponta
+      // o arquivo e os servidores ao provedor. Sem habilitados, devolve null.
+      const configMcp = montarConfigMcp(sessao.workspaceId ?? "");
+      processo = provedor.iniciarSessao({
+        pastaTrabalho: sessao.pastaTrabalho,
+        prompt: preparado.prompt,
+        modelo: resolverModeloDaExecucao(
+          sessao,
+          execucao.modeloAlias,
+          execucao.ehResume,
+        ),
+        permissao: sessao.permissao === "total" ? "total" : "padrao",
+        retomada:
+          execucao.ehResume && sessao.sessionIdClaude ? sessao.sessionIdClaude : undefined,
+        mcp: configMcp,
+        // Toda retomada repete a injecao com que a sessao nasceu, pra
+        // conversa nao mudar de personalidade no meio.
+        instrucoesExtras: montarInstrucoesExtrasSessao(sessao),
+      });
     } catch (e) {
       const detalhe = e instanceof Error ? e.message : String(e);
-      this.definirStatus(sessao, "erro", `falha ao spawnar o claude: ${detalhe}`);
+      this.definirStatus(
+        sessao,
+        "erro",
+        `falha ao preparar ou iniciar o provedor ${sessao.provedor}: ${detalhe}`,
+      );
       sessao.erro = detalhe;
       this.processarFila();
       return;
@@ -383,61 +470,18 @@ export class GerenciadorSessoes {
 
     execucao.processo = processo;
 
-    // Manda o prompt e fecha o stdin. Sem isso o claude espera 3s por stdin.
-    try {
-      processo.stdin?.write(prompt);
-      processo.stdin?.end();
-    } catch {
-      // stdin ja fechado, sem drama.
-    }
-
-    processo.stdout?.setEncoding("utf8");
-    processo.stdout?.on("data", (pedaco: string) => {
-      this.consumirStdout(sessao, execucao, pedaco);
+    processo.aoEvento((evento) => {
+      this.tratarEvento(sessao, execucao, evento);
     });
-
-    processo.stderr?.setEncoding("utf8");
-    processo.stderr?.on("data", (pedaco: string) => {
-      execucao.stderr += pedaco;
-      // Segura o tamanho pra nao vazar memoria em sessao longa.
-      if (execucao.stderr.length > 20000) {
-        execucao.stderr = execucao.stderr.slice(-20000);
-      }
-    });
-
-    processo.on("error", (erro: Error) => {
+    processo.aoErro((erro) => {
       this.definirStatus(sessao, "erro", erro.message);
       sessao.erro = erro.message;
       execucao.processo = null;
       this.processarFila();
     });
-
-    processo.on("close", (codigo: number | null) => {
-      this.aoFechar(sessao, execucao, codigo);
+    processo.aoFechar(({ codigo, stderr }) => {
+      this.aoFechar(sessao, execucao, codigo, stderr);
     });
-  }
-
-  // Trata cada pedaco do stdout: quebra em linhas e parseia JSON.
-  private consumirStdout(sessao: Sessao, execucao: Execucao, pedaco: string): void {
-    execucao.bufferLinha += pedaco;
-    const linhas = execucao.bufferLinha.split("\n");
-    // A ultima parte pode ser uma linha incompleta, guarda pro proximo pedaco.
-    execucao.bufferLinha = linhas.pop() ?? "";
-
-    for (const bruta of linhas) {
-      const linha = bruta.trim();
-      if (!linha) {
-        continue;
-      }
-      let evento: unknown;
-      try {
-        evento = JSON.parse(linha);
-      } catch {
-        // Linha nao e JSON (ex: aviso de stdin na saida). Ignora.
-        continue;
-      }
-      this.tratarEvento(sessao, execucao, evento as Record<string, unknown>);
-    }
   }
 
   // Interpreta um evento do stream-json e repassa cru pro frontend.
@@ -483,12 +527,14 @@ export class GerenciadorSessoes {
       const custoBruto = evento["total_cost_usd"];
       const custoTrecho = typeof custoBruto === "number" ? custoBruto : 0;
       sessao.custoUsd = (sessao.custoUsd ?? 0) + custoTrecho;
+      const custoEstimado =
+        sessao.provedor === "codex" || evento["estimado"] === true;
+      sessao.estimado = (sessao.estimado ?? false) || custoEstimado;
 
       // Tokens deste trecho, ja com o split honesto: entrada nova, cache escrita,
       // cache leitura e saida. tokensEntrada segue sendo o total (soma das tres entradas).
-      const { entradaNova, cacheEscrita, cacheLeitura, entrada, saida } = this.extrairTokens(
-        evento["usage"],
-      );
+      const { entradaNova, cacheEscrita, cacheLeitura, entrada, saida } =
+        this.extrairTokens(evento["usage"]);
       sessao.tokensEntradaNova = (sessao.tokensEntradaNova ?? 0) + entradaNova;
       sessao.tokensCacheEscrita = (sessao.tokensCacheEscrita ?? 0) + cacheEscrita;
       sessao.tokensCacheLeitura = (sessao.tokensCacheLeitura ?? 0) + cacheLeitura;
@@ -508,6 +554,7 @@ export class GerenciadorSessoes {
           texto: typeof texto === "string" ? texto : "",
           em: new Date().toISOString(),
           custoUsd: custoTrecho,
+          estimado: custoEstimado,
         });
       } else {
         sessao.erro = typeof texto === "string" ? texto : "result com erro";
@@ -523,6 +570,8 @@ export class GerenciadorSessoes {
         tokensEntrada: entrada,
         tokensSaida: saida,
         contarSessao: !execucao.ehResume && !ehErro,
+        provedor: sessao.provedor,
+        estimado: custoEstimado,
       });
 
       this.agendarSalvar();
@@ -586,8 +635,11 @@ export class GerenciadorSessoes {
 
     const entradaNova = num(u["input_tokens"]);
     const cacheEscrita = this.extrairCacheEscrita(u);
-    const cacheLeitura = num(u["cache_read_input_tokens"]);
+    const cacheLeitura =
+      num(u["cache_read_input_tokens"]) || num(u["cached_input_tokens"]);
     const saida = num(u["output_tokens"]);
+    // O dialeto interno normaliza input_tokens como entrada nova. O adaptador do
+    // Codex separa cached_input_tokens em cache_read_input_tokens antes daqui.
     const entrada = entradaNova + cacheEscrita + cacheLeitura;
     return { entradaNova, cacheEscrita, cacheLeitura, entrada, saida };
   }
@@ -614,18 +666,12 @@ export class GerenciadorSessoes {
   }
 
   // Fecha a sessao: decide status final e sobe a proxima da fila.
-  private aoFechar(sessao: Sessao, execucao: Execucao, codigo: number | null): void {
-    // Descarrega o resto do buffer, caso a ultima linha nao tenha vindo com \n.
-    const resto = execucao.bufferLinha.trim();
-    if (resto) {
-      try {
-        this.tratarEvento(sessao, execucao, JSON.parse(resto) as Record<string, unknown>);
-      } catch {
-        // Ignora sobra nao-JSON.
-      }
-      execucao.bufferLinha = "";
-    }
-
+  private aoFechar(
+    sessao: Sessao,
+    execucao: Execucao,
+    codigo: number | null,
+    stderr: string,
+  ): void {
     execucao.processo = null;
 
     // Parada manual ja definiu o status. Nao mexe.
@@ -635,6 +681,16 @@ export class GerenciadorSessoes {
     }
 
     if (execucao.recebeuResult && !execucao.resultComErro) {
+      // Peca de site que vai passar pelo laco: marca "conferindo" ANTES de
+      // anunciar a conclusao, pra o frontend nunca ver a peca como pronta no
+      // meio da conferencia. Emitido antes do status, entao chega antes no WS.
+      const vaiConferir = deveDispararLaco(sessao) && this.pecaEhSite(sessao);
+      if (vaiConferir) {
+        this.definirConferencia(sessao.id, {
+          estado: "conferindo",
+          volta: sessao.conferenciaSite?.volta ?? 0,
+        });
+      }
       this.definirStatus(sessao, "concluida");
       // Anuncia a conclusao no barramento, depois de definir o status. Se o
       // workspace for indefinido, o barramento so nao grava no log; nao quebra.
@@ -646,45 +702,26 @@ export class GerenciadorSessoes {
           dados: { id: sessao.id, skill: sessao.skill, titulo: sessao.titulo },
         });
       }
+      // Laco de conformidade de site: confere a peca e, se preciso, retoma esta
+      // mesma sessao pra corrigir. Fire-and-forget: a auditoria e a retomada
+      // seguem o proprio fluxo de eventos. Uma falha aqui nao pode derrubar o
+      // fechamento da sessao.
+      if (vaiConferir) {
+        void this.laco.aoConcluir({ ...sessao }).catch(() => {
+          /* o laco ja registra pendencias no proprio fluxo */
+        });
+      }
     } else if (execucao.resultComErro) {
       this.definirStatus(sessao, "erro", sessao.erro);
     } else {
       // Terminou sem result. Erro. Usa o stderr como pista.
-      const detalhe = execucao.stderr.trim() || `processo terminou com codigo ${codigo ?? "desconhecido"}`;
+      const detalhe = stderr.trim() || `processo terminou com codigo ${codigo ?? "desconhecido"}`;
       sessao.erro = detalhe;
       this.definirStatus(sessao, "erro", detalhe);
     }
 
     this.agendarSalvar();
     this.processarFila();
-  }
-
-  // Mata o processo e a arvore de filhos. No Windows sem taskkill o filho sobrevive.
-  private matarProcesso(processo: ChildProcess | null): void {
-    if (!processo || processo.pid === undefined) {
-      return;
-    }
-    if (process.platform === "win32") {
-      try {
-        spawn("taskkill", ["/pid", String(processo.pid), "/T", "/F"], { stdio: "ignore" });
-      } catch {
-        processo.kill();
-      }
-    } else {
-      try {
-        processo.kill("SIGTERM");
-      } catch {
-        // ja morto.
-      }
-    }
-  }
-
-  // Coloca aspas num argumento pro caso de shell. Trata parenteses do cmd.
-  private citarArg(arg: string): string {
-    if (arg.length > 0 && !/[\s"()<>|&^]/.test(arg)) {
-      return arg;
-    }
-    return `"${arg.replace(/"/g, '\\"')}"`;
   }
 
   // ---- persistencia ----
@@ -732,7 +769,11 @@ export class GerenciadorSessoes {
         const dados = JSON.parse(readFileSync(arquivo, "utf8"));
         if (!Array.isArray(dados)) continue;
         for (const bruta of dados as Sessao[]) {
-          const sessao: Sessao = { ...bruta, workspaceId: bruta.workspaceId ?? id };
+          const sessao: Sessao = {
+            ...bruta,
+            provedor: bruta.provedor ?? "claude",
+            workspaceId: bruta.workspaceId ?? id,
+          };
           // Qualquer sessao que estava ativa ou na fila virou parada. O processo se foi.
           if (
             sessao.status === "rodando" ||

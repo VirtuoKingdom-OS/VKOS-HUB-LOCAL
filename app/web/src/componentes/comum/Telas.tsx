@@ -1,10 +1,10 @@
 import { IconeAlerta } from "./Icones";
 
-// Marca com ponto pulsante, usada em varias telas.
+// Marca oficial, usada na sidebar e nas telas de abertura.
 export function Marca() {
   return (
     <span className="marca-logo">
-      <span className="marca-ponto" />
+      <img src="/logo.png" className="marca-img" alt="" />
       VKOS <span style={{ color: "var(--menta-clara)" }}>HUB</span>
     </span>
   );
