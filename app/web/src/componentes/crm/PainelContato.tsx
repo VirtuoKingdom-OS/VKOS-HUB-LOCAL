@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import type { Contato, DadosContato } from "../../api/crm";
+import { useEffect, useState } from "react";
+import type {
+  Coluna,
+  Contato,
+  DadosContato,
+  DadosNegocio,
+  Interacao,
+  Negocio,
+  Tarefa,
+  TipoInteracao,
+} from "../../api/crm";
 import { BotaoConfirmar } from "./BotaoConfirmar";
-import { formatarDataHora, isoParaDatetimeLocal } from "./formatos";
+import { formatarDataHora, formatarReais, isoParaDatetimeLocal } from "./formatos";
 import { IconeLixeira, IconeMais, IconeX } from "../comum/Icones";
 
-// Campos de texto simples do detalhe, com rotulo e placeholder.
 const CAMPOS: { chave: keyof DadosContato; rotulo: string; dica: string; tipo?: string }[] = [
   { chave: "empresa", rotulo: "Empresa", dica: "Nome da empresa" },
   { chave: "telefone", rotulo: "Telefone", dica: "(00) 00000-0000", tipo: "tel" },
@@ -12,37 +20,58 @@ const CAMPOS: { chave: keyof DadosContato; rotulo: string; dica: string; tipo?: 
   { chave: "origem", rotulo: "Origem", dica: "Como chegou ate voce" },
 ];
 
-// Painel lateral de detalhe do contato. Campos editaveis que salvam ao sair do
-// campo, tags, notas com data e hora, e exclusao em dois cliques.
+const TIPOS: { valor: TipoInteracao; rotulo: string }[] = [
+  { valor: "nota", rotulo: "Nota" },
+  { valor: "ligacao", rotulo: "Ligacao" },
+  { valor: "mensagem", rotulo: "Mensagem" },
+  { valor: "reuniao", rotulo: "Reuniao" },
+  { valor: "outro", rotulo: "Outro" },
+];
+
 export function PainelContato({
   contato,
+  negocios,
+  colunas,
+  negocioDestaqueId,
   aoAtualizar,
-  aoAdicionarNota,
+  aoRegistrarInteracao,
+  aoCriarTarefa,
+  aoAtualizarTarefa,
+  aoExcluirTarefa,
+  aoAbrirNovoNegocio,
+  aoAtualizarNegocio,
+  aoExcluirNegocio,
   aoExcluir,
   aoFechar,
 }: {
   contato: Contato;
-  aoAtualizar: (id: string, dados: DadosContato) => Promise<Contato> | void;
-  aoAdicionarNota: (id: string, texto: string) => Promise<Contato> | void;
-  aoExcluir: (id: string) => Promise<void> | void;
+  negocios: Negocio[];
+  colunas: Coluna[];
+  negocioDestaqueId: string | null;
+  aoAtualizar: (id: string, dados: DadosContato) => Promise<Contato>;
+  aoRegistrarInteracao: (id: string, tipo: TipoInteracao, texto: string) => Promise<Interacao>;
+  aoCriarTarefa: (id: string, texto: string, prazo?: string) => Promise<Tarefa>;
+  aoAtualizarTarefa: (id: string, dados: { feita?: boolean; prazo?: string | null }) => Promise<Tarefa>;
+  aoExcluirTarefa: (contatoId: string, id: string) => Promise<void>;
+  aoAbrirNovoNegocio: (contatoId: string) => void;
+  aoAtualizarNegocio: (id: string, dados: DadosNegocio) => Promise<Negocio>;
+  aoExcluirNegocio: (id: string) => Promise<void>;
+  aoExcluir: (id: string) => Promise<void>;
   aoFechar: () => void;
 }) {
-  // Rascunhos dos campos, semeados do contato. O key={contato.id} no pai remonta
-  // o painel a cada contato, entao a semente inicial basta.
   const [nome, setNome] = useState(contato.nome);
   const [empresa, setEmpresa] = useState(contato.empresa ?? "");
   const [telefone, setTelefone] = useState(contato.telefone ?? "");
   const [email, setEmail] = useState(contato.email ?? "");
   const [origem, setOrigem] = useState(contato.origem ?? "");
-  const [valor, setValor] = useState(
-    contato.valorEstimado !== undefined ? String(contato.valorEstimado) : ""
-  );
-  const [proximoContato, setProximoContato] = useState(
-    isoParaDatetimeLocal(contato.proximoContato)
-  );
+  const [proximoContato, setProximoContato] = useState(isoParaDatetimeLocal(contato.proximoContato));
   const [novaTag, setNovaTag] = useState("");
-  const [novaNota, setNovaNota] = useState("");
-  const [salvandoNota, setSalvandoNota] = useState(false);
+  const [tipoInteracao, setTipoInteracao] = useState<TipoInteracao>("nota");
+  const [textoInteracao, setTextoInteracao] = useState("");
+  const [salvandoInteracao, setSalvandoInteracao] = useState(false);
+  const [textoTarefa, setTextoTarefa] = useState("");
+  const [prazoTarefa, setPrazoTarefa] = useState("");
+  const [salvandoTarefa, setSalvandoTarefa] = useState(false);
 
   const rascunhos: Record<string, [string, (v: string) => void]> = {
     empresa: [empresa, setEmpresa],
@@ -51,7 +80,6 @@ export function PainelContato({
     origem: [origem, setOrigem],
   };
 
-  // Esc fecha o painel.
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
       if (e.key === "Escape") aoFechar();
@@ -60,236 +88,285 @@ export function PainelContato({
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [aoFechar]);
 
-  // Salva um campo de texto se mudou de verdade.
   function salvarTexto(chave: keyof DadosContato, atual: string) {
     const original = (contato[chave as keyof Contato] as string | undefined) ?? "";
-    if (atual.trim() === original) return;
-    void aoAtualizar(contato.id, { [chave]: atual.trim() });
+    if (atual.trim() !== original) void aoAtualizar(contato.id, { [chave]: atual.trim() }).catch(() => undefined);
   }
 
   function salvarNome() {
     const limpo = nome.trim();
-    if (!limpo) {
-      setNome(contato.nome);
-      return;
-    }
-    if (limpo !== contato.nome) void aoAtualizar(contato.id, { nome: limpo });
-  }
-
-  function salvarValor() {
-    const limpo = valor.replace(",", ".").trim();
-    const original = contato.valorEstimado;
-    if (limpo === "") {
-      // null (nao undefined) pra o backend enxergar a intencao de limpar.
-      if (original !== undefined) void aoAtualizar(contato.id, { valorEstimado: null });
-      return;
-    }
-    const n = Number(limpo);
-    if (!Number.isFinite(n) || n < 0) {
-      setValor(original !== undefined ? String(original) : "");
-      return;
-    }
-    if (n !== original) void aoAtualizar(contato.id, { valorEstimado: n });
+    if (!limpo) return setNome(contato.nome);
+    if (limpo !== contato.nome) void aoAtualizar(contato.id, { nome: limpo }).catch(() => undefined);
   }
 
   function salvarProximoContato() {
     const original = isoParaDatetimeLocal(contato.proximoContato);
     if (proximoContato === original) return;
-    if (proximoContato === "") {
-      // null (nao undefined) pra o backend enxergar a intencao de limpar.
-      if (contato.proximoContato) void aoAtualizar(contato.id, { proximoContato: null });
-      return;
-    }
-    void aoAtualizar(contato.id, { proximoContato });
+    void aoAtualizar(contato.id, { proximoContato: proximoContato || null }).catch(() => undefined);
   }
 
   function adicionarTag() {
     const limpo = novaTag.trim();
     if (!limpo) return;
-    const jaTem = contato.tags.some((t) => t.toLowerCase() === limpo.toLowerCase());
     setNovaTag("");
-    if (jaTem) return;
-    void aoAtualizar(contato.id, { tags: [...contato.tags, limpo] });
+    if (contato.tags.some((tag) => tag.toLowerCase() === limpo.toLowerCase())) return;
+    void aoAtualizar(contato.id, { tags: [...contato.tags, limpo] }).catch(() => undefined);
   }
 
-  function removerTag(tag: string) {
-    void aoAtualizar(contato.id, { tags: contato.tags.filter((t) => t !== tag) });
-  }
-
-  async function enviarNota() {
-    const limpo = novaNota.trim();
-    if (!limpo || salvandoNota) return;
-    setSalvandoNota(true);
+  async function enviarInteracao() {
+    const limpo = textoInteracao.trim();
+    if (!limpo || salvandoInteracao) return;
+    setSalvandoInteracao(true);
     try {
-      await aoAdicionarNota(contato.id, limpo);
-      setNovaNota("");
+      await aoRegistrarInteracao(contato.id, tipoInteracao, limpo);
+      setTextoInteracao("");
+    } catch {
+      // A faixa de erro da tela ja explica o problema.
     } finally {
-      setSalvandoNota(false);
+      setSalvandoInteracao(false);
+    }
+  }
+
+  async function enviarTarefa() {
+    const limpo = textoTarefa.trim();
+    if (!limpo || salvandoTarefa) return;
+    setSalvandoTarefa(true);
+    try {
+      await aoCriarTarefa(contato.id, limpo, prazoTarefa || undefined);
+      setTextoTarefa("");
+      setPrazoTarefa("");
+    } catch {
+      // A faixa de erro da tela ja explica o problema.
+    } finally {
+      setSalvandoTarefa(false);
     }
   }
 
   return (
     <aside className="crm-painel">
       <header className="crm-painel-topo">
-        <h2>Detalhe do contato</h2>
+        <div>
+          <span className="crm-painel-sobre">Ficha completa</span>
+          <h2>{contato.nome}</h2>
+        </div>
         <button className="crm-painel-fechar" onClick={aoFechar} aria-label="Fechar" type="button">
           <IconeX className="" />
         </button>
       </header>
 
       <div className="crm-painel-corpo">
-        <label className="crm-campo crm-campo-nome">
-          <span className="crm-rotulo">Nome</span>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            onBlur={salvarNome}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-            placeholder="Nome do contato"
-            maxLength={200}
-          />
-        </label>
-
-        {CAMPOS.map(({ chave, rotulo, dica, tipo }) => {
-          const [v, set] = rascunhos[chave as string];
-          return (
-            <label className="crm-campo" key={chave as string}>
-              <span className="crm-rotulo">{rotulo}</span>
+        <section className="crm-painel-secao">
+          <h3>Contato</h3>
+          <label className="crm-campo crm-campo-nome">
+            <span className="crm-rotulo">Nome</span>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} onBlur={salvarNome} maxLength={200} />
+          </label>
+          <div className="crm-campos-grade">
+            {CAMPOS.map(({ chave, rotulo, dica, tipo }) => {
+              const [valor, setValor] = rascunhos[chave];
+              return (
+                <label className="crm-campo" key={chave}>
+                  <span className="crm-rotulo">{rotulo}</span>
+                  <input
+                    type={tipo ?? "text"}
+                    value={valor}
+                    onChange={(e) => setValor(e.target.value)}
+                    onBlur={() => salvarTexto(chave, valor)}
+                    placeholder={dica}
+                    maxLength={200}
+                  />
+                </label>
+              );
+            })}
+          </div>
+          <label className="crm-campo">
+            <span className="crm-rotulo">Proximo contato</span>
+            <input
+              type="datetime-local"
+              value={proximoContato}
+              onChange={(e) => setProximoContato(e.target.value)}
+              onBlur={salvarProximoContato}
+            />
+          </label>
+          <div className="crm-campo">
+            <span className="crm-rotulo">Tags</span>
+            <div className="crm-tags-lista">
+              {contato.tags.length === 0 && <span className="crm-vazio-inline">Nenhuma tag ainda.</span>}
+              {contato.tags.map((tag) => (
+                <span className="crm-tag crm-tag-editavel" key={tag}>
+                  {tag}
+                  <button
+                    className="crm-tag-x"
+                    onClick={() => void aoAtualizar(contato.id, { tags: contato.tags.filter((item) => item !== tag) }).catch(() => undefined)}
+                    aria-label={`Remover ${tag}`}
+                    type="button"
+                  >
+                    <IconeX className="" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="crm-tag-nova">
               <input
-                type={tipo ?? "text"}
-                value={v}
-                onChange={(e) => set(e.target.value)}
-                onBlur={() => salvarTexto(chave, v)}
+                value={novaTag}
+                onChange={(e) => setNovaTag(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    adicionarTag();
+                  }
                 }}
-                placeholder={dica}
-                maxLength={200}
+                placeholder="Adicionar tag"
+                maxLength={40}
               />
-            </label>
-          );
-        })}
+              <button className="botao botao-neutro crm-add-tag" onClick={adicionarTag} disabled={!novaTag.trim()} type="button">
+                <IconeMais className="" />
+              </button>
+            </div>
+          </div>
+        </section>
 
-        <label className="crm-campo">
-          <span className="crm-rotulo">Valor estimado (R$)</span>
-          <input
-            inputMode="decimal"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            onBlur={salvarValor}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-            placeholder="0"
-          />
-        </label>
-
-        <label className="crm-campo">
-          <span className="crm-rotulo">Proximo contato</span>
-          <input
-            type="datetime-local"
-            value={proximoContato}
-            onChange={(e) => setProximoContato(e.target.value)}
-            onBlur={salvarProximoContato}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-          />
-        </label>
-
-        <div className="crm-campo">
-          <span className="crm-rotulo">Tags</span>
-          <div className="crm-tags-lista">
-            {contato.tags.length === 0 && <span className="crm-vazio-inline">Nenhuma tag ainda.</span>}
-            {contato.tags.map((tag) => (
-              <span className="crm-tag crm-tag-editavel" key={tag}>
-                {tag}
-                <button
-                  className="crm-tag-x"
-                  onClick={() => removerTag(tag)}
-                  aria-label={`Remover ${tag}`}
-                  type="button"
-                >
-                  <IconeX className="" />
-                </button>
-              </span>
+        <section className="crm-painel-secao">
+          <div className="crm-secao-topo">
+            <h3>Negocios</h3>
+            <button className="botao botao-neutro crm-botao-compacto" onClick={() => aoAbrirNovoNegocio(contato.id)} type="button">
+              <IconeMais className="" /> Novo negocio
+            </button>
+          </div>
+          {negocios.length === 0 && <p className="crm-vazio-inline">Nenhum negocio para este contato.</p>}
+          <div className="crm-negocios-lista">
+            {negocios.map((negocio) => (
+              <LinhaNegocio
+                key={negocio.id}
+                negocio={negocio}
+                colunas={colunas}
+                destaque={negocio.id === negocioDestaqueId}
+                aoAtualizar={aoAtualizarNegocio}
+                aoExcluir={aoExcluirNegocio}
+              />
             ))}
           </div>
-          <div className="crm-tag-nova">
-            <input
-              value={novaTag}
-              onChange={(e) => setNovaTag(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  adicionarTag();
-                }
-              }}
-              placeholder="Adicionar tag"
-              maxLength={40}
-            />
-            <button
-              className="botao botao-neutro crm-add-tag"
-              onClick={adicionarTag}
-              disabled={!novaTag.trim()}
-              type="button"
-            >
-              <IconeMais className="" />
-            </button>
-          </div>
-        </div>
+        </section>
 
-        <div className="crm-campo crm-notas">
-          <span className="crm-rotulo">Notas</span>
-          <div className="crm-nota-nova">
+        <section className="crm-painel-secao">
+          <h3>Interacoes</h3>
+          <div className="crm-interacao-nova">
+            <select value={tipoInteracao} onChange={(e) => setTipoInteracao(e.target.value as TipoInteracao)} aria-label="Tipo da interacao">
+              {TIPOS.map((tipo) => <option key={tipo.valor} value={tipo.valor}>{tipo.rotulo}</option>)}
+            </select>
             <textarea
-              value={novaNota}
-              onChange={(e) => setNovaNota(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void enviarNota();
-                }
-              }}
-              placeholder="Escreva uma nota. Ctrl+Enter pra salvar."
+              value={textoInteracao}
+              onChange={(e) => setTextoInteracao(e.target.value)}
+              placeholder="O que aconteceu neste contato?"
               rows={2}
+              maxLength={2000}
             />
-            <button
-              className="botao botao-principal crm-add-nota"
-              onClick={() => void enviarNota()}
-              disabled={!novaNota.trim() || salvandoNota}
-              type="button"
-            >
-              {salvandoNota ? "Salvando..." : "Adicionar nota"}
+            <button className="botao botao-principal crm-botao-compacto" onClick={() => void enviarInteracao()} disabled={!textoInteracao.trim() || salvandoInteracao} type="button">
+              {salvandoInteracao ? "Salvando..." : "Registrar interacao"}
             </button>
           </div>
-          <ul className="crm-nota-lista">
-            {contato.notas.length === 0 && (
-              <li className="crm-vazio-inline">Nenhuma nota ainda.</li>
-            )}
-            {contato.notas.map((nota, i) => (
-              <li className="crm-nota" key={`${nota.em}-${i}`}>
-                <span className="crm-nota-hora">{formatarDataHora(nota.em)}</span>
-                <p className="crm-nota-texto">{nota.texto}</p>
+          <ol className="crm-linha-tempo">
+            {contato.interacoes.length === 0 && <li className="crm-vazio-inline">Nenhuma interacao ainda.</li>}
+            {contato.interacoes.map((interacao) => (
+              <li className="crm-interacao" key={interacao.id}>
+                <span className="crm-interacao-tipo">{TIPOS.find((tipo) => tipo.valor === interacao.tipo)?.rotulo}</span>
+                <time>{formatarDataHora(interacao.em)}</time>
+                <p>{interacao.texto}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="crm-painel-secao">
+          <h3>Tarefas</h3>
+          <div className="crm-tarefa-nova">
+            <input value={textoTarefa} onChange={(e) => setTextoTarefa(e.target.value)} placeholder="Ex: enviar orcamento" maxLength={500} />
+            <input type="datetime-local" value={prazoTarefa} onChange={(e) => setPrazoTarefa(e.target.value)} aria-label="Prazo da tarefa" />
+            <button className="botao botao-neutro crm-botao-compacto" onClick={() => void enviarTarefa()} disabled={!textoTarefa.trim() || salvandoTarefa} type="button">
+              <IconeMais className="" /> Adicionar tarefa
+            </button>
+          </div>
+          <ul className="crm-tarefas-lista">
+            {contato.tarefas.length === 0 && <li className="crm-vazio-inline">Nenhuma tarefa ainda.</li>}
+            {contato.tarefas.map((tarefa) => (
+              <li className={`crm-tarefa${tarefa.feita ? " feita" : ""}`} key={tarefa.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={tarefa.feita}
+                    onChange={(e) => void aoAtualizarTarefa(tarefa.id, { feita: e.target.checked }).catch(() => undefined)}
+                  />
+                  <span>{tarefa.texto}</span>
+                </label>
+                {tarefa.prazo && <time>{formatarDataHora(tarefa.prazo)}</time>}
+                <button className="crm-acao-icone" onClick={() => void aoExcluirTarefa(contato.id, tarefa.id).catch(() => undefined)} aria-label={`Excluir tarefa ${tarefa.texto}`} type="button">
+                  <IconeLixeira className="" />
+                </button>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       </div>
 
       <footer className="crm-painel-pe">
         <BotaoConfirmar
           className="crm-excluir-contato"
-          titulo="Excluir este contato"
-          aviso="Excluir contato?"
+          titulo="Excluir este contato e seus negocios"
+          aviso="Excluir contato e negocios?"
           aoConfirmar={() => aoExcluir(contato.id)}
         >
-          <IconeLixeira className="" />
-          Excluir contato
+          <IconeLixeira className="" /> Excluir contato
         </BotaoConfirmar>
       </footer>
     </aside>
+  );
+}
+
+function LinhaNegocio({
+  negocio,
+  colunas,
+  destaque,
+  aoAtualizar,
+  aoExcluir,
+}: {
+  negocio: Negocio;
+  colunas: Coluna[];
+  destaque: boolean;
+  aoAtualizar: (id: string, dados: DadosNegocio) => Promise<Negocio>;
+  aoExcluir: (id: string) => Promise<void>;
+}) {
+  const [titulo, setTitulo] = useState(negocio.titulo);
+  const [valor, setValor] = useState(negocio.valorEstimado === undefined ? "" : String(negocio.valorEstimado));
+
+  function salvarTitulo() {
+    const limpo = titulo.trim();
+    if (!limpo) return setTitulo(negocio.titulo);
+    if (limpo !== negocio.titulo) void aoAtualizar(negocio.id, { titulo: limpo }).catch(() => undefined);
+  }
+
+  function salvarValor() {
+    const limpo = valor.replace(",", ".").trim();
+    if (!limpo) {
+      if (negocio.valorEstimado !== undefined) void aoAtualizar(negocio.id, { valorEstimado: null }).catch(() => undefined);
+      return;
+    }
+    const numero = Number(limpo);
+    if (!Number.isFinite(numero) || numero < 0) return setValor(negocio.valorEstimado === undefined ? "" : String(negocio.valorEstimado));
+    if (numero !== negocio.valorEstimado) void aoAtualizar(negocio.id, { valorEstimado: numero }).catch(() => undefined);
+  }
+
+  return (
+    <article className={`crm-negocio-linha${destaque ? " destaque" : ""}`}>
+      <input value={titulo} onChange={(e) => setTitulo(e.target.value)} onBlur={salvarTitulo} aria-label="Titulo do negocio" maxLength={200} />
+      <div className="crm-negocio-campos">
+        <select value={negocio.colunaId} onChange={(e) => void aoAtualizar(negocio.id, { colunaId: e.target.value }).catch(() => undefined)} aria-label="Estagio do negocio">
+          {colunas.map((coluna) => <option key={coluna.id} value={coluna.id}>{coluna.nome}</option>)}
+        </select>
+        <input value={valor} onChange={(e) => setValor(e.target.value)} onBlur={salvarValor} inputMode="decimal" aria-label="Valor estimado do negocio" placeholder={formatarReais(0)} />
+        <BotaoConfirmar className="crm-excluir-negocio" titulo="Excluir negocio" aviso="Excluir negocio?" aoConfirmar={() => aoExcluir(negocio.id)}>
+          <IconeLixeira className="" />
+        </BotaoConfirmar>
+      </div>
+    </article>
   );
 }

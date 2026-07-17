@@ -1,0 +1,28 @@
+{
+  "fonte": "https://developers.openai.com/api/docs/models",
+  "atualizadoEm": "2026-07-15",
+  "moeda": "USD",
+  "unidade": "por 1 milhao de tokens",
+  "modelos": {
+    "gpt-5.6-sol": {
+      "entrada": 5,
+      "entradaCache": 0.5,
+      "saida": 30
+    },
+    "gpt-5.6-terra": {
+      "entrada": 2.5,
+      "entradaCache": 0.25,
+      "saida": 15
+    },
+    "gpt-5.6-luna": {
+      "entrada": 1,
+      "entradaCache": 0.1,
+      "saida": 6
+    },
+    "gpt-5.4-mini": {
+      "entrada": 0.75,
+      "entradaCache": 0.075,
+      "saida": 4.5
+    }
+  }
+}

@@ -17,6 +17,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { usarEstado } from "../../estado/contexto";
+import { usarProvedoresIA } from "../../estado/provedores";
 import { enviarAnexo, type ModeloIA } from "../../api/cliente";
 import {
   acharFluxo,
@@ -29,6 +30,7 @@ import {
 } from "../../config/fluxos";
 import { INFO_STATUS } from "../../config/status";
 import { mensagemDeErro } from "../../util/erros";
+import { lerBase64 } from "../../util/arquivo";
 import { montarPromptCompleto, type MaterialConectado } from "../../util/prompt";
 import type { TipoCriacao } from "../../estado/geracao";
 import { montarPromptCriacao, pastaUnica, type DadosCriacao } from "../criacao/prompt";
@@ -54,20 +56,6 @@ interface AnexoComposer {
 // Tipos de arquivo aceitos no anexo inline (imagem + os textuais/documentos).
 const ACEITA_ANEXO = ".md,.txt,.pdf,.csv,.json,.svg,image/*";
 
-// Le um arquivo como base64 puro (sem o prefixo data:...;base64,).
-function lerBase64(arquivo: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const leitor = new FileReader();
-    leitor.onload = () => {
-      const texto = String(leitor.result ?? "");
-      const virgula = texto.indexOf(",");
-      resolve(virgula >= 0 ? texto.slice(virgula + 1) : texto);
-    };
-    leitor.onerror = () => reject(leitor.error ?? new Error("Falha ao ler arquivo."));
-    leitor.readAsDataURL(arquivo);
-  });
-}
-
 // Dados que o no de sessao carrega. Leve e serializavel: o rascunho do composer
 // mora aqui pra sobreviver ao reload e poder ser duplicado.
 export interface DadosSessao extends Record<string, unknown> {
@@ -77,7 +65,7 @@ export interface DadosSessao extends Record<string, unknown> {
   detalhes?: string;
   idSub?: string;
   idSessao?: string;
-  // Modelo escolhido no composer (opus, sonnet ou haiku).
+  // Alias de modelo escolhido no composer. As opcoes vem do provedor ativo.
   modelo?: ModeloIA;
   // Modelo de carrossel escolhido (id). Vazio = deixar a IA escolher.
   modeloCarrossel?: string;
@@ -93,13 +81,6 @@ export interface DadosSessao extends Record<string, unknown> {
   // Ligado pelo menu Renomear pra abrir o campo de edicao do titulo.
   editando?: boolean;
 }
-
-// Rotulos honestos de custo relativo dos modelos.
-const MODELOS: { id: ModeloIA; rotulo: string; nota: string }[] = [
-  { id: "opus", rotulo: "Opus", nota: "mais capaz, mais caro" },
-  { id: "sonnet", rotulo: "Sonnet", nota: "equilíbrio" },
-  { id: "haiku", rotulo: "Haiku", nota: "rápido e barato" },
-];
 
 // Formata contagem de tokens com sufixo k pra caber no rodape.
 function fmtK(n?: number): string {
@@ -128,6 +109,7 @@ function NoSessaoInterno({ id, data }: NodeProps) {
     obterTranscricao,
     excluirSessao,
   } = usarEstado();
+  const { modelos, modeloPadrao: modeloPadraoProvedor } = usarProvedoresIA();
 
   // Fontes conectadas a esta sessao: os ids dos nos de contexto (ctx-<id>)
   // que apontam pra ca. O seletor devolve uma string estavel, entao arrastar
@@ -147,7 +129,11 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   const detalhes = dados.detalhes ?? "";
   const idSessao = dados.idSessao ?? null;
   const editando = Boolean(dados.editando);
-  const modelo = dados.modelo ?? modeloPadrao;
+  const modeloConfigurado = dados.modelo ?? modeloPadraoProvedor ?? modeloPadrao;
+  const modelo =
+    modelos.length > 0 && !modelos.some((m) => m.alias === modeloConfigurado)
+      ? modeloPadraoProvedor || modelos[0].alias
+      : modeloConfigurado;
   const modeloCarrossel = dados.modeloCarrossel ?? "";
 
   // Composer de imagem: formato e proporcao caem no preset do fluxo quando o
@@ -388,6 +374,10 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   };
 
   const disparar = async () => {
+    if (!modelo) {
+      setErroLocal("Aguarde a lista de modelos carregar.");
+      return;
+    }
     if (sub.precisaArgumento && !tema.trim()) {
       setErroLocal("Escreva o tema primeiro.");
       return;
@@ -450,6 +440,10 @@ function NoSessaoInterno({ id, data }: NodeProps) {
     const dc = dadosCriacaoDe(dadosEtapas, tipoCriacao);
     if (!dc.tema.trim()) {
       setErroLocal("Escreva o tema primeiro.");
+      return;
+    }
+    if (!dadosEtapas.modelo) {
+      setErroLocal("Aguarde a lista de modelos carregar.");
       return;
     }
     setErroLocal(null);
@@ -584,6 +578,7 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   const modeloExibido = sessao?.modelo ?? modelo;
   const custoNum =
     typeof sessao?.custoUsd === "number" ? sessao.custoUsd : stream?.custoUsd;
+  const custoEstimado = sessao?.estimado === true || sessao?.provedor === "codex";
   const temTokens =
     typeof sessao?.tokensEntrada === "number" ||
     typeof sessao?.tokensSaida === "number";
@@ -745,12 +740,12 @@ function NoSessaoInterno({ id, data }: NodeProps) {
             <div className="seletor-modelo">
               <span className="rotulo-mini">Modelo</span>
               <div className="chips-modelo">
-                {MODELOS.map((m) => (
+                {modelos.map((m) => (
                   <button
-                    key={m.id}
-                    className={`chip${m.id === modelo ? " ativo" : ""}`}
-                    title={m.nota}
-                    onClick={() => patch({ modelo: m.id })}
+                    key={m.alias}
+                    className={`chip${m.alias === modelo ? " ativo" : ""}`}
+                    title={m.observacaoCusto}
+                    onClick={() => patch({ modelo: m.alias })}
                   >
                     {m.rotulo}
                   </button>
@@ -902,7 +897,7 @@ function NoSessaoInterno({ id, data }: NodeProps) {
               <button
                 className="botao botao-principal"
                 onClick={() => void disparar()}
-                disabled={disparando}
+                disabled={disparando || !modelo}
               >
                 <IconeRaio className="" />
                 {disparando ? "Disparando" : "Disparar fluxo"}
@@ -958,7 +953,14 @@ function NoSessaoInterno({ id, data }: NodeProps) {
               <span className="custo">
                 <span className="modelo-tag">{modeloExibido}</span>
                 {typeof custoNum === "number" && (
-                  <> | ${custoNum.toFixed(2)}</>
+                  <>
+                    {" | "}{custoEstimado ? "~" : ""}${custoNum.toFixed(2)}
+                    {custoEstimado && (
+                      <span className="custo-estimado" title="Valor estimado por tokens">
+                        estimado por tokens
+                      </span>
+                    )}
+                  </>
                 )}
                 {temTokens &&
                   (temDetalheEntrada ? (

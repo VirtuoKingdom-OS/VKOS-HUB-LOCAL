@@ -1,21 +1,13 @@
 // Monta o prompt final do Site Guiado. O entregavel nao e texto (site.md), e um
 // site HTML estatico completo, construido direto em conteudo/<pasta>/. O prompt
-// instrui uma sessao headless: le o Cerebro pra voz e conteudo, le a metodologia
-// da skill /site pro texto por secao, le principios-visuais.md pro visual, e
-// entrega tudo pronto sem fazer nenhuma pergunta.
+// instrui uma sessao headless em tres blocos, nesta ordem: bloco 1 O DESIGN VEM
+// PRIMEIRO (le o Cerebro, os principios visuais, a cartela e o indice de estilos,
+// escolhe uma direcao e um estilo, declara a escolha e aplica o sistema inteiro),
+// bloco 2 conteudo e estrutura (skill /site, objetivo, secoes, CTA, imagens), e
+// bloco 3 regras tecnicas compactas (salvamento, caminhos, marcadores do site).
+// Entrega tudo pronto sem fazer nenhuma pergunta.
 
 import type { DadosEtapasSite } from "./EtapasSite";
-
-// Rotulo humano de cada secao, na ordem do metodo da skill /site.
-const ROTULO_SECAO: Record<string, string> = {
-  heroi: "Herói (topo, a promessa concreta e o CTA)",
-  problema: "Problema, pra quem é (o cliente se reconhece na dor)",
-  servicos: "Serviços (o que faz, com nome, e pacotes se houver)",
-  provas: "Provas e diferencial (números, resultados, depoimentos reais)",
-  sobre: "Sobre (curto, humano, do jeito do negócio)",
-  faq: "FAQ (responde as objeções)",
-  cta: "Chamada final (repete o convite, com o contato)",
-};
 
 // So os digitos de um numero de WhatsApp: tira espaco, parentese, hifen, sinal.
 function limparNumero(v: string): string {
@@ -28,20 +20,19 @@ function formatoLinha(formato: DadosEtapasSite["formato"]): string {
     return "- Formato: site com páginas. Entregue index.html mais as páginas separadas que fizerem sentido (por exemplo sobre.html, servicos.html, contato.html), com navegação entre elas por links relativos e um menu no topo.";
   }
   if (formato === "bio") {
-    return "- Formato: link na bio, estilo linktree. Entregue um único index.html: uma página curta e centrada, com o nome do negócio, uma frase, e os links principais em botões grandes, o CTA em destaque. Sem seções longas de rolagem.";
+    return "- Formato: link na bio. Entregue um único index.html: uma página curta e centrada, com o nome do negócio, uma frase e os links principais em CTAs grandes. Sem seções longas de rolagem. Use <main> como container semântico direto do <body>, sem um <div> genérico envolvendo todo o conteúdo.";
   }
   return "- Formato: página única, uma landing de uma tela só. Entregue um único index.html com todas as seções numa rolagem só.";
 }
 
-// As secoes: Auto deixa a IA escolher pelo metodo; lista fixa manda usar aquelas.
-function secoesLinhas(secoes: string[] | null): string {
-  if (!secoes || secoes.length === 0) {
+// As secoes: vazio deixa a IA escolher pelo metodo; texto livre preserva a
+// estrutura e a ordem pedidas pelo usuario.
+function secoesLinhas(secoesLivre: string): string {
+  const descricao = secoesLivre.trim();
+  if (!descricao) {
     return "Seções: escolha as seções que fizerem sentido pro negócio, seguindo o método da skill /site (herói, problema, serviços, provas, sobre, FAQ, chamada final). Não precisa usar todas.";
   }
-  const nomes = secoes.map((s) => ROTULO_SECAO[s] ?? s);
-  return ["Seções: use exatamente estas, nesta ordem:", ...nomes.map((n) => `- ${n}`)].join(
-    "\n"
-  );
+  return `Seções: monte a estrutura seguindo esta descrição do usuário, na ordem que ele deu (adapte nomes ao método da skill /site sem inventar seção que ele não pediu):\n${descricao}`;
 }
 
 // O objetivo numero 1 e o CTA principal. WhatsApp vira link wa.me com o numero
@@ -86,6 +77,17 @@ function ctaLinhas(objetivo: DadosEtapasSite["objetivo"], link: string): string 
 // As imagens: com anexos do usuario, copiar pra img/ da peca e referenciar
 // relativo; sem imagens, resolver com cor, gradiente, forma e tipografia.
 function imagensLinhas(dados: DadosEtapasSite, pasta: string): string {
+  if (dados.modoImagem === "ia") {
+    return [
+      "Imagens:",
+      `- Use explicitamente $imagegen para criar quantas imagens originais forem necessarias para este site. Decida a quantidade depois de definir a funcao e a mensagem de cada secao. Salve cada arquivo final em conteudo/${pasta}/img/ e use apenas caminhos relativos no HTML.`,
+      "- Planeje a imagem secao por secao e pagina por pagina. Cada imagem precisa responder ao conteudo que acompanha. Nao use a mesma imagem em todo o site por conveniencia. Reutilize apenas quando houver uma funcao visual intencional, como continuidade entre secoes.",
+      "- Gere imagens diferentes quando hero, prova, servico, sobre ou CTA pedirem contextos diferentes. Secoes que funcionam melhor sem imagem devem usar tipografia, cor e composicao.",
+      "- As imagens precisam seguir a identidade do Cerebro e o visual escolhido. Nao use stock externo, placeholder, URL remota nem arquivo fora da pasta do site.",
+      "- Toda imagem de conteudo precisa continuar editavel no Studio: use <img> ou background-image em um elemento HTML real. Nao use pseudo-elemento CSS para imagem de conteudo.",
+      "- Borda, mascara, sombra e overlay ligados a uma imagem devem ficar no proprio elemento ou no container real que envolve essa imagem, para o Studio selecionar e excluir o conjunto inteiro.",
+    ].join("\n");
+  }
   if (dados.modoImagem === "sem" || dados.anexos.length === 0) {
     return [
       "Imagens:",
@@ -97,16 +99,47 @@ function imagensLinhas(dados: DadosEtapasSite, pasta: string): string {
     "Imagens:",
     `- O usuário enviou imagens em: ${caminhos}.`,
     `- Copie os arquivos que você usar pra conteudo/${pasta}/img/ e referencie por caminho relativo (por exemplo img/foto.jpg). Não referencie os caminhos originais.`,
+    "- Distribua cada imagem conforme o contexto da secao ou pagina. Nao repita a mesma imagem em todo o site por conveniencia.",
+    "- Toda imagem de conteudo precisa continuar editavel no Studio: use <img> ou background-image em um elemento HTML real, nunca em pseudo-elemento CSS.",
+    "- Borda, mascara, sombra e overlay ligados a uma imagem devem ficar no proprio elemento ou no container real que envolve essa imagem, para o Studio selecionar e excluir o conjunto inteiro.",
   ].join("\n");
 }
 
-// Visual personalizado: as mesmas linhas de cor e fonte do prompt do carrossel.
+// Visual personalizado: as cores do usuario substituem SO os tokens de cor do
+// estilo escolhido. A escala tipografica, o spacing, o motion e a personalidade
+// continuam vindo do estilo. As fontes do usuario entram como familias, dentro
+// da escala do estilo.
 function visualLinha(dados: DadosEtapasSite): string {
-  return `Visual personalizado: ignore as cores do design-guide nesta geração. Use fundo ${dados.corFundo}, destaque ${dados.corDestaque}, texto ${dados.corTexto}, fonte dos títulos ${dados.fonteTitulos}, fonte do corpo ${dados.fonteCorpo} (importe do Google Fonts se precisar).`;
+  return [
+    `Visual personalizado: as cores escolhidas pelo usuário substituem apenas os tokens de cor do estilo. Use fundo ${dados.corFundo}, destaque ${dados.corDestaque} e texto ${dados.corTexto}.`,
+    `A escala tipográfica, o spacing, o motion e a personalidade continuam vindo do estilo escolhido. Use ${dados.fonteTitulos} nos títulos e ${dados.fonteCorpo} no corpo (importe do Google Fonts se precisar), sempre dentro da escala e do tracking do estilo.`,
+  ].join("\n");
+}
+
+// Os marcadores da peca 1: ancoras invisiveis que o conversor Astro usa como
+// pontos de corte. Obrigatorios no site com paginas (multipagina); nos outros
+// formatos nao custam. Inclui um exemplo minimo do corpo de cada pagina.
+function marcadoresLinhas(formato: DadosEtapasSite["formato"]): string {
+  const obrigatorio = formato === "completo";
+  return [
+    obrigatorio
+      ? "Marcadores do site com páginas (OBRIGATÓRIOS neste formato):"
+      : "Marcadores de estrutura (opcionais neste formato, mas não custam):",
+    "- A navegação compartilhada fica dentro de <nav data-vk-nav>, idêntica em todas as páginas.",
+    "- O rodapé compartilhado fica dentro de <footer data-vk-footer>, idêntico em todas as páginas.",
+    "- O conteúdo próprio de cada página fica dentro de <main data-vk-pagina>.",
+    '- Cada página tem <title> e <meta name="description"> únicos e específicos.',
+    "- Um único CSS principal (styles.css ou equivalente) referenciado igual em todas as páginas.",
+    "- São atributos sem valor, invisíveis pro visitante e pro Studio.",
+    "Exemplo mínimo do corpo de cada página:",
+    "<nav data-vk-nav>menu igual em todas as páginas</nav>",
+    "<main data-vk-pagina>conteúdo próprio desta página</main>",
+    "<footer data-vk-footer>rodapé igual em todas as páginas</footer>",
+  ].join("\n");
 }
 
 // Prompt completo pronto pra criarSessao. Sem perguntas: a sessao le os arquivos
-// de contexto, escreve o conteudo pelo metodo da skill e entrega o site em HTML.
+// de contexto, resolve mensagem e estrutura pela skill e entrega o site em HTML.
 export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string {
   const tema = dados.tema.trim();
   const partes: string[] = [];
@@ -115,49 +148,78 @@ export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string 
     `Construa um site HTML estático completo, bonito e pronto pra publicar sobre: ${tema}.`
   );
 
+  // ===== BLOCO 1: O DESIGN VEM PRIMEIRO. Antes de qualquer linha de codigo.
   partes.push(
     [
-      "Antes de escrever, leia estes arquivos do workspace:",
-      "- cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do conteúdo.",
-      "- .claude/skills/site/SKILL.md: a metodologia de texto por seção. Siga o método pra escrever o texto de cada seção na voz do negócio, mas NÃO salve site.md: o entregável é o site em HTML, não o texto solto.",
-      "- templates/site/principios-visuais.md: os princípios visuais (tokens de cor, tipografia, componentes, motion, responsivo, armadilhas). Aplique no CSS.",
+      "BLOCO 1, O DESIGN VEM PRIMEIRO. Antes de escrever qualquer linha, resolva o design:",
+      "- Leia cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do visual e do conteúdo.",
+      "- Leia templates/site/principios-visuais.md: a leitura de design, as regras, as proibições e o teste anti-slop.",
+      "- Leia templates/design/cartela.md e escolha UMA direção que case com o negócio.",
+      "- Leia templates/design/estilos/indice.md e escolha UM estilo que case com o negócio e com a direção. Leia o arquivo desse estilo INTEIRO antes de decidir cores, tipografia, spacing e motion.",
+      "- Declare no início do trabalho, em até 3 linhas: a leitura de design que fez, a direção da cartela, o estilo escolhido e por quê.",
+      "- Aplique o sistema do estilo inteiro (cores, escala tipográfica, spacing, motion), adaptado ao negócio. Um estilo por site, executado inteiro. Misturar estilos é proibido.",
+      "- NUNCA cite a marca de origem do estilo em nenhum texto do site.",
     ].join("\n")
   );
-
-  partes.push(
-    [
-      "Onde salvar e como nomear:",
-      `- Salve tudo em conteudo/${pasta}/ (crie a pasta com esse nome exato).`,
-      formatoLinha(dados.formato),
-      "- O CSS pode ficar num styles.css na mesma pasta ou embutido no HTML. Todos os caminhos de recurso são relativos. Pode importar fontes do Google Fonts.",
-      "- PROIBIDO criar um arquivo chamado carrossel.html. PROIBIDO salvar qualquer arquivo .md nessa pasta: senão o app classifica o site errado.",
-    ].join("\n")
-  );
-
-  // Bio nao tem secoes longas: o formato ja diz o que fazer.
-  if (dados.formato !== "bio") {
-    partes.push(secoesLinhas(dados.secoes));
-  }
-
-  partes.push(ctaLinhas(dados.objetivo, dados.linkObjetivo));
-  partes.push(imagensLinhas(dados, pasta));
 
   if (dados.visualModo === "personalizado") {
     partes.push(visualLinha(dados));
   } else {
     partes.push(
-      "Visual: use as cores e as fontes da marca (design-guide e Cérebro), seguindo os princípios visuais. Se não houver paleta definida, escolha uma que combine com o negócio."
+      "Visual: use o sistema completo do estilo escolhido. As cores se adaptam à identidade do Cérebro: se o Cérebro tiver paleta, ela manda nos tokens de cor; se não houver, use a paleta do estilo."
     );
   }
+
+  // ===== BLOCO 2: conteudo e estrutura.
+  const objetivoLivre = dados.objetivoLivre.trim();
+  const bloco2 = [
+    "BLOCO 2, conteúdo e estrutura.",
+    "- Leia .claude/skills/site/SKILL.md: o contrato de mensagem e estrutura dos três formatos. Siga a arquitetura do formato escolhido e a voz do negócio. NÃO salve site.md: o entregável é o site em HTML, não texto solto.",
+  ];
+  if (objetivoLivre) {
+    bloco2.push(`- Objetivo número 1 do site, definido pelo usuário: ${objetivoLivre}`);
+  }
+  partes.push(bloco2.join("\n"));
+
+  // Bio nao tem secoes longas: o formato ja diz o que fazer.
+  if (dados.formato !== "bio") {
+    partes.push(secoesLinhas(dados.secoesLivre));
+  }
+
+  partes.push(ctaLinhas(dados.objetivo, dados.linkObjetivo));
+  partes.push(imagensLinhas(dados, pasta));
+
+  // ===== BLOCO 3: regras tecnicas, compactas no fim.
+  partes.push(
+    [
+      "BLOCO 3, regras técnicas. Onde salvar e como nomear:",
+      `- Salve tudo em conteudo/${pasta}/ (crie a pasta com esse nome exato).`,
+      formatoLinha(dados.formato),
+      "- O site sempre precisa ter index.html na raiz. O CSS pode ficar num styles.css compartilhado ou embutido no HTML.",
+      "- Se usar CSS ou JavaScript separado, referencie esses arquivos em TODAS as páginas que dependem deles.",
+      "- Todos os caminhos internos são relativos ao arquivo atual, sem começar com /. Isso vale pra páginas, CSS, JavaScript, imagens, fontes, favicon e manifest. Pode importar fontes do Google Fonts.",
+      "- PROIBIDO criar um arquivo chamado carrossel.html. PROIBIDO salvar qualquer arquivo .md nessa pasta: senão o app classifica o site errado.",
+    ].join("\n")
+  );
+
+  partes.push(marcadoresLinhas(dados.formato));
 
   partes.push(
     [
       "Exigências finais:",
+      "- Entregue somente arquivos do site. Não crie site.md nem qualquer outro arquivo .md dentro da pasta da peça.",
       "- Site responsivo mobile-first: precisa ficar bom em 390px de largura e em 1440px.",
-      "- Capriche no visual: hierarquia clara, respiro generoso, contraste confortável, motion sutil (reveal on-scroll leve, com prefers-reduced-motion desligando tudo).",
+      "- Capriche no visual: hierarquia clara, respiro generoso e contraste mensurável. O motion obedece à direção visual declarada e aos detalhes do usuário; na ausência de instrução, use motion sutil. prefers-reduced-motion precisa desligar toda animação e todo deslocamento, sem exceção: inclua a media query no CSS zerando transition, animation e transform de reveal.",
+      "- Contraste vale pra TODO texto, não só título e parágrafo principal: nota, legenda, rodapé, copyright, tag e link de menu precisam de 4.5:1 contra o fundo real onde estão. Em fundo escuro, texto secundário rebaixado demais reprova a auditoria e bloqueia a publicação; rebaixe saturação, não luminosidade.",
       "- Tudo local e relativo: nenhuma imagem de stock externa, nenhum link pra recurso que não existe.",
+      "- Antes de terminar, confira página por página: index.html existe na raiz, toda folha CSS e todo script referenciado existe, todas as imagens abrem, todos os links internos chegam a uma página existente e nenhuma URL interna começa com /.",
       "- Marcação amigável ao editor: os filhos diretos do <body> são as seções semânticas da página (header, main, section, footer) quando o layout permitir. Camada decorativa (partículas, orbs, fundo animado) sempre com aria-hidden=\"true\".",
-      "- Todo botão ou cartão clicável é um <a>, mesmo desativado ou \"em breve\": nesse caso um <a> SEM atributo href e com aria-disabled=\"true\", que não navega. Nunca use pointer-events pra desligar interação.",
+      "- PROIBIDO envolver o conteúdo da página num painel ou wrapper genérico (um <div> único abraçando todo o body). O menu mobile é um overlay position fixed que abre e fecha, nunca um contêiner que embrulha o body. A conferência do Hub reprova wrapper genérico no body.",
+      "- PROIBIDO efeito decorativo que segue o cursor (glow, blob, spotlight, aura que persegue o mouse): cria overflow, gera rolagem horizontal e reprova a conferência.",
+      "- backdrop-filter só em elemento que fica de fato sobre conteúdo real (uma imagem ou seção atrás dele). Vidro decorativo sem nada atrás é proibido: sem camada real, o efeito não existe e a conferência marca.",
+      "- QUALQUER elemento com position absolute precisa estar confinado: overflow controlado no pai ou inset limitado. Confira em 390px que nada vaza pra fora da tela.",
+      "- Use semântica de interação real: navegação, CTA e cartão que levam a um destino são <a>; filtros, menu hambúrguer, abrir/fechar diálogo, favoritos e demais ações na própria página são <button type=\"button\">. Item de destino \"em breve\" é <a> sem href e com aria-disabled=\"true\". Nunca use pointer-events pra fingir estado desativado.",
+      "- Antes de concluir, percorra a rolagem inteira de cada página, confira que todo reveal apareceu e abra o site também com JavaScript desligado e com prefers-reduced-motion ativo.",
       "- Escrita: frase curta e direta, português brasileiro. NUNCA use travessão (—) nem o caractere ·, em nenhum texto do site, nem no <title>. Use vírgula, ponto ou dois-pontos.",
       "- Não faça nenhuma pergunta: decida com bom senso e entregue o site pronto.",
     ].join("\n")

@@ -2289,6 +2289,13 @@ body.overlay-aberto .no-cerebro .miolo::after {
   font-weight: 700;
   text-transform: capitalize;
 }
+.no-sessao .rodape .custo-estimado {
+  margin-left: 5px;
+  color: var(--texto-fraco);
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
 
 /* Total gasto no rodape da sidebar. */
 .rodape-custo {
@@ -2661,6 +2668,26 @@ body.overlay-aberto .no-cerebro .miolo::after {
   width: 16px;
   height: 16px;
   transform: rotate(-45deg);
+}
+.acoes-preview {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.acoes-preview .abrir-nova-aba {
+  margin-left: 0;
+}
+.editar-site-preview {
+  width: auto;
+  padding: 0 11px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  background: transparent;
+}
+.editar-site-preview svg {
+  transform: none;
 }
 .corpo-preview {
   flex: 1;

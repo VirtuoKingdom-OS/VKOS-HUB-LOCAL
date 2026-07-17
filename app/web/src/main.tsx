@@ -5,6 +5,7 @@ import { ProvedorEstado } from "./estado/contexto";
 import "@xyflow/react/dist/style.css";
 import "./estilos/global.css";
 import "./estilos/canvas.css";
+import "./estilos/visual-hub.css";
 
 const raiz = document.getElementById("raiz");
 if (!raiz) {

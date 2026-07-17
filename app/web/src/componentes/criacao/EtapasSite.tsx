@@ -1,13 +1,19 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type DragEvent,
 } from "react";
-import { enviarAnexo, type ModeloIA } from "../../api/cliente";
+import { enviarAnexo, urlArquivoContexto, type ModeloIA } from "../../api/cliente";
+import { usarEstado } from "../../estado/contexto";
+import { usarProvedoresIA } from "../../estado/provedores";
+import { lerBase64 } from "../../util/arquivo";
 import { mensagemDeErro } from "../../util/erros";
-import { IconeClipe, IconeRaio, IconeX } from "../comum/Icones";
+import { IconeClipe, IconeGaleria, IconeRaio, IconeX } from "../comum/Icones";
+import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
+import { ehImagem } from "../telas/fontes";
 import type { AnexoEnviado } from "./EtapasCriacao";
 import "../../estilos/criacao.css";
 
@@ -22,13 +28,15 @@ export interface DadosEtapasSite {
   formato: "unica" | "completo" | "bio";
   // Objetivo numero 1 do site: o que o CTA principal faz.
   objetivo: "whatsapp" | "agendamento" | "orcamento" | "contato";
+  // Resultado principal descrito livremente pelo usuario.
+  objetivoLivre: string;
   // Numero do WhatsApp ou URL do CTA principal (pode ficar vazio).
   linkObjetivo: string;
   modelo: ModeloIA;
-  // null = Auto (a IA escolhe). Lista = ids exatos das secoes.
-  secoes: string[] | null;
-  // Sem imagens (so cor e tipografia) ou com imagens do usuario.
-  modoImagem: "sem" | "com";
+  // Estrutura descrita livremente. Vazio deixa o metodo da casa escolher.
+  secoesLivre: string;
+  // Sem imagens, com arquivos do usuario ou geradas pelo Codex.
+  modoImagem: "sem" | "com" | "ia";
   anexos: AnexoEnviado[];
   visualModo: "negocio" | "personalizado";
   corFundo: string;
@@ -46,9 +54,10 @@ export function criarDadosEtapasSite(modelo: ModeloIA): DadosEtapasSite {
     detalhes: "",
     formato: "unica",
     objetivo: "whatsapp",
+    objetivoLivre: "",
     linkObjetivo: "",
     modelo,
-    secoes: null,
+    secoesLivre: "",
     modoImagem: "sem",
     anexos: [],
     visualModo: "negocio",
@@ -65,22 +74,16 @@ export function etapasSiteTemPreenchimento(d: DadosEtapasSite): boolean {
   return (
     d.tema.trim().length > 0 ||
     d.detalhes.trim().length > 0 ||
+    d.objetivoLivre.trim().length > 0 ||
+    d.secoesLivre.trim().length > 0 ||
     d.linkObjetivo.trim().length > 0 ||
     d.anexos.length > 0 ||
-    d.secoes !== null ||
     d.formato !== "unica" ||
     d.objetivo !== "whatsapp" ||
     d.modoImagem !== "sem" ||
     d.visualModo !== "negocio"
   );
 }
-
-// Modelo de IA da sessao: os tres, com a nota curta de custo relativo.
-const MODELOS: { id: ModeloIA; rotulo: string; nota: string }[] = [
-  { id: "opus", rotulo: "Opus", nota: "mais capaz" },
-  { id: "sonnet", rotulo: "Sonnet", nota: "equilíbrio" },
-  { id: "haiku", rotulo: "Haiku", nota: "rápido" },
-];
 
 // Fontes disponiveis no visual personalizado (Google Fonts e web-safe).
 const FONTES = [
@@ -99,7 +102,7 @@ const FORMATOS: { id: DadosEtapasSite["formato"]; titulo: string; desc: string }
   {
     id: "completo",
     titulo: "Site com páginas",
-    desc: "Início, sobre, serviços, contato.",
+    desc: "Início, sobre, serviços, contato. Publica como projeto Astro com sitemap.",
   },
   { id: "bio", titulo: "Link na bio", desc: "Página de links estilo linktree." },
 ];
@@ -128,32 +131,6 @@ const OBJETIVOS: {
   { id: "contato", rotulo: "Contato", placeholder: "Link ou e-mail de contato" },
 ];
 
-// As secoes escolhiveis, na ordem canonica do metodo da skill /site.
-const SECOES: { id: string; rotulo: string }[] = [
-  { id: "heroi", rotulo: "Herói" },
-  { id: "problema", rotulo: "Problema" },
-  { id: "servicos", rotulo: "Serviços" },
-  { id: "provas", rotulo: "Provas" },
-  { id: "sobre", rotulo: "Sobre" },
-  { id: "faq", rotulo: "FAQ" },
-  { id: "cta", rotulo: "Chamada final" },
-];
-const IDS_SECAO = SECOES.map((s) => s.id);
-
-// Le um arquivo como base64 puro (sem o prefixo data:...;base64,).
-function lerBase64(arquivo: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const leitor = new FileReader();
-    leitor.onload = () => {
-      const texto = String(leitor.result ?? "");
-      const virgula = texto.indexOf(",");
-      resolve(virgula >= 0 ? texto.slice(virgula + 1) : texto);
-    };
-    leitor.onerror = () => reject(leitor.error ?? new Error("Falha ao ler arquivo."));
-    leitor.readAsDataURL(arquivo);
-  });
-}
-
 const TOTAL_ETAPAS = 4;
 
 interface Props {
@@ -169,17 +146,42 @@ interface Props {
 // So a coleta de dados do Site Guiado: 4 etapas, navegacao e validacao. Mesmo
 // padrao visual do EtapasCriacao, sem nenhuma logica de geracao.
 export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
+  const { contextos } = usarEstado();
+  const {
+    ativo: provedorAtivo,
+    modelos,
+    modeloPadrao,
+    carregando: carregandoModelos,
+  } = usarProvedoresIA();
   const [etapa, setEtapa] = useState(0);
   const [direcao, setDirecao] = useState<"frente" | "tras">("frente");
 
   const [enviandoAnexo, setEnviandoAnexo] = useState(false);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
   const [arrastando, setArrastando] = useState(false);
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
   const refArquivo = useRef<HTMLInputElement>(null);
   const refTema = useRef<HTMLTextAreaElement>(null);
 
   const temaValido = dados.tema.trim().length > 0;
-  const etapaValida = etapa === 0 ? temaValido : true;
+  const temImagensNasFontes = useMemo(
+    () =>
+      contextos.some((contexto) =>
+        contexto.arquivos.some((arquivo) => ehImagem(arquivo.nome, arquivo.tipo)),
+      ),
+    [contextos],
+  );
+  const etapaValida = etapa === 0 ? temaValido : etapa === TOTAL_ETAPAS - 1 ? !!dados.modelo : true;
+
+  useEffect(() => {
+    if (modelos.length === 0 || modelos.some((m) => m.alias === dados.modelo)) return;
+    aoMudar({ modelo: modeloPadrao || modelos[0].alias });
+  }, [modelos, modeloPadrao, dados.modelo, aoMudar]);
+
+  useEffect(() => {
+    if (provedorAtivo === "codex" || dados.modoImagem !== "ia") return;
+    aoMudar({ modoImagem: "sem" });
+  }, [provedorAtivo, dados.modoImagem, aoMudar]);
 
   // Foca o tema ao abrir a primeira etapa.
   useEffect(() => {
@@ -242,6 +244,34 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
     aoMudar({ anexos: dados.anexos.filter((a) => a.caminhoRelativo !== caminho) });
   };
 
+  const escolherDaFonte = async (arquivo: ArquivoGaleriaFonte) => {
+    if (dados.anexos.some((anexo) => anexo.nome === arquivo.nome)) {
+      setErroAnexo("Essa imagem já está na criação.");
+      return;
+    }
+    setEnviandoAnexo(true);
+    setErroAnexo(null);
+    try {
+      const resposta = await fetch(urlArquivoContexto(arquivo.contextoId, arquivo.nome));
+      if (!resposta.ok) throw new Error("Não consegui abrir a imagem da fonte de dados.");
+      const blob = await resposta.blob();
+      const arquivoLocal = new File([blob], arquivo.nome, { type: blob.type });
+      const conteudoBase64 = await lerBase64(arquivoLocal);
+      const { caminhoRelativo } = await enviarAnexo({
+        nome: arquivo.nome,
+        conteudoBase64,
+      });
+      aoMudar({
+        anexos: [...dados.anexos, { nome: arquivo.nome, caminhoRelativo }],
+      });
+    } catch (e) {
+      setErroAnexo(mensagemDeErro(e));
+      throw e;
+    } finally {
+      setEnviandoAnexo(false);
+    }
+  };
+
   const aoSoltar = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -250,17 +280,6 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
       f.type.startsWith("image/")
     );
     void enviarArquivos(imagens);
-  };
-
-  // Alterna uma secao na lista, sempre reordenando pela ordem canonica. Lista
-  // vazia volta pra null (Auto).
-  const alternarSecao = (id: string) => {
-    const atual = dados.secoes ?? [];
-    const proximo = atual.includes(id)
-      ? atual.filter((s) => s !== id)
-      : [...atual, id];
-    const ordenado = IDS_SECAO.filter((x) => proximo.includes(x));
-    aoMudar({ secoes: ordenado.length > 0 ? ordenado : null });
   };
 
   const objetivoAtual =
@@ -309,16 +328,6 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
               <span className="criacao-hint">Escreva do que é o site pra continuar.</span>
             )}
 
-            <label className="criacao-rotulo">
-              Detalhes (opcional)
-              <textarea
-                className="criacao-textarea nodrag nowheel"
-                placeholder="O que não pode faltar, tom, público, o que evitar..."
-                value={dados.detalhes}
-                onChange={(e) => aoMudar({ detalhes: e.target.value })}
-              />
-            </label>
-
             <div className="criacao-bloco">
               <span className="criacao-rotulo-mini">Formato</span>
               <div className="criacao-cards-lin">
@@ -340,16 +349,20 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
             <div className="criacao-bloco">
               <span className="criacao-rotulo-mini">Modelo de IA</span>
               <div className="criacao-cards-lin">
-                {MODELOS.map((m) => (
+                {modelos.map((m) => (
                   <button
-                    key={m.id}
-                    className={`criacao-card-op${dados.modelo === m.id ? " ativo" : ""}`}
-                    onClick={() => aoMudar({ modelo: m.id })}
+                    key={m.alias}
+                    className={`criacao-card-op${dados.modelo === m.alias ? " ativo" : ""}`}
+                    onClick={() => aoMudar({ modelo: m.alias })}
+                    title={m.observacaoCusto}
                   >
                     <span className="criacao-card-nome">{m.rotulo}</span>
-                    <span className="criacao-card-desc">{m.nota}</span>
+                    <span className="criacao-card-desc">{m.observacaoCusto}</span>
                   </button>
                 ))}
+                {carregandoModelos && modelos.length === 0 && (
+                  <span className="criacao-card-desc">Carregando modelos...</span>
+                )}
               </div>
             </div>
           </div>
@@ -358,8 +371,21 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
         {/* Etapa 1: estrutura. */}
         {etapa === 1 && (
           <div className="criacao-campos">
+            <label className="criacao-rotulo">
+              Objetivo nº 1 do site
+              <textarea
+                className="criacao-textarea nodrag nowheel"
+                placeholder="Ex: fazer o visitante chamar no WhatsApp pra pedir orçamento; vender o pacote fotográfico premium; conseguir inscrições pra aula experimental..."
+                value={dados.objetivoLivre}
+                onChange={(e) => aoMudar({ objetivoLivre: e.target.value })}
+              />
+            </label>
+
             <div className="criacao-bloco">
-              <span className="criacao-rotulo-mini">Objetivo nº 1 do site</span>
+              <span className="criacao-rotulo-mini">Botão principal</span>
+              <span className="criacao-hint">
+                O botão que fecha o objetivo. O link ou número vai nele.
+              </span>
               <div className="criacao-chips">
                 {OBJETIVOS.map((o) => (
                   <button
@@ -386,31 +412,18 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
 
             {/* Bio nao tem secoes: e uma pagina de links. */}
             {dados.formato !== "bio" && (
-              <div className="criacao-bloco">
-                <span className="criacao-rotulo-mini">Seções</span>
-                <div className="criacao-chips">
-                  <button
-                    className={`criacao-chip${dados.secoes === null ? " ativo" : ""}`}
-                    onClick={() => aoMudar({ secoes: null })}
-                  >
-                    Auto (recomendado)
-                  </button>
-                  {SECOES.map((s) => (
-                    <button
-                      key={s.id}
-                      className={`criacao-chip${
-                        dados.secoes?.includes(s.id) ? " ativo" : ""
-                      }`}
-                      onClick={() => alternarSecao(s.id)}
-                    >
-                      {s.rotulo}
-                    </button>
-                  ))}
-                </div>
+              <label className="criacao-rotulo">
+                Seções do site
+                <textarea
+                  className="criacao-textarea nodrag nowheel"
+                  placeholder="Ex: uma abertura forte com foto, uma seção com os 3 pacotes e preços, depoimentos de clientes, um FAQ curto e o contato no final. Deixe vazio pro sistema escolher."
+                  value={dados.secoesLivre}
+                  onChange={(e) => aoMudar({ secoesLivre: e.target.value })}
+                />
                 <span className="criacao-hint">
-                  No Auto o sistema escolhe as seções que fazem sentido pro negócio.
+                  Descreva do seu jeito, em texto. Vazio = o sistema monta a estrutura pelo método da casa.
                 </span>
-              </div>
+              </label>
             )}
           </div>
         )}
@@ -436,16 +449,46 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
                 }`}
                 onClick={() => aoMudar({ modoImagem: "com" })}
               >
-                <span className="criacao-card-nome">Enviar minhas imagens</span>
+                <span className="criacao-card-nome">Com imagens</span>
                 <span className="criacao-card-desc">
-                  Logo, fotos do negócio, o que tiver.
+                  Use fotos das suas Fontes de dados ou envie novas.
                 </span>
+              </button>
+              <button
+                className={`criacao-card-op alto${
+                  dados.modoImagem === "ia" ? " ativo" : ""
+                }${provedorAtivo !== "codex" ? " desabilitado" : ""}`}
+                onClick={() => aoMudar({ modoImagem: "ia", anexos: [] })}
+                disabled={provedorAtivo !== "codex"}
+                title={
+                  provedorAtivo === "codex"
+                    ? "O Codex cria as imagens durante a geracao"
+                    : "Disponivel quando o Codex estiver conectado"
+                }
+              >
+                <span className="criacao-card-nome">Gerar com IA</span>
+                <span className="criacao-card-desc">Imagens originais criadas na hora.</span>
+                {provedorAtivo !== "codex" && (
+                  <span className="criacao-badge-breve">Use o Codex</span>
+                )}
               </button>
             </div>
 
             {dados.modoImagem === "com" && (
               <div className="criacao-origem">
                 <span className="criacao-rotulo-mini">Suas imagens</span>
+                <button
+                  type="button"
+                  className="botao botao-neutro criacao-fontes-acao"
+                  onClick={() => setGaleriaAberta(true)}
+                  disabled={!temImagensNasFontes || enviandoAnexo}
+                >
+                  <IconeGaleria className="" />
+                  Escolher das Fontes de dados
+                </button>
+                {!temImagensNasFontes && (
+                  <span className="criacao-hint">Nenhuma imagem nas fontes ainda.</span>
+                )}
                 <div
                   className={`criacao-card-op criacao-dropzone${
                     arrastando ? " arrastando" : ""
@@ -511,6 +554,11 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
                     ))}
                   </div>
                 )}
+                <GaleriaFontes
+                  aberta={galeriaAberta}
+                  aoFechar={() => setGaleriaAberta(false)}
+                  aoEscolher={escolherDaFonte}
+                />
               </div>
             )}
           </div>
@@ -604,6 +652,19 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
                 </div>
               </div>
             )}
+
+            <label className="criacao-rotulo">
+              Detalhes (opcional)
+              <textarea
+                className="criacao-textarea nodrag nowheel"
+                placeholder={'Ex: tom mais sério; usar a frase "20 anos de estrada" no topo; não usar amarelo; incluir o Instagram no rodapé; página de obrigado depois do formulário...'}
+                value={dados.detalhes}
+                onChange={(e) => aoMudar({ detalhes: e.target.value })}
+              />
+              <span className="criacao-hint">
+                Última chance de pedir qualquer coisa antes de gerar.
+              </span>
+            </label>
           </div>
         )}
       </div>

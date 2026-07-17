@@ -1,33 +1,49 @@
-// Estado da config do app: qual modelo o Claude usa por padrao numa sessao nova.
-// Persiste a escolha em app/dados/config-app.json. Padrao inicial: "sonnet".
+// Estado global do app: provedor e modelo padrao de cada motor.
+// Persiste em app/dados/config-app.json com leitura retrocompativel.
 
-import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 
-// Este modulo mora em src/config (dev) ou dist/config (build). Subir tres niveis
-// chega na pasta app nos dois casos, porque src e dist sao irmaos dentro de server.
 const arquivoAtual = fileURLToPath(import.meta.url);
 const pastaModulo = dirname(arquivoAtual);
 const pastaApp = resolve(pastaModulo, "..", "..", "..");
 const pastaDados = join(pastaApp, "dados");
 const caminhoConfig = join(pastaDados, "config-app.json");
 
-// Modelos aceitos. Um alias por opcao, o mesmo que o CLI entende no --model.
+export type ProvedorApp = "claude" | "codex";
 export type ModeloApp = "opus" | "sonnet" | "haiku";
-const MODELOS_VALIDOS: ModeloApp[] = ["opus", "sonnet", "haiku"];
-const MODELO_INICIAL: ModeloApp = "sonnet";
 
-// Confere se um valor qualquer e um modelo valido.
-export function ehModeloValido(valor: unknown): valor is ModeloApp {
-  return typeof valor === "string" && (MODELOS_VALIDOS as string[]).includes(valor);
+export interface ConfigApp {
+  provedorPadrao?: ProvedorApp;
+  modeloPadraoClaude: ModeloApp;
+  modeloPadraoCodex: string;
+  // Modo enxuto: sessoes novas recebem a regra de economia. Nasce desligado.
+  modoEnxuto: boolean;
 }
 
-// Cache em memoria. Carrega do disco no primeiro uso.
-let modeloCache: ModeloApp | null = null;
-let carregado = false;
+const MODELOS_CLAUDE_VALIDOS: ModeloApp[] = ["opus", "sonnet", "haiku"];
+const MODELO_CLAUDE_INICIAL: ModeloApp = "sonnet";
+const MODELO_CODEX_INICIAL = "gpt-5.4-mini";
+
+export function ehProvedorValido(valor: unknown): valor is ProvedorApp {
+  return valor === "claude" || valor === "codex";
+}
+
+export function ehModeloValido(valor: unknown): valor is ModeloApp {
+  return (
+    typeof valor === "string" &&
+    (MODELOS_CLAUDE_VALIDOS as string[]).includes(valor)
+  );
+}
+
+export function ehModeloCodexValido(valor: unknown): valor is string {
+  return typeof valor === "string" && valor.trim().length > 0 && valor.length <= 120;
+}
+
+let cache: ConfigApp | null = null;
 
 function garantirPastaDados(): void {
   if (!existsSync(pastaDados)) {
@@ -35,34 +51,99 @@ function garantirPastaDados(): void {
   }
 }
 
-// Le a config do disco uma vez. Falha silenciosa cai no padrao inicial.
-function carregar(): void {
-  if (carregado) return;
-  carregado = true;
+function configInicial(): ConfigApp {
+  return {
+    modeloPadraoClaude: MODELO_CLAUDE_INICIAL,
+    modeloPadraoCodex: MODELO_CODEX_INICIAL,
+    modoEnxuto: false,
+  };
+}
+
+function carregar(): ConfigApp {
+  if (cache) return cache;
+
+  const inicial = configInicial();
   try {
-    if (existsSync(caminhoConfig)) {
-      const texto = readFileSync(caminhoConfig, "utf8");
-      const dados = JSON.parse(texto);
-      if (dados && ehModeloValido(dados.modeloPadrao)) {
-        modeloCache = dados.modeloPadrao;
-      }
+    if (!existsSync(caminhoConfig)) {
+      cache = inicial;
+      return cache;
     }
+
+    const dados = JSON.parse(readFileSync(caminhoConfig, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    // Config antiga tinha apenas modeloPadrao. Ele migra para o modelo Claude.
+    const modeloLegado = ehModeloValido(dados.modeloPadrao)
+      ? dados.modeloPadrao
+      : undefined;
+
+    cache = {
+      ...(ehProvedorValido(dados.provedorPadrao)
+        ? { provedorPadrao: dados.provedorPadrao }
+        : {}),
+      modeloPadraoClaude: ehModeloValido(dados.modeloPadraoClaude)
+        ? dados.modeloPadraoClaude
+        : modeloLegado ?? inicial.modeloPadraoClaude,
+      modeloPadraoCodex: ehModeloCodexValido(dados.modeloPadraoCodex)
+        ? dados.modeloPadraoCodex.trim()
+        : inicial.modeloPadraoCodex,
+      // Config antiga sem o campo continua com o modo desligado.
+      modoEnxuto: dados.modoEnxuto === true,
+    };
   } catch {
-    modeloCache = null;
+    cache = inicial;
   }
+  return cache;
 }
 
-// Retorna o modelo padrao configurado (ou o inicial se nada foi escolhido).
-export function obterModeloPadrao(): ModeloApp {
-  carregar();
-  return modeloCache ?? MODELO_INICIAL;
-}
-
-// Grava o modelo padrao em memoria e no disco.
-export function definirModeloPadrao(modelo: ModeloApp): void {
-  carregar();
-  modeloCache = modelo;
+function salvar(config: ConfigApp): void {
+  cache = { ...config };
   garantirPastaDados();
-  const dados = { modeloPadrao: modelo };
-  gravarJsonAtomico(caminhoConfig, dados);
+  gravarJsonAtomico(caminhoConfig, {
+    ...config,
+    // Alias legado enquanto o frontend antigo ainda pede modeloPadrao.
+    modeloPadrao: config.modeloPadraoClaude,
+  });
+}
+
+export function obterConfigApp(): ConfigApp {
+  return { ...carregar() };
+}
+
+export function obterProvedorPadrao(): ProvedorApp | undefined {
+  return carregar().provedorPadrao;
+}
+
+// Export legado usado pelas sessoes Claude atuais.
+export function obterModeloPadrao(): ModeloApp {
+  return carregar().modeloPadraoClaude;
+}
+
+export function obterModeloPadraoDoProvedor(provedor: ProvedorApp): string {
+  const config = carregar();
+  return provedor === "codex"
+    ? config.modeloPadraoCodex
+    : config.modeloPadraoClaude;
+}
+
+// Export legado usado pelas rotas e consumidores atuais.
+export function definirModeloPadrao(modelo: ModeloApp): void {
+  definirModeloPadraoClaude(modelo);
+}
+
+export function definirProvedorPadrao(provedor: ProvedorApp): void {
+  salvar({ ...carregar(), provedorPadrao: provedor });
+}
+
+export function definirModeloPadraoClaude(modelo: ModeloApp): void {
+  salvar({ ...carregar(), modeloPadraoClaude: modelo });
+}
+
+export function definirModeloPadraoCodex(modelo: string): void {
+  salvar({ ...carregar(), modeloPadraoCodex: modelo.trim() });
+}
+
+export function definirModoEnxuto(valor: boolean): void {
+  salvar({ ...carregar(), modoEnxuto: valor });
 }

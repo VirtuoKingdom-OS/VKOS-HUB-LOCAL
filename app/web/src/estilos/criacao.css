@@ -259,6 +259,16 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
+.criacao-modelos-grupo + .criacao-modelos-grupo {
+  padding-top: 4px;
+  border-top: 1px solid var(--borda);
+}
+.criacao-modelos-grupo.desabilitado {
+  opacity: 0.46;
+}
+.criacao-modelos-grupo.desabilitado .criacao-modelos-grade {
+  pointer-events: none;
+}
 .criacao-card-op.com-thumb {
   padding: 8px;
   gap: 6px;
@@ -403,6 +413,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.criacao-fontes-acao {
+  align-self: flex-start;
 }
 .criacao-anexos {
   display: flex;

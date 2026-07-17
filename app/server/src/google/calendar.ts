@@ -8,8 +8,8 @@ import { ErroOAuth, tokenDeAcesso } from "./oauth.js";
 // Base da API REST v3 do Google Calendar.
 const BASE = "https://www.googleapis.com/calendar/v3";
 
-// Fuso padrao da maquina do Jesse (Windows em America/Sao_Paulo). Todo evento
-// criado carrega o timeZone explicito pra nao depender do padrao da agenda.
+// Fuso padrao do produto. Todo evento criado carrega o timeZone explicito pra
+// nao depender do padrao da agenda.
 export const FUSO_PADRAO = "America/Sao_Paulo";
 
 // Erro de dominio do Calendar: carrega o status HTTP que a rota deve responder.

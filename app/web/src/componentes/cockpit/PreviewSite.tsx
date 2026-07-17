@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { usarEstado } from "../../estado/contexto";
 import type { Peca } from "../../tipos/dominio";
 import { formatarTema, nomePagina } from "../telas/fluxos";
-import { IconeSeta, IconeX } from "../comum/Icones";
+import { IconeLapis, IconeSeta, IconeX } from "../comum/Icones";
 
 // Dimensoes de viewport presetadas. Mobile costuma caber quase inteiro;
 // desktop encolhe pra caber na area limitada do painel.
@@ -219,15 +219,28 @@ export function PreviewSite({ pasta, paginaInicial, aoFechar }: Props) {
             </div>
 
             {pagina && (
-              <a
-                className="abrir-nova-aba"
-                href={pagina}
-                target="_blank"
-                rel="noreferrer"
-                title="Abrir em nova aba"
-              >
-                <IconeSeta className="" />
-              </a>
+              <div className="acoes-preview">
+                <button
+                  className="abrir-nova-aba editar-site-preview"
+                  onClick={() => {
+                    aoFechar();
+                    window.location.hash = "#/site/" + encodeURIComponent(pasta);
+                  }}
+                  title="Abrir no editor de site"
+                >
+                  <IconeLapis className="" />
+                  <span>Editar</span>
+                </button>
+                <a
+                  className="abrir-nova-aba"
+                  href={pagina}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abrir em nova aba"
+                >
+                  <IconeSeta className="" />
+                </a>
+              </div>
             )}
           </div>
         </header>
@@ -246,7 +259,7 @@ export function PreviewSite({ pasta, paginaInicial, aoFechar }: Props) {
                 className="frame-preview"
                 src={comCacheBust(pagina, ts)}
                 title={tema}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
                 style={{
                   width: `${dim.largura}px`,
                   height: `${dim.altura}px`,

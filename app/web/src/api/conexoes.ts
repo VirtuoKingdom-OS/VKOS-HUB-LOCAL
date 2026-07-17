@@ -95,6 +95,17 @@ export function salvarConexao(
   });
 }
 
+// Confirma no servico remoto que o token salvo e aceito. O segredo nunca volta
+// para o navegador: o backend usa diretamente a copia local do workspace.
+export function testarConexao(
+  id: string
+): Promise<{ ok: boolean; conta?: string }> {
+  return pedir<{ ok: boolean; conta?: string }>(
+    `/api/conexoes/${encodeURIComponent(id)}/testar`,
+    { method: "POST" }
+  );
+}
+
 // Inicia o fluxo OAuth do Google Calendar: o backend abre o navegador na tela de
 // consentimento e so responde quando o usuario autoriza (ou no timeout honesto).
 // A chamada pode levar minutos: sem timeout do lado do front, quem corta e o

@@ -142,6 +142,8 @@ Cada comando é uma *skill* em `.claude/skills/`. Quando o comprador digitar um 
 - `/site` — texto das seções do site.
 - `/landing` — página de captura pra uma oferta.
 - `/blog` — artigo de blog otimizado pra busca.
+- `/revisar-design` — auditar o design de uma peça pronta (nota por área, teste "parece IA?").
+- `/refinar` — melhoria pontual de design, um gesto por vez.
 
 **🔎 Google & Local**
 - `/google` — otimizar o perfil do Google (Perfil da Empresa).

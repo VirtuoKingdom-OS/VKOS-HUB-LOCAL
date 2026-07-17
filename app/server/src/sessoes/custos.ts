@@ -7,6 +7,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import type { ProvedorIA } from "../tipos.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import {
   garantirPastaDadosWorkspace,
@@ -25,6 +26,15 @@ export interface CustosAcumulados {
   tokensEntradaNova: number;
   tokensCacheEscrita: number;
   tokensCacheLeitura: number;
+  // Identifica o provedor do ultimo resultado acumulado. Arquivo antigo e Claude.
+  provedor: ProvedorIA;
+  // Fica verdadeiro quando o total contem ao menos um custo estimado.
+  estimado: boolean;
+  // Totais especificos do Codex. Mantem o uso de cache auditavel sem mudar os
+  // campos legados consumidos pelo painel.
+  tokensCodexEntrada: number;
+  tokensCodexCache: number;
+  tokensCodexSaida: number;
 }
 
 const ZERADO: CustosAcumulados = {
@@ -35,6 +45,11 @@ const ZERADO: CustosAcumulados = {
   tokensEntradaNova: 0,
   tokensCacheEscrita: 0,
   tokensCacheLeitura: 0,
+  provedor: "claude",
+  estimado: false,
+  tokensCodexEntrada: 0,
+  tokensCodexCache: 0,
+  tokensCodexSaida: 0,
 };
 
 // Custos zerados (usado quando nao ha workspace ativo).
@@ -67,6 +82,14 @@ export function lerCustos(workspaceId: string): CustosAcumulados {
         typeof dados.tokensCacheEscrita === "number" ? dados.tokensCacheEscrita : 0,
       tokensCacheLeitura:
         typeof dados.tokensCacheLeitura === "number" ? dados.tokensCacheLeitura : 0,
+      provedor: dados.provedor === "codex" ? "codex" : "claude",
+      estimado: dados.estimado === true,
+      tokensCodexEntrada:
+        typeof dados.tokensCodexEntrada === "number" ? dados.tokensCodexEntrada : 0,
+      tokensCodexCache:
+        typeof dados.tokensCodexCache === "number" ? dados.tokensCodexCache : 0,
+      tokensCodexSaida:
+        typeof dados.tokensCodexSaida === "number" ? dados.tokensCodexSaida : 0,
     };
   } catch {
     return { ...ZERADO };
@@ -80,6 +103,10 @@ export function totalGeralUsd(): number {
     total += lerCustos(id).totalUsd;
   }
   return total;
+}
+
+export function totalGeralEstimado(): boolean {
+  return listarIdsWorkspaces().some((id) => lerCustos(id).estimado);
 }
 
 function salvar(workspaceId: string, custos: CustosAcumulados): void {
@@ -104,6 +131,8 @@ export function registrarResult(
     tokensCacheEscrita: number;
     tokensCacheLeitura: number;
     contarSessao: boolean;
+    provedor: ProvedorIA;
+    estimado: boolean;
   },
 ): void {
   if (!workspaceId) return;
@@ -114,6 +143,13 @@ export function registrarResult(
   atual.tokensEntradaNova += entrada.tokensEntradaNova;
   atual.tokensCacheEscrita += entrada.tokensCacheEscrita;
   atual.tokensCacheLeitura += entrada.tokensCacheLeitura;
+  atual.provedor = entrada.provedor;
+  atual.estimado ||= entrada.estimado;
+  if (entrada.provedor === "codex") {
+    atual.tokensCodexEntrada += entrada.tokensEntrada;
+    atual.tokensCodexCache += entrada.tokensCacheLeitura;
+    atual.tokensCodexSaida += entrada.tokensSaida;
+  }
   if (entrada.contarSessao) {
     atual.totalSessoes += 1;
   }

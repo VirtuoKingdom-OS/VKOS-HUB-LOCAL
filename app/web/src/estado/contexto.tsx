@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import * as api from "../api/cliente";
-import { ErroRede, type ConfigApp, type Custos, type ModeloIA } from "../api/cliente";
+import {
+  ErroRede,
+  type ConfigApp,
+  type Custos,
+  type EscopoPecaSessao,
+  type ModeloIA,
+} from "../api/cliente";
 import { usarWebSocket } from "../api/websocket";
 import type {
   Ambiente,
@@ -82,6 +88,9 @@ interface ValorContexto {
     // Rodada 10 (VKOS-IDE): permissao da sessao. padrao = edita arquivos com
     // cuidado; total = sem freios. Repassada no body pro backend.
     permissao?: "padrao" | "total";
+    escopoPeca?: EscopoPecaSessao;
+    // Geracao guiada de site: liga o laco de conformidade a peca alvo.
+    pastaAlvo?: string;
   }) => Promise<Sessao>;
   enviarMensagem: (id: string, texto: string) => Promise<void>;
   pararSessao: (id: string) => Promise<void>;
@@ -180,7 +189,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [contextos, setContextos] = useState<Contexto[]>([]);
   const [custos, setCustos] = useState<Custos | null>(null);
-  const [modeloPadrao, setModeloPadrao] = useState<ModeloIA>("sonnet");
+  const [modeloPadrao, setModeloPadrao] = useState<ModeloIA>("");
   const [modelosCarrossel, setModelosCarrossel] = useState<ModeloCarrossel[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceAtivo, setWorkspaceAtivo] = useState<string | null>(null);
@@ -232,12 +241,21 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
 
   const recarregarConfig = useCallback(async () => {
     try {
-      const { modeloPadrao: padrao } = await api.obterConfig();
-      if (padrao === "opus" || padrao === "sonnet" || padrao === "haiku") {
-        setModeloPadrao(padrao);
-      }
+      const [config, provedores] = await Promise.all([
+        api.obterConfig(),
+        api.obterProvedores(),
+      ]);
+      const lista = provedores.provedores.find((p) => p.id === provedores.ativo)?.modelos ?? [];
+      const configurado =
+        provedores.ativo === "codex"
+          ? config.modeloPadraoCodex
+          : config.modeloPadraoClaude ?? config.modeloPadrao;
+      const padrao = lista.some((m) => m.alias === configurado)
+        ? configurado
+        : lista[0]?.alias;
+      if (padrao) setModeloPadrao(padrao);
     } catch {
-      // sem config, segue com o padrao sonnet
+      // Sem config, o seletor de cada tela tenta carregar a lista diretamente.
     }
   }, []);
 
@@ -264,13 +282,20 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const recarregarInicial = useCallback(async () => {
     setCarregandoInicial(true);
     try {
-      const amb = await api.obterAmbiente();
-      const vkos = await api.obterVkos();
+      const [amb, vkos, config] = await Promise.all([
+        api.obterAmbiente(),
+        api.obterVkos(),
+        api.obterConfig(),
+      ]);
       setServidorOnline(true);
       setAmbiente(amb);
       setEstadoVkos(vkos);
-      // Usuario que ja passou pelo onboarding entra direto.
-      if (amb.claude.instalado && vkos.valida) {
+      // O setup do motor acontece antes do workspace. Depois dele, um cliente
+      // existente entra direto com o provedor escolhido, sem exigir Claude.
+      const motorPronto = config.provedorPadrao
+        ? amb[config.provedorPadrao].instalado
+        : false;
+      if (motorPronto && vkos.valida) {
         // Carrega os clientes antes de liberar o cockpit pra a key do canvas
         // ja nascer com o workspace ativo (sem remonte extra no boot).
         await recarregarWorkspaces();
@@ -352,6 +377,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       skill?: string;
       modelo?: ModeloIA;
       permissao?: "padrao" | "total";
+      escopoPeca?: EscopoPecaSessao;
+      pastaAlvo?: string;
     }) => {
       // permissao viaja no body por JSON.stringify: api.criarSessao repassa o
       // objeto inteiro, entao o campo novo chega ao backend sem tocar cliente.ts.
@@ -617,6 +644,16 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
           void recarregarSessoes();
           void recarregarCustos();
         }
+        return;
+      }
+
+      // Laco de conformidade de site: atualiza a fase de conferencia na sessao.
+      if (mensagem.tipo === "sessao:conferencia") {
+        setSessoes((antes) =>
+          antes.map((s) =>
+            s.id === mensagem.id ? { ...s, conferenciaSite: mensagem.conferencia } : s
+          )
+        );
         return;
       }
 

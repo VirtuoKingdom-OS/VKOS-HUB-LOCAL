@@ -7,6 +7,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { EscopoEstilo, MotorSite } from "../editor/motorSite";
+import { ControlesImagem } from "../editor/ControlesImagem";
+import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
+import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
+import {
+  aplicarImagemDaFonte,
+  type AlvoImagemCapturado,
+  urlImagemPreview,
+} from "../editor/imagens";
+import { Confirmacao } from "../comum/Confirmacao";
 import {
   IconeX,
   IconeSubir,
@@ -47,15 +56,6 @@ function valorFonte(nome: string): string {
   return /\s/.test(nome) ? `'${nome}'` : nome;
 }
 
-// Monta a url de preview de uma imagem a partir do src cru da tag. Relativo
-// resolve contra /pecas/<pasta>/, o mesmo base das paginas servidas.
-function urlPreview(src: string, pasta: string): string {
-  const s = src.trim();
-  if (!s) return "";
-  if (/^(https?:|data:|blob:|\/\/|\/)/i.test(s)) return s;
-  return `/pecas/${encodeURIComponent(pasta)}/${s}`;
-}
-
 export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) {
   const sel = motor.selecao;
 
@@ -71,7 +71,10 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
   const [erroImagem, setErroImagem] = useState<string | null>(null);
   // Exclusao de secao armada (confirmacao de dois cliques padrao do app).
   const [armado, setArmado] = useState<string | null>(null);
-  const refArquivo = useRef<HTMLInputElement>(null);
+  const [confirmarExclusao, setConfirmarExclusao] = useState<"elemento" | "imagem" | null>(null);
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
+  const alvoGaleria = useRef<AlvoImagemCapturado | null>(null);
+  const geracaoImagem = usarGeracaoImagemIA();
 
   // Some com a barra do WhatsApp quando o elemento deixa de ser link.
   useEffect(() => {
@@ -100,11 +103,9 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
     setWaNumero("");
   }
 
-  async function trocarImagem(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  async function trocarImagem(file: File) {
     setErroImagem(null);
+    geracaoImagem.limparErro();
     setEnviando(true);
     try {
       await motor.trocarImagem(file);
@@ -113,6 +114,32 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
     } finally {
       setEnviando(false);
     }
+  }
+
+  function gerarImagem() {
+    setErroImagem(null);
+    const alvo = motor.capturarImagemSelecionada();
+    if (!alvo) {
+      setErroImagem("Selecione uma imagem antes de gerar outra.");
+      return;
+    }
+    void geracaoImagem.gerar(pecaPasta, alvo);
+  }
+
+  function abrirGaleria() {
+    setErroImagem(null);
+    const alvo = motor.capturarImagemSelecionada();
+    if (!alvo) {
+      setErroImagem("Selecione uma imagem antes de abrir as fontes de dados.");
+      return;
+    }
+    alvoGaleria.current = alvo;
+    setGaleriaAberta(true);
+  }
+
+  async function escolherDaGaleria(arquivo: ArquivoGaleriaFonte) {
+    if (!alvoGaleria.current) throw new Error("A imagem selecionada não está mais disponível.");
+    await aplicarImagemDaFonte(pecaPasta, arquivo, alvoGaleria.current);
   }
 
   function excluir(id: string) {
@@ -204,6 +231,28 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
             <div className="ps-chip">
               <code>{sel.tag}</code>
               {sel.classes && <span>.{sel.classes.split(" ").join(".")}</span>}
+            </div>
+
+            <div className="ps-elemento-acoes">
+              {sel.podeSubirNivel && (
+                <button
+                  className="botao botao-neutro"
+                  onClick={motor.selecionarPai}
+                  title="Selecionar o bloco que envolve este elemento"
+                >
+                  <IconeSubir className="" />
+                  Selecionar contêiner
+                </button>
+              )}
+              {sel.podeExcluir && (
+                <button
+                  className="botao botao-perigo"
+                  onClick={() => setConfirmarExclusao("elemento")}
+                >
+                  <IconeLixeira className="" />
+                  Excluir elemento
+                </button>
+              )}
             </div>
 
             <label className="ps-campo">
@@ -385,36 +434,21 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
               </div>
             )}
 
-            {/* Imagem: preview + trocar. */}
+            {/* Imagem: img ou background CSS, com as mesmas acoes. */}
             {sel.ehImagem && (
               <div className="ps-campo">
                 <span>Imagem</span>
-                <div className="ps-img">
-                  {sel.src ? (
-                    <img
-                      className="ps-img-preview"
-                      src={urlPreview(sel.src, pecaPasta)}
-                      alt=""
-                    />
-                  ) : (
-                    <div className="ps-img-vazio">sem imagem</div>
-                  )}
-                  <button
-                    className="botao botao-neutro ps-img-btn"
-                    onClick={() => refArquivo.current?.click()}
-                    disabled={enviando}
-                  >
-                    {enviando ? "Enviando..." : "Trocar imagem"}
-                  </button>
-                </div>
-                <input
-                  ref={refArquivo}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={trocarImagem}
+                <ControlesImagem
+                  srcPreview={urlImagemPreview(sel.src, pecaPasta)}
+                  enviando={enviando}
+                  gerando={geracaoImagem.gerando}
+                  iaDisponivel={geracaoImagem.disponivel}
+                  erro={erroImagem || geracaoImagem.erro}
+                  aoArquivo={(file) => void trocarImagem(file)}
+                  aoAbrirGaleria={abrirGaleria}
+                  aoGerar={gerarImagem}
+                  aoExcluir={() => setConfirmarExclusao("imagem")}
                 />
-                {erroImagem && <small className="ps-erro">{erroImagem}</small>}
               </div>
             )}
           </section>
@@ -482,6 +516,33 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
           <small className="ps-nota">Ctrl+S salva</small>
         </div>
       </footer>
+      {confirmarExclusao && sel && (
+        <Confirmacao
+          dados={{
+            titulo:
+              confirmarExclusao === "imagem"
+                ? "Excluir esta imagem?"
+                : "Excluir este elemento?",
+            mensagem:
+              "Você ainda poderá desfazer enquanto estiver editando. Depois de salvar o site, esta exclusão será irreversível.",
+            rotuloConfirmar:
+              confirmarExclusao === "imagem" ? "Excluir imagem" : "Excluir elemento",
+            aoConfirmar:
+              confirmarExclusao === "imagem"
+                ? motor.excluirImagem
+                : motor.excluirSelecionado,
+          }}
+          aoFechar={() => setConfirmarExclusao(null)}
+        />
+      )}
+      <GaleriaFontes
+        aberta={galeriaAberta}
+        aoFechar={() => {
+          setGaleriaAberta(false);
+          alvoGaleria.current = null;
+        }}
+        aoEscolher={escolherDaGaleria}
+      />
     </aside>
   );
 }

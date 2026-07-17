@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import * as ide from "../../api/ide";
 import type { RespostaArvore } from "../../api/ide";
 import { mensagemDeErro } from "../../util/erros";
-import { IconeChevron } from "../comum/Icones";
+import { IconeChevron, IconeX } from "../comum/Icones";
 import { ArvoreArquivos } from "./ArvoreArquivos";
 import { EditorArquivo } from "./EditorArquivo";
 import { ChatIde } from "./ChatIde";
+import { usarJanelaIde } from "./usarJanelaIde";
 import "../../estilos/ide.css";
 
 // Ícone de recarregar: uma seta circular. Gira enquanto recarrega.
@@ -30,10 +31,13 @@ function IconeRecarregar({ className }: { className?: string }) {
   );
 }
 
-// Tela cheia da VKOS-IDE: arvore de arquivos, editor e chat com o Claude, tudo
-// escopado na pasta do cliente ativo. Integrada ao Shell pela integracao final
-// (rota #/ide). Mesmo padrao das telas de fluxo (position absolute na moldura).
-export function TelaIde() {
+type AbaCompacta = "arquivos" | "editor" | "conversa";
+
+// Painel da VKOS-IDE: arvore de arquivos, editor e chat, tudo escopado na pasta
+// do cliente ativo. Em telas compactas uma navegacao local exibe uma coluna por
+// vez, sem empurrar o restante do painel para fora da viewport.
+export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
+  const janela = usarJanelaIde();
   const [arvore, setArvore] = useState<RespostaArvore | null>(null);
   const [carregandoArvore, setCarregandoArvore] = useState(true);
   const [erroArvore, setErroArvore] = useState<string | null>(null);
@@ -46,6 +50,7 @@ export function TelaIde() {
   const [erroEditor, setErroEditor] = useState<string | null>(null);
 
   const [chatRecolhido, setChatRecolhido] = useState(false);
+  const [abaCompacta, setAbaCompacta] = useState<AbaCompacta>("conversa");
 
   const sujo = arquivoAberto !== null && conteudoEditado !== conteudoOriginal;
 
@@ -79,6 +84,7 @@ export function TelaIde() {
         return;
       }
       setArquivoAberto(caminho);
+      setAbaCompacta("editor");
       setCarregandoArquivo(true);
       setErroEditor(null);
       try {
@@ -143,8 +149,81 @@ export function TelaIde() {
   );
 
   return (
-    <section className="tela-ide">
-      <div className="ide-coluna-arvore">
+    <section
+      ref={janela.painelRef}
+      style={janela.estilo}
+      className={`tela-ide${janela.media ? " ide-media" : ""}${
+        janela.compacta ? " ide-compacta" : ""
+      }${janela.estreita ? " ide-estreita" : ""}${
+        janela.minimizada ? " minimizada" : ""
+      }${janela.arrastando ? " arrastando" : ""}`}
+    >
+      <header
+        className="ide-barra"
+        onPointerDown={janela.aoPointerDown}
+        onPointerMove={janela.aoPointerMove}
+        onPointerUp={janela.aoPointerUp}
+        onPointerCancel={janela.aoPointerCancel}
+        onDoubleClick={janela.recentralizar}
+      >
+        <strong>VKOS-IDE</strong>
+        <div className="ide-barra-acoes">
+          <button
+            type="button"
+            className="ide-barra-botao ide-minimizar"
+            onClick={janela.alternarMinimizacao}
+            title={janela.minimizada ? "Restaurar a IDE" : "Minimizar para o chat"}
+            aria-label={janela.minimizada ? "Restaurar a IDE" : "Minimizar para o chat"}
+          >
+            {janela.minimizada ? (
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="3" y="3" width="10" height="10" rx="1.5" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M3 11.5h10" />
+              </svg>
+            )}
+          </button>
+          {aoFechar && (
+            <button
+              type="button"
+              className="ide-barra-botao"
+              onClick={aoFechar}
+              title="Fechar a IDE"
+              aria-label="Fechar a IDE"
+            >
+              <IconeX className="" />
+            </button>
+          )}
+        </div>
+      </header>
+      <div className="ide-corpo">
+        <nav className="ide-mobile-topo" aria-label="Áreas da IDE">
+          {([
+            ["arquivos", "Arquivos"],
+            ["editor", "Editor"],
+            ["conversa", "Conversa"],
+          ] as Array<[AbaCompacta, string]>).map(([id, rotulo]) => (
+            <button
+              type="button"
+              key={id}
+              className={abaCompacta === id ? "ativo" : ""}
+              aria-pressed={abaCompacta === id}
+              onClick={() => {
+                setAbaCompacta(id);
+                if (id === "conversa") setChatRecolhido(false);
+              }}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </nav>
+        <div
+          className={`ide-coluna-arvore${
+            abaCompacta === "arquivos" ? " compacta-ativa" : ""
+          }`}
+        >
         <header className="ide-arvore-topo">
           <span className="ide-arvore-base" title={arvore?.base}>
             {arvore?.base ?? "Arquivos"}
@@ -170,37 +249,48 @@ export function TelaIde() {
             aoRenomear={aoRenomear}
           />
         )}
-      </div>
+        </div>
 
-      <div className="ide-coluna-editor">
-        <EditorArquivo
-          caminho={arquivoAberto}
-          valor={conteudoEditado}
-          aoMudar={setConteudoEditado}
-          aoSalvar={() => void salvar()}
-          sujo={sujo}
-          salvando={salvando}
-          carregando={carregandoArquivo}
-          erro={erroEditor}
-        />
-      </div>
-
-      <div className={`ide-coluna-chat${chatRecolhido ? " recolhida" : ""}`}>
-        <button
-          className="ide-chat-toggle"
-          title={chatRecolhido ? "Abrir a conversa" : "Recolher a conversa"}
-          onClick={() => setChatRecolhido((v) => !v)}
+        <div
+          className={`ide-coluna-editor${
+            abaCompacta === "editor" ? " compacta-ativa" : ""
+          }`}
         >
-          <IconeChevron
-            className=""
-            style={{ transform: chatRecolhido ? "rotate(180deg)" : "none" }}
+          <EditorArquivo
+            caminho={arquivoAberto}
+            valor={conteudoEditado}
+            aoMudar={setConteudoEditado}
+            aoSalvar={() => void salvar()}
+            sujo={sujo}
+            salvando={salvando}
+            carregando={carregandoArquivo}
+            erro={erroEditor}
           />
-        </button>
-        {chatRecolhido ? (
-          <span className="ide-chat-rotulo-vert">Conversa</span>
-        ) : (
-          <ChatIde />
-        )}
+        </div>
+
+        <div
+          className={`ide-coluna-chat${chatRecolhido ? " recolhida" : ""}${
+            abaCompacta === "conversa" ? " compacta-ativa" : ""
+          }`}
+        >
+          {!janela.minimizada && (
+            <button
+              className="ide-chat-toggle"
+              title={chatRecolhido ? "Abrir a conversa" : "Recolher a conversa"}
+              onClick={() => setChatRecolhido((v) => !v)}
+            >
+              <IconeChevron
+                className=""
+                style={{ transform: chatRecolhido ? "rotate(180deg)" : "none" }}
+              />
+            </button>
+          )}
+          {chatRecolhido && !janela.minimizada ? (
+            <span className="ide-chat-rotulo-vert">Conversa</span>
+          ) : (
+            <ChatIde />
+          )}
+        </div>
       </div>
     </section>
   );

@@ -12,6 +12,7 @@ import type { Peca } from "../../tipos/dominio";
 
 // Modo de imagem escolhido no wizard.
 export type ModoImagem = "sem" | "com" | "intercalado";
+export type OrigemImagem = "usuario" | "ia";
 
 // Visual personalizado da etapa 4, quando o usuario nao usa o do negocio.
 export interface VisualPersonalizado {
@@ -31,10 +32,16 @@ export interface DadosCriacao {
   paginas: number | null;
   // Id do modelo de carrossel, ou "" pra deixar a IA escolher.
   estilo: string;
+  // No wizard de carrossel, capa e paginas podem vir de modelos diferentes.
+  estiloCapa: string;
+  estiloPaginas: string;
   // Formato da geracao: carrossel de varias paginas ou pagina unica (post/story).
   formato: IdFormato;
   proporcao: IdProporcao;
   modoImagem: ModoImagem;
+  // A geracao integrada de imagem existe no Codex. No Claude, o fluxo segue
+  // aceitando apenas arquivos enviados pelo usuario.
+  origemImagem: OrigemImagem;
   // Caminhos relativos das imagens ja enviadas via /api/anexos.
   caminhosImagens: string[];
   // Visual personalizado, ou null pra usar o do negocio (design-guide/Cerebro).
@@ -103,10 +110,30 @@ function linhasExtras(dados: DadosCriacao, pasta: string): string {
     linhas.push(
       "- Nao use imagem nenhuma, escolha um modelo que funcione sem imagem."
     );
+  } else if (dados.origemImagem === "ia") {
+    linhas.push(
+      `- Use explicitamente $imagegen para criar quantas imagens originais forem necessarias para esta peca. Decida a quantidade depois de escrever o roteiro de cada pagina. Salve cada arquivo final dentro de conteudo/${pasta}/img/ e referencie apenas caminhos relativos no carrossel.html.`,
+      "- Planeje a imagem pagina por pagina. Cada imagem precisa representar o argumento, a cena ou a emocao daquela pagina. Nao repita a mesma imagem em varias paginas por conveniencia. Reutilize somente quando a repeticao tiver uma funcao visual intencional e clara.",
+      "- Se varias paginas pedirem imagem, gere imagens diferentes para cada contexto. Se o ritmo funcionar melhor intercalado, deixe paginas de texto entre elas. A decisao e editorial, nao um molde fixo.",
+      "- As imagens precisam seguir o tema, a identidade do Cerebro e o modelo visual escolhido. Nao use imagem externa, placeholder, URL remota nem arquivo fora da pasta da peca.",
+      "- Toda imagem de conteudo precisa ser editavel depois: use <img> ou background-image em um elemento HTML real. Nao coloque imagens de conteudo em pseudo-elementos CSS.",
+      "- Borda, mascara, sombra e overlay ligados a uma imagem devem ficar no proprio elemento ou no container real que envolve essa imagem. Nao espalhe a mesma composicao em elementos distantes: o Studio precisa conseguir selecionar o container e excluir o conjunto inteiro.",
+      "- Nesta geracao a imagem e obrigatoria. Nao aplique o fallback de seguir sem imagem."
+    );
+    if (dados.modoImagem === "intercalado") {
+      linhas.push(
+        "- Use ritmo intercalado: combine paginas com imagem contextual e paginas so de texto. Nao force alternancia mecanica se duas paginas consecutivas precisarem de imagens diferentes."
+      );
+    }
   } else if (dados.caminhosImagens.length > 0) {
     const caminhos = dados.caminhosImagens.join(", ");
     linhas.push(
       `- Use as imagens anexadas em ${caminhos} como imagens das paginas (copie pra img/ da peca).`
+    );
+    linhas.push(
+      "- Distribua as imagens pelo contexto de cada pagina. Nao replique a mesma imagem em todas as paginas. Reutilize apenas quando isso fizer sentido editorial.",
+      "- Toda imagem de conteudo precisa ser editavel depois: use <img> ou background-image em um elemento HTML real, nunca em pseudo-elemento CSS.",
+      "- Borda, mascara, sombra e overlay ligados a uma imagem devem ficar no proprio elemento ou no container real que envolve essa imagem, para o Studio excluir o conjunto inteiro."
     );
     if (dados.modoImagem === "intercalado") {
       linhas.push("- Alterne pagina com imagem e pagina so de texto.");
@@ -128,9 +155,15 @@ function linhasExtras(dados: DadosCriacao, pasta: string): string {
 // (reusadas de fluxos.ts) e o bloco de detalhes desta geracao.
 export function montarPromptCriacao(dados: DadosCriacao, pasta: string): string {
   const tema = dados.tema.trim();
-  const base = dados.estilo
-    ? `/carrossel ${tema}, usando o modelo ${dados.estilo}`
-    : `/carrossel ${tema}`;
+  const estiloCapa = dados.estiloCapa?.trim() ?? "";
+  const estiloPaginas = dados.estiloPaginas?.trim() ?? "";
+  const estiloSimples = estiloCapa || estiloPaginas || dados.estilo;
+  const base =
+    estiloCapa && estiloPaginas && estiloCapa !== estiloPaginas
+      ? `/carrossel ${tema}, usando a capa do modelo ${estiloCapa} e as paginas do modelo ${estiloPaginas}`
+      : estiloSimples
+        ? `/carrossel ${tema}, usando o modelo ${estiloSimples}`
+        : `/carrossel ${tema}`;
 
   const partes = [
     base,

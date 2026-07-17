@@ -45,6 +45,23 @@ imagem-herói do Passo 4 (o próprio SKILL.md já diz quais modelos pedem imagem
 catálogo). Se o modelo pedido não bater com nenhum desses arquivos, aí sim ignore este atalho e
 siga o fluxo normal a partir do Passo 3.
 
+### Caminho rápido composto: capa e páginas diferentes
+
+Se o pedido disser **"usando a capa do modelo A e as paginas do modelo B"**, a interface já fez
+as duas escolhas. Leia somente os templates A e B e pule o Passo 3.
+
+1. Copie o modelo B para `conteudo/<pasta>/carrossel.html` como base. As páginas de
+   desenvolvimento e o bloco FINAL/CTA vêm dele.
+2. Extraia do modelo A o bloco `<!-- CAPA -->`, que é o primeiro `.slide`, e apenas as regras de
+   CSS, variáveis e fontes necessárias para essa capa.
+3. Insira a capa como o primeiro `.slide` da base. Adicione uma classe exclusiva, como
+   `capa-modelo-a`, e prefixe com ela todas as regras transplantadas, para o CSS da capa não
+   alterar as páginas e o CSS das páginas não quebrar a capa.
+4. Se os modelos usarem famílias tipográficas diferentes, importe as duas. Preserve
+   `img/capa.png` como imagem-herói da capa.
+5. Antes de renderizar, confira que não há vazamento de estilos entre capa, desenvolvimento e
+   FINAL. A forma simples **"usando o modelo X"** continua seguindo o caminho rápido normal.
+
 ## Passo 1 — Tema e ângulo
 
 - Se o comprador deu o tema, use. Se não, sugira 3 temas puxados dos pilares e deixe ele

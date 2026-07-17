@@ -7,6 +7,7 @@ import {
   type ReactElement,
 } from "react";
 import { usarEstado } from "../../estado/contexto";
+import { usarProvedoresIA } from "../../estado/provedores";
 import type { TipoCriacao } from "../../estado/geracao";
 import { enviarAnexo, type ModeloIA } from "../../api/cliente";
 import { PROPORCOES, type IdFormato, type IdProporcao } from "../../config/fluxos";
@@ -19,7 +20,7 @@ import {
   IconeStories,
   IconeX,
 } from "../comum/Icones";
-import type { DadosCriacao, ModoImagem } from "./prompt";
+import type { DadosCriacao, ModoImagem, OrigemImagem } from "./prompt";
 import "../../estilos/criacao.css";
 
 // Um anexo ja enviado pro backend: nome do arquivo e caminho relativo devolvido.
@@ -39,8 +40,13 @@ export interface DadosEtapas {
   modelo: ModeloIA;
   // Id do modelo de carrossel, ou "" pra deixar a IA escolher.
   estilo: string;
+  // Opcionais para aceitar rascunhos salvos antes da composicao de modelos.
+  estiloCapa?: string;
+  estiloPaginas?: string;
   proporcao: IdProporcao;
   modoImagem: ModoImagem;
+  // Opcional por compatibilidade com rascunhos salvos antes da geracao por IA.
+  origemImagem?: OrigemImagem;
   anexos: AnexoEnviado[];
   visualModo: "negocio" | "personalizado";
   corFundo: string;
@@ -58,8 +64,11 @@ export function criarDadosEtapas(modelo: ModeloIA): DadosEtapas {
     paginas: null,
     modelo,
     estilo: "",
+    estiloCapa: "",
+    estiloPaginas: "",
     proporcao: "4x5",
     modoImagem: "sem",
+    origemImagem: "usuario",
     anexos: [],
     visualModo: "negocio",
     corFundo: "#101418",
@@ -121,10 +130,15 @@ export function dadosCriacaoDe(d: DadosEtapas, tipo: TipoCriacao): DadosCriacao 
     tema: d.tema,
     detalhes: d.detalhes,
     paginas: tipo === "carrossel" ? d.paginas : null,
-    estilo: d.estilo,
+    estilo: tipo === "carrossel" ? "" : d.estilo,
+    estiloCapa:
+      tipo === "carrossel" ? (d.estiloCapa ?? d.estilo ?? "") : "",
+    estiloPaginas:
+      tipo === "carrossel" ? (d.estiloPaginas ?? d.estilo ?? "") : "",
     formato: cfg.formato,
     proporcao: cfg.proporcaoFixa ?? d.proporcao,
     modoImagem: d.modoImagem,
+    origemImagem: d.origemImagem ?? "usuario",
     caminhosImagens: d.anexos.map((a) => a.caminhoRelativo),
     visual:
       d.visualModo === "personalizado"
@@ -146,17 +160,12 @@ export function etapasTemPreenchimento(d: DadosEtapas): boolean {
     d.detalhes.trim().length > 0 ||
     d.anexos.length > 0 ||
     d.estilo !== "" ||
+    (d.estiloCapa ?? "") !== "" ||
+    (d.estiloPaginas ?? "") !== "" ||
     d.modoImagem !== "sem" ||
     d.visualModo !== "negocio"
   );
 }
-
-// Modelo de IA da sessao: os tres, com a nota curta de custo relativo.
-const MODELOS: { id: ModeloIA; rotulo: string; nota: string }[] = [
-  { id: "opus", rotulo: "Opus", nota: "mais capaz" },
-  { id: "sonnet", rotulo: "Sonnet", nota: "equilíbrio" },
-  { id: "haiku", rotulo: "Haiku", nota: "rápido" },
-];
 
 // Limites da quantidade de paginas do carrossel (Auto = null).
 const PAGINAS_MIN = 2;
@@ -233,6 +242,12 @@ export function EtapasCriacao({
   ativo = true,
 }: Props) {
   const { modelosCarrossel } = usarEstado();
+  const {
+    ativo: provedorAtivo,
+    modelos,
+    modeloPadrao,
+    carregando: carregandoModelos,
+  } = usarProvedoresIA();
   const cfg = CONFIG_TIPO[tipo];
 
   const [etapa, setEtapa] = useState(0);
@@ -245,10 +260,36 @@ export function EtapasCriacao({
   const [arrastando, setArrastando] = useState(false);
   const refArquivo = useRef<HTMLInputElement>(null);
   const refTema = useRef<HTMLInputElement>(null);
+  const estiloCapa = dados.estiloCapa ?? dados.estilo ?? "";
+  const estiloPaginas = dados.estiloPaginas ?? dados.estilo ?? "";
+  const paginasTocadasRef = useRef(
+    estiloPaginas !== "" && estiloPaginas !== estiloCapa,
+  );
 
   const proporcaoEfetiva = cfg.proporcaoFixa ?? dados.proporcao;
   const temaValido = dados.tema.trim().length > 0;
-  const etapaValida = etapa === 0 ? temaValido : true;
+  const estilosValidos =
+    tipo !== "carrossel" || (!!estiloCapa === !!estiloPaginas);
+  const etapaValida =
+    etapa === 0
+      ? temaValido
+      : etapa === 1
+        ? estilosValidos
+        : etapa === TOTAL_ETAPAS - 1
+          ? !!dados.modelo
+          : true;
+
+  useEffect(() => {
+    if (modelos.length === 0 || modelos.some((m) => m.alias === dados.modelo)) return;
+    aoMudar({ modelo: modeloPadrao || modelos[0].alias });
+  }, [modelos, modeloPadrao, dados.modelo, aoMudar]);
+
+  // Um rascunho pode ter sido criado com Codex e reaberto depois da troca para
+  // Claude. Nesse caso volta para upload, sem enviar um prompt impossivel.
+  useEffect(() => {
+    if (provedorAtivo === "codex" || dados.origemImagem !== "ia") return;
+    aoMudar({ origemImagem: "usuario" });
+  }, [provedorAtivo, dados.origemImagem, aoMudar]);
 
   // Foca o tema ao abrir, so no wizard (no node evitamos roubar o foco do canvas).
   useEffect(() => {
@@ -288,6 +329,7 @@ export function EtapasCriacao({
 
   const enviarArquivos = async (arquivos: File[]) => {
     if (arquivos.length === 0) return;
+    aoMudar({ origemImagem: "usuario" });
     setEnviandoAnexo(true);
     setErroAnexo(null);
     const novos: AnexoEnviado[] = [];
@@ -434,16 +476,20 @@ export function EtapasCriacao({
             <div className="criacao-bloco">
               <span className="criacao-rotulo-mini">Modelo de IA</span>
               <div className="criacao-cards-lin">
-                {MODELOS.map((m) => (
+                {modelos.map((m) => (
                   <button
-                    key={m.id}
-                    className={`criacao-card-op${dados.modelo === m.id ? " ativo" : ""}`}
-                    onClick={() => aoMudar({ modelo: m.id })}
+                    key={m.alias}
+                    className={`criacao-card-op${dados.modelo === m.alias ? " ativo" : ""}`}
+                    onClick={() => aoMudar({ modelo: m.alias })}
+                    title={m.observacaoCusto}
                   >
                     <span className="criacao-card-nome">{m.rotulo}</span>
-                    <span className="criacao-card-desc">{m.nota}</span>
+                    <span className="criacao-card-desc">{m.observacaoCusto}</span>
                   </button>
                 ))}
+                {carregandoModelos && modelos.length === 0 && (
+                  <span className="criacao-card-desc">Carregando modelos...</span>
+                )}
               </div>
             </div>
           </div>
@@ -452,38 +498,116 @@ export function EtapasCriacao({
         {/* Etapa 2: a cara. */}
         {etapa === 1 && (
           <div className="criacao-campos">
-            <div className="criacao-bloco">
-              <span className="criacao-rotulo-mini">Estilo</span>
-              <div className="criacao-modelos-grade">
-                <button
-                  className={`criacao-card-op com-thumb${
-                    dados.estilo === "" ? " ativo" : ""
+            {tipo === "carrossel" ? (
+              <>
+                <div className="criacao-bloco criacao-modelos-grupo">
+                  <span className="criacao-rotulo-mini">Capa</span>
+                  <div className="criacao-modelos-grade">
+                    <button
+                      className={`criacao-card-op com-thumb${
+                        estiloCapa === "" ? " ativo" : ""
+                      }`}
+                      onClick={() => {
+                        paginasTocadasRef.current = false;
+                        aoMudar({ estilo: "", estiloCapa: "", estiloPaginas: "" });
+                      }}
+                    >
+                      <span className="criacao-modelo-thumb vazia">
+                        <IconeRaio className="" />
+                      </span>
+                      <span className="criacao-card-nome">Deixar a IA escolher</span>
+                      <span className="criacao-card-desc">
+                        O sistema decide os dois estilos.
+                      </span>
+                    </button>
+                    {modelosCarrossel.map((mc) => (
+                      <button
+                        key={mc.id}
+                        className={`criacao-card-op com-thumb${
+                          estiloCapa === mc.id ? " ativo" : ""
+                        }`}
+                        onClick={() =>
+                          aoMudar({
+                            estilo: "",
+                            estiloCapa: mc.id,
+                            ...(!paginasTocadasRef.current
+                              ? { estiloPaginas: mc.id }
+                              : {}),
+                          })
+                        }
+                      >
+                        <MiniModelo id={mc.id} slide={1} />
+                        <span className="criacao-card-nome">{mc.nome}</span>
+                        {mc.descricao && (
+                          <span className="criacao-card-desc">{mc.descricao}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div
+                  className={`criacao-bloco criacao-modelos-grupo${
+                    estiloCapa === "" ? " desabilitado" : ""
                   }`}
-                  onClick={() => aoMudar({ estilo: "" })}
                 >
-                  <span className="criacao-modelo-thumb vazia">
-                    <IconeRaio className="" />
-                  </span>
-                  <span className="criacao-card-nome">Deixar a IA escolher</span>
-                  <span className="criacao-card-desc">O sistema decide o modelo.</span>
-                </button>
-                {modelosCarrossel.map((mc) => (
+                  <span className="criacao-rotulo-mini">Páginas de conteúdo</span>
+                  <div className="criacao-modelos-grade">
+                    {modelosCarrossel.map((mc) => (
+                      <button
+                        key={mc.id}
+                        disabled={estiloCapa === ""}
+                        className={`criacao-card-op com-thumb${
+                          estiloPaginas === mc.id ? " ativo" : ""
+                        }`}
+                        onClick={() => {
+                          paginasTocadasRef.current = true;
+                          aoMudar({ estilo: "", estiloPaginas: mc.id });
+                        }}
+                      >
+                        <MiniModelo id={mc.id} slide={2} />
+                        <span className="criacao-card-nome">{mc.nome}</span>
+                        {mc.descricao && (
+                          <span className="criacao-card-desc">{mc.descricao}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="criacao-bloco">
+                <span className="criacao-rotulo-mini">Estilo</span>
+                <div className="criacao-modelos-grade">
                   <button
-                    key={mc.id}
                     className={`criacao-card-op com-thumb${
-                      dados.estilo === mc.id ? " ativo" : ""
+                      dados.estilo === "" ? " ativo" : ""
                     }`}
-                    onClick={() => aoMudar({ estilo: mc.id })}
+                    onClick={() => aoMudar({ estilo: "" })}
                   >
-                    <MiniModelo id={mc.id} />
-                    <span className="criacao-card-nome">{mc.nome}</span>
-                    {mc.descricao && (
-                      <span className="criacao-card-desc">{mc.descricao}</span>
-                    )}
+                    <span className="criacao-modelo-thumb vazia">
+                      <IconeRaio className="" />
+                    </span>
+                    <span className="criacao-card-nome">Deixar a IA escolher</span>
+                    <span className="criacao-card-desc">O sistema decide o modelo.</span>
                   </button>
-                ))}
+                  {modelosCarrossel.map((mc) => (
+                    <button
+                      key={mc.id}
+                      className={`criacao-card-op com-thumb${
+                        dados.estilo === mc.id ? " ativo" : ""
+                      }`}
+                      onClick={() => aoMudar({ estilo: mc.id })}
+                    >
+                      <MiniModelo id={mc.id} />
+                      <span className="criacao-card-nome">{mc.nome}</span>
+                      {mc.descricao && (
+                        <span className="criacao-card-desc">{mc.descricao}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Dimensao: so no carrossel. Post e story sao proporcao fixa. */}
             {tipo === "carrossel" && (
@@ -530,21 +654,38 @@ export function EtapasCriacao({
               <div className="criacao-origem">
                 <span className="criacao-rotulo-mini">De onde vêm as imagens</span>
                 <div className="criacao-cards-lin">
-                  <button className="criacao-card-op desabilitado" disabled>
+                  <button
+                    className={`criacao-card-op${
+                      dados.origemImagem === "ia" ? " ativo" : ""
+                    }${provedorAtivo !== "codex" ? " desabilitado" : ""}`}
+                    disabled={provedorAtivo !== "codex"}
+                    onClick={() => aoMudar({ origemImagem: "ia", anexos: [] })}
+                    title={
+                      provedorAtivo === "codex"
+                        ? "O Codex cria as imagens durante a geracao"
+                        : "Disponivel quando o Codex estiver conectado"
+                    }
+                  >
                     <span className="criacao-card-nome">Gerar com IA</span>
                     <span className="criacao-card-desc">Imagens criadas na hora.</span>
-                    <span className="criacao-badge-breve">Em breve</span>
+                    {provedorAtivo !== "codex" && (
+                      <span className="criacao-badge-breve">Use o Codex</span>
+                    )}
                   </button>
                   <div
                     className={`criacao-card-op criacao-dropzone${
                       arrastando ? " arrastando" : ""
-                    }`}
+                    }${dados.origemImagem !== "ia" ? " ativo" : ""}`}
                     role="button"
                     tabIndex={0}
-                    onClick={() => refArquivo.current?.click()}
+                    onClick={() => {
+                      aoMudar({ origemImagem: "usuario" });
+                      refArquivo.current?.click();
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
+                        aoMudar({ origemImagem: "usuario" });
                         refArquivo.current?.click();
                       }
                     }}
@@ -581,7 +722,7 @@ export function EtapasCriacao({
                   }}
                 />
                 {erroAnexo && <span className="criacao-hint erro">{erroAnexo}</span>}
-                {dados.anexos.length > 0 && (
+                {dados.origemImagem !== "ia" && dados.anexos.length > 0 && (
                   <div className="criacao-anexos">
                     {dados.anexos.map((a) => (
                       <span className="criacao-chip-anexo" key={a.caminhoRelativo}>
@@ -738,7 +879,7 @@ export function EtapasCriacao({
 // /modelos-html/<id>/preview escalado pra caber na moldura, lazy por
 // IntersectionObserver (nao carrega todos de uma vez). Fallback elegante quando
 // o preview nao existe (404) ou nao tem .slide.
-function MiniModelo({ id }: { id: string }) {
+function MiniModelo({ id, slide = 1 }: { id: string; slide?: number }) {
   const refCaixa = useRef<HTMLDivElement>(null);
   const refIframe = useRef<HTMLIFrameElement>(null);
   const [visivel, setVisivel] = useState(false);
@@ -788,7 +929,7 @@ function MiniModelo({ id }: { id: string }) {
     setDims({ largura: doc.body.scrollWidth, altura: doc.body.scrollHeight });
   }
 
-  const url = `/modelos-html/${encodeURIComponent(id)}/preview`;
+  const url = `/modelos-html/${encodeURIComponent(id)}/preview?slide=${slide}`;
 
   return (
     <span className="criacao-modelo-thumb" ref={refCaixa}>

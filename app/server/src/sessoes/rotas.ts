@@ -3,15 +3,94 @@
 
 import type { FastifyPluginAsync } from "fastify";
 
-import type { TurnoSessao } from "../tipos.js";
+import type { Sessao, TurnoSessao } from "../tipos.js";
+import { lerCerebro } from "../vkos/cerebro.js";
 import { obterPastaVkos } from "../vkos/estado.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { gerenciador } from "./gerenciador.js";
 import { lerTranscricao } from "./transcricao.js";
-import { custosVazios, lerCustos, totalGeralUsd } from "./custos.js";
+import {
+  ErroEscopoPeca,
+  lerPrincipiosVisuaisSite,
+  montarPromptAjustePeca,
+  resolverEscopoPeca,
+  type EscopoPecaSolicitado,
+} from "./escopo-peca.js";
+import { obterProvedorAtivo } from "../provedores/index.js";
+import { montarResumoCrm } from "../crm/resumo.js";
+import {
+  custosVazios,
+  lerCustos,
+  totalGeralEstimado,
+  totalGeralUsd,
+} from "./custos.js";
 
-// Modelos aceitos no POST /sessoes. Espelha os aliases da config.
-const MODELOS_VALIDOS = ["opus", "sonnet", "haiku"];
+const SKILLS_QUE_EXIGEM_CEREBRO = new Set(["carrossel", "site"]);
+const STATUS_EM_EXECUCAO = new Set(["fila", "iniciando", "rodando"]);
+
+export function skillExigeCerebro(skill: unknown): boolean {
+  return typeof skill === "string" && SKILLS_QUE_EXIGEM_CEREBRO.has(skill);
+}
+
+// Carrossel e site escrevem uma arvore inteira dentro de conteudo/. Uma segunda
+// geracao guiada pode disputar o unico estado visual de progresso do Hub. O
+// bloqueio e global e vive no servidor para cobrir troca de cliente, outra aba,
+// refresh e corrida de cliques, nao so o estado React da tela atual.
+export function geracaoVisualEmAndamento(sessoes: Sessao[]): Sessao | undefined {
+  return sessoes.find(
+    (sessao) =>
+      skillExigeCerebro(sessao.skill) &&
+      STATUS_EM_EXECUCAO.has(sessao.status),
+  );
+}
+
+export function promptCitaCrm(prompt: string): boolean {
+  return /\bcrm\b/i.test(prompt);
+}
+
+const ASSINATURA_SITE_GUIADO = "BLOCO 3, regras técnicas.";
+const NOME_PASTA_SITE = /^[a-z0-9][a-z0-9_-]*$/i;
+
+// O prompt do Site Guiado carrega o destino como parte do seu contrato. Essa
+// segunda fonte permite que uma aba antiga do Hub ainda ligue o laco de
+// conformidade, mesmo que ela nao envie pastaAlvo no corpo HTTP.
+export function extrairPastaAlvoDoPrompt(prompt: string): string | undefined {
+  const resultado = prompt.match(
+    /^- Salve tudo em conteudo\/([^/\\\r\n]+)\/\s*\(crie a pasta com esse nome exato\)\./m,
+  );
+  const candidata = resultado?.[1]?.trim();
+  return candidata && NOME_PASTA_SITE.test(candidata) ? candidata : undefined;
+}
+
+export function resolverPastaAlvoGeracaoSite(parametros: {
+  skill: unknown;
+  prompt: string;
+  pastaAlvo: unknown;
+  temEscopoPeca: boolean;
+}): string | undefined {
+  if (parametros.temEscopoPeca || parametros.skill !== "site") return undefined;
+
+  const informada =
+    typeof parametros.pastaAlvo === "string" && parametros.pastaAlvo.trim()
+      ? parametros.pastaAlvo.trim()
+      : undefined;
+  if (informada && !NOME_PASTA_SITE.test(informada)) {
+    throw new Error("pastaAlvo invalida para a geracao de site");
+  }
+
+  const extraida = extrairPastaAlvoDoPrompt(parametros.prompt);
+  if (informada && extraida && informada !== extraida) {
+    throw new Error("pastaAlvo nao corresponde ao destino declarado no prompt do Site Guiado");
+  }
+
+  const resolvida = informada ?? extraida;
+  if (parametros.prompt.includes(ASSINATURA_SITE_GUIADO) && !resolvida) {
+    throw new Error(
+      "O Site Guiado nao informou uma pasta de destino valida. Recarregue o Hub e tente novamente.",
+    );
+  }
+  return resolvida;
+}
 
 export const rotasSessoes: FastifyPluginAsync = async (app) => {
   // Lista as sessoes do workspace ativo. ?todas=1 devolve as de todos (pro futuro).
@@ -28,7 +107,11 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
   app.get("/custos", async () => {
     const ativo = idWorkspaceAtivo();
     const base = ativo ? lerCustos(ativo) : custosVazios();
-    return { ...base, totalGeralUsd: totalGeralUsd() };
+    return {
+      ...base,
+      totalGeralUsd: totalGeralUsd(),
+      totalGeralEstimado: totalGeralEstimado(),
+    };
   });
 
   // Transcricao (turnos) de uma sessao. Vazia se nao ha arquivo.
@@ -59,6 +142,7 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
         texto: sessao.resultado,
         em: sessao.atualizadaEm,
         custoUsd: sessao.custoUsd,
+        estimado: sessao.estimado,
       });
     }
     return { turnos: sinteticos };
@@ -72,18 +156,24 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
       skill?: string;
       modelo?: string;
       permissao?: string;
+      escopoPeca?: EscopoPecaSolicitado;
+      pastaAlvo?: string;
     };
 
-    const prompt = typeof corpo.prompt === "string" ? corpo.prompt.trim() : "";
+    let prompt = typeof corpo.prompt === "string" ? corpo.prompt.trim() : "";
     if (!prompt) {
       return resposta.code(400).send({ erro: "prompt e obrigatorio" });
     }
 
-    // Modelo e opcional. Se veio, precisa ser um dos aceitos.
+    // Modelo e opcional. Se veio, precisa pertencer ao provedor ativo.
+    const provedorAtivo = obterProvedorAtivo();
+    const aliasesValidos = provedorAtivo.modelos().map((item) => item.alias);
     let modelo: string | undefined;
     if (corpo.modelo !== undefined) {
-      if (typeof corpo.modelo !== "string" || !MODELOS_VALIDOS.includes(corpo.modelo)) {
-        return resposta.code(400).send({ erro: "modelo invalido. Use opus, sonnet ou haiku." });
+      if (typeof corpo.modelo !== "string" || !aliasesValidos.includes(corpo.modelo)) {
+        return resposta.code(400).send({
+          erro: `modelo invalido para ${provedorAtivo.id}. Use: ${aliasesValidos.join(", ")}.`,
+        });
       }
       modelo = corpo.modelo;
     }
@@ -101,19 +191,82 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
     if (!pasta) {
       return resposta.code(400).send({ erro: "nenhuma pasta VKOS escolhida" });
     }
+    // Carrossel e site dependem da identidade do negocio. Sem esta guarda, os
+    // provedores encerram o turno com uma explicacao, a sessao vira concluida e
+    // o frontend fica esperando um arquivo que nunca sera criado.
+    if (skillExigeCerebro(corpo.skill) && !lerCerebro(pasta).preenchido) {
+      return resposta.code(409).send({
+        erro:
+          "O Cérebro deste negócio ainda está em branco. Monte o Cérebro antes de gerar carrosséis ou sites.",
+      });
+    }
     const workspaceId = idWorkspaceAtivo();
     if (!workspaceId) {
       return resposta.code(400).send({ erro: "nenhum workspace ativo" });
     }
 
+    let pastaTrabalho = pasta;
+    let skill = corpo.skill;
+    if (corpo.escopoPeca !== undefined) {
+      try {
+        const escopo = resolverEscopoPeca(pasta, corpo.escopoPeca);
+        pastaTrabalho = escopo.pastaTrabalho;
+        skill = escopo.skill;
+        const principios = escopo.revisaoDesign
+          ? lerPrincipiosVisuaisSite(pasta)
+          : undefined;
+        prompt = montarPromptAjustePeca(
+          prompt,
+          escopo,
+          lerCerebro(pasta).conteudo,
+          principios,
+        );
+      } catch (erro) {
+        if (erro instanceof ErroEscopoPeca) {
+          return resposta.code(erro.status).send({ erro: erro.message });
+        }
+        throw erro;
+      }
+    }
+
+    if (skillExigeCerebro(skill)) {
+      const emAndamento = geracaoVisualEmAndamento(gerenciador.listar());
+      if (emAndamento) {
+        const tipo = emAndamento.skill === "site" ? "site" : "conteúdo visual";
+        return resposta.code(409).send({
+          erro:
+            `Já existe uma geração de ${tipo} em andamento. ` +
+            "Finalize ou cancele essa criação antes de iniciar outra.",
+          sessaoId: emAndamento.id,
+          tipo: emAndamento.skill,
+        });
+      }
+    }
+
+    const contextoCrm = promptCitaCrm(prompt) ? montarResumoCrm() ?? undefined : undefined;
+    let pastaAlvo: string | undefined;
+    try {
+      pastaAlvo = resolverPastaAlvoGeracaoSite({
+        skill,
+        prompt,
+        pastaAlvo: corpo.pastaAlvo,
+        temEscopoPeca: corpo.escopoPeca !== undefined,
+      });
+    } catch (erro) {
+      return resposta.code(400).send({
+        erro: erro instanceof Error ? erro.message : "pastaAlvo invalida",
+      });
+    }
     const sessao = gerenciador.criar({
       titulo: corpo.titulo,
       prompt,
-      skill: corpo.skill,
-      pastaTrabalho: pasta,
+      skill,
+      pastaTrabalho,
       modelo,
       workspaceId,
       permissao,
+      contextoCrm,
+      pastaAlvo,
     });
 
     return resposta.code(201).send({ sessao });

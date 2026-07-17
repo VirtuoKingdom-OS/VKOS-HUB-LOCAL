@@ -36,8 +36,17 @@ function irParaSite(pasta: string) {
 }
 
 export function GeracaoFlutuante() {
-  const { ativa, minimizada, fase, fases, falhou, erro, pastaPronta, limpar } =
-    usarGeracao();
+  const {
+    ativa,
+    minimizada,
+    fase,
+    fases,
+    falhou,
+    erro,
+    pastaPronta,
+    faseConferencia,
+    limpar,
+  } = usarGeracao();
 
   // So aparece quando ha geracao viva E minimizada. Com o wizard aberto, ele e
   // que mostra o progresso.
@@ -107,7 +116,7 @@ export function GeracaoFlutuante() {
         </p>
       ) : (
         <>
-          <div className="geracao-flutuante-fase">{fases[fase]}</div>
+          <div className="geracao-flutuante-fase">{faseConferencia ?? fases[fase]}</div>
           <div className="geracao-flutuante-barra">
             <div
               className="geracao-flutuante-barra-cheia"

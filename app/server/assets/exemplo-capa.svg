@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" role="img" aria-label="Composição abstrata neutra">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8cdbd"/>
+      <stop offset=".42" stop-color="#9fa49a"/>
+      <stop offset="1" stop-color="#505d55"/>
+    </linearGradient>
+    <radialGradient id="luz" cx=".25" cy=".18" r=".7">
+      <stop offset="0" stop-color="#f3e7d2" stop-opacity=".95"/>
+      <stop offset=".6" stop-color="#d3c5ae" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#d3c5ae" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="forma" x1=".15" y1=".1" x2=".85" y2=".9">
+      <stop offset="0" stop-color="#e9dbc5" stop-opacity=".86"/>
+      <stop offset=".55" stop-color="#75877a" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#34483e" stop-opacity=".9"/>
+    </linearGradient>
+    <filter id="desfoque-grande" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="58"/>
+    </filter>
+    <filter id="desfoque-medio" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <filter id="grao" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="3" seed="8"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 .055"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#fundo)"/>
+  <rect width="1080" height="1350" fill="url(#luz)"/>
+  <ellipse cx="850" cy="240" rx="310" ry="410" fill="#26483b" opacity=".48" filter="url(#desfoque-grande)"/>
+  <ellipse cx="150" cy="1110" rx="360" ry="300" fill="#e7d4b8" opacity=".58" filter="url(#desfoque-grande)"/>
+  <path d="M80 920C160 610 395 405 668 454c213 38 337 235 277 442-67 231-328 389-574 337C151 1186 27 1121 80 920Z" fill="url(#forma)" opacity=".86" filter="url(#desfoque-medio)"/>
+  <path d="M650 94c152 39 263 163 255 304-9 168-181 274-341 237-132-30-225-142-209-270 19-153 151-310 295-271Z" fill="#d8c4a8" opacity=".45" filter="url(#desfoque-medio)"/>
+  <path d="M153 445c101-137 265-195 373-113 97 73 74 233-31 347-114 124-295 167-383 67-71-81-33-201 41-301Z" fill="#f2e5d0" opacity=".32" filter="url(#desfoque-medio)"/>
+  <rect width="1080" height="1350" filter="url(#grao)" opacity=".72"/>
+</svg>

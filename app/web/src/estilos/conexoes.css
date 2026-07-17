@@ -20,6 +20,133 @@
   gap: 18px;
 }
 
+/* Motor de IA: escolha global, deteccao dos CLIs e modelo padrao. */
+.conx-motor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: 0 12px 32px rgba(var(--scrim-rgb), 0.16);
+  animation: entrada-suave 220ms ease both;
+}
+.conx-motor-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.conx-motor-topo h2 {
+  margin-top: 3px;
+  font-size: 19px;
+}
+.conx-motor-sobre {
+  color: var(--texto-fraco);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.conx-motor-ativo {
+  padding: 6px 11px;
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.1);
+  border: 1px solid rgba(var(--menta-rgb), 0.35);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.conx-motor-acoes-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.conx-motor-guia {
+  color: var(--texto-suave);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--transicao);
+}
+.conx-motor-guia:hover {
+  color: var(--menta-clara);
+}
+.conx-motor-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.conx-motor-opcao {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  transition: border-color var(--transicao), transform var(--transicao),
+    box-shadow var(--transicao);
+}
+.conx-motor-opcao:hover {
+  transform: translateY(-1px);
+  border-color: var(--borda-forte);
+}
+.conx-motor-opcao.ativa {
+  border-color: rgba(var(--menta-rgb), 0.5);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.12);
+}
+.conx-motor-opcao-cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.conx-motor-status {
+  color: var(--texto-fraco);
+  font-size: 11px;
+  text-align: right;
+}
+.conx-motor-status.ok {
+  color: var(--menta);
+}
+.conx-motor-versao {
+  color: var(--texto-fraco);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.conx-motor-trocar {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.conx-motor-confirmacao {
+  color: var(--texto-suave);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.conx-motor-confirmacao button {
+  margin-left: 7px;
+  color: var(--menta-clara);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.conx-motor-modelo {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.5fr) minmax(240px, 1fr);
+  align-items: center;
+  gap: 14px;
+  color: var(--texto-suave);
+  font-size: 12px;
+}
+.conx-motor-modelo select {
+  width: 100%;
+}
+
 /* Aviso local-first: honesto e sempre visivel no topo do corpo. */
 .conx-aviso-local {
   display: flex;
@@ -31,6 +158,17 @@
   border: 1px solid rgba(var(--menta-rgb), 0.25);
   border-radius: var(--raio-p);
   padding: 12px 14px;
+}
+.conx-aviso-mcp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  color: var(--amarelo);
+  background: rgba(var(--amarelo-rgb), 0.08);
+  border: 1px solid rgba(var(--amarelo-rgb), 0.3);
+  border-radius: var(--raio-p);
+  font-size: 13px;
 }
 .conx-aviso-icone {
   width: 18px;
@@ -172,6 +310,10 @@
 .conx-switch input:focus-visible + .conx-switch-trilho {
   box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.18);
 }
+.conx-switch:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 
 /* Campos de config. */
 .conx-campos {
@@ -223,6 +365,115 @@
   font-size: 11px;
   line-height: 1.5;
   color: var(--texto-fraco);
+}
+
+/* Trilha de conexao para tokens de publicacao. */
+.conx-guia-abrir {
+  align-self: flex-start;
+  color: var(--menta-clara);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.conx-guia-abrir:hover {
+  color: var(--menta);
+}
+.conx-guia {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(var(--menta-rgb), 0.06);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  border-radius: var(--raio);
+}
+.conx-guia-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.conx-guia-topo > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.conx-guia-topo span {
+  color: var(--menta);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.conx-guia-topo strong {
+  color: var(--texto);
+  font-size: 14px;
+}
+.conx-guia-topo a {
+  flex-shrink: 0;
+  color: var(--texto-suave);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.conx-guia-progresso {
+  height: 4px;
+  overflow: hidden;
+  background: var(--superficie-2);
+  border-radius: 99px;
+}
+.conx-guia-progresso span {
+  display: block;
+  height: 100%;
+  background: var(--menta);
+  border-radius: inherit;
+}
+.conx-guia > p {
+  color: var(--texto-suave);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.conx-guia > p.conx-guia-nota {
+  padding: 9px 10px;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid rgba(var(--menta-rgb), 0.24);
+  border-radius: var(--raio-p);
+}
+.conx-guia-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.conx-guia-acoes .botao {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.conx-guia-externo {
+  margin-right: auto;
+  text-decoration: none;
+}
+.conx-teste-ok {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.09);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  border-radius: var(--raio-p);
+  font-size: 12px;
+  font-weight: 700;
+}
+.conx-teste-ok svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .conx-erro {
@@ -328,5 +579,40 @@
   }
   .conx-grade {
     grid-template-columns: 1fr;
+  }
+  .conx-motor-grade,
+  .conx-motor-modelo {
+    grid-template-columns: 1fr;
+  }
+  .conx-motor-opcao-cabeca {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .conx-motor-topo,
+  .conx-motor-acoes-topo {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .conx-motor-status {
+    text-align: left;
+  }
+  .conx-guia-topo {
+    flex-direction: column;
+  }
+  .conx-guia-acoes,
+  .conx-guia-acoes .botao,
+  .conx-guia-externo {
+    width: 100%;
+  }
+  .conx-guia-acoes .botao {
+    justify-content: center;
+  }
+  .conx-cartao-rodape {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .conx-acoes {
+    width: 100%;
+    justify-content: flex-end;
   }
 }

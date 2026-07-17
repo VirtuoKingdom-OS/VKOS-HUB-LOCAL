@@ -1,13 +1,23 @@
-// Cliente REST do CRM. Fetch proprio, no padrao de erro { erro } do backend.
-// Nao passa pelo cliente.ts pra manter o modulo do CRM autocontido.
+// Cliente REST do CRM v2. Mantem o tratamento de erro autocontido e o contrato
+// do servidor em tipos pequenos, usados pelas tres visoes da tela.
 
-// Uma nota de contato: hora e texto. A mais nova vem no topo do array.
-export interface Nota {
+export type TipoInteracao = "nota" | "ligacao" | "mensagem" | "reuniao" | "outro";
+
+export interface Interacao {
+  id: string;
   em: string;
+  tipo: TipoInteracao;
   texto: string;
 }
 
-// Um contato do funil.
+export interface Tarefa {
+  id: string;
+  texto: string;
+  prazo?: string;
+  feita: boolean;
+  criadaEm: string;
+}
+
 export interface Contato {
   id: string;
   nome: string;
@@ -15,48 +25,63 @@ export interface Contato {
   telefone?: string;
   email?: string;
   origem?: string;
-  valorEstimado?: number;
-  // Data e hora do proximo contato (ISO). Opcional.
-  proximoContato?: string;
-  colunaId: string;
   tags: string[];
-  notas: Nota[];
+  interacoes: Interacao[];
+  tarefas: Tarefa[];
+  proximoContato?: string;
   criadoEm: string;
   atualizadoEm: string;
 }
 
-// Uma coluna do kanban.
+export interface Negocio {
+  id: string;
+  titulo: string;
+  contatoId: string;
+  colunaId: string;
+  valorEstimado?: number;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
 export interface Coluna {
   id: string;
   nome: string;
   ordem: number;
 }
 
-// O estado inteiro do funil.
 export interface EstadoCrm {
+  versao: 2;
   colunas: Coluna[];
   contatos: Contato[];
+  negocios: Negocio[];
 }
 
-// Campos que dao pra criar ou editar num contato. valorEstimado aceita null pra
-// LIMPAR o valor: undefined some no JSON.stringify e o backend nao veria a
-// intencao de apagar; null sobrevive e sinaliza "zerar este campo".
 export interface DadosContato {
   nome?: string;
   empresa?: string;
   telefone?: string;
   email?: string;
   origem?: string;
-  valorEstimado?: number | null;
-  // Aceita null pra LIMPAR o campo, mesma razao do valorEstimado.
   proximoContato?: string | null;
-  colunaId?: string;
   tags?: string[];
 }
 
-// Erro de resposta do CRM: carrega a mensagem que o backend mandou em { erro }.
+export interface DadosNegocio {
+  titulo?: string;
+  contatoId?: string;
+  colunaId?: string;
+  valorEstimado?: number | null;
+}
+
+export interface DadosTarefa {
+  texto?: string;
+  prazo?: string | null;
+  feita?: boolean;
+}
+
 export class ErroCrm extends Error {
   status: number;
+
   constructor(mensagem: string, status: number) {
     super(mensagem);
     this.name = "ErroCrm";
@@ -64,7 +89,6 @@ export class ErroCrm extends Error {
   }
 }
 
-// Faz a chamada e trata o erro no padrao { erro }. Rede fora vira ErroCrm(0).
 async function pedir<T>(url: string, opcoes?: RequestInit): Promise<T> {
   let resposta: Response;
   const cabecalhos = opcoes?.body
@@ -78,14 +102,13 @@ async function pedir<T>(url: string, opcoes?: RequestInit): Promise<T> {
   if (!resposta.ok) {
     let mensagem = `Erro ${resposta.status}`;
     try {
-      const corpo = (await resposta.json()) as { erro?: string };
-      if (corpo?.erro) mensagem = corpo.erro;
+      const corpoErro = (await resposta.json()) as { erro?: string };
+      if (corpoErro.erro) mensagem = corpoErro.erro;
     } catch {
-      // corpo sem json, mantem a mensagem padrao
+      // Mantem a mensagem HTTP quando o corpo nao e JSON.
     }
     throw new ErroCrm(mensagem, resposta.status);
   }
-  if (resposta.status === 204) return undefined as T;
   return (await resposta.json()) as T;
 }
 
@@ -93,52 +116,92 @@ function corpo(metodo: string, dados: unknown): RequestInit {
   return { method: metodo, body: JSON.stringify(dados) };
 }
 
-// Estado inteiro do funil do workspace ativo.
 export function obterCrm(): Promise<EstadoCrm> {
   return pedir<EstadoCrm>("/api/crm");
 }
 
-// Cria um contato. Devolve o criado.
 export function criarContato(dados: DadosContato): Promise<Contato> {
   return pedir<Contato>("/api/crm/contatos", corpo("POST", dados));
 }
 
-// Atualiza campos de um contato. Devolve o atualizado.
 export function atualizarContato(id: string, dados: DadosContato): Promise<Contato> {
   return pedir<Contato>(`/api/crm/contatos/${encodeURIComponent(id)}`, corpo("PATCH", dados));
 }
 
-// Exclui um contato.
 export function excluirContato(id: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(`/api/crm/contatos/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return pedir<{ ok: boolean }>(`/api/crm/contatos/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
 
-// Adiciona uma nota a um contato. Devolve o contato com a nota nova no topo.
-export function adicionarNota(id: string, texto: string): Promise<Contato> {
-  return pedir<Contato>(`/api/crm/contatos/${encodeURIComponent(id)}/notas`, corpo("POST", { texto }));
+export function registrarInteracao(
+  id: string,
+  tipo: TipoInteracao,
+  texto: string,
+): Promise<Interacao> {
+  return pedir<Interacao>(
+    `/api/crm/contatos/${encodeURIComponent(id)}/interacoes`,
+    corpo("POST", { tipo, texto }),
+  );
 }
 
-// Move um contato pra outra coluna. Devolve o contato.
-export function moverContato(id: string, colunaId: string): Promise<Contato> {
-  return pedir<Contato>(`/api/crm/contatos/${encodeURIComponent(id)}/mover`, corpo("PATCH", { colunaId }));
+export function criarTarefa(id: string, texto: string, prazo?: string): Promise<Tarefa> {
+  return pedir<Tarefa>(
+    `/api/crm/contatos/${encodeURIComponent(id)}/tarefas`,
+    corpo("POST", { texto, ...(prazo ? { prazo } : {}) }),
+  );
 }
 
-// Cria uma coluna nova no fim do funil. Devolve a criada.
+export function atualizarTarefa(id: string, dados: DadosTarefa): Promise<Tarefa> {
+  return pedir<Tarefa>(`/api/crm/tarefas/${encodeURIComponent(id)}`, corpo("PATCH", dados));
+}
+
+export function excluirTarefa(id: string): Promise<{ ok: boolean }> {
+  return pedir<{ ok: boolean }>(`/api/crm/tarefas/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function criarNegocio(dados: {
+  titulo: string;
+  contatoId: string;
+  colunaId?: string;
+  valorEstimado?: number;
+}): Promise<Negocio> {
+  return pedir<Negocio>("/api/crm/negocios", corpo("POST", dados));
+}
+
+export function atualizarNegocio(id: string, dados: DadosNegocio): Promise<Negocio> {
+  return pedir<Negocio>(`/api/crm/negocios/${encodeURIComponent(id)}`, corpo("PATCH", dados));
+}
+
+export function excluirNegocio(id: string): Promise<{ ok: boolean }> {
+  return pedir<{ ok: boolean }>(`/api/crm/negocios/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function moverNegocio(id: string, colunaId: string): Promise<Negocio> {
+  return pedir<Negocio>(
+    `/api/crm/negocios/${encodeURIComponent(id)}/mover`,
+    corpo("PATCH", { colunaId }),
+  );
+}
+
 export function criarColuna(nome: string): Promise<Coluna> {
   return pedir<Coluna>("/api/crm/colunas", corpo("POST", { nome }));
 }
 
-// Renomeia uma coluna. Devolve a atualizada.
 export function renomearColuna(id: string, nome: string): Promise<Coluna> {
   return pedir<Coluna>(`/api/crm/colunas/${encodeURIComponent(id)}`, corpo("PATCH", { nome }));
 }
 
-// Exclui uma coluna. Os contatos dela vao pra primeira coluna que sobrar.
 export function excluirColuna(id: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(`/api/crm/colunas/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return pedir<{ ok: boolean }>(`/api/crm/colunas/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
 
-// Reordena as colunas conforme a lista de ids. Devolve as colunas ordenadas.
 export function reordenarColunas(ordem: string[]): Promise<{ colunas: Coluna[] }> {
   return pedir<{ colunas: Coluna[] }>("/api/crm/colunas/reordenar", corpo("PATCH", { ordem }));
 }

@@ -9,8 +9,11 @@ export type StatusSessao =
   | "erro"
   | "parada";
 
+export type ProvedorIA = "claude" | "codex";
+
 export interface Sessao {
   id: string;
+  provedor: ProvedorIA;
   titulo: string;
   prompt: string;
   skill?: string;
@@ -19,6 +22,7 @@ export interface Sessao {
   atualizadaEm: string;
   sessionIdClaude?: string;
   custoUsd?: number;
+  estimado?: boolean;
   pastaTrabalho: string;
   resultado?: string;
   erro?: string;
@@ -33,6 +37,15 @@ export interface Sessao {
   tokensEntradaNova?: number;
   tokensCacheEscrita?: number;
   tokensCacheLeitura?: number;
+  // Laco de conformidade de site (pos-geracao). Presente so na geracao guiada de
+  // site. Enquanto conferindo/corrigindo, a peca ainda nao entra em "pronta".
+  conferenciaSite?: ConferenciaSite;
+}
+
+// Estado do laco de conformidade pos-geracao de site. Espelha o backend.
+export interface ConferenciaSite {
+  estado: "conferindo" | "corrigindo" | "aprovada" | "pendencias";
+  volta: number;
 }
 
 // Um turno da conversa de uma sessao, persistido pelo backend.
@@ -41,6 +54,7 @@ export interface TurnoSessao {
   texto: string;
   em: string;
   custoUsd?: number;
+  estimado?: boolean;
 }
 
 // Modelo de carrossel do VKOS (templates/carrossel/).
@@ -68,6 +82,12 @@ export interface Peca {
   // Data e hora de criacao da subpasta (ISO). Birthtime, com fallback pra mtime
   // quando o sistema de arquivos nao guarda birthtime confiavel.
   criadoEm?: string;
+  // Diagnostico do site estatico calculado pelo servidor.
+  site?: {
+    valido: boolean;
+    erros: string[];
+    avisos: string[];
+  };
 }
 
 export interface SkillVkos {
@@ -82,13 +102,18 @@ export interface EstadoVkos {
   totalSkills: number;
 }
 
+export interface DeteccaoMotorIA {
+  instalado: boolean;
+  versao: string | null;
+  logado: boolean | null;
+  binario: string | null;
+}
+
 export interface Ambiente {
   plataforma: string;
   node: string;
-  claude: {
-    instalado: boolean;
-    versao: string | null;
-  };
+  claude: DeteccaoMotorIA;
+  codex: DeteccaoMotorIA;
 }
 
 // Nos de contexto: anexos e notas que alimentam as sessoes.
@@ -96,6 +121,11 @@ export interface ArquivoContexto {
   nome: string;
   tamanho: number;
   tipo: string;
+}
+
+export interface AnexoAjuste {
+  nome: string;
+  caminhoRelativo: string;
 }
 
 // Tipo do no de contexto. Imutavel depois de criado.
@@ -183,6 +213,12 @@ export type MensagemWs =
       id: string;
       status: StatusSessao;
       detalhe?: string;
+      workspaceId?: string;
+    }
+  | {
+      tipo: "sessao:conferencia";
+      id: string;
+      conferencia: ConferenciaSite;
       workspaceId?: string;
     }
   | { tipo: "pecas:atualizadas" }

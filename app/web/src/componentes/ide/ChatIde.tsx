@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
+import { usarProvedoresIA } from "../../estado/provedores";
 import { mensagemDeErro } from "../../util/erros";
-import type { TurnoSessao } from "../../tipos/dominio";
+import type { ProvedorIA, TurnoSessao } from "../../tipos/dominio";
 import type { ModeloIA } from "../../api/cliente";
-import { IconeMais, IconeRaio, IconeSeta } from "../comum/Icones";
+import type { OpcaoModeloIA } from "../../api/cliente";
+import { atualizarConfig } from "../../api/cliente";
+import { IconeRaio, IconeSeta } from "../comum/Icones";
 import { Markdown } from "../comum/Markdown";
 
 // Titulo fixo da sessao da IDE: e por ele que reencontramos a conversa em
@@ -12,17 +15,12 @@ const TITULO_IDE = "Sessão da IDE";
 
 type Permissao = "padrao" | "total";
 
-// Os mesmos rotulos honestos do composer do cockpit.
-const MODELOS: { id: ModeloIA; rotulo: string; nota: string }[] = [
-  { id: "opus", rotulo: "Opus", nota: "mais capaz, mais caro" },
-  { id: "sonnet", rotulo: "Sonnet", nota: "equilíbrio" },
-  { id: "haiku", rotulo: "Haiku", nota: "rápido e barato" },
-];
-
 // Nome amigavel a partir do id real que o backend grava na sessao
 // (ex: "claude-opus-4-8" vira "Opus").
-function nomeDoModelo(id?: string): string | null {
+function nomeDoModelo(id: string | undefined, modelos: OpcaoModeloIA[]): string | null {
   if (!id) return null;
+  const cadastrado = modelos.find((modelo) => modelo.alias === id);
+  if (cadastrado) return cadastrado.rotulo;
   const baixo = id.toLowerCase();
   if (baixo.includes("opus")) return "Opus";
   if (baixo.includes("sonnet")) return "Sonnet";
@@ -50,6 +48,17 @@ function IconeEngrenagem({ className }: { className?: string }) {
   );
 }
 
+function IconeControles() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+      <path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h8M16 18h4" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="14" cy="18" r="2" />
+    </svg>
+  );
+}
+
 // Painel de chat da IDE. Conversa no padrao do app (transcricao + stream ao
 // vivo), com as ferramentas ao vivo viradas em linhas discretas. Seletor de
 // permissao visivel antes de criar a sessao.
@@ -60,8 +69,9 @@ export function ChatIde() {
     criarSessao,
     enviarMensagem,
     obterTranscricao,
-    modeloPadrao,
   } = usarEstado();
+  const { ambiente } = usarEstado();
+  const { ativo, provedores, modelos, modeloPadrao, recarregar } = usarProvedoresIA();
 
   const [permissao, setPermissao] = useState<Permissao>("padrao");
   // Modelo da proxima sessao. Nasce no padrao configurado do app e trava na
@@ -74,9 +84,12 @@ export function ChatIde() {
   const [mensagem, setMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [controleAberto, setControleAberto] = useState(false);
+  const [salvandoControle, setSalvandoControle] = useState(false);
 
   const refConversa = useRef<HTMLDivElement>(null);
   const refCampo = useRef<HTMLTextAreaElement>(null);
+  const refControle = useRef<HTMLDivElement>(null);
   // Tamanho ja consumido por turnos finalizados. O que passa disso e a resposta
   // em andamento (mesmo padrao do no de sessao e da cerimonia).
   const baseStream = useRef(0);
@@ -85,6 +98,29 @@ export function ChatIde() {
   const baseFerramentas = useRef(0);
   const idCarregado = useRef<string | null>(null);
   const statusAnterior = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (modelos.length === 0 || modelos.some((m) => m.alias === modelo)) return;
+    setModelo(modeloPadrao || modelos[0].alias);
+  }, [modelos, modeloPadrao, modelo]);
+
+  useEffect(() => {
+    if (!controleAberto) return;
+    const aoClicar = (evento: MouseEvent) => {
+      if (!refControle.current?.contains(evento.target as Node)) {
+        setControleAberto(false);
+      }
+    };
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setControleAberto(false);
+    };
+    document.addEventListener("mousedown", aoClicar);
+    document.addEventListener("keydown", aoTeclar);
+    return () => {
+      document.removeEventListener("mousedown", aoClicar);
+      document.removeEventListener("keydown", aoTeclar);
+    };
+  }, [controleAberto]);
 
   // A sessao da IDE: a mais recente com o titulo fixo.
   const sessaoExistente = useMemo(() => {
@@ -185,14 +221,52 @@ export function ChatIde() {
     enviarMensagem,
   ]);
 
-  const novaSessao = () => {
+  const aplicarNovaSessao = () => {
     setForcarNova(true);
     setTurnos([]);
     setPendentes([]);
     setErro(null);
+    setControleAberto(false);
   };
 
+  async function escolherMotor(provedor: ProvedorIA) {
+    if (provedor === ativo || salvandoControle) return;
+    const deteccao = ambiente?.[provedor];
+    if (!deteccao?.instalado) return;
+    setSalvandoControle(true);
+    setErro(null);
+    try {
+      await atualizarConfig({ provedorPadrao: provedor });
+      await recarregar();
+    } catch (e) {
+      setErro(mensagemDeErro(e));
+    } finally {
+      setSalvandoControle(false);
+    }
+  }
+
+  async function escolherModelo(alias: string) {
+    if (!alias || alias === modelo || salvandoControle) return;
+    setModelo(alias);
+    setSalvandoControle(true);
+    setErro(null);
+    try {
+      await atualizarConfig(
+        ativo === "codex"
+          ? { modeloPadraoCodex: alias }
+          : { modeloPadraoClaude: alias }
+      );
+      await recarregar();
+    } catch (e) {
+      setErro(mensagemDeErro(e));
+    } finally {
+      setSalvandoControle(false);
+    }
+  }
+
   const semSessao = !sessao;
+  const modeloDaSessao = nomeDoModelo(sessao?.modelo, modelos);
+  const modeloEscolhido = nomeDoModelo(modelo, modelos) ?? "Modelo";
 
   return (
     <div className="ide-chat">
@@ -200,9 +274,9 @@ export function ChatIde() {
         <span className="ide-chat-titulo">Conversa</span>
         {sessao && (
           <>
-            {nomeDoModelo(sessao.modelo) && (
+            {modeloDaSessao && (
               <span className="ide-chat-selo" title="Modelo travado nesta sessão">
-                {nomeDoModelo(sessao.modelo)}
+                {modeloDaSessao}
               </span>
             )}
             {permissaoSessao && (
@@ -215,15 +289,86 @@ export function ChatIde() {
                 {permissaoSessao === "total" ? "Poder total" : "Seguro"}
               </span>
             )}
-            <button
-              className="ide-chat-nova"
-              title="Nova sessão (escolher permissão de novo)"
-              onClick={novaSessao}
-            >
-              <IconeMais className="" />
-            </button>
           </>
         )}
+        <div className="ide-controle-wrap" ref={refControle}>
+          <button
+            className={`ide-controle-botao${controleAberto ? " ativo" : ""}`}
+            onClick={() => setControleAberto((aberto) => !aberto)}
+            aria-haspopup="menu"
+            aria-expanded={controleAberto}
+            title="Motor, modelo e permissão"
+          >
+            <IconeControles />
+            <span>{modeloEscolhido}, {permissao === "total" ? "Poder total" : "Seguro"}</span>
+          </button>
+          {controleAberto && (
+            <div className="ide-controle-popover" role="menu" aria-label="Configuração da IA">
+              <GrupoControle titulo="Motor">
+                <div className="ide-controle-opcoes duas">
+                  {provedores.map((provedor) => {
+                    const disponivel = ambiente?.[provedor.id]?.instalado === true;
+                    return (
+                      <button
+                        key={provedor.id}
+                        className={`ide-controle-opcao${ativo === provedor.id ? " ativa" : ""}`}
+                        onClick={() => void escolherMotor(provedor.id)}
+                        disabled={!disponivel || salvandoControle}
+                      >
+                        <strong>{provedor.id === "codex" ? "Codex" : "Claude"}</strong>
+                        <span>{disponivel ? "disponível" : "não instalado"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="ide-controle-nota">Vale pra sessões novas no app inteiro.</p>
+              </GrupoControle>
+
+              <GrupoControle titulo="Modelo">
+                <div className="ide-controle-opcoes">
+                  {modelos.map((opcao) => (
+                    <button
+                      key={opcao.alias}
+                      className={`ide-controle-opcao${modelo === opcao.alias ? " ativa" : ""}`}
+                      onClick={() => void escolherModelo(opcao.alias)}
+                      disabled={salvandoControle}
+                    >
+                      <strong>{opcao.rotulo}</strong>
+                      <span>{opcao.observacaoCusto}</span>
+                    </button>
+                  ))}
+                </div>
+              </GrupoControle>
+
+              <GrupoControle titulo="Permissão">
+                <div className="ide-controle-opcoes duas">
+                  <button
+                    className={`ide-controle-opcao${permissao === "padrao" ? " ativa" : ""}`}
+                    onClick={() => setPermissao("padrao")}
+                  >
+                    <strong>Seguro</strong>
+                    <span>Edita a pasta com limites.</span>
+                  </button>
+                  <button
+                    className={`ide-controle-opcao perigo${permissao === "total" ? " ativa" : ""}`}
+                    onClick={() => setPermissao("total")}
+                  >
+                    <strong>Poder total</strong>
+                    <span>Executa sem confirmação.</span>
+                  </button>
+                </div>
+              </GrupoControle>
+
+              <button
+                className="botao botao-principal ide-controle-aplicar"
+                onClick={sessao ? aplicarNovaSessao : () => setControleAberto(false)}
+                disabled={salvandoControle}
+              >
+                {sessao ? "Aplicar numa conversa nova" : "Aplicar"}
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="ide-chat-conversa" ref={refConversa}>
@@ -232,53 +377,20 @@ export function ChatIde() {
             <div className="ide-chat-intro-selo">
               <IconeRaio className="" />
             </div>
-            <h3>Converse com o Claude</h3>
+            <h3>Converse com a IA</h3>
             <p>
-              Ele lê o mesmo Cérebro deste cliente e pode editar os arquivos da
-              pasta. Escolha o modelo e o nível de permissão antes de começar.
+              O motor {ativo === "codex" ? "Codex" : "Claude"} lê o mesmo Cérebro deste cliente e pode editar os arquivos da
+              pasta.
             </p>
-
-            <div className="ide-modelo" role="group" aria-label="Modelo do Claude">
-              {MODELOS.map((m) => (
-                <button
-                  key={m.id}
-                  className={`ide-modelo-opcao${modelo === m.id ? " ativa" : ""}`}
-                  onClick={() => setModelo(m.id)}
-                  title={m.nota}
-                >
-                  <span className="ide-modelo-nome">{m.rotulo}</span>
-                  <span className="ide-modelo-nota">{m.nota}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="ide-permissao">
-              <button
-                className={`ide-permissao-opcao${
-                  permissao === "padrao" ? " ativa" : ""
-                }`}
-                onClick={() => setPermissao("padrao")}
-              >
-                <span className="ide-permissao-nome">Seguro</span>
-                <span className="ide-permissao-desc">
-                  O Claude edita arquivos, mas ações fora disso pedem cuidado.
-                </span>
-              </button>
-              <button
-                className={`ide-permissao-opcao perigo${
-                  permissao === "total" ? " ativa" : ""
-                }`}
-                onClick={() => setPermissao("total")}
-              >
-                <span className="ide-permissao-nome">Poder total</span>
-                <span className="ide-permissao-desc">
-                  Sem freios: ele executa o que decidir, sem pedir confirmação.
-                  Use com consciência.
-                </span>
-              </button>
+            <div className="ide-chat-escolhas">
+              <span>{ativo === "codex" ? "Codex" : "Claude"}</span>
+              <span>{modeloEscolhido}</span>
+              <span className={permissao === "total" ? "perigo" : ""}>
+                {permissao === "total" ? "Poder total" : "Seguro"}
+              </span>
             </div>
             <span className="ide-chat-dica">
-              Mande a primeira mensagem pra abrir a sessão.
+              Ajuste no controle acima e mande a primeira mensagem pra abrir a sessão.
             </span>
           </div>
         ) : (
@@ -323,7 +435,7 @@ export function ChatIde() {
           ref={refCampo}
           className="ide-chat-campo"
           value={mensagem}
-          placeholder={rodando ? "O Claude está trabalhando..." : "Escreva uma mensagem"}
+          placeholder={rodando ? "A IA está trabalhando..." : "Escreva uma mensagem"}
           disabled={rodando || enviando}
           rows={2}
           onChange={(e) => setMensagem(e.target.value)}
@@ -337,12 +449,27 @@ export function ChatIde() {
         <button
           className="botao botao-principal ide-chat-enviar"
           onClick={() => void enviar()}
-          disabled={rodando || enviando || !mensagem.trim()}
+          disabled={rodando || enviando || !mensagem.trim() || !modelo}
           title="Enviar"
         >
           <IconeSeta className="" />
         </button>
       </div>
     </div>
+  );
+}
+
+function GrupoControle({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="ide-controle-grupo" role="group" aria-label={titulo}>
+      <h4>{titulo}</h4>
+      {children}
+    </section>
   );
 }

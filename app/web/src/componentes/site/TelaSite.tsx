@@ -24,11 +24,21 @@ import {
   type RefObject,
 } from "react";
 import { usarEstado } from "../../estado/contexto";
-import { type ModeloIA } from "../../api/cliente";
+import { usarProvedoresIA } from "../../estado/provedores";
+import {
+  obterPublicacao,
+  publicarGithub,
+  publicarNetlify,
+  type ModeloIA,
+  type RespostaPublicacao,
+} from "../../api/cliente";
 import type { Peca } from "../../tipos/dominio";
+import type { AnexoAjuste } from "../../tipos/dominio";
 import { formatarTema } from "../telas/fluxos";
 import { usarMotorSite } from "../editor/motorSite";
+import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import { PainelSite } from "./PainelSite";
+import { AnexosAjuste, blocoDeAnexos } from "../comum/AnexosAjuste";
 import { IconeSeta, IconeGaleria, IconeRaio, IconeX, IconeOlho, IconeLapis } from "../comum/Icones";
 import "../../estilos/site.css";
 
@@ -57,12 +67,17 @@ const ZOOMS: { id: ZoomModo; rotulo: string }[] = [
   { id: "100", rotulo: "100%" },
 ];
 
-// Modelos pro ajuste com IA. Padrao Sonnet (contrato).
-const MODELOS: { id: ModeloIA; rotulo: string }[] = [
-  { id: "haiku", rotulo: "Haiku" },
-  { id: "sonnet", rotulo: "Sonnet" },
-  { id: "opus", rotulo: "Opus" },
-];
+// ===== Revisão de design: atalho do painel Ajustar com IA. É um preset do
+// fluxo de ajuste comum (mesma sessão escopada, mesmas guardas), com o prompt
+// pronto abaixo no lugar do texto do campo livre. Contrato do Dono B da rodada
+// otimizações de IA.
+const DESCRICAO_REVISAO_DESIGN =
+  "uma crítica e correção visual consistente em todas as páginas do site";
+// O preset invoca a skill /revisar-design do workspace: uma linha de contexto
+// mais o comando. A skill traz o roteiro completo (nota por área, teste anti-slop
+// nas duas ordens, conferência do estilo declarado, correções por impacto).
+const PROMPT_REVISAO_DESIGN = `Faça uma revisão de design do site inteiro nesta pasta: leia todas as páginas, o CSS e o JavaScript, e corrija os problemas de maior impacto, preservando conteúdo, seções, imagens e a marcação amigável ao Studio.
+/revisar-design`;
 
 // Pagina inicial de uma peca de site: a index.html se existir, senao a primeira
 // pagina em ordem natural.
@@ -75,6 +90,28 @@ function paginaInicial(peca: Peca): string | undefined {
 // Nome do arquivo .html de uma preview de pagina (ultimo segmento, sem query).
 function nomeArquivo(url: string): string {
   return (url.split("/").pop() ?? url).split(/[?#]/)[0];
+}
+
+// Caminho da pagina dentro da peca, inclusive subpastas. O backend aceita esse
+// caminho pelo wildcard seguro e valida o confinamento dentro do site.
+function caminhoPagina(url: string, pasta: string): string {
+  const pathname = new URL(url, window.location.origin).pathname;
+  const prefixo = `/pecas/${encodeURIComponent(pasta)}/`;
+  if (!pathname.startsWith(prefixo)) return nomeArquivo(url);
+  return pathname
+    .slice(prefixo.length)
+    .split("/")
+    .map((segmento) => decodeURIComponent(segmento))
+    .join("/");
+}
+
+function urlSalvarPagina(pasta: string, caminho: string): string {
+  const caminhoUrl = caminho.split("/").map(encodeURIComponent).join("/");
+  return `/api/vkos/pecas/${encodeURIComponent(pasta)}/pagina/${caminhoUrl}`;
+}
+
+function urlEdicaoPagina(url: string): string {
+  return url.replace(/^\/pecas\//, "/pecas-edicao/");
 }
 
 // Nome amigavel da pagina: index.html vira "Início"; o resto capitaliza o nome
@@ -94,12 +131,142 @@ function comCacheBust(url: string, ts: number): string {
   return `${url}${sep}vk=${ts}`;
 }
 
+function IconePublicar() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3c3.8 1.8 6.4 5.6 6.4 10v2.2l-3.1-1.3-3.3 4.6-3.3-4.6-3.1 1.3V13C5.6 8.6 8.2 4.8 12 3Z" />
+      <circle cx="12" cy="10" r="2" />
+      <path d="M9.4 18.3 8.5 21M14.6 18.3l.9 2.7" />
+    </svg>
+  );
+}
+
+function IconeLupaRevisao() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.4-4.4" />
+      <path d="M8.6 11a2.4 2.4 0 0 1 2.4-2.4" />
+    </svg>
+  );
+}
+
+function pedidoCriaImagemSite(texto: string): boolean {
+  return /\b(crie|criar|gere|gerar|adicione|adicionar|coloque|inserir|inclua|troque|substitua)\b[\s\S]{0,90}\b(imagem|foto|ilustra[cç][aã]o|background|fundo)\b/i.test(texto);
+}
+
+function encontrarAlvoVisual(doc: Document, pedido: string): HTMLElement | null {
+  const seletores: string[] = [];
+  if (/\b(hero|capa|topo|principal)\b/i.test(pedido)) {
+    seletores.push('[data-hero]', '#hero', '.hero', '[class*="hero"]', '[class*="banner"]');
+  }
+  if (/\b(sobre|about)\b/i.test(pedido)) {
+    seletores.push('#sobre', '#about', '.sobre', '.about', '[class*="sobre"]', '[class*="about"]');
+  }
+  if (/\b(servi[cç]os?|services?)\b/i.test(pedido)) {
+    seletores.push('#servicos', '#services', '[class*="servic"]');
+  }
+  if (/\b(cta|chamada final|se[cç][aã]o final)\b/i.test(pedido)) {
+    seletores.push('.cta', '#cta', '[class*="cta"]');
+  }
+  seletores.push(
+    '[data-hero]',
+    '#hero',
+    '.hero',
+    '[class*="hero"]',
+    'main > section:first-of-type',
+    'body > section:first-of-type',
+    'main',
+  );
+  for (const seletor of seletores) {
+    const alvo = doc.querySelector<HTMLElement>(seletor);
+    if (alvo) return alvo;
+  }
+  return null;
+}
+
+async function lerDocumentoSite(url: string): Promise<Document> {
+  const resposta = await fetch(comCacheBust(url, Date.now()));
+  if (!resposta.ok) throw new Error("Não foi possível abrir a página atual para aplicar a imagem.");
+  return new DOMParser().parseFromString(await resposta.text(), "text/html");
+}
+
+function serializarDocumentoSite(doc: Document): string {
+  return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+}
+
+async function aplicarImagemEmSecaoSite(
+  pagina: string,
+  pasta: string,
+  pedido: string,
+  caminhoRelativo: string,
+): Promise<void> {
+  const doc = await lerDocumentoSite(pagina);
+  const alvo = encontrarAlvoVisual(doc, pedido);
+  if (!alvo) throw new Error("Não encontrei a seção pedida nessa página.");
+  alvo.setAttribute("data-vkos-generated-bg", "1");
+  alvo.style.position = alvo.style.position || "relative";
+  alvo.style.overflow = alvo.style.overflow || "hidden";
+
+  let img = alvo.querySelector<HTMLImageElement>(":scope > img[data-vkos-image-bg]");
+  if (!img) {
+    img = doc.createElement("img");
+    img.setAttribute("data-vkos-image-bg", "1");
+    img.alt = "Imagem de fundo contextual";
+    img.style.position = "absolute";
+    img.style.inset = "0";
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.objectFit = "cover";
+    img.style.objectPosition = "center";
+    img.style.filter = "brightness(0.48) saturate(0.9)";
+    img.style.zIndex = "0";
+    img.style.pointerEvents = "none";
+    alvo.insertBefore(img, alvo.firstChild);
+  }
+  img.src = caminhoRelativo;
+  Array.from(alvo.children).forEach((filho) => {
+    if (filho === img || !(filho instanceof HTMLElement)) return;
+    filho.style.position = filho.style.position || "relative";
+    filho.style.zIndex = filho.style.zIndex || "2";
+  });
+
+  let estilo = doc.getElementById("vkos-generated-bg-style") as HTMLStyleElement | null;
+  if (!estilo) {
+    estilo = doc.createElement("style");
+    estilo.id = "vkos-generated-bg-style";
+    doc.head.appendChild(estilo);
+  }
+  const estilosHub = window.getComputedStyle(document.documentElement);
+  alvo.style.setProperty(
+    "--overlay-imagem-leve",
+    estilosHub.getPropertyValue("--overlay-imagem-leve").trim(),
+  );
+  alvo.style.setProperty(
+    "--overlay-imagem-forte",
+    estilosHub.getPropertyValue("--overlay-imagem-forte").trim(),
+  );
+  estilo.textContent =
+    '[data-vkos-generated-bg]::before{background-image:linear-gradient(var(--overlay-imagem-leve),var(--overlay-imagem-forte))!important;z-index:1!important;pointer-events:none!important;}';
+
+  const resp = await fetch(
+    urlSalvarPagina(pasta, caminhoPagina(pagina, pasta)),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto: serializarDocumentoSite(doc) }),
+    },
+  );
+  if (!resp.ok) throw new Error("A imagem foi criada, mas não consegui aplicá-la à página.");
+}
+
 // Acao pendente atras da guarda de estado sujo.
 type AcaoPendente =
   | { tipo: "ver" }
   | { tipo: "pagina"; alvo: string }
   | { tipo: "sair" }
-  | { tipo: "ajustar" };
+  // "ajustar" sem texto usa o campo livre; com texto e o preset (Revisao de design).
+  | { tipo: "ajustar"; texto?: string };
 
 interface EstadoEditor {
   naoSalvo: boolean;
@@ -115,6 +282,7 @@ interface HandleEditor {
 export default function TelaSite({ pasta }: Props) {
   const { pecas, carregandoInicial, trocandoWorkspace, criarSessao, sessoes } =
     usarEstado();
+  const { modelos, modeloPadrao } = usarProvedoresIA();
 
   const peca = useMemo(() => pecas.find((p) => p.pasta === pasta), [pecas, pasta]);
   const carregandoPeca = carregandoInicial || trocandoWorkspace;
@@ -159,15 +327,98 @@ export default function TelaSite({ pasta }: Props) {
   // Painel de ajuste com IA (estado LOCAL da tela).
   const [painelAberto, setPainelAberto] = useState(false);
   const [pedido, setPedido] = useState("");
-  const [modelo, setModelo] = useState<ModeloIA>("sonnet");
+  const [anexosAjuste, setAnexosAjuste] = useState<AnexoAjuste[]>([]);
+  const [modelo, setModelo] = useState<ModeloIA>(modeloPadrao);
   const [ajustando, setAjustando] = useState(false);
   const [sessaoAjuste, setSessaoAjuste] = useState<string | null>(null);
   const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [ajusteFeito, setAjusteFeito] = useState(false);
+  const [inicioAjusteImagem, setInicioAjusteImagem] = useState<number | null>(null);
+  const geracaoImagemAjuste = usarGeracaoImagemIA();
   // Espelho pro efeito de pecas (dep so em "pecas") saber se ha ajuste rodando.
   ajustandoRef.current = ajustando;
+  // O ajuste em andamento nasceu do preset (Revisao de design)? Se sim, ao
+  // concluir nao limpa o campo livre: o rascunho do usuario nao e do preset.
+  const ehPresetRef = useRef(false);
 
   const refViewport = useRef<HTMLDivElement>(null);
+
+  // ===== Publicação determinística, independente da sessão de IA.
+  const [publicarAberto, setPublicarAberto] = useState(false);
+  const [publicacao, setPublicacao] = useState<RespostaPublicacao | null>(null);
+  const [carregandoPublicacao, setCarregandoPublicacao] = useState(false);
+  const [publicando, setPublicando] = useState<"github" | "netlify" | null>(null);
+  const [erroPublicacao, setErroPublicacao] = useState<string | null>(null);
+  const [sucessoPublicacao, setSucessoPublicacao] = useState<string | null>(null);
+  // Avisos que o servidor devolve no POST (ex: fallback pro modo HTML puro).
+  const [avisosPublicacao, setAvisosPublicacao] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!publicarAberto) return;
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape" && !publicando) setPublicarAberto(false);
+    };
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [publicarAberto, publicando]);
+
+  const carregarPublicacao = useCallback(async () => {
+    setCarregandoPublicacao(true);
+    setErroPublicacao(null);
+    try {
+      setPublicacao(await obterPublicacao(pasta));
+    } catch (erro) {
+      setErroPublicacao(
+        erro instanceof Error ? erro.message : "Não foi possível consultar a publicação.",
+      );
+    } finally {
+      setCarregandoPublicacao(false);
+    }
+  }, [pasta]);
+
+  useEffect(() => {
+    if (publicarAberto) void carregarPublicacao();
+  }, [publicarAberto, carregarPublicacao]);
+
+  async function executarPublicacao(destino: "github" | "netlify") {
+    if (publicando) return;
+    setPublicando(destino);
+    setErroPublicacao(null);
+    setSucessoPublicacao(null);
+    setAvisosPublicacao([]);
+    try {
+      if (destino === "github") {
+        const resultado = await publicarGithub(pasta);
+        setPublicacao(await obterPublicacao(pasta));
+        setAvisosPublicacao(resultado.avisos ?? []);
+        setSucessoPublicacao("Código enviado e confirmado no GitHub.");
+      } else {
+        const resultado = await publicarNetlify(pasta);
+        const atual = await obterPublicacao(pasta);
+        setPublicacao({
+          ...atual,
+          registro: { ...atual.registro, netlify: resultado },
+        });
+        setAvisosPublicacao(resultado.avisos ?? []);
+        setSucessoPublicacao(
+          resultado.pendente
+            ? "Deploy enviado. A Netlify ainda está preparando a URL."
+            : "Site publicado e URL pública verificada com sucesso.",
+        );
+      }
+    } catch (erro) {
+      setErroPublicacao(
+        erro instanceof Error ? erro.message : "Não foi possível publicar o site.",
+      );
+    } finally {
+      setPublicando(null);
+    }
+  }
+
+  useEffect(() => {
+    if (modelos.length === 0 || modelos.some((m) => m.alias === modelo)) return;
+    setModelo(modeloPadrao || modelos[0].alias);
+  }, [modelos, modeloPadrao, modelo]);
 
   // Se a pagina escolhida sumiu (peca regenerada com outras paginas), volta pra
   // inicial. So mexe quando a peca existe.
@@ -229,6 +480,13 @@ export default function TelaSite({ pasta }: Props) {
     const s = sessoes.find((x) => x.id === sessaoAjuste);
     if (!s) return;
     if (s.status === "concluida") {
+      const resposta = s.resultado?.trim() || "";
+      if (/não consegui|nao consegui|não foi possível alterar|nao foi possivel alterar|não alterei|nao alterei|bloqueou a leitura|preciso que você|preciso que voce/i.test(resposta)) {
+        setAjustando(false);
+        setSessaoAjuste(null);
+        setErroAjuste(resposta || "O provedor não conseguiu alterar o site.");
+        return;
+      }
       setTs(Date.now());
       // No modo Editar, recarrega o editor com o resultado do disco. O eco de
       // pecas foi ignorado durante o ajuste; aqui e a recarga limpa e unica.
@@ -236,7 +494,8 @@ export default function TelaSite({ pasta }: Props) {
       setAjustando(false);
       setSessaoAjuste(null);
       setAjusteFeito(true);
-      setPedido("");
+      if (!ehPresetRef.current) setPedido("");
+      setAnexosAjuste([]);
     } else if (s.status === "erro" || s.status === "parada") {
       setAjustando(false);
       setSessaoAjuste(null);
@@ -247,6 +506,28 @@ export default function TelaSite({ pasta }: Props) {
       );
     }
   }, [sessoes, sessaoAjuste]);
+
+  useEffect(() => {
+    if (inicioAjusteImagem === null) return;
+    if (geracaoImagemAjuste.erro) {
+      setAjustando(false);
+      setInicioAjusteImagem(null);
+      setErroAjuste(geracaoImagemAjuste.erro);
+      return;
+    }
+    if (geracaoImagemAjuste.ultimaConcluidaEm < inicioAjusteImagem) return;
+    setTs(Date.now());
+    if (modoRef.current === "editar") setRecargaEd((x) => x + 1);
+    setAjustando(false);
+    setInicioAjusteImagem(null);
+    setAjusteFeito(true);
+    setPedido("");
+    setAnexosAjuste([]);
+  }, [
+    inicioAjusteImagem,
+    geracaoImagemAjuste.erro,
+    geracaoImagemAjuste.ultimaConcluidaEm,
+  ]);
 
   // ===== Callbacks estaveis passados ao editor. aoEstado entra na dependencia
   // de um efeito do editor: precisa de identidade fixa pra nao criar laco.
@@ -294,7 +575,7 @@ export default function TelaSite({ pasta }: Props) {
     }
     if (a.tipo === "ajustar") {
       // Ja salvou (unico caminho que chega aqui e o Salvar da guarda): dispara.
-      void aoAjustar();
+      void aoAjustar(a.texto);
       return;
     }
     // "ver": sai do modo Editar. A pagina do Visualizar recarrega do disco pelo
@@ -342,28 +623,88 @@ export default function TelaSite({ pasta }: Props) {
     setModo("editar");
   }
 
-  const aoAjustar = useCallback(async () => {
-    const texto = pedido.trim();
+  const aoAjustar = useCallback(async (textoPreset?: string) => {
+    // Preset (Revisao de design) usa o texto pronto; sem preset, o campo livre.
+    const texto = (textoPreset ?? pedido).trim();
     if (!texto || ajustando) return;
+    const promptFinal = texto + blocoDeAnexos(anexosAjuste);
+    ehPresetRef.current = textoPreset !== undefined;
     setErroAjuste(null);
     setAjusteFeito(false);
     setAjustando(true);
-    const prompt =
-      `Ajuste o site que está em conteudo/${pasta}/: ${texto}. ` +
-      `Edite os arquivos existentes dessa pasta, mantenha todo o resto como está. ` +
-      `Não crie carrossel.html nem arquivos .md.`;
+    // A heuristica de imagem vale so pro campo livre: o preset e sempre uma
+    // sessao de revisao, nunca geracao de imagem.
+    if (
+      textoPreset === undefined &&
+      anexosAjuste.length === 0 &&
+      pedidoCriaImagemSite(texto)
+    ) {
+      try {
+        const doc = await lerDocumentoSite(pagina);
+        const alvo = encontrarAlvoVisual(doc, texto);
+        if (!alvo) throw new Error("Não encontrei a seção pedida nessa página.");
+        const inicio = Date.now();
+        setInicioAjusteImagem(inicio);
+        await geracaoImagemAjuste.gerar(
+          pasta,
+          {
+            contexto: [
+              `Pedido do usuário: ${texto}`,
+              `Página: ${nomeAmigavel(pagina)}`,
+              alvo.innerText || alvo.textContent || "",
+            ].join(". "),
+            aplicar: (caminhoRelativo) =>
+              aplicarImagemEmSecaoSite(pagina, pasta, texto, caminhoRelativo),
+          },
+          modeloPadrao,
+        );
+      } catch (erro) {
+        setAjustando(false);
+        setInicioAjusteImagem(null);
+        setErroAjuste(
+          erro instanceof Error ? erro.message : "Não foi possível preparar a imagem.",
+        );
+      }
+      return;
+    }
     try {
       const sessao = await criarSessao({
-        titulo: `Ajuste do site: ${formatarTema(peca?.tema ?? pasta)}`,
-        prompt,
+        titulo:
+          textoPreset !== undefined
+            ? `Revisão de design: ${formatarTema(peca?.tema ?? pasta)}`
+            : `Ajuste do site: ${formatarTema(peca?.tema ?? pasta)}`,
+        // O servidor transforma este pedido curto num prompt com o Cérebro
+        // completo e confina o cwd na pasta desta peça.
+        prompt: promptFinal,
         modelo,
+        escopoPeca: {
+          pasta,
+          tipo: "site",
+          arquivo: caminhoPagina(pagina, pasta),
+          revisaoDesign: textoPreset !== undefined,
+        },
       });
       setSessaoAjuste(sessao.id);
-    } catch {
+    } catch (erro) {
       setAjustando(false);
-      setErroAjuste("Não foi possível iniciar o ajuste. O servidor respondeu com erro.");
+      setErroAjuste(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível iniciar o ajuste. O servidor respondeu com erro."
+      );
     }
-  }, [pedido, ajustando, pasta, criarSessao, peca, modelo]);
+  }, [
+    pedido,
+    anexosAjuste,
+    ajustando,
+    pasta,
+    pagina,
+    criarSessao,
+    peca,
+    modelo,
+    modeloPadrao,
+    geracaoImagemAjuste,
+  ]);
 
   // Botao "Ajustar" do painel de IA. No modo Editar com edicao nao salva, a IA
   // trabalha em cima do disco: exige salvar antes, pela guarda de estado sujo
@@ -375,6 +716,18 @@ export default function TelaSite({ pasta }: Props) {
       return;
     }
     void aoAjustar();
+  }
+
+  // Atalho "Revisão de design": preset do mesmo fluxo, mesmas guardas (salvar
+  // antes no Editar sujo, um ajuste por vez, mesmo progresso e erro).
+  function solicitarRevisao() {
+    if (ajustando || !modelo) return;
+    const texto = PROMPT_REVISAO_DESIGN;
+    if (modo === "editar" && estadoEd.naoSalvo) {
+      setConfirmar({ tipo: "ajustar", texto });
+      return;
+    }
+    void aoAjustar(texto);
   }
 
   // ===== Atalhos com foco no app (fora do iframe), so no modo Editar. Ctrl+S
@@ -492,6 +845,21 @@ export default function TelaSite({ pasta }: Props) {
             </a>
           )}
 
+          {!editando && (
+            <button
+              className={`botao botao-neutro${publicarAberto ? " ativo" : ""}`}
+              onClick={() => {
+                setPainelAberto(false);
+                setPublicarAberto((aberto) => !aberto);
+              }}
+              title="Publicar o site"
+              aria-expanded={publicarAberto}
+            >
+              <IconePublicar />
+              Publicar
+            </button>
+          )}
+
           {/* Ajustar com IA existe nos dois modos. No Editar troca com o painel
               de propriedades; no Visualizar abre a faixa lateral. */}
           <button
@@ -515,6 +883,34 @@ export default function TelaSite({ pasta }: Props) {
           )}
         </div>
       </header>
+
+      {peca?.site?.valido === false && (
+        <div className="site-publicar-auditoria site-pendencias" role="alert">
+          <strong>O site está de pé. A conferência achou pendências que bloqueiam a publicação:</strong>
+          <ul>
+            {peca.site.erros.slice(0, 4).map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          {peca.site.erros.length > 4 && (
+            <p>Há mais {peca.site.erros.length - 4} pendência(s) na conferência.</p>
+          )}
+          <p>Resolva pelo Ajustar com IA ou pelo modo Editar.</p>
+        </div>
+      )}
+
+      {publicarAberto && (
+        <PainelPublicacao
+          estado={publicacao}
+          carregando={carregandoPublicacao}
+          publicando={publicando}
+          erro={erroPublicacao}
+          sucesso={sucessoPublicacao}
+          avisos={avisosPublicacao}
+          aoPublicar={(destino) => void executarPublicacao(destino)}
+          aoFechar={() => {
+            if (!publicando) setPublicarAberto(false);
+          }}
+        />
+      )}
 
       {editando && erroEd && <div className="site-erro-barra">{erroEd}</div>}
 
@@ -588,7 +984,7 @@ export default function TelaSite({ pasta }: Props) {
                     className="site-frame"
                     src={comCacheBust(pagina, ts)}
                     title={nome}
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
                     style={{
                       width: `${dim.largura}px`,
                       height: `${dim.altura}px`,
@@ -623,6 +1019,20 @@ export default function TelaSite({ pasta }: Props) {
             </header>
 
             <div className="site-ajuste-corpo">
+              {/* Atalho pronto: Revisão de design. Preset do fluxo de ajuste. */}
+              <button
+                className="site-revisao"
+                onClick={solicitarRevisao}
+                disabled={ajustando || !modelo}
+                title="Dispara um ajuste com IA com o roteiro de revisão pronto. Custa o mesmo que um ajuste comum."
+              >
+                <span className="site-revisao-titulo">
+                  <IconeLupaRevisao />
+                  Revisão de design
+                </span>
+                <span className="site-revisao-desc">{DESCRICAO_REVISAO_DESIGN}</span>
+              </button>
+
               <label className="site-ajuste-rotulo" htmlFor="site-pedido">
                 O que você quer mudar?
               </label>
@@ -636,14 +1046,22 @@ export default function TelaSite({ pasta }: Props) {
                 rows={5}
               />
 
+              <AnexosAjuste
+                pasta={pasta}
+                anexos={anexosAjuste}
+                aoMudar={setAnexosAjuste}
+                desabilitado={ajustando}
+              />
+
               <span className="site-ajuste-rotulo">Modelo</span>
               <div className="site-modelos">
-                {MODELOS.map((m) => (
+                {modelos.map((m) => (
                   <button
-                    key={m.id}
-                    className={`site-modelo-btn${modelo === m.id ? " ativo" : ""}`}
-                    onClick={() => setModelo(m.id)}
+                    key={m.alias}
+                    className={`site-modelo-btn${modelo === m.alias ? " ativo" : ""}`}
+                    onClick={() => setModelo(m.alias)}
                     disabled={ajustando}
+                    title={m.observacaoCusto}
                   >
                     {m.rotulo}
                   </button>
@@ -670,7 +1088,7 @@ export default function TelaSite({ pasta }: Props) {
               <button
                 className="botao botao-principal site-ajuste-enviar"
                 onClick={solicitarAjuste}
-                disabled={ajustando || pedido.trim() === ""}
+                disabled={ajustando || pedido.trim() === "" || !modelo}
               >
                 {ajustando ? "Ajustando..." : "Ajustar"}
               </button>
@@ -752,6 +1170,188 @@ export default function TelaSite({ pasta }: Props) {
   );
 }
 
+function PainelPublicacao({
+  estado,
+  carregando,
+  publicando,
+  erro,
+  sucesso,
+  avisos,
+  aoPublicar,
+  aoFechar,
+}: {
+  estado: RespostaPublicacao | null;
+  carregando: boolean;
+  publicando: "github" | "netlify" | null;
+  erro: string | null;
+  sucesso: string | null;
+  avisos: string[];
+  aoPublicar: (destino: "github" | "netlify") => void;
+  aoFechar: () => void;
+}) {
+  const nenhumConectado =
+    !!estado && !estado.github.conectado && !estado.netlify.conectado;
+  const publicavel = estado?.auditoria.valido ?? false;
+  const modoAstro = estado?.modoPrevisto === "astro";
+
+  return (
+    <aside className="site-publicar" aria-label="Publicar site">
+      <header className="site-publicar-topo">
+        <div>
+          <span className="site-publicar-selo"><IconePublicar /></span>
+          <div>
+            <h2>Publicar site</h2>
+            <p>Código versionado e site no ar, sem usar créditos de IA.</p>
+            {modoAstro && (
+              <span
+                className="site-publicar-badge"
+                title="A navegação e o rodapé viram um layout único, com sitemap e robots."
+              >
+                Publica como projeto Astro
+              </span>
+            )}
+          </div>
+        </div>
+        <button className="site-publicar-fechar" onClick={aoFechar} aria-label="Fechar publicação">
+          <IconeX className="" />
+        </button>
+      </header>
+
+      {carregando && !estado ? (
+        <div className="site-publicar-carregando">Conferindo todas as páginas em desktop e celular...</div>
+      ) : (
+        <div className="site-publicar-corpo">
+          {estado && !publicavel && (
+            <div className="site-publicar-auditoria" role="alert">
+              <strong>O site precisa de correção antes do deploy.</strong>
+              <ul>
+                {estado.auditoria.erros.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+          {estado && estado.auditoria.avisos.length > 0 && (
+            <div className="site-publicar-avisos">
+              <strong>Avisos da conferência:</strong>
+              <ul>
+                {estado.auditoria.avisos.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+          {nenhumConectado && (
+            <div className="site-publicar-vazio">
+              <p>Conecte o GitHub ou a Netlify para publicar este site.</p>
+              <a className="botao botao-principal" href="#/conexoes">Conectar em Conexões</a>
+            </div>
+          )}
+
+          {!nenhumConectado && estado && (
+            <>
+              <DestinoPublicacao
+                nome="GitHub"
+                descricao="Versiona e guarda todo o código do site."
+                conectado={estado.github.conectado}
+                executando={publicando === "github"}
+                bloqueado={publicando !== null || !publicavel}
+                rotuloAcao={estado.registro.github ? "Enviar atualização" : "Enviar pro GitHub"}
+                registro={estado.registro.github}
+                aoPublicar={() => aoPublicar("github")}
+              />
+              <DestinoPublicacao
+                nome="Netlify"
+                descricao="Coloca o site no ar com uma URL pública."
+                conectado={estado.netlify.conectado}
+                executando={publicando === "netlify"}
+                bloqueado={publicando !== null || !publicavel}
+                rotuloAcao={estado.registro.netlify ? "Publicar atualização" : "Publicar na Netlify"}
+                registro={estado.registro.netlify}
+                aoPublicar={() => aoPublicar("netlify")}
+              />
+            </>
+          )}
+
+          {avisos.length > 0 && (
+            <div className="site-publicar-avisos" role="status">
+              <strong>Avisos da publicação:</strong>
+              <ul>
+                {avisos.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+          {erro && <p className="site-publicar-erro" role="alert">{erro}</p>}
+          {sucesso && <p className="site-publicar-sucesso" role="status">{sucesso}</p>}
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function DestinoPublicacao({
+  nome,
+  descricao,
+  conectado,
+  executando,
+  bloqueado,
+  rotuloAcao,
+  registro,
+  aoPublicar,
+}: {
+  nome: string;
+  descricao: string;
+  conectado: boolean;
+  executando: boolean;
+  bloqueado: boolean;
+  rotuloAcao: string;
+  registro?: { url: string; em: string; pendente?: boolean };
+  aoPublicar: () => void;
+}) {
+  return (
+    <section className={`site-publicar-destino${conectado ? "" : " desconectado"}`}>
+      <div className="site-publicar-destino-topo">
+        <div>
+          <h3>{nome}</h3>
+          <p>{descricao}</p>
+        </div>
+        <span className={`site-publicar-status${conectado ? " conectado" : ""}`}>
+          {conectado ? "Conectado" : "Desconectado"}
+        </span>
+      </div>
+
+      {registro && (
+        <div className="site-publicar-resultado">
+          <a href={registro.url} target="_blank" rel="noreferrer">{registro.url}</a>
+          <span>
+            {registro.pendente
+              ? "Publicação enviada. Confirmação pendente."
+              : `Último envio em ${formatarDataPublicacao(registro.em)}`}
+          </span>
+        </div>
+      )}
+
+      {conectado ? (
+        <button
+          className="botao botao-neutro site-publicar-acao"
+          onClick={aoPublicar}
+          disabled={bloqueado}
+        >
+          {executando
+            ? nome === "Netlify"
+              ? "Publicando e verificando..."
+              : "Enviando..."
+            : rotuloAcao}
+        </button>
+      ) : (
+        <a className="site-publicar-conectar" href="#/conexoes">Conectar em Conexões</a>
+      )}
+    </section>
+  );
+}
+
+function formatarDataPublicacao(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return iso;
+  return data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
 // ============================================================================
 // Editor: palco do modo Editar. Monta o usarMotorSite no iframe da pagina,
 // controla o zoom (Ajustar/50/75/100), reporta o estado pro TelaSite e renderiza
@@ -806,7 +1406,7 @@ const PalcoEditor = forwardRef<HandleEditor, PalcoEditorProps>(function PalcoEdi
   // Cache-bust fixo por montagem: cada carga limpa (remonte) pega o disco atual.
   const [tsCarga] = useState(() => Date.now());
 
-  const arquivo = nomeArquivo(pagina);
+  const arquivo = caminhoPagina(pagina, pasta);
 
   // Ref pro callback de salvar por atalho (a tela troca de identidade a cada
   // render): o listener do motor sempre le a versao atual sem reanexar.
@@ -840,7 +1440,7 @@ const PalcoEditor = forwardRef<HandleEditor, PalcoEditorProps>(function PalcoEdi
     try {
       await motorRef.current.salvar(async (texto) => {
         const resp = await fetch(
-          `/api/vkos/pecas/${encodeURIComponent(pasta)}/pagina/${encodeURIComponent(arquivo)}`,
+          urlSalvarPagina(pasta, arquivo),
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -959,9 +1559,9 @@ const PalcoEditor = forwardRef<HandleEditor, PalcoEditorProps>(function PalcoEdi
             <iframe
               ref={refIframe}
               className="site-frame"
-              src={comCacheBust(pagina, tsCarga)}
+              src={comCacheBust(urlEdicaoPagina(pagina), tsCarga)}
               title={nome}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              sandbox="allow-same-origin"
               style={{
                 width: `${dim.largura}px`,
                 height: `${dim.altura}px`,

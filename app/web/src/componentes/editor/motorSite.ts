@@ -15,6 +15,12 @@ import {
   temTextoProprio,
   type VarCss,
 } from "./nucleo";
+import {
+  extrairUrlFundo,
+  removerUrlFundo,
+  substituirUrlFundo,
+  type AlvoImagemCapturado,
+} from "./imagens";
 
 // ============================================================================
 // CONTRATO PUBLICO DO usarMotorSite
@@ -176,12 +182,15 @@ export interface SelecaoSite {
   href: string;
   ehImagem: boolean;
   src: string;
+  tipoImagem: "img" | "fundo" | null;
   ehSecao: boolean;
   fonte: string;
   tamanho: number;
   peso: string;
   cor: string; // hex, pro color picker
   corFundo: string; // hex, "" quando transparente
+  podeSubirNivel: boolean;
+  podeExcluir: boolean;
 }
 
 export interface SecaoSite {
@@ -203,6 +212,10 @@ export interface MotorSite {
   aplicarEstilo(prop: string, valor: string, escopo: EscopoEstilo): void;
   definirHref(v: string): void;
   trocarImagem(file: File): Promise<void>;
+  excluirImagem(): void;
+  selecionarPai(): void;
+  excluirSelecionado(): void;
+  capturarImagemSelecionada(): AlvoImagemCapturado | null;
   aplicarVar(nome: string, valor: string): void;
   selecionarSecao(id: string): void;
   moverSecao(id: string, direcao: "cima" | "baixo"): void;
@@ -442,11 +455,13 @@ export function usarMotorSite(
     const semBloco = soFilhosInlineComputado(el);
     const link = el.closest("a");
     const ehImg = el.tagName === "IMG";
+    const srcFundo = ehImg ? "" : extrairUrlFundo(cs.backgroundImage || "");
     const bg = cs.backgroundColor;
     const corFundo =
       bg && bg !== "transparent" && !/rgba?\([^)]*,\s*0\s*\)/.test(bg)
         ? rgbParaHex(bg) || ""
         : "";
+    const pai = el.parentElement;
     return {
       tag: el.tagName.toLowerCase(),
       classes: Array.from(el.classList).filter((c) => c !== "").join(" "),
@@ -457,14 +472,17 @@ export function usarMotorSite(
       ehLink: !!link,
       podeVirarLink: !link && podeVirarLinkEl(el),
       href: link?.getAttribute("href") || "",
-      ehImagem: ehImg,
-      src: ehImg ? (el as HTMLImageElement).getAttribute("src") || "" : "",
+      ehImagem: ehImg || !!srcFundo,
+      src: ehImg ? (el as HTMLImageElement).getAttribute("src") || "" : srcFundo,
+      tipoImagem: ehImg ? "img" : srcFundo ? "fundo" : null,
       ehSecao: ehSecaoEl(el),
       fonte: familia,
       tamanho: Math.round(parseFloat(cs.fontSize) || 0),
       peso: String(cs.fontWeight || "400"),
       cor: rgbParaHex(cs.color) || "#000000",
       corFundo,
+      podeSubirNivel: !!pai && pai.tagName !== "BODY" && pai.tagName !== "HTML",
+      podeExcluir: el.tagName !== "BODY" && el.tagName !== "HTML",
     };
   }
 
@@ -494,6 +512,25 @@ export function usarMotorSite(
     selRef.current = null;
     setSelecao(null);
     marcarSecaoSelecionada();
+  }
+
+  function selecionarPai(): void {
+    const pai = selRef.current?.parentElement;
+    if (!pai || pai.tagName === "BODY" || pai.tagName === "HTML") return;
+    selecionar(pai);
+  }
+
+  function excluirSelecionado(): void {
+    const el = selRef.current;
+    const doc = getDoc();
+    if (!el || !doc || el.tagName === "BODY" || el.tagName === "HTML") return;
+    if (editandoRef.current === el) finalizarEdicao();
+    snapshot();
+    el.remove();
+    selRef.current = null;
+    setSelecao(null);
+    marcarMudou();
+    relistarSecoes(doc);
   }
 
   // ===== Edicao de texto in-place (duplo clique), via nucleo.
@@ -766,17 +803,72 @@ export function usarMotorSite(
     return dados.caminhoRelativo;
   }
 
+  function aplicarImagemNoAlvo(el: HTMLElement, tipo: "img" | "fundo", rel: string) {
+    const doc = getDoc();
+    if (!doc || !el.isConnected) throw new Error("A imagem original não está mais no site.");
+    snapshot();
+    const url = `${rel}?vk=${Date.now()}`;
+    if (tipo === "img") {
+      (el as HTMLImageElement).setAttribute("src", url);
+    } else {
+      const id = garantirVkId(el);
+      const atual = el.ownerDocument.defaultView?.getComputedStyle(el).backgroundImage || "";
+      modeloRef.current.alvos
+        .get(id)!
+        .geral.set("background-image", substituirUrlFundo(atual, url));
+      renderAjustes(doc);
+    }
+    marcarMudou();
+    if (selRef.current === el) ressincronizarSelecao();
+  }
+
   async function trocarImagem(file: File): Promise<void> {
     const el = selRef.current;
-    if (!el || el.tagName !== "IMG") throw new Error("Selecione uma imagem primeiro.");
-    const img = el as HTMLImageElement;
+    if (!el) throw new Error("Selecione uma imagem primeiro.");
+    const props = propsDe(el);
+    if (!props.tipoImagem) throw new Error("Selecione uma imagem primeiro.");
     const rel = await enviarImagem(optsRef.current.pasta, file);
+    aplicarImagemNoAlvo(el, props.tipoImagem, rel);
+  }
+
+  function excluirImagem(): void {
+    const el = selRef.current;
+    const doc = getDoc();
+    if (!el || !doc) return;
+    const props = propsDe(el);
+    if (!props.tipoImagem) return;
     snapshot();
-    // Cache-bust so em runtime, limpo no save.
-    img.src = `${rel}?vk=${Date.now()}`;
-    img.setAttribute("src", `${rel}?vk=${Date.now()}`);
+    if (props.tipoImagem === "img") {
+      el.remove();
+      selRef.current = null;
+      setSelecao(null);
+    } else {
+      const id = garantirVkId(el);
+      const atual = el.ownerDocument.defaultView?.getComputedStyle(el).backgroundImage || "";
+      modeloRef.current.alvos
+        .get(id)!
+        .geral.set("background-image", removerUrlFundo(atual));
+      renderAjustes(doc);
+      ressincronizarSelecao();
+    }
     marcarMudou();
-    ressincronizarSelecao();
+    relistarSecoes(doc);
+  }
+
+  function capturarImagemSelecionada(): AlvoImagemCapturado | null {
+    const el = selRef.current;
+    if (!el) return null;
+    const props = propsDe(el);
+    if (!props.tipoImagem) return null;
+    const secao = el.closest<HTMLElement>("section,header,main,footer,article") || el.parentElement;
+    const alt = el.tagName === "IMG" ? (el as HTMLImageElement).alt : "";
+    const contexto = [alt, secao?.innerText || secao?.textContent || ""]
+      .filter(Boolean)
+      .join(". ");
+    return {
+      contexto,
+      aplicar: (caminhoRelativo) => aplicarImagemNoAlvo(el, props.tipoImagem!, caminhoRelativo),
+    };
   }
 
   // ===== Serializacao e save.
@@ -795,6 +887,24 @@ export function usarMotorSite(
     const clone = doc.documentElement.cloneNode(true) as HTMLElement;
     // Remove o estilo de runtime do editor; mantem data-vk e a folha vkos-ajustes.
     clone.querySelectorAll("#vkos-ed-runtime").forEach((n) => n.remove());
+    clone
+      .querySelectorAll<HTMLScriptElement>(
+        "script[data-vkos-script-type],script[data-vkos-script-sem-type]",
+      )
+      .forEach((script) => {
+        const original = script.getAttribute("data-vkos-script-type");
+        if (original !== null) {
+          try {
+            script.setAttribute("type", decodeURIComponent(original));
+          } catch {
+            script.setAttribute("type", original);
+          }
+        } else {
+          script.removeAttribute("type");
+        }
+        script.removeAttribute("data-vkos-script-type");
+        script.removeAttribute("data-vkos-script-sem-type");
+      });
     limparArtefatosSelecao(clone);
     let html = doctypeString(doc) + "\n" + clone.outerHTML;
     html = html.replace(/([?&])vk=\d+/g, "");
@@ -804,6 +914,8 @@ export function usarMotorSite(
   async function salvar(gravar: (texto: string) => Promise<void>): Promise<void> {
     const texto = serializar();
     await gravar(texto);
+    undoRef.current.limpar();
+    setPodeDesfazer(false);
     setNaoSalvo(false);
   }
 
@@ -956,6 +1068,10 @@ export function usarMotorSite(
     aplicarEstilo,
     definirHref,
     trocarImagem,
+    excluirImagem,
+    selecionarPai,
+    excluirSelecionado,
+    capturarImagemSelecionada,
     aplicarVar,
     selecionarSecao,
     moverSecao,

@@ -1,6 +1,6 @@
 // Resolve onde esta o binario do Claude Code nesta maquina.
-// Na maquina do Jesse o claude fica em ~/.local/bin/claude.exe e NAO esta no PATH,
-// entao nao da pra confiar em spawnar "claude" cru. Aqui achamos o caminho real.
+// O CLI pode estar fora do PATH em algumas instalacoes Windows. Aqui achamos
+// o caminho real antes de iniciar o processo.
 
 import { existsSync } from "node:fs";
 import os from "node:os";
@@ -20,7 +20,7 @@ function candidatos(): string[] {
   const lista: (string | undefined)[] = [
     // Override explicito, sempre ganha.
     process.env.VKOS_CLAUDE_BIN,
-    // Instalacao nativa (o caso desta maquina).
+    // Instalacao nativa comum.
     path.join(casa, ".local", "bin", ehWindows ? "claude.exe" : "claude"),
     // Instalacao via npm global no Windows.
     ehWindows && process.env.APPDATA

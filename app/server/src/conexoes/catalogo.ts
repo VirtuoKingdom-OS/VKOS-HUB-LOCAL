@@ -2,9 +2,7 @@
 // um servico externo, os campos de config que ele pede (tokens) e como montar o
 // objeto de servidor MCP que o claude CLI aceita em --mcp-config.
 //
-// As fontes de cada MCP foram conferidas na internet (julho de 2026). Onde o
-// caminho oficial exige login OAuth no navegador (nao serve pro nosso spawn
-// headless com token fixo), a entrada fica disponivel: false com nota honesta.
+// As fontes de cada MCP foram conferidas na internet (julho de 2026).
 
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -72,14 +70,13 @@ function token(config: Record<string, string>, chave = "token"): string {
   return (config[chave] ?? "").trim();
 }
 
-// O catalogo. Ordem fixa: os quatro servicos principais, depois a vitrine da
-// fase 7 (meta e google ads).
+// O catalogo. Ordem fixa dos servicos que funcionam nesta versao.
 const CATALOGO: EntradaCatalogo[] = [
   {
     id: "github",
     nome: "GitHub",
     descricao:
-      "Repositorios, issues e pull requests. Usa o servidor oficial remoto da GitHub, autenticado por token de acesso pessoal.",
+      "Publica os arquivos do site em um repositorio privado e, com Claude, tambem libera as ferramentas MCP do GitHub.",
     disponivel: true,
     transporte: "http",
     campos: [
@@ -88,7 +85,7 @@ const CATALOGO: EntradaCatalogo[] = [
         rotulo: "Token de acesso pessoal",
         chaveEnv: "Authorization: Bearer",
         segredo: true,
-        dica: "Crie em github.com, Settings, Developer settings, Personal access tokens.",
+        dica: "Use a conexao guiada para criar um token fine-grained com as permissoes corretas.",
       },
     ],
     // O pacote npm @modelcontextprotocol/server-github foi arquivado em maio de
@@ -110,7 +107,7 @@ const CATALOGO: EntradaCatalogo[] = [
     id: "netlify",
     nome: "Netlify",
     descricao:
-      "Cria, publica e gerencia sites na Netlify. Servidor oficial @netlify/mcp, rodado por npx com token pessoal.",
+      "Publica o site na Netlify pela API e, com Claude, tambem libera as ferramentas MCP da plataforma.",
     disponivel: true,
     transporte: "stdio",
     campos: [
@@ -119,7 +116,14 @@ const CATALOGO: EntradaCatalogo[] = [
         rotulo: "Token de acesso pessoal",
         chaveEnv: "NETLIFY_PERSONAL_ACCESS_TOKEN",
         segredo: true,
-        dica: "Crie em app.netlify.com, User settings, Applications, Personal access tokens.",
+        dica: "Use a conexao guiada para gerar, copiar e validar o token pessoal da Netlify.",
+      },
+      {
+        chave: "accountSlug",
+        rotulo: "Time da Netlify, opcional",
+        chaveEnv: "NETLIFY_ACCOUNT_SLUG",
+        segredo: false,
+        dica: "Deixe vazio para usar seu time principal. Preencha somente se quiser publicar em outro time.",
       },
     ],
     fonte: "@netlify/mcp (npm), netlify/netlify-mcp",
@@ -133,7 +137,7 @@ const CATALOGO: EntradaCatalogo[] = [
       };
     },
   },
-  // Vercel saiu do catalogo em 2026-07-14 (ordem do Jesse): o servidor oficial
+  // Vercel saiu do catalogo em 2026-07-14: o servidor oficial
   // (mcp.vercel.com) so entra por OAuth de navegador, sem token fixo, entao nao
   // tem como ligar no nosso spawn headless. Se um dia aceitarem token, volta.
   {
@@ -204,20 +208,6 @@ const CATALOGO: EntradaCatalogo[] = [
       const args = ehDev ? [tsxCli, scriptMcpCalendar] : [scriptMcpCalendar];
       return { command: process.execPath, args, env };
     },
-  },
-  {
-    id: "meta",
-    nome: "Meta (WhatsApp e Instagram)",
-    descricao: "precisa de app e credenciais proprias; entra na fase 7",
-    disponivel: false,
-    campos: [],
-  },
-  {
-    id: "googleads",
-    nome: "Google Ads",
-    descricao: "precisa de app e credenciais proprias; entra na fase 7",
-    disponivel: false,
-    campos: [],
   },
 ];
 

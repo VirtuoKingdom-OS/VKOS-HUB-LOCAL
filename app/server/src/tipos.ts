@@ -9,8 +9,24 @@ export type StatusSessao =
   | "erro"
   | "parada";
 
+export type ProvedorIA = "claude" | "codex";
+
+// Estado do laco de conformidade pos-geracao de site.
+// conferindo: a auditoria completa esta rodando.
+// corrigindo: a auditoria reprovou e a mesma sessao foi retomada pra corrigir.
+// aprovada: a auditoria passou, o site esta pronto.
+// pendencias: parou (2 voltas sem passar, ou nao deu pra verificar). Nao bloqueia
+// abrir o site; a barreira de publicacao segue conferindo de novo no deploy.
+export interface ConferenciaSite {
+  estado: "conferindo" | "corrigindo" | "aprovada" | "pendencias";
+  // Quantas voltas de correcao ja foram feitas (0 antes da primeira correcao).
+  volta: number;
+}
+
 export interface Sessao {
   id: string;
+  // Sessoes antigas sem este campo sao normalizadas como Claude na carga.
+  provedor: ProvedorIA;
   titulo: string;
   prompt: string;
   skill?: string;
@@ -23,6 +39,8 @@ export interface Sessao {
   atualizadaEm: string;
   sessionIdClaude?: string;
   custoUsd?: number;
+  // No Codex, o custo e calculado pelos tokens e pela tabela local de precos.
+  estimado?: boolean;
   pastaTrabalho: string;
   resultado?: string;
   erro?: string;
@@ -43,6 +61,19 @@ export interface Sessao {
   // total = --permission-mode bypassPermissions (poder total, sem confirmacao).
   // Persiste na sessao e vale nas continuacoes (resume).
   permissao?: "padrao" | "total";
+  // Extensao rodada otimizacoes de IA: Modo enxuto travado na criacao.
+  // Decidido uma vez (config ligada e skill fora da geracao guiada) e
+  // repetido em toda retomada, pra sessao nao mudar de personalidade.
+  modoEnxuto?: boolean;
+  // Resumo agregado e sem telefone/email, capturado quando o pedido cita CRM.
+  // Persiste para a mesma protecao e o mesmo contexto voltarem no resume.
+  contextoCrm?: string;
+  // Laco de conformidade de site: pasta alvo da peca (subpasta de conteudo/) que
+  // a geracao guiada de site vai criar. So a skill "site" do wizard preenche.
+  // E a chave que o laco usa pra auditar a peca certa depois que a sessao conclui.
+  pastaAlvo?: string;
+  // Estado do laco de conformidade, atualizado pelo gerenciador e emitido no WS.
+  conferenciaSite?: ConferenciaSite;
 }
 
 // Um turno da conversa de uma sessao, persistido em app/dados/transcricoes/.
@@ -51,6 +82,7 @@ export interface TurnoSessao {
   texto: string;
   em: string;
   custoUsd?: number;
+  estimado?: boolean;
 }
 
 // Modelo de carrossel do VKOS (templates/carrossel/).
@@ -78,6 +110,13 @@ export interface Peca {
   // Data e hora de criacao da subpasta (ISO). Birthtime, com fallback pra mtime
   // quando o sistema de arquivos nao guarda birthtime confiavel.
   criadoEm?: string;
+  // Diagnostico deterministico do site estatico. Presente somente em pecas do
+  // tipo site e usado pelo preview, geracao e publicacao.
+  site?: {
+    valido: boolean;
+    erros: string[];
+    avisos: string[];
+  };
 }
 
 export interface SkillVkos {
@@ -92,13 +131,19 @@ export interface EstadoVkos {
   totalSkills: number;
 }
 
+export interface DeteccaoMotorIA {
+  instalado: boolean;
+  versao: string | null;
+  // A M1 prepara o campo. A verificacao real de login entra na M2.
+  logado: boolean | null;
+  binario: string | null;
+}
+
 export interface Ambiente {
   plataforma: string;
   node: string;
-  claude: {
-    instalado: boolean;
-    versao: string | null;
-  };
+  claude: DeteccaoMotorIA;
+  codex: DeteccaoMotorIA;
 }
 
 // Extensao 2026-07-11: nos de contexto (anexos que alimentam as sessoes).

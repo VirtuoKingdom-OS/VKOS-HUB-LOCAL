@@ -143,8 +143,7 @@
 }
 
 /* Selo "Em breve": pequeno, discreto, com token de cor. */
-.dash-card-selo,
-.em-breve-selo {
+.dash-card-selo {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -446,55 +445,6 @@
   background: rgba(var(--menta-rgb), 0.12);
   border-color: rgba(var(--menta-rgb), 0.45);
   box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.2);
-}
-
-/* ===== Abas "em breve" (WhatsApp, Instagram) ===== */
-.tela-em-breve {
-  position: absolute;
-  inset: 0;
-  background: var(--fundo);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
-  animation: entrada-suave 220ms ease both;
-}
-.em-breve-caixa {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  text-align: center;
-  max-width: 420px;
-}
-.em-breve-icone {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 84px;
-  height: 84px;
-  border-radius: 24px;
-  margin-bottom: 4px;
-  color: var(--menta);
-  background:
-    radial-gradient(120% 120% at 50% 20%, rgba(var(--menta-rgb), 0.16), transparent 70%),
-    var(--superficie);
-  border: 1px solid rgba(var(--menta-rgb), 0.25);
-  box-shadow: var(--glow);
-}
-.em-breve-caixa h1 {
-  font-size: 24px;
-  font-weight: 800;
-}
-.em-breve-caixa p {
-  color: var(--texto-suave);
-  font-size: 15px;
-  line-height: 1.55;
-}
-.em-breve-nota {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--texto-fraco);
 }
 
 /* ===== Placeholder de rota do Studio (fase 1) ===== */
