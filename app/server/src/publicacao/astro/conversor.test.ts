@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -19,7 +21,8 @@ import {
   converterParaAstro,
   inspecionarMarcadores,
 } from "./conversor.js";
-import { resolverModoPublicacao } from "./publicacao.js";
+import { decidirMotorViavel } from "./motor.js";
+import { decidirModo, resolverModoPublicacao } from "./publicacao.js";
 
 function pastaTeste(): string {
   return mkdtempSync(join(tmpdir(), "vkos-astro-"));
@@ -346,6 +349,144 @@ test("preserva script exclusivo de uma pagina no projeto Astro", async () => {
     assert.doesNotMatch(base, /window\.paginaInicial = true/);
   } finally {
     rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("A1: recusa conversao quando ha section solta fora dos marcadores", async () => {
+  const pasta = pastaTeste();
+  try {
+    montarSiteMarcado(pasta);
+    const index = readFileSync(join(pasta, "index.html"), "utf8");
+    // Section solta como filha direta do body, fora do main: conteudo se perderia.
+    writeFileSync(
+      join(pasta, "index.html"),
+      index.replace(FOOTER, `<section class="promo">Oferta que sumiria</section>\n${FOOTER}`),
+    );
+    await assert.rejects(() => converterParaAstro(pasta), (erro: unknown) => {
+      assert.ok(erro instanceof ConversaoInviavel);
+      assert.match((erro as Error).message, /fora dos marcadores/);
+      assert.match((erro as Error).message, /<section class="promo">/);
+      return true;
+    });
+    // O diagnostico tem que antecipar o fallback HTML.
+    assert.equal(resolverModoPublicacao(pasta), "html");
+    assert.equal(inspecionarMarcadores(pasta), false);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("A1: recusa conversao quando ha modal fora do main", async () => {
+  const pasta = pastaTeste();
+  try {
+    montarSiteMarcado(pasta);
+    const index = readFileSync(join(pasta, "index.html"), "utf8");
+    // Modal como filho direto do body, fora do main: conteudo se perderia.
+    writeFileSync(
+      join(pasta, "index.html"),
+      index.replace(SCRIPT, `<div id="modal-contato" class="modal">Fale conosco</div>\n${SCRIPT}`),
+    );
+    await assert.rejects(() => converterParaAstro(pasta), (erro: unknown) => {
+      assert.ok(erro instanceof ConversaoInviavel);
+      assert.match((erro as Error).message, /fora dos marcadores/);
+      assert.match((erro as Error).message, /<div id="modal-contato">/);
+      return true;
+    });
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("A2: recusa conversao quando uma fonte so existe no head de uma pagina", async () => {
+  const pasta = pastaTeste();
+  try {
+    montarSiteMarcado(pasta);
+    const sobre = readFileSync(join(pasta, "sobre.html"), "utf8");
+    // sobre.html ganha um link de fonte que o index (referencia) nao tem.
+    writeFileSync(
+      join(pasta, "sobre.html"),
+      sobre.replace(
+        "</head>",
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">\n</head>',
+      ),
+    );
+    await assert.rejects(() => converterParaAstro(pasta), (erro: unknown) => {
+      assert.ok(erro instanceof ConversaoInviavel);
+      assert.match((erro as Error).message, /pagina sobre\.html/);
+      assert.match((erro as Error).message, /fonts\.googleapis/);
+      return true;
+    });
+    assert.equal(resolverModoPublicacao(pasta), "html");
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("M2: emite corpo com chaves literais sem virar expressao Astro", async () => {
+  const pasta = pastaTeste();
+  try {
+    const corpo = "<h1>Config</h1><p>Use a chave { nome } e o par } { no texto.</p>";
+    writeFileSync(
+      join(pasta, "index.html"),
+      [cabeca("Inicio", "x"), "<body>", NAV, `<main data-vk-pagina>${corpo}</main>`, FOOTER, "</body></html>"].join("\n"),
+    );
+    writeFileSync(
+      join(pasta, "sobre.html"),
+      [cabeca("Sobre", "y"), "<body>", NAV, "<main data-vk-pagina><h1>Sobre</h1></main>", FOOTER, "</body></html>"].join("\n"),
+    );
+    writeFileSync(join(pasta, "styles.css"), "body{margin:0}");
+
+    await converterParaAstro(pasta);
+    const pagina = readFileSync(join(pasta, ".astro-build", "src", "pages", "index.astro"), "utf8");
+    // O corpo sai dentro de <Fragment set:html={`...`}>, com as chaves preservadas
+    // como caractere literal. Sem isso o Astro trataria { nome } como expressao e o
+    // build quebraria.
+    assert.match(pagina, /<Fragment set:html=\{`/);
+    assert.match(pagina, /a chave \{ nome \}/);
+    assert.match(pagina, /o par \} \{ no texto/);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("M4: decidirMotorViavel e decidirModo cobrem os dois lados", () => {
+  // Motor viavel = astro instalado OU npm no PATH.
+  assert.equal(decidirMotorViavel(true, false), true);
+  assert.equal(decidirMotorViavel(false, true), true);
+  assert.equal(decidirMotorViavel(false, false), false);
+  assert.equal(decidirMotorViavel(true, true), true);
+  // So promete astro com marcadores validos E motor viavel.
+  assert.equal(decidirModo(true, true), "astro");
+  assert.equal(decidirModo(true, false), "html");
+  assert.equal(decidirModo(false, true), "html");
+  assert.equal(decidirModo(false, false), "html");
+});
+
+test("M6: converterParaAstro desfaz junction remanescente sem tocar o motor real", async () => {
+  const pasta = pastaTeste();
+  const motorFake = pastaTeste();
+  try {
+    montarSiteMarcado(pasta);
+    // Simula build anterior morto no meio: .astro-build com junction node_modules
+    // apontando pro motor real compartilhado, com um arquivo precioso dentro.
+    const precioso = join(motorFake, "astro", "precioso.txt");
+    mkdirSync(join(motorFake, "astro"), { recursive: true });
+    writeFileSync(precioso, "NAO APAGAR");
+    const build = join(pasta, ".astro-build");
+    mkdirSync(build, { recursive: true });
+    try {
+      symlinkSync(motorFake, join(build, "node_modules"), "junction");
+    } catch {
+      // Ambiente sem permissao de junction: prova registrada no relatorio.
+      return;
+    }
+    // A conversao limpa o .astro-build antigo com a guarda antes de reescrever.
+    await converterParaAstro(pasta);
+    assert.ok(existsSync(precioso), "a junction levou o rm ate o motor real");
+    assert.ok(existsSync(join(build, "src", "layouts", "Base.astro")));
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+    rmSync(motorFake, { recursive: true, force: true });
   }
 });
 

@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
-import { pastaDadosWorkspace } from "../workspaces/estado.js";
+import { garantirPastaDadosWorkspace, pastaDadosWorkspace } from "../workspaces/estado.js";
 import { lerConexoes } from "../conexoes/estado.js";
 import {
   atualizarEvento as atualizarEventoGoogle,
@@ -125,6 +125,7 @@ export function lerConfigCalendario(workspaceId: string): ConfigCalendario {
 }
 
 function salvarConfig(workspaceId: string, config: ConfigCalendario): void {
+  garantirPastaDadosWorkspace(workspaceId);
   gravarJsonAtomico(caminhoConfig(workspaceId), config);
 }
 

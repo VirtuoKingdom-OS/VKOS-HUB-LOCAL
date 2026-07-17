@@ -2,8 +2,8 @@
 // negocios guardam o valor e o estagio no funil. O caminho e resolvido por
 // chamada porque o workspace ativo pode mudar em runtime.
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, renameSync } from "node:fs";
+import { basename, join } from "node:path";
 
 import { emitir } from "../eventos/barramento.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
@@ -190,25 +190,30 @@ function copiarCamposContato(
   }
 }
 
+// Fallback em vez de descarte: id ausente ganha um id novo, nome ausente vira
+// "Sem nome". So um valor que nao e nem objeto se perde de fato.
 function saneiaContatoV2(v: unknown): Contato | null {
   if (!v || typeof v !== "object") return null;
   const contato = v as Record<string, unknown>;
-  if (typeof contato.id !== "string" || typeof contato.nome !== "string") return null;
+  const id =
+    typeof contato.id === "string" && contato.id ? contato.id : gerarId("c");
+  const nome =
+    typeof contato.nome === "string" && contato.nome.trim() ? contato.nome : "Sem nome";
   const agora = new Date().toISOString();
   const saida: Contato = {
-    id: contato.id,
-    nome: contato.nome,
+    id,
+    nome,
     tags: Array.isArray(contato.tags)
       ? contato.tags.filter((tag): tag is string => typeof tag === "string")
       : [],
     interacoes: Array.isArray(contato.interacoes)
       ? contato.interacoes
-          .map((item, indice) => saneiaInteracao(item, contato.id as string, indice))
+          .map((item, indice) => saneiaInteracao(item, id, indice))
           .filter((item): item is Interacao => item !== null)
       : [],
     tarefas: Array.isArray(contato.tarefas)
       ? contato.tarefas
-          .map((item, indice) => saneiaTarefa(item, contato.id as string, indice))
+          .map((item, indice) => saneiaTarefa(item, id, indice))
           .filter((item): item is Tarefa => item !== null)
       : [],
     criadoEm: dataValida(contato.criadoEm, agora),
@@ -243,22 +248,26 @@ function saneiaNegocio(v: unknown): Negocio | null {
   return saida;
 }
 
-function migrarContatoV1(v: unknown, indice: number): { contato: Contato; negocio: Negocio } | null {
+// Fallback em vez de descarte: id ausente ganha um id novo, nome ausente vira
+// "Sem nome", colunaId ausente cai na primeira coluna do funil. So um valor que
+// nao e nem objeto se perde de fato.
+function migrarContatoV1(
+  v: unknown,
+  colunaPadraoId: string,
+): { contato: Contato; negocio: Negocio } | null {
   if (!v || typeof v !== "object") return null;
   const antigo = v as Record<string, unknown>;
-  if (
-    typeof antigo.id !== "string" ||
-    typeof antigo.nome !== "string" ||
-    typeof antigo.colunaId !== "string"
-  ) {
-    return null;
-  }
+  const id = typeof antigo.id === "string" && antigo.id ? antigo.id : gerarId("c");
+  const nome =
+    typeof antigo.nome === "string" && antigo.nome.trim() ? antigo.nome : "Sem nome";
+  const colunaId =
+    typeof antigo.colunaId === "string" && antigo.colunaId ? antigo.colunaId : colunaPadraoId;
   const agora = new Date().toISOString();
   const criadoEm = dataValida(antigo.criadoEm, agora);
   const atualizadoEm = dataValida(antigo.atualizadoEm, criadoEm);
   const contato: Contato = {
-    id: antigo.id,
-    nome: antigo.nome,
+    id,
+    nome,
     tags: Array.isArray(antigo.tags)
       ? antigo.tags.filter((tag): tag is string => typeof tag === "string")
       : [],
@@ -268,7 +277,7 @@ function migrarContatoV1(v: unknown, indice: number): { contato: Contato; negoci
           const n = nota as Record<string, unknown>;
           if (typeof n.texto !== "string") return [];
           return [{
-            id: `i-${antigo.id}-nota-${notaIndice}`,
+            id: `i-${id}-nota-${notaIndice}`,
             em: dataValida(n.em, atualizadoEm),
             tipo: "nota" as const,
             texto: n.texto,
@@ -282,10 +291,10 @@ function migrarContatoV1(v: unknown, indice: number): { contato: Contato; negoci
   copiarCamposContato(contato, antigo);
 
   const negocio: Negocio = {
-    id: `n-${antigo.id || indice}`,
-    titulo: antigo.nome,
-    contatoId: antigo.id,
-    colunaId: antigo.colunaId,
+    id: `n-${id}`,
+    titulo: nome,
+    contatoId: id,
+    colunaId,
     criadoEm,
     atualizadoEm,
   };
@@ -332,29 +341,62 @@ export function normalizarEstadoCrm(bruto: unknown): ResultadoNormalizacaoCrm | 
     };
   }
 
+  const colunaPadraoId = colunas[0].id;
+  const colunasValidas = new Set(colunas.map((coluna) => coluna.id));
   const migrados = Array.isArray(dados.contatos)
     ? dados.contatos
-        .map(migrarContatoV1)
+        .map((contato) => migrarContatoV1(contato, colunaPadraoId))
         .filter((item): item is { contato: Contato; negocio: Negocio } => item !== null)
     : [];
+  const negocios = migrados.map((item) =>
+    colunasValidas.has(item.negocio.colunaId)
+      ? item.negocio
+      : { ...item.negocio, colunaId: colunaPadraoId },
+  );
   return {
     estado: {
       versao: 2,
       colunas: ordenarColunas(colunas),
       contatos: migrados.map((item) => item.contato),
-      negocios: migrados.map((item) => item.negocio),
+      negocios,
     },
     precisaSalvar: true,
   };
 }
 
+// Move o arquivo corrompido pra quarentena com timestamp e devolve o novo
+// caminho. Renomeia, nunca sobrescreve: os dados originais ficam preservados.
+function quarentenar(caminho: string): string {
+  const destino = `${caminho}.corrompido-${Date.now()}`;
+  renameSync(caminho, destino);
+  return destino;
+}
+
+// Le e normaliza. Arquivo ausente devolve null (o chamador semeia o inicial).
+// Arquivo que EXISTE mas nao parseia, ou que parseia num formato que nao e um
+// estado de CRM, vai pra quarentena e lanca um ErroCrm legivel: o original nunca
+// e sobrescrito nem descartado.
 function lerArquivo(caminho: string): ResultadoNormalizacaoCrm | null {
   if (!existsSync(caminho)) return null;
+  let bruto: unknown;
   try {
-    return normalizarEstadoCrm(JSON.parse(readFileSync(caminho, "utf8")));
+    bruto = JSON.parse(readFileSync(caminho, "utf8"));
   } catch {
-    return null;
+    const destino = quarentenar(caminho);
+    throw new ErroCrm(
+      `O arquivo do CRM esta corrompido e nao pode ser lido. O original foi preservado em "${basename(destino)}". Restaure um backup valido pra recuperar os contatos.`,
+      409,
+    );
   }
+  const resultado = normalizarEstadoCrm(bruto);
+  if (!resultado) {
+    const destino = quarentenar(caminho);
+    throw new ErroCrm(
+      `O arquivo do CRM esta num formato invalido e nao pode ser lido. O original foi preservado em "${basename(destino)}". Restaure um backup valido pra recuperar os contatos.`,
+      409,
+    );
+  }
+  return resultado;
 }
 
 // Le e, quando necessario, persiste a migracao no mesmo arquivo. Exportada para
@@ -623,7 +665,7 @@ export function removerTarefa(id: string): void {
 export function criarNegocio(corpo: Record<string, unknown>): Negocio {
   const estado = lerEstadoMutavel();
   const contatoId = textoObrigatorio(corpo.contatoId, "Contato");
-  acharContato(estado, contatoId);
+  const contato = acharContato(estado, contatoId);
   const colunaId = corpo.colunaId === undefined || corpo.colunaId === null || corpo.colunaId === ""
     ? primeiraColuna(estado).id
     : textoObrigatorio(corpo.colunaId, "Coluna");
@@ -641,6 +683,7 @@ export function criarNegocio(corpo: Record<string, unknown>): Negocio {
   if (valor !== undefined) negocio.valorEstimado = valor;
   estado.negocios.push(negocio);
   salvar(estado);
+  emitirCrm("crm:negocio-criado", { contato, negocio });
   return negocio;
 }
 
@@ -665,14 +708,18 @@ export function atualizarNegocio(id: string, corpo: Record<string, unknown>): Ne
   }
   negocio.atualizadoEm = new Date().toISOString();
   salvar(estado);
+  const contato = acharContato(estado, negocio.contatoId);
+  emitirCrm("crm:negocio-atualizado", { contato, negocio });
   return negocio;
 }
 
 export function removerNegocio(id: string): void {
   const estado = lerEstadoMutavel();
-  acharNegocio(estado, id);
+  const negocio = acharNegocio(estado, id);
+  const contato = estado.contatos.find((item) => item.id === negocio.contatoId);
   estado.negocios = estado.negocios.filter((item) => item.id !== id);
   salvar(estado);
+  emitirCrm("crm:negocio-excluido", contato ? { contato, negocio } : { negocio });
 }
 
 export function moverNegocio(id: string, corpo: Record<string, unknown>): Negocio {

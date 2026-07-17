@@ -307,6 +307,17 @@ function detectarPecasNovas(pastaConteudo: string): void {
   }
 }
 
+// O ensaio e a publicacao Astro escrevem em .astro-build dentro da peca. Esses
+// eventos nao sao mudanca de conteudo do usuario: nao podem disparar refresh nem
+// o falso "o site mudou por fora" no modo Editar. Filtra qualquer caminho que
+// contenha .astro-build. Nome nulo (alguns SOs nao entregam) conta como
+// relevante, pra nao perder evento real.
+export function eventoDeConteudoRelevante(nomeArquivo: string | Buffer | null): boolean {
+  if (nomeArquivo == null) return true;
+  const caminho = typeof nomeArquivo === "string" ? nomeArquivo : nomeArquivo.toString();
+  return !caminho.includes(".astro-build");
+}
+
 // Reinstala o observador na pasta conteudo do VKOS atual. Chamar no boot e
 // sempre que a pasta VKOS mudar. Debounce de 1s pra nao inundar de eventos.
 export function reinstalarObservador(): void {
@@ -331,7 +342,8 @@ export function reinstalarObservador(): void {
   pastasConhecidas = listarPastasConteudo(pastaConteudo);
 
   try {
-    observador = watch(pastaConteudo, { recursive: true }, () => {
+    observador = watch(pastaConteudo, { recursive: true }, (_evento, nomeArquivo) => {
+      if (!eventoDeConteudoRelevante(nomeArquivo)) return;
       if (temporizador) clearTimeout(temporizador);
       temporizador = setTimeout(() => {
         temporizador = null;

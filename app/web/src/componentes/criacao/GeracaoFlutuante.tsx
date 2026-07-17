@@ -45,6 +45,7 @@ export function GeracaoFlutuante() {
     erro,
     pastaPronta,
     faseConferencia,
+    conferenciaDemorou,
     limpar,
   } = usarGeracao();
 
@@ -86,7 +87,7 @@ export function GeracaoFlutuante() {
             {ativa.tema}
           </span>
         </span>
-        {(pronta || falhou) && (
+        {(pronta || falhou || conferenciaDemorou) && (
           <button
             className="geracao-flutuante-x"
             onClick={limpar}

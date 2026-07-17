@@ -131,6 +131,19 @@ export function criarLacoConformidade(deps: DepsConformidade): LacoConformidade 
       }
       estado.volta = proximaVolta;
       // A proxima conclusao da retomada reentra em aoConcluir e continua o laco.
+    } catch (erro) {
+      // Qualquer excecao no corpo (auditoria que estoura, IO, bug) nao pode deixar
+      // a peca presa em "conferindo": grava pendencias e loga o motivo em vez de
+      // engolir. A barreira do deploy reconfere no proximo publish (A4).
+      const motivo = erro instanceof Error ? erro.message : String(erro);
+      console.error(
+        `Conferencia de conformidade da sessao ${sessao.id} falhou: ${motivo}`,
+      );
+      try {
+        deps.definirConferencia(sessao.id, { estado: "pendencias", volta: estado.volta });
+      } catch {
+        // Nem o registro de pendencias pode derrubar o fechamento da sessao.
+      }
     } finally {
       estado.emAndamento = false;
       estados.set(sessao.id, estado);

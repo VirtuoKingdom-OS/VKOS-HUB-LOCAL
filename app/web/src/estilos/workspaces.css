@@ -90,7 +90,7 @@
   background: rgba(var(--painel-rgb), 0.98);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(var(--menta-rgb), 0.05);
+  box-shadow: 0 24px 60px rgba(var(--scrim-rgb), 0.55), 0 0 0 1px rgba(var(--menta-rgb), 0.05);
   backdrop-filter: blur(10px);
   overflow: hidden;
   animation: sw-surge 180ms cubic-bezier(0.4, 0, 0.2, 1) both;
@@ -261,19 +261,19 @@
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  color: #ffd7d7;
-  background: rgba(60, 16, 16, 0.96);
-  border: 1px solid rgba(var(--alerta-rgb), 0.55);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color: var(--confirmar-perigo-texto);
+  background: var(--confirmar-perigo-fundo);
+  border: 1px solid var(--confirmar-perigo-borda);
+  box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
   pointer-events: auto;
   cursor: pointer;
   z-index: 30;
   animation: sw-surge-balao 0.12s ease-out;
 }
 .sw-balao:hover {
-  background: rgba(90, 22, 22, 0.98);
+  background: var(--confirmar-perigo-botao);
   border-color: rgba(var(--alerta-rgb), 0.85);
-  color: #fff;
+  color: var(--confirmar-perigo-texto);
 }
 @keyframes sw-surge-balao {
   from {
@@ -439,7 +439,7 @@
   background: rgba(var(--painel-rgb), 0.98);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 50px rgba(var(--scrim-rgb), 0.5);
   padding: 14px;
   animation: entrada-suave 240ms ease both;
 }

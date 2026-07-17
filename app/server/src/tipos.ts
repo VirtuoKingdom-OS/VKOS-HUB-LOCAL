@@ -83,6 +83,10 @@ export interface TurnoSessao {
   em: string;
   custoUsd?: number;
   estimado?: boolean;
+  // Turno gerado pelo proprio Hub, nao pelo usuario (ex: a retomada automatica
+  // do laco de conformidade de site). A transcricao mostra discreto como
+  // "Correcao automatica do Hub" em vez do texto cru de maquina.
+  interno?: boolean;
 }
 
 // Modelo de carrossel do VKOS (templates/carrossel/).

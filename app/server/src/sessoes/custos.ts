@@ -71,7 +71,14 @@ export function lerCustos(workspaceId: string): CustosAcumulados {
       return { ...ZERADO };
     }
     const bruto = readFileSync(arquivo, "utf8");
-    const dados = JSON.parse(bruto);
+    const parseado = JSON.parse(bruto);
+    // Saneamento defensivo: conteudo que nao e objeto (numero, array, null) e
+    // ignorado com log, sem derrubar o painel de custos. Campo a campo ja cai em 0.
+    if (!parseado || typeof parseado !== "object" || Array.isArray(parseado)) {
+      console.warn(`custos.json malformado no workspace ${workspaceId}: usando zerado.`);
+      return { ...ZERADO };
+    }
+    const dados = parseado as Record<string, unknown>;
     return {
       totalUsd: typeof dados.totalUsd === "number" ? dados.totalUsd : 0,
       totalSessoes: typeof dados.totalSessoes === "number" ? dados.totalSessoes : 0,

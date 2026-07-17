@@ -9,6 +9,8 @@ import type { ConferenciaSite, Sessao, StatusSessao } from "../tipos.js";
 import type { ProcessoSessao } from "../provedores/contrato.js";
 import {
   conferirSiteParaConformidade,
+  hostLocalDoHub,
+  invalidarCacheAuditoria,
   type ConferenciaConformidade,
 } from "../publicacao/auditoria.js";
 import { listarArquivosSite } from "../vkos/siteEstatico.js";
@@ -74,10 +76,91 @@ export function resolverModeloDaExecucao(
   return "";
 }
 
+// Estados terminais da conferencia de site: nada mais roda depois deles.
+const ESTADOS_CONFERENCIA_TERMINAIS = new Set(["aprovada", "pendencias"]);
+// Estados de status validos, pra descartar lixo persistido.
+const STATUS_VALIDOS = new Set<StatusSessao>([
+  "fila",
+  "iniciando",
+  "rodando",
+  "concluida",
+  "erro",
+  "parada",
+]);
+
+// Saneamento defensivo de uma sessao lida do disco, no padrao do saneamento do
+// CRM: campo faltando nao derruba, entrada malformada devolve null (o chamador
+// ignora com log). Normaliza provedor, workspaceId, status e a conferencia:
+//   - sessao que estava ativa ou na fila volta como "parada" (o processo se foi).
+//   - conferencia de site em estado NAO terminal (conferindo/corrigindo) vira
+//     "pendencias": o server pode ter caido no meio da conferencia e o estado
+//     ficaria preso. A barreira do deploy reconfere de qualquer jeito (A3).
+export function saneiaSessaoPersistida(
+  bruta: unknown,
+  workspaceIdDaPasta: string,
+): Sessao | null {
+  if (!bruta || typeof bruta !== "object") return null;
+  const b = bruta as Record<string, unknown>;
+  if (typeof b.id !== "string" || !b.id) return null;
+
+  const agora = new Date().toISOString();
+  const texto = (v: unknown, padrao = ""): string => (typeof v === "string" ? v : padrao);
+  const data = (v: unknown): string => (typeof v === "string" && v ? v : agora);
+
+  let status: StatusSessao =
+    typeof b.status === "string" && STATUS_VALIDOS.has(b.status as StatusSessao)
+      ? (b.status as StatusSessao)
+      : "parada";
+  // Qualquer sessao que estava ativa ou na fila virou parada no boot.
+  if (status === "rodando" || status === "iniciando" || status === "fila") {
+    status = "parada";
+  }
+
+  const sessao: Sessao = {
+    ...(b as Partial<Sessao>),
+    id: b.id,
+    provedor: b.provedor === "codex" ? "codex" : "claude",
+    workspaceId:
+      typeof b.workspaceId === "string" && b.workspaceId
+        ? b.workspaceId
+        : workspaceIdDaPasta,
+    titulo: texto(b.titulo, "Sessao"),
+    prompt: texto(b.prompt),
+    pastaTrabalho: texto(b.pastaTrabalho),
+    criadaEm: data(b.criadaEm),
+    atualizadaEm: data(b.atualizadaEm),
+    status,
+  };
+
+  // A3: conferencia de site presa em estado nao terminal vira pendencias.
+  const conf = sessao.conferenciaSite;
+  if (conf && typeof conf === "object" && !ESTADOS_CONFERENCIA_TERMINAIS.has(conf.estado)) {
+    sessao.conferenciaSite = {
+      estado: "pendencias",
+      volta: typeof conf.volta === "number" ? conf.volta : 0,
+    };
+  }
+
+  return sessao;
+}
+
 const REGRA_CONTEXTO_CRM =
   "REGRA DURA: use o contexto-crm como insight para orientar conteudo e decisao. " +
   "E PROIBIDO publicar em qualquer peca, site, carrossel ou texto publico: nome completo, " +
   "telefone, email ou qualquer dado identificavel de cliente. Insight agregado sim, dado pessoal nunca.";
+
+// Le o custo e o sinal de erro de um evento result. Custo de result com erro
+// NAO soma (nem na sessao nem no workspace): so contabiliza turno que deu certo
+// (M10). No Codex o custo ja e estimado, entao um erro tambem nao pode inflar.
+export function custoDoResult(evento: Record<string, unknown>): {
+  custoUsd: number;
+  ehErro: boolean;
+} {
+  const ehErro = evento["is_error"] === true || evento["subtype"] === "error";
+  const bruto = evento["total_cost_usd"];
+  const custoUsd = ehErro || typeof bruto !== "number" ? 0 : bruto;
+  return { custoUsd, ehErro };
+}
 
 export function montarInstrucoesExtrasSessao(
   sessao: Pick<Sessao, "modoEnxuto" | "contextoCrm">,
@@ -103,7 +186,7 @@ export class GerenciadorSessoes {
   // sessao e o setter de conferencia. Fica pronto na criacao do gerenciador.
   private laco: LacoConformidade = criarLacoConformidade({
     auditar: (sessao) => this.auditarPecaDaSessao(sessao),
-    retomar: (id, prompt) => this.continuar(id, prompt),
+    retomar: (id, prompt) => this.continuar(id, prompt, { interno: true }),
     definirConferencia: (id, conferencia) => this.definirConferencia(id, conferencia),
     ehPecaSite: (sessao) => this.pecaEhSite(sessao),
     statusSessao: (id) => this.acharSessao(id)?.status,
@@ -212,7 +295,14 @@ export class GerenciadorSessoes {
   }
 
   // Continua uma sessao concluida ou parada com um texto novo, via --resume.
-  continuar(id: string, texto: string): { ok: boolean; erro?: string } {
+  // `interno` marca a retomada automatica do laco de conformidade: nesse caso o
+  // prompt original da sessao e preservado (o texto de correcao e de maquina, nao
+  // fala do usuario) e o turno entra marcado como interno do Hub.
+  continuar(
+    id: string,
+    texto: string,
+    opcoes?: { interno?: boolean },
+  ): { ok: boolean; erro?: string } {
     const sessao = this.sessoes.find((s) => s.id === id);
     if (!sessao) {
       return { ok: false, erro: "sessao nao encontrada" };
@@ -221,6 +311,7 @@ export class GerenciadorSessoes {
       return { ok: false, erro: "sessao ainda nao tem id da conversa pra retomar" };
     }
 
+    const interno = opcoes?.interno === true;
     const execucao = this.garantirExecucao(id);
     execucao.promptPendente = texto;
     execucao.ehResume = true;
@@ -228,13 +319,19 @@ export class GerenciadorSessoes {
     execucao.resultComErro = false;
     execucao.paradaManual = false;
 
-    sessao.prompt = texto;
+    // Retomada manual do usuario troca o prompt visivel; a automatica do Hub
+    // preserva o prompt original (M9).
+    if (!interno) {
+      sessao.prompt = texto;
+    }
 
-    // Mensagem de continuacao vira turno do usuario na transcricao.
+    // Mensagem de continuacao vira turno do usuario na transcricao. O turno
+    // interno do Hub e marcado pra transcricao exibir discreto.
     anexarTurno(sessao.workspaceId ?? "", id, {
       papel: "usuario",
       texto,
       em: new Date().toISOString(),
+      interno: interno ? true : undefined,
     });
 
     if (this.temVaga()) {
@@ -396,23 +493,24 @@ export class GerenciadorSessoes {
     }
   }
 
-  // Host local do proprio Hub, base da conferencia visual da peca. Segue a porta
-  // real (VKOS_PORT no QA, 4600 no produto), o mesmo host que as rotas usam.
-  private hostLocal(): string {
-    const porta = process.env.VKOS_PORT?.trim() || "4600";
-    return `127.0.0.1:${porta}`;
-  }
-
   // Roda a auditoria completa (estrutural + visual) na peca da sessao e traduz
-  // pro formato que o laco espera.
+  // pro formato que o laco espera. Usa a mesma funcao de conferencia do deploy
+  // (conferirSiteParaConformidade, que roda o nucleo unificado sem cache) e o
+  // mesmo host resolvido no server (hostLocalDoHub), pra os dois caminhos conferirem
+  // exatamente a MESMA URL (M3). Ao terminar a volta, invalida o cache do deploy da
+  // peca pra o painel nao servir um veredito velho logo depois da correcao.
   private async auditarPecaDaSessao(sessao: Sessao): Promise<ConferenciaConformidade> {
     if (!sessao.workspaceId || !sessao.pastaAlvo) {
       return { verificavel: false, valido: false, erros: [], avisos: [] };
     }
-    return conferirSiteParaConformidade(
-      { workspaceId: sessao.workspaceId, pasta: sessao.pastaAlvo },
-      this.hostLocal(),
-    );
+    const alvo = { workspaceId: sessao.workspaceId, pasta: sessao.pastaAlvo };
+    try {
+      return await conferirSiteParaConformidade(alvo, hostLocalDoHub());
+    } finally {
+      // A conferencia leu os arquivos frescos desta volta; o cache do deploy pode
+      // ter um veredito anterior. Invalida pra a barreira de publicacao reconferir.
+      invalidarCacheAuditoria(alvo.workspaceId, alvo.pasta);
+    }
   }
 
   // Pede o processo ao provedor e liga os mesmos tratadores historicos.
@@ -523,12 +621,12 @@ export class GerenciadorSessoes {
     if (tipo === "result") {
       execucao.recebeuResult = true;
 
-      // Custo deste trecho (o result e sempre o custo do turno atual).
-      const custoBruto = evento["total_cost_usd"];
-      const custoTrecho = typeof custoBruto === "number" ? custoBruto : 0;
+      // Custo deste trecho. Result com erro nao soma custo (M10): custoTrecho
+      // ja vem 0 nesse caso, entao sessao, transcricao e workspace ficam limpos.
+      const { custoUsd: custoTrecho, ehErro } = custoDoResult(evento);
       sessao.custoUsd = (sessao.custoUsd ?? 0) + custoTrecho;
       const custoEstimado =
-        sessao.provedor === "codex" || evento["estimado"] === true;
+        !ehErro && (sessao.provedor === "codex" || evento["estimado"] === true);
       sessao.estimado = (sessao.estimado ?? false) || custoEstimado;
 
       // Tokens deste trecho, ja com o split honesto: entrada nova, cache escrita,
@@ -541,7 +639,6 @@ export class GerenciadorSessoes {
       sessao.tokensEntrada = (sessao.tokensEntrada ?? 0) + entrada;
       sessao.tokensSaida = (sessao.tokensSaida ?? 0) + saida;
 
-      const ehErro = evento["is_error"] === true || evento["subtype"] === "error";
       execucao.resultComErro = ehErro;
       const texto = evento["result"];
       if (!ehErro) {
@@ -768,19 +865,13 @@ export class GerenciadorSessoes {
         if (!existsSync(arquivo)) continue;
         const dados = JSON.parse(readFileSync(arquivo, "utf8"));
         if (!Array.isArray(dados)) continue;
-        for (const bruta of dados as Sessao[]) {
-          const sessao: Sessao = {
-            ...bruta,
-            provedor: bruta.provedor ?? "claude",
-            workspaceId: bruta.workspaceId ?? id,
-          };
-          // Qualquer sessao que estava ativa ou na fila virou parada. O processo se foi.
-          if (
-            sessao.status === "rodando" ||
-            sessao.status === "iniciando" ||
-            sessao.status === "fila"
-          ) {
-            sessao.status = "parada";
+        for (const bruta of dados) {
+          // Saneamento defensivo: entrada malformada e ignorada com log, sem
+          // derrubar o boot. Normaliza provedor, workspace, status e conferencia.
+          const sessao = saneiaSessaoPersistida(bruta, id);
+          if (!sessao) {
+            console.warn(`Sessao malformada ignorada no workspace ${id}.`);
+            continue;
           }
           todas.push(sessao);
         }

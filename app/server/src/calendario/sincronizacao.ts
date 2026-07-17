@@ -27,6 +27,28 @@ import {
 // Duracao padrao do evento criado a partir do cartao, em minutos.
 const DURACAO_MIN = 60;
 
+// Serializa as reacoes por workspaceId+contatoId. Sem isso, duas operacoes rapidas
+// no mesmo contato (ex: editar a data e mover o cartao quase juntos) leem o vinculo
+// vazio ao mesmo tempo e cada uma cria um evento, duplicando na agenda e deixando
+// vinculo orfao. A fila em memoria encadeia uma reacao apos a outra por chave, sem
+// dependencia nova. A cadeia segue mesmo se uma reacao falhar (roda a proxima).
+const filasContato = new Map<string, Promise<unknown>>();
+
+function enfileirar<T>(chave: string, tarefa: () => Promise<T>): Promise<T> {
+  const anterior = filasContato.get(chave) ?? Promise.resolve();
+  const resultado = anterior.then(tarefa, tarefa);
+  const marcador = resultado.then(
+    () => {
+      if (filasContato.get(chave) === marcador) filasContato.delete(chave);
+    },
+    () => {
+      if (filasContato.get(chave) === marcador) filasContato.delete(chave);
+    },
+  );
+  filasContato.set(chave, marcador);
+  return resultado;
+}
+
 // Monta os dados do evento a partir do cartao.
 function dadosDoContato(contato: Contato): DadosEventoLocal {
   const inicio = new Date(contato.proximoContato as string);
@@ -108,8 +130,10 @@ export async function sincronizarTudo(
 }
 
 // Reage a um evento do CRM vindo do barramento. Silencioso quando a sincronizacao
-// do CRM esta desligada. Nao exige Google: modo local funciona sozinho.
-async function reagir(evento: EventoDominio): Promise<void> {
+// do CRM esta desligada. Nao exige Google: modo local funciona sozinho. A reacao
+// roda serializada por workspaceId+contatoId pra nunca duplicar evento nem deixar
+// vinculo orfao numa corrida. Exportada pra testar a serializacao sem barramento.
+export async function reagir(evento: EventoDominio): Promise<void> {
   const workspaceId = evento.workspaceId;
   if (!workspaceId) return;
   if (!lerConfigCalendario(workspaceId).sincronizarCrm) return;
@@ -117,11 +141,14 @@ async function reagir(evento: EventoDominio): Promise<void> {
   const contato = evento.dados.contato as Contato | undefined;
   if (!contato || typeof contato.id !== "string") return;
 
-  if (evento.tipo === "crm:contato-excluido") {
-    await removerDoContato(workspaceId, contato.id);
-    return;
-  }
-  await upsertContato(workspaceId, contato);
+  const chave = `${workspaceId}::${contato.id}`;
+  await enfileirar(chave, async () => {
+    if (evento.tipo === "crm:contato-excluido") {
+      await removerDoContato(workspaceId, contato.id);
+      return;
+    }
+    await upsertContato(workspaceId, contato);
+  });
 }
 
 // Assina o barramento. Chamar UMA vez no boot. Erro de sincronizacao vira log,

@@ -32,6 +32,7 @@ import { ErroCarrossel, gravarCarrossel, salvarImagem } from "./carrossel.js";
 import { salvarAnexoPeca } from "./anexoPeca.js";
 import { ErroPaginaSite, gravarPaginaSite } from "./paginaSite.js";
 import { ErroRender, renderizarPaginas } from "./render.js";
+import { limparBuildAstro, PASTA_BUILD } from "../publicacao/astro/conversor.js";
 import { transmitir } from "../ws.js";
 import { registrarEAtivar } from "../workspaces/ativacao.js";
 import { lerSkills } from "./skills.js";
@@ -213,6 +214,9 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
     if (!existsSync(alvo) || !statSync(alvo).isDirectory()) {
       return resposta.status(404).send({ erro: "Peça não encontrada." });
     }
+    // Desfaz um junction de build Astro remanescente antes do rm recursivo,
+    // pra jamais cruzar o reparse point pra dentro do motor compartilhado.
+    limparBuildAstro(join(alvo, PASTA_BUILD));
     rmSync(alvo, { recursive: true, force: true });
     // O watcher de conteudo/ tambem dispara, mas transmitir aqui garante a
     // atualizacao imediata mesmo se o watch falhar no Windows.

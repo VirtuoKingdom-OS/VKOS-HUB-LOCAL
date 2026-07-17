@@ -237,16 +237,16 @@
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  color: #ffd7d7;
-  background: rgba(60, 16, 16, 0.96);
-  border: 1px solid rgba(var(--alerta-rgb), 0.55);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color: var(--confirmar-perigo-texto);
+  background: var(--confirmar-perigo-fundo);
+  border: 1px solid var(--confirmar-perigo-borda);
+  box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
   animation: entrada-suave 120ms ease-out both;
 }
 .ide-balao-excluir:hover {
-  background: rgba(90, 22, 22, 0.98);
+  background: var(--confirmar-perigo-botao);
   border-color: rgba(var(--alerta-rgb), 0.85);
-  color: #fff;
+  color: var(--confirmar-perigo-texto);
 }
 
 /* ===== Coluna do editor ===== */

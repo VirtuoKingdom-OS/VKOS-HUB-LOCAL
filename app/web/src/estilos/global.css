@@ -900,21 +900,6 @@ textarea {
   color: var(--menta-clara);
 }
 
-/* Badge "Em breve" nos itens de navegacao (WhatsApp, Instagram): pequena e
-   discreta, com token de cor. Nao rouba a atencao do item ativo. */
-.item-nav-badge {
-  flex-shrink: 0;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 100px;
-  color: var(--texto-fraco);
-  background: rgba(var(--suave-rgb), 0.12);
-  border: 1px solid rgba(var(--suave-rgb), 0.18);
-  white-space: nowrap;
-}
 
 /* A VKOS-IDE fica ancorada no fim da navegacao: margin-top:auto empurra o bloco
    pro fundo da area de nav, e a borda superior separa visualmente do resto. */
@@ -1354,7 +1339,7 @@ textarea {
   max-width: 86vw;
   max-height: 86vh;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.6);
 }
 .visor-fechar,
 .visor-nav {
@@ -1511,19 +1496,19 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  color: #ffd7d7;
-  background: rgba(60, 16, 16, 0.96);
-  border: 1px solid rgba(var(--alerta-rgb), 0.55);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color: var(--confirmar-perigo-texto);
+  background: var(--confirmar-perigo-fundo);
+  border: 1px solid var(--confirmar-perigo-borda);
+  box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
   pointer-events: auto;
   cursor: pointer;
   z-index: 30;
   animation: surgir-aviso 0.12s ease-out;
 }
 .botao-excluir-peca .aviso-confirmar:hover {
-  background: rgba(90, 22, 22, 0.98);
+  background: var(--confirmar-perigo-botao);
   border-color: rgba(var(--alerta-rgb), 0.85);
-  color: #fff;
+  color: var(--confirmar-perigo-texto);
 }
 @keyframes surgir-aviso {
   from { opacity: 0; transform: translateY(3px); }
@@ -1616,7 +1601,7 @@ textarea {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.6);
   background: var(--fundo);
 }
 .visor-pagina-html.carregando {
@@ -1818,7 +1803,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 64px rgba(var(--scrim-rgb), 0.5);
   animation: entrada-no 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 .cartao-prompt-topo {

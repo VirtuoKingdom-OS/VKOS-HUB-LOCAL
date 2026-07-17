@@ -55,6 +55,34 @@ export function fasesDoTipo(tipo: TipoGeracao): string[] {
   return tipo === "site" ? FASES_SITE : FASES;
 }
 
+// Estado do laco de conformidade que o flutuante entende, sem depender do React.
+export interface ConferenciaGeracao {
+  estado: "conferindo" | "corrigindo" | "aprovada" | "pendencias";
+  volta: number;
+}
+
+// Mensagem honesta da conferencia de site. `demorou` vem da guarda de tempo (90s):
+// se a conferencia passou do limite ainda em andamento, o flutuante para de
+// prometer "Conferindo" e diz que o site ja esta em Sites, sem travar (A8). Nos
+// estados terminais (aprovada, pendencias) a geracao segue o fluxo normal e este
+// rotulo some (null).
+export const MENSAGEM_CONFERENCIA_DEMOROU =
+  "A conferência está demorando; o site está em Sites.";
+
+export function rotuloConferencia(
+  conf: ConferenciaGeracao | undefined,
+  demorou: boolean,
+): string | null {
+  if (!conf) return null;
+  const emAndamento = conf.estado === "conferindo" || conf.estado === "corrigindo";
+  if (demorou && emAndamento) return MENSAGEM_CONFERENCIA_DEMOROU;
+  if (conf.estado === "conferindo") return "Conferindo o site";
+  if (conf.estado === "corrigindo") {
+    return `Corrigindo pendências (volta ${conf.volta} de 2)`;
+  }
+  return null;
+}
+
 // Uma geracao viva: a sessao que a roda e os metadados pra UI.
 export interface GeracaoAtiva {
   // Id da sessao no backend. Vazio no instante do disparo, ate criarSessao
@@ -97,6 +125,9 @@ interface ValorGeracao {
   // Rotulo curto da fase do laco de conformidade de site, ou null quando o laco
   // nao esta ativo. "Conferindo o site" / "Corrigindo pendências (volta 1 de 2)".
   faseConferencia: string | null;
+  // A conferencia passou da guarda de 90s ainda em andamento (A8): o flutuante
+  // mostra o estado honesto e fica dispensavel, sem travar esperando o laco.
+  conferenciaDemorou: boolean;
   // Resposta final do provedor quando ele encerrou sem criar o arquivo esperado.
   // Permite explicar a causa real em vez de sugerir salvamento infinito.
   resultadoSemPeca: string | null;
@@ -125,6 +156,10 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   const [concluidaEm, setConcluidaEm] = useState<number | null>(null);
   // Pasta resolvida quando pronta+concluida (match exato ou fallback).
   const [pastaPronta, setPastaPronta] = useState<string | null>(null);
+  // Guarda de tempo da conferencia de site: vira true quando o laco passa de 90s
+  // ainda conferindo ou corrigindo. O flutuante entao mostra um estado honesto
+  // ("o site está em Sites") em vez de prometer "Conferindo" pra sempre (A8).
+  const [conferenciaDemorou, setConferenciaDemorou] = useState(false);
   // Trava sincrona contra dois cliques antes do React concluir o proximo
   // render. O servidor repete a guarda para cobrir outras abas.
   const ativaRef = useRef<GeracaoAtiva | null>(null);
@@ -195,6 +230,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     setConcluidaEm(null);
     setPastaPronta(null);
     setPastasNoDisparo(new Set());
+    setConferenciaDemorou(false);
   }, []);
 
   const minimizar = useCallback(() => setMinimizada(true), []);
@@ -210,6 +246,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
       setPecaSumiu(false);
       setConcluidaEm(null);
       setPastaPronta(null);
+      setConferenciaDemorou(false);
       setPastasNoDisparo(new Set(pecas.map((p) => p.pasta)));
       setMinimizada(false);
       const proxima: GeracaoAtiva = {
@@ -270,6 +307,19 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(t);
   }, [ativa, status, pecaPronta, conferenciaAtiva, recarregarPecas]);
 
+  // Guarda de tempo da conferencia (90s): a conferencia visual no navegador mais a
+  // correcao podem levar tempo, mas nunca pra sempre. Se passar de 90s ainda em
+  // andamento, o flutuante cai pra um estado honesto ("o site está em Sites") sem
+  // travar. Zera assim que a conferencia sai do estado em andamento (A8).
+  useEffect(() => {
+    if (!conferenciaAtiva) {
+      setConferenciaDemorou(false);
+      return;
+    }
+    const t = window.setTimeout(() => setConferenciaDemorou(true), 90000);
+    return () => window.clearTimeout(t);
+  }, [conferenciaAtiva]);
+
   // Poll de reforco: a lista de pecas normalmente atualiza por WS
   // (pecas:atualizadas, disparado por fs.watch no backend). fs.watch pode perder
   // ou coalescer eventos durante uma escrita com muitos arquivos; sem fallback a
@@ -304,14 +354,11 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   // Rotulos das fases pro tipo ativo. Sem geracao viva, o conjunto padrao.
   const fases = ativa ? fasesDoTipo(ativa.tipo) : FASES;
 
-  // Rotulo do laco de conformidade, so enquanto conferindo ou corrigindo.
+  // Rotulo do laco de conformidade. Enquanto conferindo ou corrigindo mostra a
+  // fase; passado o limite de 90s, cai pro estado honesto (A8). Nos terminais
+  // (aprovada, pendencias) some e a geracao segue o fluxo normal.
   const conf = sessao?.conferenciaSite;
-  const faseConferencia =
-    conf?.estado === "conferindo"
-      ? "Conferindo o site"
-      : conf?.estado === "corrigindo"
-        ? `Corrigindo pendências (volta ${conf.volta} de 2)`
-        : null;
+  const faseConferencia = rotuloConferencia(conf, conferenciaDemorou);
 
   const valor: ValorGeracao = {
     ativa,
@@ -324,6 +371,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     pastaPronta,
     pendenciasSite,
     faseConferencia,
+    conferenciaDemorou,
     resultadoSemPeca,
     status,
     stream,

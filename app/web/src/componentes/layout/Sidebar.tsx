@@ -107,6 +107,7 @@ export function Sidebar({
       <nav className="sidebar-nav">
         <button
           className={`item-nav${telaAtiva === "dashboard" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "dashboard" ? "page" : undefined}
           onClick={() => aoNavegar("dashboard")}
         >
           <IconeDashboard />
@@ -114,6 +115,7 @@ export function Sidebar({
         </button>
         <button
           className={`item-nav${telaAtiva === "cockpit" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "cockpit" ? "page" : undefined}
           onClick={() => aoNavegar("cockpit")}
         >
           <IconeCockpit className="" />
@@ -121,6 +123,7 @@ export function Sidebar({
         </button>
         <button
           className={`item-nav${telaAtiva === "crm" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "crm" ? "page" : undefined}
           onClick={() => aoNavegar("crm")}
         >
           <IconeCrm />
@@ -128,6 +131,7 @@ export function Sidebar({
         </button>
         <button
           className={`item-nav${telaAtiva === "calendario" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "calendario" ? "page" : undefined}
           onClick={() => aoNavegar("calendario")}
         >
           <IconeCalendario />
@@ -135,6 +139,7 @@ export function Sidebar({
         </button>
         <button
           className={`item-nav${telaAtiva === "conexoes" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "conexoes" ? "page" : undefined}
           onClick={() => aoNavegar("conexoes")}
         >
           <IconeConexoes />
@@ -142,6 +147,7 @@ export function Sidebar({
         </button>
         <button
           className={`item-nav${telaAtiva === "automacoes" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "automacoes" ? "page" : undefined}
           onClick={() => aoNavegar("automacoes")}
         >
           <IconeAutomacoes />
@@ -150,6 +156,7 @@ export function Sidebar({
         {mapaDisponivel && (
           <button
             className={`item-nav${telaAtiva === "mapa" ? " ativo" : ""}`}
+            aria-current={telaAtiva === "mapa" ? "page" : undefined}
             onClick={() => aoNavegar("mapa")}
           >
             <IconeMapa />
@@ -165,6 +172,7 @@ export function Sidebar({
             {galeriasTotal > 0 && (
               <button
                 className={`item-nav${telaAtiva === "galerias" ? " ativo" : ""}`}
+                aria-current={telaAtiva === "galerias" ? "page" : undefined}
                 onClick={() => aoNavegar("galerias")}
               >
                 <IconeGalerias />
@@ -175,6 +183,7 @@ export function Sidebar({
             {itemSite && (
               <button
                 className={`item-nav${telaAtiva === "fluxo:site" ? " ativo" : ""}`}
+                aria-current={telaAtiva === "fluxo:site" ? "page" : undefined}
                 onClick={() => aoNavegar("fluxo:site")}
               >
                 <IconeSitePagina />
@@ -196,6 +205,11 @@ export function Sidebar({
                   ? " ativo"
                   : ""
               }`}
+              aria-current={
+                telaAtiva === "fontes" || telaAtiva.startsWith("fonte:")
+                  ? "page"
+                  : undefined
+              }
               onClick={() => aoNavegar("fontes")}
             >
               <IconeFontes />

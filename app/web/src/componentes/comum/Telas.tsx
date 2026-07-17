@@ -34,7 +34,7 @@ export function ServidorForaDoAr({ aoTentar }: { aoTentar: () => void }) {
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "rgba(255,107,107,0.1)",
+          background: "rgba(var(--alerta-rgb),0.1)",
           color: "var(--alerta)",
         }}
       >

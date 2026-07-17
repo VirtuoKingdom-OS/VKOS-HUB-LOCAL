@@ -1,6 +1,6 @@
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyPluginAsync, FastifyReply } from "fastify";
 
 import { lerConexoes } from "../conexoes/estado.js";
 import { emitir } from "../eventos/barramento.js";
@@ -117,9 +117,10 @@ function tratarErro(erro: unknown, resposta: FastifyReply): FastifyReply {
 
 async function exigirSitePublicavel(
   alvo: AlvoPublicacao,
-  req: FastifyRequest,
 ): Promise<void> {
-  const auditoria = await auditarSitePublicavel(alvo, req.headers.host);
+  // Host resolvido no server (mesmo do laco), nao a partir do header. Assim a
+  // barreira do deploy e o laco conferem exatamente a mesma URL.
+  const auditoria = await auditarSitePublicavel(alvo);
   if (!auditoria.valido) {
     throw new ErroPublicacao(
       `O site ainda não está pronto para publicar. ${auditoria.erros.join(" ")}`,
@@ -133,7 +134,7 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
     const alvo = alvoOuResposta(req.params.pasta, resposta);
     if (!("workspaceId" in alvo)) return alvo;
     const servidores = lerConexoes(alvo.workspaceId).servidores;
-    const auditoria = await auditarSitePublicavel(alvo, req.headers.host);
+    const auditoria = await auditarSitePublicavel(alvo);
     let modoPrevisto: ModoPublicacao = "html";
     try {
       modoPrevisto = resolverModoPublicacao(pastaDaPeca(alvo.workspaceId, alvo.pasta));
@@ -157,7 +158,7 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
     const alvo = alvoOuResposta(req.params.pasta, resposta);
     if (!("workspaceId" in alvo)) return alvo;
     try {
-      await exigirSitePublicavel(alvo, req);
+      await exigirSitePublicavel(alvo);
       const pastaPeca = pastaDaPeca(alvo.workspaceId, alvo.pasta);
       const avisos: string[] = [];
       let modo: ModoPublicacao = "html";
@@ -194,7 +195,7 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
     const alvo = alvoOuResposta(req.params.pasta, resposta);
     if (!("workspaceId" in alvo)) return alvo;
     try {
-      await exigirSitePublicavel(alvo, req);
+      await exigirSitePublicavel(alvo);
       const pastaPeca = pastaDaPeca(alvo.workspaceId, alvo.pasta);
       const avisos: string[] = [];
       let modo: ModoPublicacao = "html";
@@ -238,16 +239,9 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
       if (!("workspaceId" in alvo)) return alvo;
       try {
         const pastaPeca = pastaDaPeca(alvo.workspaceId, alvo.pasta);
-        if (resolverModoPublicacao(pastaPeca) !== "astro") {
-          return {
-            ok: false,
-            modo: "html" as ModoPublicacao,
-            paginas: [] as string[],
-            avisos: [
-              "A peca nao tem os marcadores de site multipagina; publicaria como HTML puro.",
-            ],
-          };
-        }
+        // Rota de diagnostico: mesmo quando o modo previsto e html, tenta a
+        // conversao pra devolver o motivo REAL (elemento fora dos marcadores,
+        // head divergente, motor indisponivel), nao um aviso generico.
         const avisos: string[] = [];
         const artefatos = await prepararAstroOuFallback(
           pastaPeca,

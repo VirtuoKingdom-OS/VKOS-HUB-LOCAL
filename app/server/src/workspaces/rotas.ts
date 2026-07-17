@@ -7,9 +7,12 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { validarPastaVkos } from "../vkos/estado.js";
 import { gerenciador } from "../sessoes/gerenciador.js";
 import { invalidarCacheContextos } from "../contextos/armazenamento.js";
+import { lerConexoes } from "../conexoes/estado.js";
+import { ID_CONEXAO_GOOGLE, revogarToken } from "../google/oauth.js";
 import { ativarPorId, registrarEAtivar } from "./ativacao.js";
 import { criarWorkspaceNovo, ErroWorkspace } from "./clonagem.js";
 import {
+  apagarPastaDadosWorkspace,
   idWorkspaceAtivo,
   lerRegistro,
   renomearWorkspace,
@@ -17,6 +20,19 @@ import {
   workspacePorId,
   workspacePorPasta,
 } from "./estado.js";
+
+// Best effort: revoga o refresh token do Google desse workspace antes de apagar a
+// pasta de dados. Falhou (offline, token ja invalido, conexoes ilegivel): loga e
+// segue, a exclusao nunca trava por causa do Google.
+async function revogarGoogleDoWorkspace(id: string): Promise<void> {
+  try {
+    const config = lerConexoes(id).servidores[ID_CONEXAO_GOOGLE]?.config ?? {};
+    const refreshToken = typeof config.refreshToken === "string" ? config.refreshToken.trim() : "";
+    if (refreshToken) await revogarToken(refreshToken);
+  } catch (erro) {
+    console.error(`[workspaces] falha ao revogar o Google do workspace ${id}:`, erro);
+  }
+}
 
 export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
   // Registro inteiro: { workspaces, ativo }.
@@ -85,7 +101,8 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     return { workspace, ...lerRegistro() };
   });
 
-  // Remove um workspace SO do registro. Nunca apaga pasta em disco. 400 se ativo.
+  // Remove um workspace. Apaga a pasta de dados do hub (segredos e PII) e revoga o
+  // Google (best effort); a pasta VKOS do cliente fica INTACTA. 400 se ativo.
   app.delete("/workspaces/:id", async (req: FastifyRequest, resposta: FastifyReply) => {
     const { id } = req.params as { id: string };
     if (!workspacePorId(id)) {
@@ -101,6 +118,10 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     }
     // Descarta o cache do indice de contextos desse workspace.
     invalidarCacheContextos(id);
+    // Revoga o Google (le o token antes de apagar a pasta) e apaga os dados do hub
+    // desse workspace: conexoes.json (segredos), crm.json (PII), calendario, logs.
+    await revogarGoogleDoWorkspace(id);
+    apagarPastaDadosWorkspace(id);
     removerWorkspaceRegistro(id);
     return lerRegistro();
   });

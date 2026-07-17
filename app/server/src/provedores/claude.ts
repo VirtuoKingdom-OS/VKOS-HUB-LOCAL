@@ -15,6 +15,7 @@ import type {
   ProvedorIA,
   RemoverOuvinte,
 } from "./contrato.js";
+import { citarArg } from "./util.js";
 
 const MODELOS: OpcaoModelo[] = [
   { alias: "opus", rotulo: "Opus", observacaoCusto: "mais capaz, mais caro" },
@@ -234,13 +235,6 @@ class ProcessoClaude implements ProcessoSessao {
       ouvinte(fechamento);
     }
   }
-}
-
-function citarArg(arg: string): string {
-  if (arg.length > 0 && !/[\s"()<>|&^]/.test(arg)) {
-    return arg;
-  }
-  return `"${arg.replace(/"/g, '\\"')}"`;
 }
 
 async function detectar(): Promise<DeteccaoProvedor> {

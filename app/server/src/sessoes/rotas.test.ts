@@ -53,6 +53,39 @@ test("bloqueio visual continua global depois de trocar de cliente", () => {
   assert.equal(geracaoVisualEmAndamento([ativa])?.id, ativa.id);
 });
 
+test("conferencia de site em andamento ocupa a trava mesmo concluida", () => {
+  const conferindo = sessao({
+    id: "conferindo",
+    skill: "site",
+    status: "concluida",
+    conferenciaSite: { estado: "conferindo", volta: 0 },
+  });
+  assert.equal(geracaoVisualEmAndamento([conferindo])?.id, "conferindo");
+
+  const corrigindo = sessao({
+    id: "corrigindo",
+    skill: "site",
+    status: "concluida",
+    conferenciaSite: { estado: "corrigindo", volta: 1 },
+  });
+  assert.equal(geracaoVisualEmAndamento([corrigindo])?.id, "corrigindo");
+});
+
+test("conferencia terminal nao ocupa mais a trava", () => {
+  const aprovada = sessao({
+    skill: "site",
+    status: "concluida",
+    conferenciaSite: { estado: "aprovada", volta: 0 },
+  });
+  const pendencias = sessao({
+    skill: "site",
+    status: "concluida",
+    conferenciaSite: { estado: "pendencias", volta: 2 },
+  });
+  assert.equal(geracaoVisualEmAndamento([aprovada]), undefined);
+  assert.equal(geracaoVisualEmAndamento([pendencias]), undefined);
+});
+
 test("detecta CRM como palavra inteira sem falso positivo", () => {
   assert.equal(promptCitaCrm("Resuma o CRM"), true);
   assert.equal(promptCitaCrm("use meu crm para decidir"), true);

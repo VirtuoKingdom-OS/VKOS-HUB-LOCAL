@@ -32,15 +32,26 @@ export function skillExigeCerebro(skill: unknown): boolean {
   return typeof skill === "string" && SKILLS_QUE_EXIGEM_CEREBRO.has(skill);
 }
 
+// Uma sessao de site com o laco de conformidade ainda rodando (conferindo ou
+// corrigindo) ocupa a trava tanto quanto uma sessao ativa: durante a conferencia
+// a sessao ja esta "concluida", mas o laco pode retomar a MESMA sessao pra
+// corrigir. Um POST novo de site/carrossel nessa janela dispararia uma segunda
+// geracao guiada em paralelo com a correcao (A5).
+function conferenciaSiteEmAndamento(sessao: Sessao): boolean {
+  const estado = sessao.conferenciaSite?.estado;
+  return sessao.skill === "site" && (estado === "conferindo" || estado === "corrigindo");
+}
+
 // Carrossel e site escrevem uma arvore inteira dentro de conteudo/. Uma segunda
 // geracao guiada pode disputar o unico estado visual de progresso do Hub. O
 // bloqueio e global e vive no servidor para cobrir troca de cliente, outra aba,
-// refresh e corrida de cliques, nao so o estado React da tela atual.
+// refresh e corrida de cliques, nao so o estado React da tela atual. A janela da
+// conferencia de conformidade tambem conta como em andamento.
 export function geracaoVisualEmAndamento(sessoes: Sessao[]): Sessao | undefined {
   return sessoes.find(
     (sessao) =>
       skillExigeCerebro(sessao.skill) &&
-      STATUS_EM_EXECUCAO.has(sessao.status),
+      (STATUS_EM_EXECUCAO.has(sessao.status) || conferenciaSiteEmAndamento(sessao)),
   );
 }
 

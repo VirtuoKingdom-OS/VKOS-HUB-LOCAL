@@ -12,7 +12,7 @@
 import { join } from "node:path";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 
-import { gravarTextoAtomico } from "../util/gravarJson.js";
+import { criarRotacaoLog } from "../util/rotacaoLog.js";
 import {
   garantirPastaDadosWorkspace,
   pastaDadosWorkspace,
@@ -38,15 +38,9 @@ const assinantes = new Map<string, Set<Assinante>>();
 // Nome do arquivo de auditoria por workspace.
 const NOME_LOG = "eventos.jsonl";
 
-// Rotacao: acima deste teto de linhas, mantem so as ULTIMAS deste tanto. A
-// checagem e preguicosa, so a cada N emissoes, pra nao ler o arquivo toda vez.
-const TETO_LINHAS = 2000;
-const MANTER_LINHAS = 1000;
-const CHECAR_A_CADA = 50;
-
-// Contador de emissoes por workspace, pra disparar a checagem de rotacao so de
-// vez em quando (a cada CHECAR_A_CADA emissoes daquele workspace).
-const emissoesPorWorkspace = new Map<string, number>();
+// Rotacao preguicosa do log de eventos, compartilhada com o historico das
+// automacoes. Contador proprio por chamador.
+const talvezRotacionar = criarRotacaoLog("eventos");
 
 // Assina um tipo de evento (ou "*" pra todos). Devolve uma funcao pra cancelar.
 export function assinar(tipo: string, fn: Assinante): () => void {
@@ -101,23 +95,6 @@ function registrarNoLog(evento: EventoDominio): void {
     talvezRotacionar(id, caminho);
   } catch (erro) {
     console.error(`[eventos] falha ao gravar ${NOME_LOG} do workspace ${id}:`, erro);
-  }
-}
-
-// Rotacao preguicosa: so checa o tamanho a cada CHECAR_A_CADA emissoes daquele
-// workspace. Acima do teto, reescreve o arquivo com as ultimas MANTER_LINHAS.
-function talvezRotacionar(id: string, caminho: string): void {
-  const n = (emissoesPorWorkspace.get(id) ?? 0) + 1;
-  emissoesPorWorkspace.set(id, n);
-  if (n % CHECAR_A_CADA !== 0) return;
-  try {
-    const bruto = readFileSync(caminho, "utf8");
-    const linhas = bruto.split("\n").filter((l) => l.length > 0);
-    if (linhas.length <= TETO_LINHAS) return;
-    const mantidas = linhas.slice(linhas.length - MANTER_LINHAS);
-    gravarTextoAtomico(caminho, mantidas.join("\n") + "\n");
-  } catch (erro) {
-    console.error(`[eventos] falha ao rotacionar ${NOME_LOG} do workspace ${id}:`, erro);
   }
 }
 
