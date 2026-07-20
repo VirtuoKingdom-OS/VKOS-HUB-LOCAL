@@ -1,6 +1,6 @@
 {
   "name": "server",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Backend local do VKOS Hub. Fastify, WebSocket e orquestracao multi-IA.",
   "type": "module",
