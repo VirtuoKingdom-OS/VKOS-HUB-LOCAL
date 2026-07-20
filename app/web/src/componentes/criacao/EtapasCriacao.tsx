@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type DragEvent,
@@ -9,17 +10,21 @@ import {
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
 import type { TipoCriacao } from "../../estado/geracao";
-import { enviarAnexo, type ModeloIA } from "../../api/cliente";
+import { enviarAnexo, urlArquivoContexto, type ModeloIA } from "../../api/cliente";
 import { PROPORCOES, type IdFormato, type IdProporcao } from "../../config/fluxos";
+import { lerBase64 } from "../../util/arquivo";
 import { mensagemDeErro } from "../../util/erros";
 import {
   IconeCarrossel,
   IconeClipe,
+  IconeGaleria,
   IconePost,
   IconeRaio,
   IconeStories,
   IconeX,
 } from "../comum/Icones";
+import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
+import { ehImagem } from "../telas/fontes";
 import type { DadosCriacao, ModoImagem, OrigemImagem } from "./prompt";
 import "../../estilos/criacao.css";
 
@@ -194,20 +199,6 @@ const MODOS_IMAGEM: { id: ModoImagem; titulo: string; desc: string }[] = [
   },
 ];
 
-// Le um arquivo como base64 puro (sem o prefixo data:...;base64,).
-function lerBase64(arquivo: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const leitor = new FileReader();
-    leitor.onload = () => {
-      const texto = String(leitor.result ?? "");
-      const virgula = texto.indexOf(",");
-      resolve(virgula >= 0 ? texto.slice(virgula + 1) : texto);
-    };
-    leitor.onerror = () => reject(leitor.error ?? new Error("Falha ao ler arquivo."));
-    leitor.readAsDataURL(arquivo);
-  });
-}
-
 const TOTAL_ETAPAS = 4;
 
 interface Props {
@@ -241,7 +232,7 @@ export function EtapasCriacao({
   previa,
   ativo = true,
 }: Props) {
-  const { modelosCarrossel } = usarEstado();
+  const { modelosCarrossel, contextos } = usarEstado();
   const {
     ativo: provedorAtivo,
     modelos,
@@ -258,12 +249,20 @@ export function EtapasCriacao({
   const [enviandoAnexo, setEnviandoAnexo] = useState(false);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
   const [arrastando, setArrastando] = useState(false);
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
   const refArquivo = useRef<HTMLInputElement>(null);
   const refTema = useRef<HTMLInputElement>(null);
   const estiloCapa = dados.estiloCapa ?? dados.estilo ?? "";
   const estiloPaginas = dados.estiloPaginas ?? dados.estilo ?? "";
   const paginasTocadasRef = useRef(
     estiloPaginas !== "" && estiloPaginas !== estiloCapa,
+  );
+  const temImagensNasFontes = useMemo(
+    () =>
+      contextos.some((contexto) =>
+        contexto.arquivos.some((arquivo) => ehImagem(arquivo.nome, arquivo.tipo)),
+      ),
+    [contextos],
   );
 
   const proporcaoEfetiva = cfg.proporcaoFixa ?? dados.proporcao;
@@ -354,6 +353,35 @@ export function EtapasCriacao({
     aoMudar({ anexos: dados.anexos.filter((a) => a.caminhoRelativo !== caminho) });
   };
 
+  const escolherDaFonte = async (arquivo: ArquivoGaleriaFonte) => {
+    if (dados.anexos.some((anexo) => anexo.nome === arquivo.nome)) {
+      setErroAnexo("Essa imagem já está na criação.");
+      return;
+    }
+    setEnviandoAnexo(true);
+    setErroAnexo(null);
+    try {
+      const resposta = await fetch(urlArquivoContexto(arquivo.contextoId, arquivo.nome));
+      if (!resposta.ok) throw new Error("Não consegui abrir a imagem da fonte de dados.");
+      const blob = await resposta.blob();
+      const arquivoLocal = new File([blob], arquivo.nome, { type: blob.type });
+      const conteudoBase64 = await lerBase64(arquivoLocal);
+      const { caminhoRelativo } = await enviarAnexo({
+        nome: arquivo.nome,
+        conteudoBase64,
+      });
+      aoMudar({
+        origemImagem: "usuario",
+        anexos: [...dados.anexos, { nome: arquivo.nome, caminhoRelativo }],
+      });
+    } catch (e) {
+      setErroAnexo(mensagemDeErro(e));
+      throw e;
+    } finally {
+      setEnviandoAnexo(false);
+    }
+  };
+
   // Arrastar e soltar imagens na dropzone. stopPropagation pra nao vazar pro
   // handler de anexar-material do node por baixo.
   const aoSoltar = (e: DragEvent) => {
@@ -412,16 +440,6 @@ export function EtapasCriacao({
             {!temaValido && (
               <span className="criacao-hint">Escreva o tema pra continuar.</span>
             )}
-
-            <label className="criacao-rotulo">
-              Detalhes (opcional)
-              <textarea
-                className="criacao-textarea nodrag nowheel"
-                placeholder="Ângulo, público, o que não pode faltar..."
-                value={dados.detalhes}
-                onChange={(e) => aoMudar({ detalhes: e.target.value })}
-              />
-            </label>
 
             {/* Quantidade de paginas: so no carrossel. */}
             {tipo === "carrossel" && (
@@ -653,6 +671,21 @@ export function EtapasCriacao({
             {dados.modoImagem !== "sem" && (
               <div className="criacao-origem">
                 <span className="criacao-rotulo-mini">De onde vêm as imagens</span>
+                <button
+                  type="button"
+                  className="botao botao-neutro criacao-fontes-acao"
+                  onClick={() => {
+                    aoMudar({ origemImagem: "usuario" });
+                    setGaleriaAberta(true);
+                  }}
+                  disabled={!temImagensNasFontes || enviandoAnexo}
+                >
+                  <IconeGaleria className="" />
+                  Escolher das Fontes de dados
+                </button>
+                {!temImagensNasFontes && (
+                  <span className="criacao-hint">Nenhuma imagem nas fontes ainda.</span>
+                )}
                 <div className="criacao-cards-lin">
                   <button
                     className={`criacao-card-op${
@@ -742,6 +775,11 @@ export function EtapasCriacao({
                     ))}
                   </div>
                 )}
+                <GaleriaFontes
+                  aberta={galeriaAberta}
+                  aoFechar={() => setGaleriaAberta(false)}
+                  aoEscolher={escolherDaFonte}
+                />
               </div>
             )}
           </div>
@@ -835,6 +873,19 @@ export function EtapasCriacao({
                 </div>
               </div>
             )}
+
+            <label className="criacao-rotulo">
+              Instruções finais (opcional)
+              <textarea
+                className="criacao-textarea nodrag nowheel"
+                placeholder="Ex: use exatamente o roteiro abaixo; deixe o texto mais direto; não use amarelo; a capa precisa destacar esta frase..."
+                value={dados.detalhes}
+                onChange={(e) => aoMudar({ detalhes: e.target.value })}
+              />
+              <span className="criacao-hint">
+                Última chance de definir conteúdo, tom e exceções antes de gerar.
+              </span>
+            </label>
 
             {/* Previa discreta do prompt, so na ultima etapa e so quando o dono
                 passa uma (o node). O wizard do dashboard nao passa: fica limpo. */}

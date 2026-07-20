@@ -592,7 +592,9 @@ QA (3o Opus): todos os itens passaram, zero erros de console. Rolagem de bloco d
 - `GET /modelos-html/:id/preview?slide=N` usa `1` como padrão, aceita inteiro positivo e faz clamp no último `.slide`. O preview reescreve `img/capa.png` e `img/produto.png` para o SVG neutro sem alterar o template real.
 - `DadosCriacao` mantém `estilo` para o cockpit e ganha `estiloCapa` e `estiloPaginas` para o wizard. Iguais ou somente um definido geram `usando o modelo X`; diferentes geram `usando a capa do modelo A e as paginas do modelo B`.
 - O wizard mostra capa com `slide=1` e páginas de conteúdo com `slide=2`. Escolher a capa espelha as páginas até o usuário mexer no segundo grupo; deixar a IA escolher zera os dois.
-- A skill `/carrossel` usa o modelo das páginas como base, transplanta a primeira `.slide` do modelo da capa e escopa o CSS transplantado com classe própria. O cockpit continua com um seletor único.
+- A etapa de imagens do wizard de carrossel mantém `Sem imagens`, `Com imagens` e `Intercalado`, mas a origem agora reúne Gerar com IA, escolha pela `GaleriaFontes` e upload do computador. Imagem escolhida nas fontes é baixada e enviada pela mesma `POST /api/anexos`, portanto chega ao prompt como caminho local igual ao upload.
+- `detalhes` saiu da primeira etapa e virou `Instruções finais` na última etapa, depois do visual. O prompt rotula esse bloco como palavra final do usuário e exige preservar conteúdo e ordem quando houver roteiro pronto.
+- A skill `/carrossel` usa o modelo das páginas como base, transplanta a primeira `.slide` do modelo da capa e escopa o CSS transplantado com classe própria. O prompt agora informa os arquivos exatos, manda copiar o template antes de editar, proíbe substituir o modelo por uma interpretação e exige comparação estrutural final. O mesmo contrato foi propagado às skills dos workspaces registrados e referências. O cockpit continua com um seletor único.
 
 # Conserto geral (2026-07-17)
 

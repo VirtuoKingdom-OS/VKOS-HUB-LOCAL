@@ -33,6 +33,12 @@ foi feita na interface do app. Não repita a escolha e não gaste leitura com o 
 - Leia só o template escolhido: `templates/carrossel/modelo-<X>.html`. Todo o resto do fluxo segue
   igual (conteúdo no Passo 2, montar no Passo 4, renderizar no Passo 5, entregar no Passo 6).
 
+O modelo escolhido é um contrato estrutural, não uma referência vaga. Copie o arquivo real para a
+pasta da peça antes de editar. Preserve anatomia, classes, geometria, hierarquia, ritmo, componentes
+e acabamento. Cores, fontes, imagens e instruções do usuário personalizam a cópia, mas não autorizam
+trocar o modelo por um desenho inventado, salvo pedido explícito. Antes de terminar, compare a peça
+com o template e confirme que os tipos de slide e as classes estruturais seguem reconhecíveis.
+
 O `<X>` vira o arquivo assim:
 
 - `vkos01` a `vkos09` → `modelo-vkos01.html` até `modelo-vkos09.html`.

@@ -150,6 +150,47 @@ function linhasExtras(dados: DadosCriacao, pasta: string): string {
   return linhas.join("\n");
 }
 
+function arquivoDoModelo(id: string): string {
+  const seguro = id.toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return seguro === "dark" ? "modelo.html" : `modelo-${seguro}.html`;
+}
+
+// A frase do comando ativa o caminho rapido da skill. Este bloco transforma a
+// escolha visual em contrato verificavel, para o agente usar o arquivo real
+// como base em vez de apenas imitar o nome do modelo.
+function contratoModelo(dados: DadosCriacao, pasta: string): string {
+  const capa = dados.estiloCapa?.trim() ?? "";
+  const paginas = dados.estiloPaginas?.trim() ?? "";
+  const simples = capa || paginas || dados.estilo.trim();
+  if (!simples) {
+    return [
+      "CONTRATO DO MODELO VISUAL:",
+      "- Nenhum modelo foi travado na interface. Escolha um pelo método da skill e use o arquivo real como base estrutural.",
+    ].join("\n");
+  }
+
+  if (capa && paginas && capa !== paginas) {
+    return [
+      "CONTRATO OBRIGATÓRIO DOS MODELOS ESCOLHIDOS:",
+      `- Capa: ${capa}, arquivo templates/carrossel/${arquivoDoModelo(capa)}.`,
+      `- Páginas de conteúdo e CTA: ${paginas}, arquivo templates/carrossel/${arquivoDoModelo(paginas)}.`,
+      `- Copie primeiro o arquivo de páginas para conteudo/${pasta}/carrossel.html. Depois transplante a primeira .slide e somente o CSS necessário da capa ${capa}, com classe exclusiva e regras escopadas.`,
+      "- Não redesenhe nem substitua esses modelos por uma interpretação parecida. Preserve estrutura, classes, geometria, hierarquia, ritmo, componentes e acabamento dos arquivos escolhidos.",
+      "- Cores, fontes, imagens e instruções finais personalizam o conteúdo dentro dos modelos; não autorizam trocar a anatomia escolhida, salvo pedido explícito do usuário.",
+      "- Antes de concluir, compare o HTML final com os dois arquivos e confirme que a capa vem do modelo de capa e as demais páginas vêm do modelo de páginas, sem vazamento de CSS.",
+    ].join("\n");
+  }
+
+  return [
+    "CONTRATO OBRIGATÓRIO DO MODELO ESCOLHIDO:",
+    `- Modelo: ${simples}, arquivo templates/carrossel/${arquivoDoModelo(simples)}.`,
+    `- Antes de escrever o conteúdo, copie esse arquivo para conteudo/${pasta}/carrossel.html e edite a cópia.`,
+    "- Não redesenhe nem substitua o modelo por uma interpretação parecida. Preserve estrutura, classes, geometria, hierarquia, ritmo, componentes e acabamento do arquivo escolhido.",
+    "- Cores, fontes, imagens e instruções finais personalizam o conteúdo dentro do modelo; não autorizam trocar a anatomia escolhida, salvo pedido explícito do usuário.",
+    "- Antes de concluir, compare o HTML final com o arquivo do modelo e confira que os tipos de slide e as classes estruturais continuam reconhecíveis.",
+  ].join("\n");
+}
+
 // Prompt completo pronto pra criarSessao. Base /carrossel <tema>, o modelo de
 // estilo como sufixo quando escolhido, as instrucoes de formato e dimensao
 // (reusadas de fluxos.ts) e o bloco de detalhes desta geracao.
@@ -167,13 +208,16 @@ export function montarPromptCriacao(dados: DadosCriacao, pasta: string): string 
 
   const partes = [
     base,
+    contratoModelo(dados, pasta),
     instrucoesImagem(dados.formato, dados.proporcao, "instagram"),
     linhasExtras(dados, pasta),
   ];
 
   const detalhes = dados.detalhes.trim();
   if (detalhes) {
-    partes.push(`Detalhes que o usuario deu:\n${detalhes}`);
+    partes.push(
+      `INSTRUÇÕES FINAIS DO USUÁRIO, preserve integralmente o conteúdo e a ordem quando ele trouxer um roteiro:\n${detalhes}`,
+    );
   }
 
   return partes.join("\n\n");

@@ -144,7 +144,7 @@ Ver decisoes/2026-07-16-modo-enxuto.md, 2026-07-16-camada-design-v2-e-revisao.md
 - Anexo presente no Ajustar com IA desativa a heurística de geração visual. O ajuste confinado recebe a regra de copiar imagem de `anexos/` para `img/` e nunca gerar outra quando o material pronto atende ao pedido.
 - Os dois Studios escolhem imagens das Fontes de dados pelo modal compartilhado. O app copia o binário para `conteudo/<peça>/img/` antes de aplicar, mantendo a peça autocontida; anexos reservados do composer ficam fora.
 - Previews de modelo substituem referências de capa/produto por um SVG neutro servido pelo backend. `?slide=N` permite mostrar a capa ou uma página interna e faz clamp no último slide.
-- O wizard de carrossel separa `estiloCapa` e `estiloPaginas`. Quando diferem, o prompt pede a forma composta e a skill usa o modelo das páginas como base, transplantando a capa com CSS escopado. Templates continuam inteiros e o cockpit mantém um único estilo.
+- O wizard de carrossel separa `estiloCapa` e `estiloPaginas`. Quando diferem, o prompt pede a forma composta e a skill usa o modelo das páginas como base, transplantando a capa com CSS escopado. A escolha agora vira contrato explícito com os arquivos reais, cópia obrigatória do template e comparação estrutural antes de concluir. A etapa de imagens usa Gerar com IA, Fontes de dados e upload; instruções livres ficam na etapa final e entram literais no prompt. Templates continuam inteiros e o cockpit mantém um único estilo.
 
 ## Stack decidida (resumo)
 - Node (Fastify) local + React + Vite + TypeScript no navegador.
