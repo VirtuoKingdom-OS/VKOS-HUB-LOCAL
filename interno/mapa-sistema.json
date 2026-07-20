@@ -33,9 +33,10 @@
       "grupo": "entrada",
       "nome": "Dashboard e criação guiada",
       "resumo": "A recepção do Hub, onde uma ideia começa sem exigir conhecimento técnico.",
-      "descricao": "É como o balcão de entrada de um estúdio: a pessoa diz o que quer e recebe perguntas simples na ordem certa. Dali, o pedido segue para uma sessão de IA ou para um dos Studios, sem obrigar ninguém a conhecer os bastidores.",
+      "descricao": "É como o balcão de entrada de um estúdio: a pessoa diz o que quer e recebe perguntas simples na ordem certa. No carrossel, escolhe modelos com contrato visual real, traz imagens das fontes ou do computador e fecha com instruções livres. Dali, o pedido segue para uma sessão de IA ou para um dos Studios, sem obrigar ninguém a conhecer os bastidores.",
       "conversaCom": [
         "cerebro",
+        "fontes",
         "sessoes",
         "studio-carrossel",
         "site-guiado"
