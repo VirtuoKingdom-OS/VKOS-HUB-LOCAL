@@ -34,6 +34,9 @@ export interface OpcaoModeloIA {
   alias: string;
   rotulo: string;
   observacaoCusto: string;
+  // Marcado pelo backend no modelo economico do provedor. O frontend nao tem
+  // tabela propria: quem manda e este campo.
+  economico?: boolean;
 }
 
 export interface ProvedorComModelos {

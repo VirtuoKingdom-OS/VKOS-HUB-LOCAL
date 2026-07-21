@@ -456,6 +456,25 @@
   padding: 6px 10px;
   font-size: 12px;
 }
+.campo-tamanho {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.campo-tamanho .posicao-nota {
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--texto-suave);
+}
+.campo-tamanho-linha {
+  display: flex;
+  gap: 8px;
+}
+.campo-tamanho-linha .campo {
+  flex: 1;
+  min-width: 0;
+}
 
 /* ===== Confirmacao ao fechar (scrim proprio, sem blur) ===== */
 .editor-confirm-scrim {
@@ -500,4 +519,92 @@
 .editor-confirm-acoes .botao {
   padding: 9px 14px;
   font-size: 13px;
+}
+
+/* ===== Painel de camadas (PainelCamadas, compartilhado carrossel/site).
+   Tudo por token: funciona nos 3 temas. Motion so em transicao curta. ===== */
+.camadas-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.camadas-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--raio-p);
+  border: 1px solid transparent;
+  transition: background var(--transicao), border-color var(--transicao);
+}
+.camadas-item:hover {
+  background: var(--superficie);
+}
+.camadas-item.ativo {
+  background: rgba(var(--menta-rgb), 0.1);
+  border-color: rgba(var(--menta-rgb), 0.3);
+}
+.camadas-item.camadas-nivel-1 {
+  margin-left: 16px;
+}
+.camadas-nome {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--texto-suave);
+  transition: color var(--transicao);
+}
+.camadas-item.ativo .camadas-nome {
+  color: var(--menta-clara);
+}
+.camadas-papel {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.camadas-conteudo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto-fraco);
+}
+.camadas-acoes {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-right: 4px;
+}
+.camadas-seta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--texto-fraco);
+  transition: color var(--transicao), background var(--transicao);
+}
+.camadas-seta:hover:not(:disabled) {
+  color: var(--menta-clara);
+  background: var(--superficie);
+}
+.camadas-seta:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.camadas-seta svg {
+  width: 14px;
+  height: 14px;
+}
+.camadas-seta-cima svg {
+  transform: rotate(90deg);
+}
+.camadas-seta-baixo svg {
+  transform: rotate(-90deg);
 }

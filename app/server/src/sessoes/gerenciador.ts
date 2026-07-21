@@ -18,6 +18,7 @@ import { pastaDaPeca } from "../publicacao/arquivos.js";
 import {
   criarLacoConformidade,
   deveDispararLaco,
+  skillPassaPelaConferencia,
   type LacoConformidade,
 } from "./conformidade-site.js";
 import { obterProvedorAtivo, obterProvedorDaSessao } from "../provedores/index.js";
@@ -261,8 +262,9 @@ export class GerenciadorSessoes {
       permissao: entrada.permissao ?? "padrao",
       modoEnxuto: enxuto,
       contextoCrm: entrada.contextoCrm,
-      // So a geracao guiada de site preenche. E a chave do laco de conformidade.
-      pastaAlvo: entrada.skill === "site" ? entrada.pastaAlvo : undefined,
+      // Chave do laco de conformidade. Geracao guiada de site e ajuste de site
+      // preenchem; qualquer outra skill nunca carrega pastaAlvo.
+      pastaAlvo: skillPassaPelaConferencia(entrada.skill) ? entrada.pastaAlvo : undefined,
     };
 
     this.execucoes.set(sessao.id, {
@@ -625,8 +627,11 @@ export class GerenciadorSessoes {
       // ja vem 0 nesse caso, entao sessao, transcricao e workspace ficam limpos.
       const { custoUsd: custoTrecho, ehErro } = custoDoResult(evento);
       sessao.custoUsd = (sessao.custoUsd ?? 0) + custoTrecho;
-      const custoEstimado =
-        !ehErro && (sessao.provedor === "codex" || evento["estimado"] === true);
+      // Todo custo em dolar e estimativa: o CLI do Claude tambem calcula o
+      // total_cost_usd de uma tabela de precos embutida, nao e cobranca real, e
+      // aqui a auth e a assinatura, nao chave de API. Entao qualquer trecho bem
+      // concluido conta como estimado, nao so o Codex.
+      const custoEstimado = !ehErro;
       sessao.estimado = (sessao.estimado ?? false) || custoEstimado;
 
       // Tokens deste trecho, ja com o split honesto: entrada nova, cache escrita,

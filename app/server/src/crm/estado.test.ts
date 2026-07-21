@@ -38,17 +38,18 @@ const fixtureV1 = {
   }],
 };
 
-test("migra contato v1 cheio para contato e negocio v2 sem perder campos", () => {
+test("migra contato v1 cheio para contato v3 com estagio, valor vira negocio", () => {
   const resultado = normalizarEstadoCrm(fixtureV1);
   assert.ok(resultado);
   assert.equal(resultado.precisaSalvar, true);
-  assert.equal(resultado.estado.versao, 2);
+  assert.equal(resultado.estado.versao, 3);
   assert.deepEqual(resultado.estado.colunas, fixtureV1.colunas);
 
   const contato = resultado.estado.contatos[0];
   assert.deepEqual({
     id: contato.id,
     nome: contato.nome,
+    colunaId: contato.colunaId,
     empresa: contato.empresa,
     telefone: contato.telefone,
     email: contato.email,
@@ -60,6 +61,7 @@ test("migra contato v1 cheio para contato e negocio v2 sem perder campos", () =>
   }, {
     id: "c-cheio",
     nome: "Maria Completa",
+    colunaId: "proposta",
     empresa: "Acme",
     telefone: "+55 11 99999-8888",
     email: "maria@acme.test",
@@ -78,11 +80,11 @@ test("migra contato v1 cheio para contato e negocio v2 sem perder campos", () =>
   );
   assert.deepEqual(contato.tarefas, []);
 
+  // O valor vira um negocio sem estagio (o estagio agora e do contato).
   assert.deepEqual(resultado.estado.negocios[0], {
     id: "n-c-cheio",
     titulo: "Maria Completa",
     contatoId: "c-cheio",
-    colunaId: "proposta",
     valorEstimado: 9876.54,
     criadoEm: "2026-07-01T10:00:00.000Z",
     atualizadoEm: "2026-07-15T12:00:00.000Z",
@@ -100,8 +102,9 @@ test("persiste a migracao uma vez e a segunda leitura nao duplica dados", () => 
 
     assert.ok(primeira);
     assert.ok(segunda);
-    assert.equal(persistido.versao, 2);
+    assert.equal(persistido.versao, 3);
     assert.equal(primeira.contatos.length, 1);
+    assert.equal(primeira.contatos[0].colunaId, "proposta");
     assert.equal(primeira.negocios.length, 1);
     assert.equal(primeira.contatos[0].interacoes.length, 2);
     assert.deepEqual(segunda, primeira);
@@ -167,8 +170,10 @@ test("migra contato v1 sem colunaId para a primeira coluna", () => {
   });
   assert.ok(resultado);
   assert.equal(resultado.estado.contatos.length, 1);
-  assert.equal(resultado.estado.negocios.length, 1);
-  assert.equal(resultado.estado.negocios[0].colunaId, "k1");
+  // O contato e o cartao do funil: sem estagio informado, cai na primeira coluna.
+  assert.equal(resultado.estado.contatos[0].colunaId, "k1");
+  // Sem valor, nao nasce negocio: o contato ja caminha sozinho no quadro.
+  assert.equal(resultado.estado.negocios.length, 0);
 });
 
 test("migra contato v1 sem nome para 'Sem nome' sem descartar", () => {
@@ -179,7 +184,7 @@ test("migra contato v1 sem nome para 'Sem nome' sem descartar", () => {
   assert.ok(resultado);
   assert.equal(resultado.estado.contatos.length, 1);
   assert.equal(resultado.estado.contatos[0].nome, "Sem nome");
-  assert.equal(resultado.estado.negocios[0].titulo, "Sem nome");
+  assert.equal(resultado.estado.contatos[0].colunaId, "k1");
 });
 
 test("sanea contato v2 com nome invalido para 'Sem nome' sem descartar", () => {

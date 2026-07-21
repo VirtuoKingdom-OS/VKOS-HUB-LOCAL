@@ -8,6 +8,10 @@ import {
   IconeCheck,
 } from "../comum/Icones";
 import { usarMotorEdicao } from "./motor";
+import { PainelCamadas } from "./PainelCamadas";
+import { MenuAdicionarImagem } from "./ControlesImagem";
+import { GaleriaFontes, type ArquivoGaleriaFonte } from "./GaleriaFontes";
+import { aplicarImagemDaFonte } from "./imagens";
 import "../../estilos/editor.css";
 
 interface Props {
@@ -49,6 +53,9 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
   const [salvando, setSalvando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [enviandoNova, setEnviandoNova] = useState(false);
+  const [erroNova, setErroNova] = useState<string | null>(null);
+  const [galeriaAberta, setGaleriaAberta] = useState(false);
   const [ts] = useState(() => Date.now());
 
   const refIframe = useRef<HTMLIFrameElement>(null);
@@ -162,6 +169,12 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motor.pronto]);
 
+  // Alcas de tamanho fixo na tela: redesenha quando a escala do overlay muda.
+  useEffect(() => {
+    if (motor.pronto) motor.reposicionarAlcas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escala, motor.pronto]);
+
   function tentarFechar() {
     if (motor.naoSalvo) setConfirmando(true);
     else aoFechar();
@@ -196,6 +209,26 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha ao enviar a imagem.");
     }
+  }
+
+  // ===== Adicionar imagem livre (E3): computador ou fontes de dados.
+  async function adicionarDoComputador(file: File) {
+    setErroNova(null);
+    setEnviandoNova(true);
+    try {
+      await motor.inserirImagemLivreArquivo(paginaAtual, file);
+    } catch (err) {
+      setErroNova(err instanceof Error ? err.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviandoNova(false);
+    }
+  }
+
+  async function adicionarDasFontes(arquivo: ArquivoGaleriaFonte) {
+    await aplicarImagemDaFonte(pasta, arquivo, {
+      contexto: "",
+      aplicar: (caminhoRelativo) => motor.inserirImagemLivre(paginaAtual, caminhoRelativo),
+    });
   }
 
   // Teclado do overlay: Esc fecha, Ctrl+S salva, Ctrl+Z desfaz. Setas trocam
@@ -354,6 +387,17 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
           </div>
 
           <aside className="editor-painel nowheel">
+            {/* Camadas da pagina atual: seleciona pela lista, sobe e desce. */}
+            <section className="painel-secao">
+              <div className="secao-titulo rotulo-secao">Camadas</div>
+              <PainelCamadas
+                itens={motor.pronto ? motor.listarCamadas(paginaAtual) : []}
+                selecionadoId={sel?.vkId || null}
+                aoSelecionar={motor.selecionarPorId}
+                aoMover={motor.moverCamada}
+              />
+            </section>
+
             {/* Cores globais do tema (variaveis do :root). */}
             <section className="painel-secao">
               <div className="secao-titulo rotulo-secao">Cores do tema</div>
@@ -479,6 +523,22 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                     </label>
                   </div>
 
+                  {/* Largura numerica pra imagem (altura acompanha a proporcao). */}
+                  {sel.ehImagem && sel.tipoImagem === "img" && (
+                    <label className="campo">
+                      <span>Largura (px)</span>
+                      <input
+                        type="number"
+                        min={20}
+                        value={sel.larguraPx}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          if (v > 0) motor.comEstilo("width", `${v}px`, false);
+                        }}
+                      />
+                    </label>
+                  )}
+
                   {/* Posicao: reset aparece so quando o elemento foi movido. */}
                   {sel.posicaoAjustada && (
                     <div className="campo-posicao">
@@ -527,9 +587,30 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                 onChange={aoEscolherImagem}
               />
             </section>
+
+            {/* Adicionar imagem propria como elemento livre desta pagina. */}
+            <section className="painel-secao">
+              <div className="secao-titulo rotulo-secao">Adicionar imagem</div>
+              <MenuAdicionarImagem
+                enviando={enviandoNova}
+                erro={erroNova}
+                aoArquivo={(file) => void adicionarDoComputador(file)}
+                aoAbrirGaleria={() => setGaleriaAberta(true)}
+              />
+              <p className="painel-vazio">
+                A imagem nasce no centro da página. Arraste pra posicionar e use
+                as camadas pra escolher o que fica na frente.
+              </p>
+            </section>
           </aside>
         </div>
       </div>
+
+      <GaleriaFontes
+        aberta={galeriaAberta}
+        aoFechar={() => setGaleriaAberta(false)}
+        aoEscolher={adicionarDasFontes}
+      />
 
       {confirmando && (
         <div className="editor-confirm-scrim" onMouseDown={() => setConfirmando(false)}>

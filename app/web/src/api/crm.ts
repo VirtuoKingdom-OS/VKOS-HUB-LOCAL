@@ -18,9 +18,24 @@ export interface Tarefa {
   criadaEm: string;
 }
 
+// Retrato do lead de origem (mineracao no Google Maps). So leitura.
+export interface DadosLead {
+  placeId?: string;
+  categoria?: string;
+  endereco?: string;
+  site?: string;
+  nota?: number;
+  totalAvaliacoes?: number;
+  termoBusca?: string;
+  localizacao?: string;
+  capturadoEm?: string;
+}
+
 export interface Contato {
   id: string;
   nome: string;
+  // Estagio do contato no funil: o contato e o cartao do quadro.
+  colunaId: string;
   empresa?: string;
   telefone?: string;
   email?: string;
@@ -29,15 +44,16 @@ export interface Contato {
   interacoes: Interacao[];
   tarefas: Tarefa[];
   proximoContato?: string;
+  lead?: DadosLead;
   criadoEm: string;
   atualizadoEm: string;
 }
 
+// Valor/oportunidade preso a um contato, sem estagio proprio.
 export interface Negocio {
   id: string;
   titulo: string;
   contatoId: string;
-  colunaId: string;
   valorEstimado?: number;
   criadoEm: string;
   atualizadoEm: string;
@@ -50,7 +66,7 @@ export interface Coluna {
 }
 
 export interface EstadoCrm {
-  versao: 2;
+  versao: 3;
   colunas: Coluna[];
   contatos: Contato[];
   negocios: Negocio[];
@@ -64,12 +80,12 @@ export interface DadosContato {
   origem?: string;
   proximoContato?: string | null;
   tags?: string[];
+  colunaId?: string;
 }
 
 export interface DadosNegocio {
   titulo?: string;
   contatoId?: string;
-  colunaId?: string;
   valorEstimado?: number | null;
 }
 
@@ -134,6 +150,13 @@ export function excluirContato(id: string): Promise<{ ok: boolean }> {
   });
 }
 
+export function moverContato(id: string, colunaId: string, indice?: number): Promise<Contato> {
+  return pedir<Contato>(
+    `/api/crm/contatos/${encodeURIComponent(id)}/mover`,
+    corpo("PATCH", { colunaId, ...(indice === undefined ? {} : { indice }) }),
+  );
+}
+
 export function registrarInteracao(
   id: string,
   tipo: TipoInteracao,
@@ -165,7 +188,6 @@ export function excluirTarefa(id: string): Promise<{ ok: boolean }> {
 export function criarNegocio(dados: {
   titulo: string;
   contatoId: string;
-  colunaId?: string;
   valorEstimado?: number;
 }): Promise<Negocio> {
   return pedir<Negocio>("/api/crm/negocios", corpo("POST", dados));
@@ -179,13 +201,6 @@ export function excluirNegocio(id: string): Promise<{ ok: boolean }> {
   return pedir<{ ok: boolean }>(`/api/crm/negocios/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
-}
-
-export function moverNegocio(id: string, colunaId: string): Promise<Negocio> {
-  return pedir<Negocio>(
-    `/api/crm/negocios/${encodeURIComponent(id)}/mover`,
-    corpo("PATCH", { colunaId }),
-  );
 }
 
 export function criarColuna(nome: string): Promise<Coluna> {

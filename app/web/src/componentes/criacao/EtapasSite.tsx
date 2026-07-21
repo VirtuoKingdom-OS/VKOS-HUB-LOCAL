@@ -44,6 +44,9 @@ export interface DadosEtapasSite {
   corTexto: string;
   fonteTitulos: string;
   fonteCorpo: string;
+  // Interruptor "Aprimorar com IA" da etapa de detalhes. Opcional por
+  // compatibilidade com rascunho antigo: ausente = ligado (padrao).
+  aprimorarComIA?: boolean;
 }
 
 // Valores iniciais das etapas. O modelo vem do padrao do workspace. Defaults
@@ -66,6 +69,7 @@ export function criarDadosEtapasSite(modelo: ModeloIA): DadosEtapasSite {
     corTexto: "#ffffff",
     fonteTitulos: "Poppins",
     fonteCorpo: "Inter",
+    aprimorarComIA: true,
   };
 }
 
@@ -81,7 +85,8 @@ export function etapasSiteTemPreenchimento(d: DadosEtapasSite): boolean {
     d.formato !== "unica" ||
     d.objetivo !== "whatsapp" ||
     d.modoImagem !== "sem" ||
-    d.visualModo !== "negocio"
+    d.visualModo !== "negocio" ||
+    d.aprimorarComIA === false
   );
 }
 
@@ -177,6 +182,15 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
     if (modelos.length === 0 || modelos.some((m) => m.alias === dados.modelo)) return;
     aoMudar({ modelo: modeloPadrao || modelos[0].alias });
   }, [modelos, modeloPadrao, dados.modelo, aoMudar]);
+
+  // Aprimorar com IA desligado: o modelo do wizard vira o economico da tarefa
+  // de site (degrau do meio: sonnet no Claude, gpt-5.6-terra no Codex). Site
+  // nao tem template HTML pra copiar; no minimo absoluto a qualidade despenca.
+  const economicoSite = provedorAtivo === "codex" ? "gpt-5.6-terra" : "sonnet";
+  useEffect(() => {
+    if (dados.aprimorarComIA !== false) return;
+    if (dados.modelo !== economicoSite) aoMudar({ modelo: economicoSite });
+  }, [dados.aprimorarComIA, dados.modelo, economicoSite, aoMudar]);
 
   useEffect(() => {
     if (provedorAtivo === "codex" || dados.modoImagem !== "ia") return;
@@ -355,6 +369,7 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
                     className={`criacao-card-op${dados.modelo === m.alias ? " ativo" : ""}`}
                     onClick={() => aoMudar({ modelo: m.alias })}
                     title={m.observacaoCusto}
+                    disabled={dados.aprimorarComIA === false}
                   >
                     <span className="criacao-card-nome">{m.rotulo}</span>
                     <span className="criacao-card-desc">{m.observacaoCusto}</span>
@@ -364,6 +379,12 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
                   <span className="criacao-card-desc">Carregando modelos...</span>
                 )}
               </div>
+              {dados.aprimorarComIA === false && (
+                <span className="criacao-hint">
+                  O Aprimorar com IA está desligado: a geração usa o modelo
+                  econômico. Ligue de novo na última etapa pra escolher o modelo.
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -665,6 +686,36 @@ export function EtapasSite({ dados, aoMudar, aoGerar, ativo = true }: Props) {
                 Última chance de pedir qualquer coisa antes de gerar.
               </span>
             </label>
+
+            {/* Interruptor do modo economico. Ligado (padrao): fluxo atual.
+                Desligado: estilo fixo num modelo economico. */}
+            <div className="criacao-aprimorar">
+              <div className="criacao-aprimorar-texto">
+                <span className="criacao-aprimorar-titulo">Aprimorar com IA</span>
+                <span className="criacao-hint">
+                  Ligado, a IA capricha no design com o modelo escolhido.
+                  Desligado, um modelo econômico usa um estilo pronto e monta o
+                  site com o seu conteúdo: mais barato, resultado mais simples.
+                </span>
+              </div>
+              <label className="criacao-switch">
+                <input
+                  type="checkbox"
+                  checked={dados.aprimorarComIA !== false}
+                  onChange={(e) => aoMudar({ aprimorarComIA: e.target.checked })}
+                  aria-label="Aprimorar com IA"
+                />
+                <span className="criacao-switch-trilho">
+                  <span className="criacao-switch-bola" />
+                </span>
+              </label>
+            </div>
+            {dados.aprimorarComIA === false && dados.detalhes.trim() === "" && (
+              <span className="criacao-aviso" role="status">
+                Sem instruções, o modo econômico escreve um conteúdo básico. Pra
+                um resultado caprichado, ligue o Aprimorar ou descreva o conteúdo.
+              </span>
+            )}
           </div>
         )}
       </div>

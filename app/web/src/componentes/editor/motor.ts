@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   alvoEdicao,
+  alvoNoPonto,
   entrarContentEditable,
   FONTES_SEGURAS,
   lerBase64,
@@ -8,6 +9,7 @@ import {
   lerVarsRoot,
   limparArtefatosSelecao,
   montarFontes,
+  pilhaNoPonto,
   PilhaSnapshots,
   primeiraFonte,
   rgbParaHex,
@@ -16,6 +18,7 @@ import {
   temTextoProprio,
   type VarCss,
 } from "./nucleo";
+import type { DirecaoCamada, ItemCamada } from "./PainelCamadas";
 import {
   extrairUrlFundo,
   removerUrlFundo,
@@ -67,6 +70,16 @@ export interface PropsSel {
   // pequena faixa visivel do container.
   podeSubirNivel: boolean;
   podeExcluir: boolean;
+  // Id estavel (data-vk) do selecionado, ancora do painel de camadas e do undo.
+  vkId: string;
+  // Largura atual em px (arredondada), pro campo numerico de largura de imagem.
+  larguraPx: number;
+  // Altura atual em px (arredondada), pro campo numerico de tamanho de bloco.
+  alturaPx: number;
+  // Verdadeiro quando o elemento aceita as alcas de redimensionamento: so
+  // absolute/fixed, onde left/top/width/height definem a caixa sem ambiguidade
+  // (elemento de fluxo redimensiona pela largura numerica, sem alca).
+  redimensionavel: boolean;
 }
 
 export interface OpcoesMotor {
@@ -114,6 +127,20 @@ export interface MotorEdicao {
   naoSalvo: boolean;
   // Solta a selecao atual (ex: ao trocar de pagina no overlay).
   limparSelecao(): void;
+  // ===== Camadas (E2). Lista as camadas visiveis de uma pagina (mais alta
+  // primeiro), seleciona pela lista e sobe/desce no empilhamento.
+  listarCamadas(pagina: number): ItemCamada[];
+  selecionarPorId(id: string): void;
+  moverCamada(id: string, direcao: DirecaoCamada): void;
+  // ===== Imagem livre (E3). Insere uma imagem propria posicionavel no slide.
+  inserirImagemLivre(pagina: number, caminhoRelativo: string): void;
+  inserirImagemLivreArquivo(pagina: number, file: File): Promise<void>;
+  // Contador que sobe a cada mudanca no doc: quem monta re-le listarCamadas.
+  versaoDoc: number;
+  // Reposiciona as alcas de redimensionamento da selecao atual. Quem monta
+  // chama quando a escala do canvas muda (zoom), pra elas seguirem o novo
+  // tamanho de tela sem precisar reselecionar.
+  reposicionarAlcas(): void;
 }
 
 // Alvo de fundo detectado num slide: imagem grande ou elemento com bg-image.
@@ -141,6 +168,46 @@ interface Arrasto {
   win: Window;
 }
 
+// Direcoes das oito alcas de redimensionamento (cantos e meios de aresta).
+type DirAlca = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const DIRS_ALCA: DirAlca[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+const CURSOR_ALCA: Record<DirAlca, string> = {
+  n: "ns-resize",
+  s: "ns-resize",
+  e: "ew-resize",
+  w: "ew-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  nw: "nwse-resize",
+  se: "nwse-resize",
+};
+
+// Estado do gesto de redimensionamento em andamento. Tudo em px do DOC do
+// iframe (px do slide), o mesmo sistema do arrasto.
+interface Redim {
+  el: HTMLElement;
+  dir: DirAlca;
+  // Caixa inicial do elemento, relativa ao offsetParent (offsetLeft/Top/W/H).
+  left0: number;
+  top0: number;
+  w0: number;
+  h0: number;
+  // Ponteiro no inicio, em px do slide.
+  x0: number;
+  y0: number;
+  // Proporcao inicial largura/altura, pra travar imagem no canto.
+  ratio: number;
+  // Verdadeiro quando o alvo e uma imagem (canto trava proporcao por padrao).
+  img: boolean;
+  win: Window;
+}
+
+// Tamanho da alca na TELA (px). Convertido pra px de slide dividindo pela
+// escala, pra alca ficar do mesmo tamanho visual em qualquer zoom.
+const TAM_ALCA = 12;
+// Tamanho minimo (px de slide) de um elemento redimensionado.
+const MIN_REDIM = 16;
+
 // Distancia da tela pra iniciar o arrasto (nao confundir com clique).
 const LIMIAR_ARRASTO = 3;
 // Distancia (em px de tela) pro snap ao centro do slide.
@@ -161,6 +228,38 @@ function offsetAtual(el: HTMLElement, cs: CSSStyleDeclaration): { left: number; 
   return { left, top };
 }
 
+// Z-index efetivo pro empilhamento (auto conta como 0).
+function zEfetivo(el: HTMLElement): number {
+  const v = el.ownerDocument.defaultView?.getComputedStyle(el).zIndex ?? "auto";
+  const n = parseInt(v, 10);
+  return isNaN(n) ? 0 : n;
+}
+
+// Filhos elemento visiveis de um pai (sem artefatos do editor nem tags mudas),
+// ordenados por empilhamento EFETIVO, do mais alto pro mais baixo: z-index
+// computado, com desempate pela ordem no DOM (quem vem depois pinta por cima).
+function filhosEmpilhados(pai: HTMLElement): HTMLElement[] {
+  const lista: { el: HTMLElement; z: number; ordem: number }[] = [];
+  Array.from(pai.children).forEach((c, i) => {
+    if (c.nodeType !== 1) return;
+    const el = c as HTMLElement;
+    if (el.classList.contains("vkos-ed-guia")) return;
+    if (el.classList.contains("vkos-ed-alca")) return;
+    if (/^(STYLE|SCRIPT|LINK|BR)$/.test(el.tagName)) return;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    lista.push({ el, z: zEfetivo(el), ordem: i });
+  });
+  return lista.sort((a, b) => b.z - a.z || b.ordem - a.ordem).map((x) => x.el);
+}
+
+// Texto visivel de um elemento, normalizado, cortado nas primeiras palavras.
+function primeirasPalavras(el: HTMLElement, max = 28): string {
+  const texto = (el.textContent || "").replace(/\s+/g, " ").trim();
+  if (texto.length <= max) return texto;
+  return texto.slice(0, max).replace(/\s+\S*$/, "") + "...";
+}
+
 export function usarMotorEdicao(
   refIframe: RefObject<HTMLIFrameElement | null>,
   opts: OpcoesMotor,
@@ -172,6 +271,7 @@ export function usarMotorEdicao(
   const [selecao, setSelecao] = useState<PropsSel | null>(null);
   const [naoSalvo, setNaoSalvo] = useState(false);
   const [podeDesfazer, setPodeDesfazer] = useState(false);
+  const [versaoDoc, setVersaoDoc] = useState(0);
 
   // opts muda de identidade a cada render, entao guardamos num ref pros
   // listeners sempre enxergarem a versao atual sem reanexar.
@@ -183,7 +283,12 @@ export function usarMotorEdicao(
   const editadasRef = useRef<Set<string>>(new Set());
   const undoRef = useRef(new PilhaSnapshots<{ body: string; vars: Record<string, string> }>());
   const arrastoRef = useRef<Arrasto | null>(null);
+  const redimRef = useRef<Redim | null>(null);
   const suprimirCliqueRef = useRef(false);
+  // Contador de ids data-vk semeados no doc (mesmo esquema "aN" do site).
+  const contadorVkRef = useRef(0);
+  // Ultimo ponto de clique, pro ciclo de clique repetido entre empilhados.
+  const cliqueAnteriorRef = useRef<{ x: number; y: number } | null>(null);
   // Elemento em edicao in-place (contentEditable) e o innerHTML de quando
   // entrou, pra saber se mudou de verdade ao sair.
   const editandoRef = useRef<HTMLElement | null>(null);
@@ -202,6 +307,7 @@ export function usarMotorEdicao(
 
   function marcarMudou() {
     setNaoSalvo(true);
+    setVersaoDoc((v) => v + 1);
     optsRef.current.aoMudar();
   }
 
@@ -223,11 +329,19 @@ export function usarMotorEdicao(
       // A propriedade e herdada, entao o img interno ficava impossivel de
       // selecionar. O override so existe no runtime do Studio e nao vaza pro
       // HTML salvo: qualquer imagem real de um slide volta a ser um alvo.
-      ".slide img{pointer-events:auto !important;cursor:move !important;}" +
+      // -webkit-user-drag:none mata o arrasto NATIVO da imagem (o fantasma que
+      // o navegador cria ao puxar um <img>). Sem isso o gesto do editor era
+      // roubado pelo drag-and-drop nativo e a imagem nem selecionava no clique.
+      // So no runtime do Studio, nao vaza pro HTML salvo.
+      ".slide img{pointer-events:auto !important;cursor:move !important;-webkit-user-drag:none !important;user-drag:none !important;}" +
       ".vkos-ed-arrastando,.vkos-ed-arrastando *{cursor:grabbing !important;}" +
       ".vkos-ed-guia{position:absolute;background:#00c896;pointer-events:none;z-index:2147483646;box-shadow:0 0 4px rgba(0,200,150,0.6);}" +
       ".vkos-ed-guia-v{width:1px;top:0;bottom:0;}" +
-      ".vkos-ed-guia-h{height:1px;left:0;right:0;}";
+      ".vkos-ed-guia-h{height:1px;left:0;right:0;}" +
+      // Alcas de redimensionamento: quadradinhos brancos com borda menta, sempre
+      // por cima, pointer-events auto pra pegar o gesto. So instrumentacao, o
+      // serializador as remove com as guias.
+      ".vkos-ed-alca{position:absolute;background:#fff;border:2px solid #00c896;border-radius:2px;box-sizing:border-box;box-shadow:0 0 3px rgba(0,0,0,0.45);z-index:2147483645;pointer-events:auto;}";
   }
 
   // Detecta o fundo de um slide: a maior imagem ou o maior elemento com
@@ -296,7 +410,19 @@ export function usarMotorEdicao(
       srcImagem: imagem?.src ?? "",
       podeSubirNivel: !!(slide && pai && pai !== slide),
       podeExcluir: !!slide && el !== slide,
+      vkId: el.getAttribute("data-vk") || "",
+      larguraPx: Math.round(el.getBoundingClientRect().width),
+      alturaPx: Math.round(el.getBoundingClientRect().height),
+      redimensionavel: elementoRedimensionavel(el, cs),
     };
+  }
+
+  // So absolute/fixed (fora slide/body/html) ganham as alcas: left/top/width/
+  // height definem a caixa sem ambiguidade. Elemento de fluxo redimensiona pela
+  // largura numerica do painel, sem alca, pra nao arriscar reflow.
+  function elementoRedimensionavel(el: HTMLElement, cs: CSSStyleDeclaration): boolean {
+    if (el.matches(".slide,body,html")) return false;
+    return cs.position === "absolute" || cs.position === "fixed";
   }
 
   function selecionar(el: HTMLElement) {
@@ -312,18 +438,23 @@ export function usarMotorEdicao(
     el.setAttribute("data-ed-sel", "1");
     selRef.current = el;
     setSelecao(propsDe(el));
+    sincronizarAlcas();
   }
 
   // Recalcula as props da selecao atual sem trocar o alvo (apos uma edicao).
   function ressincronizarSelecao() {
     const el = selRef.current;
-    if (el && el.isConnected) setSelecao(propsDe(el));
+    if (el && el.isConnected) {
+      setSelecao(propsDe(el));
+      sincronizarAlcas();
+    }
   }
 
   function limparSelecao() {
     if (editandoRef.current) finalizarEdicao();
     const doc = getDoc();
     doc?.querySelectorAll("[data-ed-sel]").forEach((n) => n.removeAttribute("data-ed-sel"));
+    removerAlcas();
     selRef.current = null;
     setSelecao(null);
   }
@@ -359,6 +490,8 @@ export function usarMotorEdicao(
     snapshot();
     selecionar(el);
     editandoRef.current = el;
+    // Editando nao mostra alcas: o gesto vira cursor de texto.
+    removerAlcas();
     el.addEventListener("blur", aoBlurEd.current);
     // O nucleo liga o contentEditable, foca e posiciona o cursor no ponto, e
     // devolve o innerHTML de antes pra deteccao de mudanca no finalizarEdicao.
@@ -402,7 +535,10 @@ export function usarMotorEdicao(
     const doc = getDoc();
     const snap = undoRef.current.retirar();
     if (!doc || !snap) return;
-    // A selecao aponta pra um no que vai ser substituido: solta antes.
+    if (editandoRef.current) finalizarEdicao();
+    // Guarda o id estavel da selecao ANTES de restaurar: o no atual morre com o
+    // innerHTML, mas o data-vk sobrevive no snapshot e ancora a re-selecao.
+    const idSel = selRef.current?.getAttribute("data-vk") || null;
     selRef.current = null;
     setSelecao(null);
     doc.body.innerHTML = snap.body;
@@ -410,6 +546,10 @@ export function usarMotorEdicao(
       if (v) doc.documentElement.style.setProperty(n, v);
     }
     setVars((prev) => prev.map((x) => ({ ...x, valor: snap.vars[x.nome] || x.valor })));
+    if (idSel) {
+      const el = doc.querySelector<HTMLElement>(`[data-vk="${idSel}"]`);
+      if (el) selecionar(el);
+    }
     setPodeDesfazer(undoRef.current.tem);
     marcarMudou();
   }
@@ -464,10 +604,39 @@ export function usarMotorEdicao(
     }
   }
 
+  // Absolute/fixed com right ou bottom ancorados no CSS fazem o left/top do
+  // arrasto REDIMENSIONAR em vez de mover (a borda oposta fica presa e a largura
+  // ou altura encolhe). Antes de mover, trava o tamanho atual e solta o lado
+  // ancorado, pra left/top passarem a transladar de verdade. Guarda em
+  // data-ed-livre o que soltou, pro reset restaurar sem residuo.
+  function liberarParaMover(el: HTMLElement, cs: CSSStyleDeclaration) {
+    if (cs.position !== "absolute" && cs.position !== "fixed") return;
+    if (el.hasAttribute("data-ed-livre")) return;
+    const soltou: string[] = [];
+    if (cs.right !== "auto") {
+      if (!el.style.width) {
+        el.style.width = el.offsetWidth + "px";
+        soltou.push("width");
+      }
+      el.style.right = "auto";
+      soltou.push("right");
+    }
+    if (cs.bottom !== "auto") {
+      if (!el.style.height) {
+        el.style.height = el.offsetHeight + "px";
+        soltou.push("height");
+      }
+      el.style.bottom = "auto";
+      soltou.push("bottom");
+    }
+    if (soltou.length) el.setAttribute("data-ed-livre", soltou.join(","));
+  }
+
   // Aplica um deslocamento incremental (usado pelas setas do teclado).
   function deslocar(el: HTMLElement, dx: number, dy: number) {
     const cs = el.ownerDocument.defaultView!.getComputedStyle(el);
     garantirPosicionavel(el, cs);
+    liberarParaMover(el, cs);
     const { left, top } = offsetAtual(el, cs);
     el.style.left = left + dx + "px";
     el.style.top = top + dy + "px";
@@ -493,7 +662,210 @@ export function usarMotorEdicao(
       el.style.removeProperty("position");
       el.removeAttribute("data-ed-relpos");
     }
+    const livre = el.getAttribute("data-ed-livre");
+    if (livre) {
+      livre.split(",").forEach((p) => el.style.removeProperty(p));
+      el.removeAttribute("data-ed-livre");
+    }
     el.removeAttribute("data-ed-mov");
+    marcarMudou();
+    ressincronizarSelecao();
+  }
+
+  // ===== Alcas de redimensionamento (bordas interativas).
+  // As alcas vivem DENTRO do slide como filhos absolutos (classe vkos-ed-alca),
+  // no mesmo sistema de coordenadas do arrasto. Nunca entram no desfazer nem no
+  // HTML salvo (limpas junto das guias) e nunca sao alvo de clique ou camada.
+
+  function removerAlcas() {
+    const doc = getDoc();
+    doc?.querySelectorAll(".vkos-ed-alca").forEach((n) => n.remove());
+  }
+
+  // (Re)desenha as oito alcas sobre a selecao, se ela for redimensionavel e nao
+  // houver edicao ou gesto em andamento. Tamanho constante na tela via escala.
+  function sincronizarAlcas() {
+    removerAlcas();
+    const el = selRef.current;
+    const doc = getDoc();
+    if (!el || !doc || !el.isConnected) return;
+    if (editandoRef.current || arrastoRef.current || redimRef.current) return;
+    const win = doc.defaultView;
+    if (!win) return;
+    if (!elementoRedimensionavel(el, win.getComputedStyle(el))) return;
+    const slide = el.closest<HTMLElement>(".slide");
+    if (!slide) return;
+    // Caixa do elemento em coordenadas do slide (px do doc, sem a escala css).
+    const er = el.getBoundingClientRect();
+    const sr = slide.getBoundingClientRect();
+    const bx = er.left - sr.left;
+    const by = er.top - sr.top;
+    const bw = er.width;
+    const bh = er.height;
+    const tam = TAM_ALCA / escala();
+    const ponto: Record<DirAlca, [number, number]> = {
+      nw: [bx, by],
+      n: [bx + bw / 2, by],
+      ne: [bx + bw, by],
+      e: [bx + bw, by + bh / 2],
+      se: [bx + bw, by + bh],
+      s: [bx + bw / 2, by + bh],
+      sw: [bx, by + bh],
+      w: [bx, by + bh / 2],
+    };
+    DIRS_ALCA.forEach((dir) => {
+      const [ax, ay] = ponto[dir];
+      const a = doc.createElement("div");
+      a.className = "vkos-ed-alca";
+      a.setAttribute("data-ed-dir", dir);
+      a.style.width = tam + "px";
+      a.style.height = tam + "px";
+      a.style.left = ax - tam / 2 + "px";
+      a.style.top = ay - tam / 2 + "px";
+      a.style.cursor = CURSOR_ALCA[dir];
+      slide.appendChild(a);
+    });
+  }
+
+  // Deixa a caixa do elemento explicita (left/top/width/height) e solta os lados
+  // ancorados (right/bottom), pra o redimensionamento ser exato e sem encolher.
+  // Registra em data-ed-livre o que ADICIONAMOS, pro reset restaurar sem residuo.
+  function prepararCaixa(el: HTMLElement) {
+    const L = el.offsetLeft;
+    const T = el.offsetTop;
+    const W = el.offsetWidth;
+    const H = el.offsetHeight;
+    const cs = el.ownerDocument.defaultView!.getComputedStyle(el);
+    const soltou = new Set(
+      (el.getAttribute("data-ed-livre") || "").split(",").filter(Boolean),
+    );
+    const fixar = (prop: string, valor: string) => {
+      if (!el.style.getPropertyValue(prop)) soltou.add(prop);
+      el.style.setProperty(prop, valor);
+    };
+    fixar("width", W + "px");
+    fixar("height", H + "px");
+    fixar("left", L + "px");
+    fixar("top", T + "px");
+    if (cs.right !== "auto") {
+      el.style.right = "auto";
+      soltou.add("right");
+    }
+    if (cs.bottom !== "auto") {
+      el.style.bottom = "auto";
+      soltou.add("bottom");
+    }
+    if (soltou.size) el.setAttribute("data-ed-livre", Array.from(soltou).join(","));
+    el.setAttribute("data-ed-mov", "1");
+  }
+
+  function iniciarRedim(alca: HTMLElement, e: MouseEvent) {
+    const el = selRef.current;
+    const win = el?.ownerDocument.defaultView;
+    if (!el || !win) return;
+    const dir = (alca.getAttribute("data-ed-dir") || "se") as DirAlca;
+    e.preventDefault();
+    e.stopPropagation();
+    snapshot();
+    prepararCaixa(el);
+    const img = imagemDoElemento(el) !== null;
+    redimRef.current = {
+      el,
+      dir,
+      left0: el.offsetLeft,
+      top0: el.offsetTop,
+      w0: el.offsetWidth,
+      h0: el.offsetHeight,
+      x0: e.clientX,
+      y0: e.clientY,
+      ratio: el.offsetWidth / Math.max(1, el.offsetHeight),
+      img,
+      win,
+    };
+    // Some com as alcas durante o gesto (o contorno mostra o tamanho ao vivo);
+    // voltam no fim, ja na caixa nova.
+    removerAlcas();
+    getDoc()?.documentElement.classList.add("vkos-ed-arrastando");
+    win.addEventListener("mousemove", aoMoverRedimIframe, true);
+    win.addEventListener("mouseup", aoSoltarRedim, true);
+    window.addEventListener("mousemove", aoMoverRedimApp, true);
+    window.addEventListener("mouseup", aoSoltarRedim, true);
+  }
+
+  // Movimento do ponteiro dentro do iframe: clientX/Y ja sao px do slide.
+  function aoMoverRedimIframe(e: MouseEvent) {
+    aplicarRedim(e.clientX, e.clientY, e.shiftKey);
+  }
+  // Ponteiro saiu do iframe: converte de px de tela do app pra px de slide.
+  function aoMoverRedimApp(e: MouseEvent) {
+    const rect = refIframe.current?.getBoundingClientRect();
+    const esc = escala();
+    aplicarRedim(
+      (e.clientX - (rect?.left ?? 0)) / esc,
+      (e.clientY - (rect?.top ?? 0)) / esc,
+      e.shiftKey,
+    );
+  }
+
+  // Coracao do redimensionamento. dx/dy em px do slide. Cada direcao move a
+  // aresta correspondente; a aresta oposta fica ancorada. Imagem em canto trava
+  // a proporcao (Shift libera); bloco em canto e livre (Shift trava). Tamanho
+  // minimo garantido pelos dois lados.
+  function aplicarRedim(px: number, py: number, shift: boolean) {
+    const r = redimRef.current;
+    if (!r) return;
+    const dx = px - r.x0;
+    const dy = py - r.y0;
+    const leste = r.dir.includes("e");
+    const oeste = r.dir.includes("w");
+    const sul = r.dir.includes("s");
+    const norte = r.dir.includes("n");
+    let w = r.w0;
+    let h = r.h0;
+    if (leste) w = r.w0 + dx;
+    if (oeste) w = r.w0 - dx;
+    if (sul) h = r.h0 + dy;
+    if (norte) h = r.h0 - dy;
+    const canto = (leste || oeste) && (norte || sul);
+    const travar = canto && (r.img ? !shift : shift);
+    if (travar) {
+      // Mantem a proporcao pelo eixo de maior variacao relativa.
+      const porLargura = h * r.ratio;
+      if (Math.abs(w - r.w0) >= Math.abs(porLargura - r.w0)) h = w / r.ratio;
+      else w = h * r.ratio;
+    }
+    w = Math.max(MIN_REDIM, w);
+    h = Math.max(MIN_REDIM, h);
+    if (travar) {
+      // Reforca a proporcao apos o clamp de minimo.
+      if (w / r.ratio >= MIN_REDIM) h = w / r.ratio;
+      else {
+        h = MIN_REDIM;
+        w = h * r.ratio;
+      }
+    }
+    // Ancora a aresta oposta: mover oeste/norte recoloca left/top.
+    const left = oeste ? r.left0 + (r.w0 - w) : r.left0;
+    const top = norte ? r.top0 + (r.h0 - h) : r.top0;
+    r.el.style.width = Math.round(w) + "px";
+    r.el.style.height = Math.round(h) + "px";
+    r.el.style.left = Math.round(left) + "px";
+    r.el.style.top = Math.round(top) + "px";
+  }
+
+  function aoSoltarRedim() {
+    const r = redimRef.current;
+    if (r) {
+      r.win.removeEventListener("mousemove", aoMoverRedimIframe, true);
+      r.win.removeEventListener("mouseup", aoSoltarRedim, true);
+    }
+    window.removeEventListener("mousemove", aoMoverRedimApp, true);
+    window.removeEventListener("mouseup", aoSoltarRedim, true);
+    redimRef.current = null;
+    getDoc()?.documentElement.classList.remove("vkos-ed-arrastando");
+    if (!r) return;
+    // Evita que o clique de fim de gesto re-selecione ou solte a selecao.
+    suprimirCliqueRef.current = true;
     marcarMudou();
     ressincronizarSelecao();
   }
@@ -517,18 +889,34 @@ export function usarMotorEdicao(
   // do iframe no meio do gesto, convertendo a coordenada de volta pra px de slide.
   function aoMouseDownDoc(e: MouseEvent) {
     if (e.button !== 0) return;
+    // Alca de redimensionamento: comeca o gesto de resize e para por aqui.
+    const alvoBruto = e.target as HTMLElement | null;
+    if (ehAlca(alvoBruto)) {
+      iniciarRedim(alvoBruto, e);
+      return;
+    }
     // Editando: o mouse serve pra posicionar o cursor, nunca pra arrastar.
     if (editandoRef.current) return;
     const sel = selRef.current;
     const alvo = e.target as HTMLElement | null;
+    if (!sel || sel.matches(".slide,body,html") || !alvo) return;
     // So arrasta o proprio selecionado (ou um filho dele). Clique em outro
-    // elemento segue como selecao normal.
-    if (
-      !sel ||
-      sel.matches(".slide,body,html") ||
-      !alvo ||
-      !(alvo === sel || sel.contains(alvo))
-    ) return;
+    // elemento segue como selecao normal. Excecao: selecionado com
+    // pointer-events:none (aspas, enfeites) nunca aparece como e.target; nesse
+    // caso vale o retangulo geometrico do proprio selecionado.
+    // O selecionado pode estar atras de um overlay ou ter pointer-events:none
+    // (enfeite): nesses casos o e.target nao e ele, mas o gesto ainda deve
+    // arrastar a selecao se o ponto cai dentro do retangulo dela. O clique sem
+    // movimento continua reselecionando pela geometria (aoClicarDoc), entao isso
+    // nao rouba a selecao de quem so quis clicar num vizinho.
+    let sobreSel = alvo === sel || sel.contains(alvo);
+    if (!sobreSel) {
+      const r = sel.getBoundingClientRect();
+      sobreSel =
+        e.clientX >= r.left && e.clientX <= r.right &&
+        e.clientY >= r.top && e.clientY <= r.bottom;
+    }
+    if (!sobreSel) return;
     const win = sel.ownerDocument.defaultView;
     if (!win) return;
     e.preventDefault();
@@ -560,6 +948,9 @@ export function usarMotorEdicao(
     snapshot();
     const cs = a.el.ownerDocument.defaultView!.getComputedStyle(a.el);
     garantirPosicionavel(a.el, cs);
+    liberarParaMover(a.el, cs);
+    // Some com as alcas durante o arrasto; voltam no fim, na posicao nova.
+    removerAlcas();
     doc.documentElement.classList.add("vkos-ed-arrastando");
     // Guias precisam de um contexto posicionado: se o slide e estatico, damos
     // relative temporario e restauramos no fim.
@@ -653,7 +1044,29 @@ export function usarMotorEdicao(
     }
   }
 
-  // Clique no documento seleciona o elemento (e nunca navega por link).
+  // Elemento que pode entrar na pilha de clique/camadas: nada de artefato do
+  // editor (guias) e nada sem area visivel.
+  function ehAlvoLegitimo(el: HTMLElement): boolean {
+    if (el.classList.contains("vkos-ed-guia")) return false;
+    if (el.classList.contains("vkos-ed-alca")) return false;
+    if (/^(STYLE|SCRIPT|LINK|BR)$/.test(el.tagName)) return false;
+    return true;
+  }
+
+  // Verdadeiro se o elemento e uma alca de redimensionamento.
+  function ehAlca(el: HTMLElement | null): el is HTMLElement {
+    return !!el && el.classList.contains("vkos-ed-alca");
+  }
+
+  // Distancia (px do doc) pra dois cliques contarem como "no mesmo ponto".
+  const LIMIAR_MESMO_PONTO = 8;
+
+  // Clique no documento seleciona o elemento (e nunca navega por link). O alvo
+  // vem da descida GEOMETRICA (alvoNoPonto), nao do e.target puro: assim
+  // enfeites com pointer-events:none (aspas dos templates) e imagens atras do
+  // conteudo viram selecionaveis. Clique repetido no mesmo ponto alterna entre
+  // os elementos empilhados sob o ponteiro (menor area primeiro, depois os de
+  // tras), pra alcancar o fundo atras de um enfeite sem depender do painel.
   function aoClicarDoc(e: MouseEvent) {
     if (suprimirCliqueRef.current) {
       suprimirCliqueRef.current = false;
@@ -663,6 +1076,12 @@ export function usarMotorEdicao(
     }
     const alvo = e.target as HTMLElement | null;
     if (!alvo) return;
+    // Clique numa alca nao muda a selecao (o mousedown ja cuidou do resize).
+    if (ehAlca(alvo)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     // Editando: clique DENTRO do proprio elemento so posiciona o cursor.
     const emEdicao = editandoRef.current;
     if (emEdicao && (alvo === emEdicao || emEdicao.contains(alvo))) return;
@@ -670,14 +1089,50 @@ export function usarMotorEdicao(
     if (emEdicao) finalizarEdicao();
     e.preventDefault();
     e.stopPropagation();
-    selecionar(alvo);
+    // Sem filtro de decorativa grande: num slide 1080x1350, um hero de fundo
+    // aria-hidden e alvo legitimo de edicao.
+    const geo = alvoNoPonto(alvo, e.clientX, e.clientY, { pularDecorativaGrande: false });
+    const slide = geo.closest<HTMLElement>(".slide");
+    if (!slide) {
+      cliqueAnteriorRef.current = { x: e.clientX, y: e.clientY };
+      selecionar(geo);
+      return;
+    }
+    const anterior = cliqueAnteriorRef.current;
+    const mesmoPonto =
+      !!anterior &&
+      Math.abs(anterior.x - e.clientX) <= LIMIAR_MESMO_PONTO &&
+      Math.abs(anterior.y - e.clientY) <= LIMIAR_MESMO_PONTO;
+    cliqueAnteriorRef.current = { x: e.clientX, y: e.clientY };
+    const pilha = pilhaNoPonto(slide, e.clientX, e.clientY).filter(ehAlvoLegitimo);
+    const sel = selRef.current;
+    if (mesmoPonto && sel && pilha.length > 1) {
+      const i = pilha.indexOf(sel);
+      if (i >= 0) {
+        selecionar(pilha[(i + 1) % pilha.length]);
+        return;
+      }
+    }
+    // Primeiro clique no ponto: o MENOR elemento sob o ponteiro, olhando o
+    // slide inteiro (a pilha), nao so os descendentes do e.target. E o que
+    // alcanca um enfeite irmao do bloco de conteudo (aspas ao lado do .body).
+    if (pilha.length > 0) selecionar(pilha[0]);
+    else if (ehAlvoLegitimo(geo) && geo !== slide) selecionar(geo);
+    else limparSelecao();
   }
 
   // Duplo clique entra em edicao in-place no elemento de texto mais proximo.
+  // Tambem parte do alvo geometrico: um span decorativo com pointer-events:none
+  // (aspas) tem texto proprio e vira editavel sem mudar o template.
   function aoDuploClicarDoc(e: MouseEvent) {
     const alvo = e.target as HTMLElement | null;
-    if (!alvo) return;
-    const el = alvoEdicao(alvo);
+    if (!alvo || ehAlca(alvo)) return;
+    const geo = alvoNoPonto(alvo, e.clientX, e.clientY, { pularDecorativaGrande: false });
+    const slide = geo.closest<HTMLElement>(".slide");
+    const base = slide
+      ? pilhaNoPonto(slide, e.clientX, e.clientY).filter(ehAlvoLegitimo)[0] || geo
+      : geo;
+    const el = alvoEdicao(base);
     if (!el) return;
     e.preventDefault();
     e.stopPropagation();
@@ -861,6 +1316,155 @@ export function usarMotorEdicao(
     selecionar(img);
   }
 
+  // ===== Camadas (E2): ids estaveis, lista e reordenacao.
+
+  // Semeia data-vk incremental em todo elemento dos slides, no mesmo esquema
+  // "aN" do site (motorSite). O contador parte do maior id ja presente, entao
+  // recargas e pecas ja salvas com data-vk nao ganham ids duplicados. O
+  // serializador PRESERVA data-vk (so remove artefatos data-ed-*).
+  function semearVk(doc: Document) {
+    let max = 0;
+    doc.querySelectorAll<HTMLElement>("[data-vk]").forEach((el) => {
+      const m = /^a(\d+)$/.exec(el.getAttribute("data-vk") || "");
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    contadorVkRef.current = Math.max(contadorVkRef.current, max);
+    doc.querySelectorAll<HTMLElement>(".slide, .slide *").forEach((el) => {
+      if (el.classList.contains("vkos-ed-guia")) return;
+      if (!el.getAttribute("data-vk")) {
+        el.setAttribute("data-vk", "a" + ++contadorVkRef.current);
+      }
+    });
+  }
+
+  // Papel deduzido de um elemento pro nome amigavel do painel de camadas.
+  function papelDe(el: HTMLElement): string {
+    if (imagemDoElemento(el)) return "Imagem";
+    const cs = el.ownerDocument.defaultView?.getComputedStyle(el);
+    if (cs?.pointerEvents === "none" || el.getAttribute("aria-hidden") === "true") {
+      return "Enfeite";
+    }
+    if (temTextoProprio(el) && soFilhosInline(el)) return "Texto";
+    return "Bloco";
+  }
+
+  function itemDe(el: HTMLElement, nivel: 0 | 1, ordem: HTMLElement[]): ItemCamada {
+    const i = ordem.indexOf(el);
+    const papel = papelDe(el);
+    const classes = Array.from(el.classList).filter((c) => !c.startsWith("vkos-ed"));
+    return {
+      id: el.getAttribute("data-vk") || "",
+      nome: papel,
+      conteudo: papel === "Texto" ? primeirasPalavras(el) : "",
+      detalhe: el.tagName.toLowerCase() + (classes.length ? "." + classes.join(".") : ""),
+      nivel,
+      podeSubir: i > 0,
+      podeDescer: i >= 0 && i < ordem.length - 1,
+    };
+  }
+
+  // Um conteiner (bloco sem texto corrido proprio) aninha os filhos diretos um
+  // nivel no painel. Dois niveis bastam pra anatomia dos templates.
+  function ehConteiner(el: HTMLElement): boolean {
+    if (el.children.length === 0) return false;
+    return !(temTextoProprio(el) && soFilhosInline(el));
+  }
+
+  function listarCamadas(pagina: number): ItemCamada[] {
+    const doc = getDoc();
+    const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
+    if (!doc || !slide) return [];
+    const itens: ItemCamada[] = [];
+    const topo = filhosEmpilhados(slide);
+    topo.forEach((el) => {
+      itens.push(itemDe(el, 0, topo));
+      if (ehConteiner(el)) {
+        const filhos = filhosEmpilhados(el);
+        filhos.forEach((f) => itens.push(itemDe(f, 1, filhos)));
+      }
+    });
+    return itens.filter((item) => item.id);
+  }
+
+  function selecionarPorId(id: string): void {
+    const el = getDoc()?.querySelector<HTMLElement>(`[data-vk="${id}"]`);
+    if (el) selecionar(el);
+  }
+
+  // Sobe/desce uma camada no empilhamento, trocando com o vizinho de mesmo
+  // pai: troca as posicoes exatas no DOM (insertBefore via marcador) E, quando
+  // o CSS fixa z-index diferente nos dois (a ordem no DOM nao decide), troca
+  // tambem os z-index inline dos envolvidos, mantendo a escala do template.
+  function moverCamada(id: string, direcao: DirecaoCamada): void {
+    const doc = getDoc();
+    const el = doc?.querySelector<HTMLElement>(`[data-vk="${id}"]`);
+    const pai = el?.parentElement;
+    if (!doc || !el || !pai) return;
+    const ordem = filhosEmpilhados(pai);
+    const i = ordem.indexOf(el);
+    if (i < 0) return;
+    const j = direcao === "acima" ? i - 1 : i + 1;
+    if (j < 0 || j >= ordem.length) return;
+    const outro = ordem[j];
+    snapshot();
+    const za = zEfetivo(el);
+    const zb = zEfetivo(outro);
+    const marcador = doc.createComment("vk-troca");
+    pai.replaceChild(marcador, el);
+    pai.replaceChild(el, outro);
+    pai.replaceChild(outro, marcador);
+    if (za !== zb) {
+      definirZ(el, zb);
+      definirZ(outro, za);
+    }
+    marcarMudou();
+    ressincronizarSelecao();
+  }
+
+  // Aplica um z-index alvo sem deixar residuo inline: se o CSS do template ja
+  // entrega o valor sem inline (caso do vai-e-volta que devolve o empilhamento
+  // original), o inline sai em vez de ficar gravado no HTML salvo.
+  function definirZ(alvo: HTMLElement, z: number): void {
+    alvo.style.removeProperty("z-index");
+    if (zEfetivo(alvo) !== z) alvo.style.zIndex = String(z);
+    if (!alvo.getAttribute("style")) alvo.removeAttribute("style");
+  }
+
+  // ===== Imagem livre (E3): imagem propria posicionavel no slide.
+  function inserirImagemLivre(pagina: number, caminhoRelativo: string): void {
+    const doc = getDoc();
+    const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
+    if (!doc || !slide) throw new Error("A página indicada não existe no carrossel.");
+    snapshot();
+    const win = doc.defaultView!;
+    // A imagem e absoluta em relacao ao slide: garante o contexto posicionado.
+    if (win.getComputedStyle(slide).position === "static") {
+      slide.style.position = "relative";
+    }
+    const w = Math.round(slide.offsetWidth * 0.4);
+    let zMax = 0;
+    Array.from(slide.children).forEach((c) => {
+      if (c.nodeType === 1) zMax = Math.max(zMax, zEfetivo(c as HTMLElement));
+    });
+    const img = doc.createElement("img");
+    img.alt = "";
+    img.style.position = "absolute";
+    img.style.width = w + "px";
+    img.style.left = Math.round((slide.offsetWidth - w) / 2) + "px";
+    img.style.top = Math.round((slide.offsetHeight - w) / 2) + "px";
+    img.style.zIndex = String(zMax + 1);
+    img.setAttribute("data-vk", "a" + ++contadorVkRef.current);
+    img.src = `${caminhoRelativo}?vk=${Date.now()}`;
+    slide.appendChild(img);
+    marcarMudou();
+    selecionar(img);
+  }
+
+  async function inserirImagemLivreArquivo(pagina: number, file: File): Promise<void> {
+    const rel = await enviarImagem(optsRef.current.pasta, file);
+    inserirImagemLivre(pagina, rel);
+  }
+
   // ===== Serializacao limpa e save.
   function serializar(doc: Document): string {
     const editVals: Record<string, string> = {};
@@ -874,7 +1478,7 @@ export function usarMotorEdicao(
     // principal (abaixo), nunca numa tag extra.
     clone
       .querySelectorAll(
-        "#vkos-ed-runtime,#vkos-ed-layout,#vkos-editor-runtime,#vkos-editor-vars,.vkos-ed-guia",
+        "#vkos-ed-runtime,#vkos-ed-layout,#vkos-editor-runtime,#vkos-editor-vars,.vkos-ed-guia,.vkos-ed-alca",
       )
       .forEach((n) => n.remove());
     // Tira os artefatos volateis (selecao, edicao, guias) pelo nucleo e os
@@ -888,11 +1492,12 @@ export function usarMotorEdicao(
       slide.style.removeProperty("top");
     });
     clone
-      .querySelectorAll("[data-ed-atual],[data-ed-mov],[data-ed-relpos]")
+      .querySelectorAll("[data-ed-atual],[data-ed-mov],[data-ed-relpos],[data-ed-livre]")
       .forEach((n) => {
         n.removeAttribute("data-ed-atual");
         n.removeAttribute("data-ed-mov");
         n.removeAttribute("data-ed-relpos");
+        n.removeAttribute("data-ed-livre");
       });
     clone.classList.remove("vkos-ed-arrastando");
     // Remove as vars inline do <html> (eram so preview).
@@ -980,7 +1585,9 @@ export function usarMotorEdicao(
       if (!doc || !doc.body) return;
       try {
         injetarEstilo(doc);
+        semearVk(doc);
         editandoRef.current = null;
+        cliqueAnteriorRef.current = null;
         doc.addEventListener("click", aoClicarDoc, true);
         doc.addEventListener("dblclick", aoDuploClicarDoc, true);
         doc.addEventListener("mousedown", aoMouseDownDoc, true);
@@ -1012,6 +1619,7 @@ export function usarMotorEdicao(
         setSelecao(null);
         setPodeDesfazer(false);
         setPaginas(doc.querySelectorAll(".slide").length || 1);
+        setVersaoDoc((v) => v + 1);
         setPronto(true);
         optsRef.current.aoInstrumentar?.(doc);
       } catch {
@@ -1078,5 +1686,12 @@ export function usarMotorEdicao(
     salvar,
     naoSalvo,
     limparSelecao,
+    listarCamadas,
+    selecionarPorId,
+    moverCamada,
+    inserirImagemLivre,
+    inserirImagemLivreArquivo,
+    versaoDoc,
+    reposicionarAlcas: sincronizarAlcas,
   };
 }

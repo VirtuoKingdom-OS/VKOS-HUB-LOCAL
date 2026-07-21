@@ -85,8 +85,22 @@ export function alvoEdicaoComputado(alvo: HTMLElement): HTMLElement | null {
 // (icone de emoji, seta) e alvo legitimo: pular ele deixaria o clique parado
 // no container e o filho certo inalcancavel nos cartoes com pointer-events:
 // none, onde TODO clique passa pela descida. Nao toca em pointer-events.
-// So o motor do site usa isto; o motor do carrossel segue com alvoEdicao puro.
-export function alvoNoPonto(raiz: HTMLElement, x: number, y: number): HTMLElement {
+// Usada pelos dois motores: o site com o filtro de decorativa grande ligado (o
+// padrao), o carrossel com ele desligado (num slide 1080x1350 um hero de fundo
+// e alvo legitimo de edicao, nunca deve ser pulado).
+export interface OpcoesAlvoNoPonto {
+  // Quando false, NAO pula camadas decorativas grandes marcadas aria-hidden.
+  // Padrao true (comportamento original do site).
+  pularDecorativaGrande?: boolean;
+}
+
+export function alvoNoPonto(
+  raiz: HTMLElement,
+  x: number,
+  y: number,
+  opcoes?: OpcoesAlvoNoPonto,
+): HTMLElement {
+  const pularDecorativa = opcoes?.pularDecorativaGrande !== false;
   // Area da viewport do documento, base do criterio de camada decorativa.
   const raizDoc = raiz.ownerDocument.documentElement;
   const areaViewport = raizDoc.clientWidth * raizDoc.clientHeight;
@@ -101,6 +115,7 @@ export function alvoNoPonto(raiz: HTMLElement, x: number, y: number): HTMLElemen
       const r = f.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       if (
+        pularDecorativa &&
         f.getAttribute("aria-hidden") === "true" &&
         areaViewport > 0 &&
         r.width * r.height > areaViewport * 0.6
@@ -117,6 +132,26 @@ export function alvoNoPonto(raiz: HTMLElement, x: number, y: number): HTMLElemen
     if (!escolhido) return atual;
     atual = escolhido;
   }
+}
+
+// Pilha de elementos sob um ponto, pro ciclo de clique repetido: TODOS os
+// descendentes de raiz (raiz fora) cujo retangulo contem (x, y) e tem area
+// visivel, ordenados do mais especifico pro de tras: menor area primeiro; no
+// empate de area, quem vem DEPOIS no DOM primeiro (pintado por cima). Ignora
+// pointer-events, como o alvoNoPonto. Quem chama filtra artefatos do editor.
+export function pilhaNoPonto(raiz: HTMLElement, x: number, y: number): HTMLElement[] {
+  const sob: { el: HTMLElement; area: number; ordem: number }[] = [];
+  const todos = raiz.querySelectorAll<HTMLElement>("*");
+  for (let i = 0; i < todos.length; i++) {
+    const el = todos[i];
+    if (el.nodeType !== 1) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+    sob.push({ el, area: r.width * r.height, ordem: i });
+  }
+  sob.sort((a, b) => a.area - b.area || b.ordem - a.ordem);
+  return sob.map((s) => s.el);
 }
 
 // Fontes seguras sempre oferecidas, alem das que o proprio documento usa.
@@ -240,31 +275,66 @@ export class PilhaSnapshots<T> {
 // caretRangeFromPoint. Devolve o innerHTML de ANTES da edicao, pra quem chama
 // saber depois se mudou de verdade. Nao mexe em listeners de blur nem em
 // snapshot: isso e responsabilidade de quem chama.
+// Restaura o user-select inline de um elemento que passou pela edicao: volta o
+// valor inline que existia antes (guardado em data-ed-us*) ou limpa. Usada na
+// saida da edicao e na limpeza de artefatos (clones de snapshot/serializacao),
+// pra nenhum user-select do editor vazar pro HTML salvo.
+function restaurarUserSelect(el: HTMLElement): void {
+  if (!el.hasAttribute("data-ed-us")) return;
+  const us = el.getAttribute("data-ed-us") || "";
+  const uswk = el.getAttribute("data-ed-us-wk") || "";
+  if (us) el.style.setProperty("user-select", us);
+  else el.style.removeProperty("user-select");
+  if (uswk) el.style.setProperty("-webkit-user-select", uswk);
+  else el.style.removeProperty("-webkit-user-select");
+  el.removeAttribute("data-ed-us");
+  el.removeAttribute("data-ed-us-wk");
+  if (!el.getAttribute("style")) el.removeAttribute("style");
+}
+
 export function entrarContentEditable(el: HTMLElement, x: number, y: number): string {
   const doc = el.ownerDocument;
   const antes = el.innerHTML;
   el.setAttribute("contenteditable", "true");
   el.setAttribute("data-ed-editando", "1");
+  // user-select:none (enfeites como as aspas dos templates) mata o caret do
+  // contentEditable: o foco entra, mas nao ha range e digitar nao muda nada.
+  // Neutraliza inline SO durante a edicao, guardando o valor inline anterior
+  // em data-ed-us* pra saida (ou a limpeza de artefatos) restaurar sem residuo.
+  el.setAttribute("data-ed-us", el.style.getPropertyValue("user-select"));
+  el.setAttribute("data-ed-us-wk", el.style.getPropertyValue("-webkit-user-select"));
+  el.style.setProperty("user-select", "text", "important");
+  el.style.setProperty("-webkit-user-select", "text", "important");
   el.focus();
   const s = doc.getSelection?.();
   const anyDoc = doc as unknown as {
     caretRangeFromPoint?: (px: number, py: number) => Range | null;
   };
-  if (s && anyDoc.caretRangeFromPoint) {
-    const r = anyDoc.caretRangeFromPoint(x, y);
-    if (r) {
+  if (s) {
+    // Caret no ponto do clique quando ele cai DENTRO do elemento; senao, no
+    // fim do conteudo (um alvo com pointer-events:none pode fazer o
+    // caretRangeFromPoint devolver um range de outro elemento).
+    const r = anyDoc.caretRangeFromPoint?.(x, y);
+    if (r && el.contains(r.startContainer)) {
       s.removeAllRanges();
       s.addRange(r);
+    } else {
+      const fim = doc.createRange();
+      fim.selectNodeContents(el);
+      fim.collapse(false);
+      s.removeAllRanges();
+      s.addRange(fim);
     }
   }
   return antes;
 }
 
-// Sai do modo contentEditable: tira os atributos do editor e normaliza os text
-// nodes (junta os fragmentos que a edicao possa ter partido).
+// Sai do modo contentEditable: tira os atributos do editor, restaura o
+// user-select e normaliza os text nodes (junta os fragmentos partidos).
 export function sairContentEditable(el: HTMLElement): void {
   el.removeAttribute("contenteditable");
   el.removeAttribute("data-ed-editando");
+  restaurarUserSelect(el);
   el.normalize();
 }
 
@@ -275,9 +345,11 @@ export function sairContentEditable(el: HTMLElement): void {
 // remove os proprios extras alem destes.
 export function limparArtefatosSelecao(raiz: Element): void {
   raiz.querySelectorAll(".vkos-ed-guia").forEach((n) => n.remove());
+  raiz.querySelectorAll(".vkos-ed-alca").forEach((n) => n.remove());
   raiz.querySelectorAll("[data-ed-sel]").forEach((n) => n.removeAttribute("data-ed-sel"));
   raiz.querySelectorAll("[data-ed-editando],[contenteditable]").forEach((n) => {
     n.removeAttribute("data-ed-editando");
     n.removeAttribute("contenteditable");
   });
+  raiz.querySelectorAll("[data-ed-us]").forEach((n) => restaurarUserSelect(n as HTMLElement));
 }

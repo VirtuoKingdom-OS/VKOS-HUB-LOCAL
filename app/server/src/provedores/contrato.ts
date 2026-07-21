@@ -15,6 +15,9 @@ export interface OpcaoModelo {
   alias: string;
   rotulo: string;
   observacaoCusto: string;
+  // Marca o modelo economico do provedor: o pre-selecionado em tarefas simples
+  // (Ajustar com IA) e o alvo do modo montagem do carrossel. Um por provedor.
+  economico?: boolean;
 }
 
 export type EventoSessao = Record<string, unknown>;

@@ -111,10 +111,15 @@ export function montarResumoCrm(estado: EstadoCrm = lerEstado()): string | null 
 
   const linhas: string[] = ["# Resumo agregado do CRM", "", "## Funil"];
   for (const coluna of [...estado.colunas].sort((a, b) => a.ordem - b.ordem)) {
-    const negocios = estado.negocios.filter((negocio) => negocio.colunaId === coluna.id);
-    const valor = negocios.reduce((soma, negocio) => soma + (negocio.valorEstimado ?? 0), 0);
+    // O contato e o cartao do funil: cada coluna conta os contatos naquele
+    // estagio e soma o valor dos negocios presos a eles.
+    const contatos = estado.contatos.filter((contato) => contato.colunaId === coluna.id);
+    const idsContatos = new Set(contatos.map((contato) => contato.id));
+    const valor = estado.negocios
+      .filter((negocio) => idsContatos.has(negocio.contatoId))
+      .reduce((soma, negocio) => soma + (negocio.valorEstimado ?? 0), 0);
     const nomeColuna = anonimizarTextoCrm(coluna.nome) || "Coluna sem nome";
-    linhas.push(`- ${nomeColuna}: ${negocios.length} negocio(s), valor ${formatarValor(valor)}`);
+    linhas.push(`- ${nomeColuna}: ${contatos.length} contato(s), valor ${formatarValor(valor)}`);
   }
   linhas.push(
     "",

@@ -59,6 +59,9 @@ export interface DadosEtapas {
   corTexto: string;
   fonteTitulos: string;
   fonteCorpo: string;
+  // Interruptor "Aprimorar com IA" da etapa de instrucoes finais. Opcional por
+  // compatibilidade com rascunho antigo: ausente = ligado (padrao).
+  aprimorarComIA?: boolean;
 }
 
 // Valores iniciais das etapas. O modelo vem do padrao do workspace.
@@ -68,6 +71,7 @@ export function criarDadosEtapas(modelo: ModeloIA): DadosEtapas {
     detalhes: "",
     paginas: null,
     modelo,
+    aprimorarComIA: true,
     estilo: "",
     estiloCapa: "",
     estiloPaginas: "",
@@ -155,6 +159,7 @@ export function dadosCriacaoDe(d: DadosEtapas, tipo: TipoCriacao): DadosCriacao 
             fonteCorpo: d.fonteCorpo,
           }
         : null,
+    aprimorarComIA: d.aprimorarComIA !== false,
   };
 }
 
@@ -168,7 +173,8 @@ export function etapasTemPreenchimento(d: DadosEtapas): boolean {
     (d.estiloCapa ?? "") !== "" ||
     (d.estiloPaginas ?? "") !== "" ||
     d.modoImagem !== "sem" ||
-    d.visualModo !== "negocio"
+    d.visualModo !== "negocio" ||
+    d.aprimorarComIA === false
   );
 }
 
@@ -282,6 +288,15 @@ export function EtapasCriacao({
     if (modelos.length === 0 || modelos.some((m) => m.alias === dados.modelo)) return;
     aoMudar({ modelo: modeloPadrao || modelos[0].alias });
   }, [modelos, modeloPadrao, dados.modelo, aoMudar]);
+
+  // Aprimorar com IA desligado: o modelo do wizard vira o economico do provedor
+  // (campo `economico` do backend). Assim todo consumidor destas etapas envia o
+  // modelo barato, e o seletor desabilitado mostra a verdade.
+  const modeloEconomico = modelos.find((m) => m.economico)?.alias;
+  useEffect(() => {
+    if (dados.aprimorarComIA !== false || !modeloEconomico) return;
+    if (dados.modelo !== modeloEconomico) aoMudar({ modelo: modeloEconomico });
+  }, [dados.aprimorarComIA, dados.modelo, modeloEconomico, aoMudar]);
 
   // Um rascunho pode ter sido criado com Codex e reaberto depois da troca para
   // Claude. Nesse caso volta para upload, sem enviar um prompt impossivel.
@@ -500,6 +515,7 @@ export function EtapasCriacao({
                     className={`criacao-card-op${dados.modelo === m.alias ? " ativo" : ""}`}
                     onClick={() => aoMudar({ modelo: m.alias })}
                     title={m.observacaoCusto}
+                    disabled={dados.aprimorarComIA === false}
                   >
                     <span className="criacao-card-nome">{m.rotulo}</span>
                     <span className="criacao-card-desc">{m.observacaoCusto}</span>
@@ -509,6 +525,12 @@ export function EtapasCriacao({
                   <span className="criacao-card-desc">Carregando modelos...</span>
                 )}
               </div>
+              {dados.aprimorarComIA === false && (
+                <span className="criacao-hint">
+                  O Aprimorar com IA está desligado: a geração usa o modelo
+                  econômico. Ligue de novo na última etapa pra escolher o modelo.
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -886,6 +908,36 @@ export function EtapasCriacao({
                 Última chance de definir conteúdo, tom e exceções antes de gerar.
               </span>
             </label>
+
+            {/* Interruptor do modo economico. Ligado (padrao): fluxo atual.
+                Desligado: montagem direta num modelo economico. */}
+            <div className="criacao-aprimorar">
+              <div className="criacao-aprimorar-texto">
+                <span className="criacao-aprimorar-titulo">Aprimorar com IA</span>
+                <span className="criacao-hint">
+                  Ligado, a IA capricha no design com o modelo escolhido.
+                  Desligado, um modelo econômico só monta o template com o seu
+                  conteúdo: bem mais barato, resultado mais simples.
+                </span>
+              </div>
+              <label className="criacao-switch">
+                <input
+                  type="checkbox"
+                  checked={dados.aprimorarComIA !== false}
+                  onChange={(e) => aoMudar({ aprimorarComIA: e.target.checked })}
+                  aria-label="Aprimorar com IA"
+                />
+                <span className="criacao-switch-trilho">
+                  <span className="criacao-switch-bola" />
+                </span>
+              </label>
+            </div>
+            {dados.aprimorarComIA === false && dados.detalhes.trim() === "" && (
+              <span className="criacao-aviso" role="status">
+                Sem instruções, o modo econômico escreve um conteúdo básico. Pra
+                um resultado caprichado, ligue o Aprimorar ou descreva o conteúdo.
+              </span>
+            )}
 
             {/* Previa discreta do prompt, so na ultima etapa e so quando o dono
                 passa uma (o node). O wizard do dashboard nao passa: fica limpo. */}

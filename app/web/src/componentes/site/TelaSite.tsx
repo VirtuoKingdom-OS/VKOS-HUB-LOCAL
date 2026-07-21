@@ -329,10 +329,29 @@ export default function TelaSite({ pasta }: Props) {
   const [pedido, setPedido] = useState("");
   const [anexosAjuste, setAnexosAjuste] = useState<AnexoAjuste[]>([]);
   const [modelo, setModelo] = useState<ModeloIA>(modeloPadrao);
+  // Inicializacao do modelo do painel Ajustar com IA: comeca no economico do
+  // provedor ativo (campo `economico` vem do backend, sem tabela local). A
+  // Revisao de design continua saindo no padrao do provedor enquanto o usuario
+  // nao tocar no seletor.
+  const modeloEconomico = useMemo(
+    () => modelos.find((m) => m.economico)?.alias,
+    [modelos]
+  );
+  const modeloTocadoRef = useRef(false);
+  const inicializouEconomicoRef = useRef(false);
+  useEffect(() => {
+    if (inicializouEconomicoRef.current || !modeloEconomico) return;
+    inicializouEconomicoRef.current = true;
+    if (!modeloTocadoRef.current) setModelo(modeloEconomico);
+  }, [modeloEconomico]);
   const [ajustando, setAjustando] = useState(false);
   const [sessaoAjuste, setSessaoAjuste] = useState<string | null>(null);
   const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [ajusteFeito, setAjusteFeito] = useState(false);
+  // Fase do ajuste. Depois que a IA termina de editar, o Hub confere o site e
+  // pode mandar corrigir: enquanto isso o ajuste ainda nao acabou.
+  const [faseAjuste, setFaseAjuste] = useState<"editando" | "conferindo" | "corrigindo">("editando");
+  const [ajusteComPendencias, setAjusteComPendencias] = useState(false);
   const [inicioAjusteImagem, setInicioAjusteImagem] = useState<number | null>(null);
   const geracaoImagemAjuste = usarGeracaoImagemIA();
   // Espelho pro efeito de pecas (dep so em "pecas") saber se ha ajuste rodando.
@@ -479,10 +498,19 @@ export default function TelaSite({ pasta }: Props) {
     if (!sessaoAjuste) return;
     const s = sessoes.find((x) => x.id === sessaoAjuste);
     if (!s) return;
+    // A conferencia do Hub roda depois que a sessao conclui e pode retomar a
+    // MESMA sessao pra corrigir. Enquanto ela nao assenta, o ajuste nao acabou:
+    // anunciar "pronto" aqui seria mentira, e o site pode estar sendo reescrito.
+    const conferencia = s.conferenciaSite?.estado;
+    if (conferencia === "conferindo" || conferencia === "corrigindo") {
+      setFaseAjuste(conferencia);
+      return;
+    }
     if (s.status === "concluida") {
       const resposta = s.resultado?.trim() || "";
       if (/não consegui|nao consegui|não foi possível alterar|nao foi possivel alterar|não alterei|nao alterei|bloqueou a leitura|preciso que você|preciso que voce/i.test(resposta)) {
         setAjustando(false);
+        setFaseAjuste("editando");
         setSessaoAjuste(null);
         setErroAjuste(resposta || "O provedor não conseguiu alterar o site.");
         return;
@@ -492,12 +520,15 @@ export default function TelaSite({ pasta }: Props) {
       // pecas foi ignorado durante o ajuste; aqui e a recarga limpa e unica.
       if (modoRef.current === "editar") setRecargaEd((x) => x + 1);
       setAjustando(false);
+      setFaseAjuste("editando");
       setSessaoAjuste(null);
+      setAjusteComPendencias(conferencia === "pendencias");
       setAjusteFeito(true);
       if (!ehPresetRef.current) setPedido("");
       setAnexosAjuste([]);
     } else if (s.status === "erro" || s.status === "parada") {
       setAjustando(false);
+      setFaseAjuste("editando");
       setSessaoAjuste(null);
       setErroAjuste(
         s.erro?.trim()
@@ -631,6 +662,8 @@ export default function TelaSite({ pasta }: Props) {
     ehPresetRef.current = textoPreset !== undefined;
     setErroAjuste(null);
     setAjusteFeito(false);
+    setAjusteComPendencias(false);
+    setFaseAjuste("editando");
     setAjustando(true);
     // A heuristica de imagem vale so pro campo livre: o preset e sempre uma
     // sessao de revisao, nunca geracao de imagem.
@@ -668,6 +701,12 @@ export default function TelaSite({ pasta }: Props) {
       return;
     }
     try {
+      // A Revisao de design revisa o site inteiro: sem escolha manual do
+      // usuario no seletor, ela sai no padrao do provedor, nao no economico.
+      const modeloDaSessao =
+        textoPreset !== undefined && !modeloTocadoRef.current
+          ? modeloPadrao || modelo
+          : modelo;
       const sessao = await criarSessao({
         titulo:
           textoPreset !== undefined
@@ -676,7 +715,7 @@ export default function TelaSite({ pasta }: Props) {
         // O servidor transforma este pedido curto num prompt com o Cérebro
         // completo e confina o cwd na pasta desta peça.
         prompt: promptFinal,
-        modelo,
+        modelo: modeloDaSessao,
         escopoPeca: {
           pasta,
           tipo: "site",
@@ -1059,7 +1098,10 @@ export default function TelaSite({ pasta }: Props) {
                   <button
                     key={m.alias}
                     className={`site-modelo-btn${modelo === m.alias ? " ativo" : ""}`}
-                    onClick={() => setModelo(m.alias)}
+                    onClick={() => {
+                      modeloTocadoRef.current = true;
+                      setModelo(m.alias);
+                    }}
                     disabled={ajustando}
                     title={m.observacaoCusto}
                   >
@@ -1067,6 +1109,10 @@ export default function TelaSite({ pasta }: Props) {
                   </button>
                 ))}
               </div>
+              <p className="site-ajuste-nota">
+                Comece pelo econômico. Se o resultado não convencer, repita o
+                pedido num modelo maior.
+              </p>
 
               {ajustando && (
                 <div className="site-ajuste-progresso" aria-label="Ajustando o site">
@@ -1075,11 +1121,24 @@ export default function TelaSite({ pasta }: Props) {
               )}
               {ajustando && (
                 <p className="site-ajuste-nota">
-                  A IA está editando o site. Isso leva um instante.
+                  {faseAjuste === "conferindo"
+                    ? "A IA terminou. O Hub está conferindo o site antes de liberar."
+                    : faseAjuste === "corrigindo"
+                    ? "A conferência achou pendências. A IA está corrigindo."
+                    : "A IA está editando o site. Isso leva um instante."}
                 </p>
               )}
               {ajusteFeito && !ajustando && (
-                <p className="site-ajuste-ok">Pronto. O site foi atualizado.</p>
+                ajusteComPendencias ? (
+                  <p className="site-ajuste-erro">
+                    O site foi atualizado, mas a conferência ainda achou pendências.
+                    Veja a lista no topo da tela antes de publicar.
+                  </p>
+                ) : (
+                  <p className="site-ajuste-ok">
+                    Pronto. O site foi atualizado e passou na conferência.
+                  </p>
+                )
               )}
               {erroAjuste && !ajustando && (
                 <p className="site-ajuste-erro">{erroAjuste}</p>

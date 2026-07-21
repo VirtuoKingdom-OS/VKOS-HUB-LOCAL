@@ -145,7 +145,9 @@ test("rejeita destinos divergentes e prompt guiado sem destino valido", () => {
   );
 });
 
-test("nao atribui pastaAlvo a ajuste nem a sessao geral", () => {
+// O contrato do Site Guiado continua nao valendo para ajuste: a pastaAlvo do
+// ajuste de site vem do escopo ja resolvido na rota, nunca do corpo HTTP.
+test("nao atribui pastaAlvo pelo contrato do wizard a ajuste nem a sessao geral", () => {
   assert.equal(
     resolverPastaAlvoGeracaoSite({
       skill: "site",

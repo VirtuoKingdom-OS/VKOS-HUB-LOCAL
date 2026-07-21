@@ -231,6 +231,13 @@ export function TelaStudio({ pasta }: Props) {
     atualizarFoco();
   }, [escala, geos, atualizarFoco]);
 
+  // As alcas de redimensionamento tem tamanho fixo na tela: quando a escala do
+  // canvas muda (zoom), o motor as redesenha no novo tamanho.
+  useEffect(() => {
+    if (motor.pronto) motor.reposicionarAlcas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escala, motor.pronto]);
+
   // Scroll do canvas atualiza o foco (via rAF pra nao saturar).
   const rafRef = useRef(0);
   function aoRolar() {

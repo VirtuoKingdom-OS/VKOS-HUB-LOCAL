@@ -138,10 +138,27 @@ function marcadoresLinhas(formato: DadosEtapasSite["formato"]): string {
   ].join("\n");
 }
 
+// Bloco 1 enxuto do modo economico (interruptor "Aprimorar com IA" desligado):
+// SUBSTITUI o bloco de design do modo ligado. Sem cartela, sem escolha de
+// direcao: um estilo fixo da biblioteca, aplicado como esta. O estilo padrao e
+// o Grade de zinco, o mais neutro e legivel do indice (cinza neutro dominante,
+// um acento so, bordas finas).
+export function blocoDesignEconomicoSite(): string {
+  return [
+    "BLOCO 1, DESIGN NO MODO MONTAGEM (o usuário desligou o Aprimorar com IA):",
+    "- Leia cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do conteúdo.",
+    "- Não crie direção de arte nova. Use o estilo fixo Grade de zinco: leia templates/design/estilos/grade-zinco.md INTEIRO e aplique os tokens dele (cores, escala tipográfica, spacing, motion) como estão, sem inventar variação.",
+    "- Não leia a cartela nem escolha outra direção. Um estilo, executado inteiro, sem mistura.",
+    "- NUNCA cite a marca de origem do estilo em nenhum texto do site.",
+  ].join("\n");
+}
+
 // Prompt completo pronto pra criarSessao. Sem perguntas: a sessao le os arquivos
 // de contexto, resolve mensagem e estrutura pela skill e entrega o site em HTML.
 export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string {
   const tema = dados.tema.trim();
+  // Modo economico: so o Bloco 1 muda (inteiro). Blocos 2 e 3 permanecem.
+  const economico = dados.aprimorarComIA === false;
   const partes: string[] = [];
 
   partes.push(
@@ -149,6 +166,10 @@ export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string 
   );
 
   // ===== BLOCO 1: O DESIGN VEM PRIMEIRO. Antes de qualquer linha de codigo.
+  // No modo economico o bloco inteiro e substituido pelo enxuto.
+  if (economico) {
+    partes.push(blocoDesignEconomicoSite());
+  } else {
   partes.push(
     [
       "BLOCO 1, O DESIGN VEM PRIMEIRO. Antes de escrever qualquer linha, resolva o design:",
@@ -161,6 +182,7 @@ export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string 
       "- NUNCA cite a marca de origem do estilo em nenhum texto do site.",
     ].join("\n")
   );
+  }
 
   if (dados.visualModo === "personalizado") {
     partes.push(visualLinha(dados));

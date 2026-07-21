@@ -1503,3 +1503,11 @@
 @media (prefers-reduced-motion: reduce) {
   .site-revisao { transition: none; }
 }
+
+/* ===== Camadas da seção (modo Editar). A lista em si vem do PainelCamadas
+   compartilhado (camadas-* em editor.css); aqui só o comportamento local:
+   seções longas rolam dentro do próprio bloco. ===== */
+.ps-camadas .camadas-lista {
+  max-height: 280px;
+  overflow-y: auto;
+}

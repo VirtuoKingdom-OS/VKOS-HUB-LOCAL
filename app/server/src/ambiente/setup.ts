@@ -145,7 +145,8 @@ export async function executarTesteSetup(
             typeof evento["total_cost_usd"] === "number"
               ? evento["total_cost_usd"]
               : 0,
-          estimado: provedor.id === "codex" || evento["estimado"] === true,
+          // O custo do teste tambem sai de tabela de precos, nunca cobranca real.
+          estimado: true,
         });
         resultadoFinal = true;
       });

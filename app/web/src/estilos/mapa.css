@@ -60,6 +60,12 @@
   background: rgba(var(--menta-rgb), 0.12);
 }
 
+.mapa-modos .mapa-modo-skills.ativo,
+.mapa-modos .mapa-modo-completa.ativo {
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.12);
+}
+
 .mapa-modos svg {
   width: 14px;
   height: 14px;
@@ -237,16 +243,19 @@
   stroke-width: 9;
 }
 
+/* Tracejado estatico: o mesmo visual sem a marcha continua. Animar
+   stroke-dashoffset repinta a linha inteira a cada frame (nao e compositavel),
+   o que pesava com dezenas de ligacoes. O movimento fica so no pulso. */
 .mapa-ligacao-caminho {
   stroke: var(--borda-forte);
   stroke-width: 1.6;
   stroke-dasharray: 7 5;
-  animation: mapa-fluxo 1.1s linear infinite;
 }
 
+/* Ponto que corre a ligacao. Sem drop-shadow: filtro em elemento animado
+   repinta uma area grande sem cache. So a cor ja da o brilho. */
 .mapa-pulso {
   fill: var(--menta-clara);
-  filter: drop-shadow(0 0 5px var(--menta));
   pointer-events: none;
 }
 
@@ -286,6 +295,751 @@
   to {
     stroke-dashoffset: -24;
   }
+}
+
+/* ===== Percurso das skills (sobreposicao visual) ===== */
+
+.mapa-skills-barra {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-width: min(560px, calc(100% - 90px));
+  padding: 9px 10px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  box-shadow: 0 8px 22px rgba(var(--scrim-rgb), 0.2);
+}
+
+.mapa-skill-chip {
+  --mapa-cor: var(--texto-suave);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  color: var(--texto-suave);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao), transform var(--transicao);
+}
+
+.mapa-skill-chip i {
+  width: 8px;
+  height: 8px;
+  background: var(--mapa-cor);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--mapa-cor);
+}
+
+.mapa-skill-chip:hover {
+  color: var(--texto);
+  border-color: var(--mapa-cor);
+  transform: translateY(-1px);
+}
+
+.mapa-skill-chip.ativo {
+  color: var(--texto);
+  border-color: var(--mapa-cor);
+  background: color-mix(in srgb, var(--mapa-cor) 16%, var(--superficie));
+  box-shadow: 0 0 0 1px var(--mapa-cor), 0 6px 16px rgba(var(--scrim-rgb), 0.22);
+}
+
+.mapa-rota-halo,
+.mapa-rota-caminho {
+  fill: none;
+  pointer-events: none;
+}
+
+.mapa-rota-halo {
+  stroke: var(--mapa-cor);
+  stroke-width: 11;
+  opacity: 0.16;
+}
+
+.mapa-rota-caminho {
+  stroke: var(--mapa-cor);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 9 7;
+  animation: mapa-fluxo 0.9s linear infinite;
+}
+
+.mapa-rota-pulso {
+  fill: var(--mapa-cor);
+  pointer-events: none;
+}
+
+.react-flow__node.mapa-no-rota .mapa-no {
+  border-color: var(--menta);
+  box-shadow: 0 0 0 1px var(--menta), 0 14px 30px rgba(var(--scrim-rgb), 0.3);
+  transform: translateY(-2px);
+}
+
+.mapa-no-passo {
+  position: absolute;
+  top: -11px;
+  left: -11px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--fundo);
+  background: var(--menta);
+  border: 2px solid var(--fundo-2);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 0 12px rgba(var(--menta-rgb), 0.5);
+}
+
+.mapa-passos {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 20px;
+}
+
+.mapa-passo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 6px;
+  color: var(--texto-suave);
+  text-align: left;
+  border-radius: var(--raio-p);
+  transition: color var(--transicao), background var(--transicao);
+}
+
+/* Linha que liga um passo ao proximo, formando o trilho vertical. */
+.mapa-passo:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  top: 34px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--borda);
+}
+
+.mapa-passo-num {
+  --mapa-cor: var(--texto-suave);
+  z-index: 1;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--fundo);
+  background: var(--mapa-cor);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mapa-passo-nome {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.mapa-passo:hover {
+  color: var(--texto);
+  background: var(--superficie);
+}
+
+/* ===== Visao completa (todas as rotas de uma vez) ===== */
+
+/* Ligacoes base recuam pra as rotas coloridas serem o destaque. */
+.mapa-ligacao-fundo {
+  opacity: 0.28;
+}
+
+/* Numeros grandes da complexidade. */
+.mapa-numeros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.mapa-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+}
+
+.mapa-numero b {
+  color: var(--menta-clara);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mapa-numero small {
+  color: var(--texto-fraco);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mapa-skills-legenda {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.mapa-skills-legenda-item {
+  --mapa-cor: var(--texto-suave);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--mapa-cor);
+  border-radius: var(--raio-p);
+}
+
+.mapa-skills-legenda-item i {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  background: var(--mapa-cor);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--mapa-cor);
+}
+
+.mapa-skills-legenda-item b {
+  flex: 1;
+  color: var(--texto);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mapa-skills-legenda-item small {
+  color: var(--texto-fraco);
+  font-size: 10px;
+}
+
+/* No proprio de cada skill (coluna da esquerda na visao completa). A cor vem
+   da classe mapa-cor-* na mesma tag; nao redefinir --mapa-cor aqui. */
+.mapa-no-skill {
+  position: relative;
+  width: 156px;
+  padding: 11px 13px;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--mapa-cor);
+  border-radius: var(--raio);
+  box-shadow: 0 8px 20px rgba(var(--scrim-rgb), 0.18);
+}
+
+.mapa-no-skill-tag {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--mapa-cor);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mapa-no-skill strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mapa-no-skill small {
+  display: block;
+  margin-top: 3px;
+  color: var(--texto-fraco);
+  font-size: 11px;
+}
+
+/* Modo discreto: a skill colapsa pra um circulo com so o icone, como os nos
+   do sistema. Nada de nome, etiqueta nem contagem. */
+.mapa-no-skill.discreto {
+  width: 52px;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--fundo-2);
+  border: 1px solid var(--mapa-cor);
+  border-left: 1px solid var(--mapa-cor);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(var(--menta-rgb), 0.12);
+}
+
+.mapa-no-skill-icone {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--mapa-cor);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.88;
+}
+
+/* Ligacao leve e estatica entre a skill e os nos do percurso. A cor herda do
+   --mapa-cor da classe mapa-cor-* posta na aresta (grupo pai). */
+.mapa-skilllink-caminho {
+  fill: none;
+  stroke: var(--mapa-cor, var(--texto-suave));
+  stroke-width: 1.5;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ===== Visao Telas (espelho das telas do app) ===== */
+/* A cor vem da classe mapa-cor-* na mesma tag; nao redefinir --mapa-cor aqui. */
+
+.mapa-no-tela {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 15px 15px;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-top: 3px solid var(--mapa-cor);
+  border-radius: var(--raio);
+  box-shadow: 0 10px 24px rgba(var(--scrim-rgb), 0.18);
+  transition: border-color var(--transicao), box-shadow var(--transicao),
+    transform var(--transicao);
+}
+
+.mapa-no-tela:hover,
+.mapa-no-tela.selecionado {
+  border-color: var(--mapa-cor);
+  box-shadow: 0 12px 30px rgba(var(--scrim-rgb), 0.28);
+  transform: translateY(-2px);
+}
+
+.mapa-no-tela-zona {
+  color: var(--mapa-cor);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mapa-no-tela-nome {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mapa-no-tela-rota {
+  align-self: flex-start;
+  padding: 2px 6px;
+  color: var(--texto-suave);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+}
+
+.mapa-no-tela-resumo {
+  color: var(--texto-suave);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mapa-no-tela-estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mapa-no-tela-estados.no-painel {
+  margin-top: 10px;
+}
+
+.mapa-no-tela-estado {
+  padding: 3px 7px;
+  color: var(--texto-fraco);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.mapa-no-tela-mais {
+  color: var(--mapa-cor);
+}
+
+.mapa-no-tela-abrir {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.12);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  border-radius: var(--raio-p);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background var(--transicao), transform var(--transicao);
+}
+
+.mapa-no-tela-abrir:hover {
+  background: rgba(var(--menta-rgb), 0.2);
+  transform: translateY(-1px);
+}
+
+.mapa-no-tela-abrir svg,
+.mapa-abrir-grande svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mapa-no-tela-abrir.desabilitado {
+  color: var(--texto-fraco);
+  background: var(--fundo-2);
+  border-color: var(--borda);
+  cursor: not-allowed;
+}
+
+/* Mini esqueleto da tela: diagrama do layout, nunca screenshot. */
+.mapa-esq {
+  height: 104px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  overflow: hidden;
+}
+
+.esq-bloco {
+  display: block;
+  background: var(--borda-forte);
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+.esq-linha {
+  height: 10px;
+}
+
+.esq-linha-curta {
+  height: 10px;
+  width: 60%;
+}
+
+.esq-topo {
+  height: 16px;
+  border-radius: 6px;
+}
+
+.esq-campo {
+  height: 14px;
+  border-radius: 5px;
+}
+
+.esq-botao {
+  height: 15px;
+  width: 42%;
+  background: var(--mapa-cor);
+  opacity: 0.7;
+}
+
+.esq-passos {
+  display: flex;
+  gap: 6px;
+}
+
+.esq-p {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.esq-rodape {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.mapa-esq-splash {
+  align-items: center;
+  justify-content: center;
+}
+
+.esq-alvo {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--mapa-cor);
+  opacity: 0.6;
+}
+
+.esq-grade2 {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  gap: 6px;
+}
+
+.esq-card {
+  border-radius: 6px;
+}
+
+.esq-grade3 {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 5px;
+}
+
+.esq-tile {
+  border-radius: 5px;
+}
+
+.esq-canvas {
+  position: relative;
+  flex: 1;
+  border-radius: 6px;
+  background-image: radial-gradient(var(--borda) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.esq-no {
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  width: 40px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--superficie);
+  border: 1px solid var(--mapa-cor);
+}
+
+.esq-no-2 {
+  left: auto;
+  top: auto;
+  right: 12px;
+  bottom: 12px;
+}
+
+.esq-colunas {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.esq-coluna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 5px;
+  background: var(--superficie);
+  border-radius: 5px;
+}
+
+.esq-card-mini {
+  height: 14px;
+  border-radius: 4px;
+}
+
+.esq-mes {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 4px;
+}
+
+.esq-dia {
+  background: var(--borda-forte);
+  border-radius: 3px;
+  opacity: 0.4;
+}
+
+.esq-mapa {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.esq-mno {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--mapa-cor);
+}
+
+.esq-mlinha {
+  width: 40px;
+  height: 2px;
+  background: var(--mapa-cor);
+  opacity: 0.5;
+}
+
+.esq-terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  background: var(--fundo);
+  border-radius: 5px;
+}
+
+.esq-term {
+  height: 8px;
+  width: 80%;
+  background: var(--menta);
+  opacity: 0.4;
+  border-radius: 3px;
+}
+
+.esq-term-curto {
+  width: 45%;
+}
+
+.esq-editor,
+.esq-split {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.esq-editor-canvas,
+.esq-split-preview {
+  flex: 1;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+}
+
+.esq-editor-painel {
+  width: 30%;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+}
+
+.esq-split-painel {
+  width: 34%;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+}
+
+/* Aresta de gesto: estatica, com o rotulo do gesto que causa a navegacao. */
+.mapa-gesto-caminho {
+  fill: none;
+  stroke: var(--borda-forte);
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+.react-flow__edge.mapa-gesto-ativa .mapa-gesto-caminho {
+  stroke: var(--menta);
+  stroke-width: 2.6;
+}
+
+.react-flow__edge.mapa-gesto-atenuada {
+  opacity: 0.12;
+}
+
+.mapa-gesto-rotulo {
+  position: absolute;
+  padding: 3px 7px;
+  color: var(--texto-fraco);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: 100px;
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.react-flow__edge.mapa-gesto-ativa .mapa-gesto-rotulo {
+  color: var(--menta-clara);
+  border-color: rgba(var(--menta-rgb), 0.35);
+}
+
+/* Painel de detalhe da tela. */
+.mapa-painel-rota {
+  display: inline-block;
+  margin-top: 9px;
+  padding: 3px 8px;
+  color: var(--texto-suave);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+}
+
+.mapa-abrir-grande {
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  color: var(--menta-clara);
+  background: rgba(var(--menta-rgb), 0.12);
+  border: 1px solid rgba(var(--menta-rgb), 0.3);
+  border-radius: var(--raio-p);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background var(--transicao), transform var(--transicao);
+}
+
+.mapa-abrir-grande:hover {
+  background: rgba(var(--menta-rgb), 0.2);
+  transform: translateY(-1px);
+}
+
+.mapa-abrir-aviso {
+  margin-top: 16px;
+  padding: 10px 12px;
+  color: var(--texto-fraco);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .mapa-cor-menta {
@@ -619,6 +1373,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mapa-no,
+  .mapa-no-tela,
+  .mapa-no-tela-abrir,
+  .mapa-abrir-grande,
   .mapa-modos button,
   .mapa-painel-fechar,
   .mapa-conversas-lista button {
@@ -627,15 +1384,26 @@
 
   .mapa-no:hover,
   .mapa-no.selecionado,
+  .mapa-no-tela:hover,
+  .mapa-no-tela.selecionado,
+  .mapa-no-tela-abrir:hover,
+  .mapa-abrir-grande:hover,
   .mapa-conversas-lista button:hover {
     transform: none;
   }
 
-  .mapa-ligacao-caminho {
+  .mapa-ligacao-caminho,
+  .mapa-rota-caminho {
     animation: none;
   }
 
-  .mapa-pulso {
+  .mapa-pulso,
+  .mapa-rota-pulso {
     display: none;
+  }
+
+  .mapa-skill-chip:hover,
+  .react-flow__node.mapa-no-rota .mapa-no {
+    transform: none;
   }
 }

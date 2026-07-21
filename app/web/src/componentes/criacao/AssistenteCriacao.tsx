@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usarEstado } from "../../estado/contexto";
+import { usarProvedoresIA } from "../../estado/provedores";
 import { usarGeracao, FASES, LARGURA_FASE, type TipoCriacao } from "../../estado/geracao";
 import {
   IconeAlerta,
@@ -52,6 +53,7 @@ export function AssistenteCriacao({
   aoAbrirDestino,
 }: Props) {
   const { pecas, sessoes, modeloPadrao, pararSessao } = usarEstado();
+  const { ativo: provedorAtivo, modelos: modelosIA } = usarProvedoresIA();
   const {
     ativa,
     fase,
@@ -133,6 +135,15 @@ export function AssistenteCriacao({
   }, [pastaPronta, aoConcluir, limpar]);
 
   const dispararGeracao = useCallback(async () => {
+    // Aprimorar com IA desligado: o modelo enviado e forcado pro economico da
+    // tarefa. Carrossel usa o modelo marcado `economico` pelo backend (haiku no
+    // Claude, gpt-5.4-mini no Codex). Site usa o degrau do meio (sonnet no
+    // Claude, gpt-5.6-terra no Codex): site nao tem template HTML pra copiar.
+    const economicoCarrossel =
+      modelosIA.find((m) => m.economico)?.alias ??
+      (provedorAtivo === "codex" ? "gpt-5.4-mini" : "haiku");
+    const economicoSite = provedorAtivo === "codex" ? "gpt-5.6-terra" : "sonnet";
+
     // Site Guiado: etapas e prompt proprios, skill "site", tipo "site".
     if (tipo === "site") {
       const tema = dadosSite.tema.trim();
@@ -141,7 +152,8 @@ export function AssistenteCriacao({
         titulo: `Site: ${tema}`,
         prompt: montarPromptSite(dadosSite, pasta),
         skill: "site",
-        modelo: dadosSite.modelo,
+        modelo:
+          dadosSite.aprimorarComIA === false ? economicoSite : dadosSite.modelo,
         pastaAlvo: pasta,
         tema,
         tipo: "site",
@@ -155,12 +167,13 @@ export function AssistenteCriacao({
       titulo: `${nome}: ${dc.tema.trim()}`,
       prompt: montarPromptCriacao(dc, pasta),
       skill: "carrossel",
-      modelo: dados.modelo,
+      modelo:
+        dados.aprimorarComIA === false ? economicoCarrossel : dados.modelo,
       pastaAlvo: pasta,
       tema: dc.tema.trim(),
       tipo,
     });
-  }, [tipo, dadosSite, dados, pecas, cfg.substantivo, iniciar]);
+  }, [tipo, dadosSite, dados, pecas, cfg.substantivo, iniciar, provedorAtivo, modelosIA]);
 
   // Sai de vez: para a sessao se estiver gerando, limpa o estado global e
   // devolve o controle ao pai.

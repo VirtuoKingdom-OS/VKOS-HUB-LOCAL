@@ -1,6 +1,7 @@
-// Estado do CRM v2, escopado por workspace. Contatos guardam o relacionamento;
-// negocios guardam o valor e o estagio no funil. O caminho e resolvido por
-// chamada porque o workspace ativo pode mudar em runtime.
+// Estado do CRM v3, escopado por workspace. Agora o CONTATO e o cartao do funil:
+// cada contato tem um estagio (colunaId) e caminha pelo quadro sozinho. Negocio
+// virou valor/oportunidade opcional preso a um contato, sem estagio proprio. O
+// caminho e resolvido por chamada porque o workspace ativo pode mudar em runtime.
 
 import { existsSync, readFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -40,9 +41,25 @@ export interface Tarefa {
   criadaEm: string;
 }
 
+// Retrato do lead de origem (mineracao no Google Maps). So leitura: preserva o
+// que a lista de busca mostrava, pra ficha nao nascer pobre depois de importar.
+export interface DadosLead {
+  placeId?: string;
+  categoria?: string;
+  endereco?: string;
+  site?: string;
+  nota?: number;
+  totalAvaliacoes?: number;
+  termoBusca?: string;
+  localizacao?: string;
+  capturadoEm?: string;
+}
+
 export interface Contato {
   id: string;
   nome: string;
+  // Estagio do contato no funil. Todo contato mora numa coluna desde que nasce.
+  colunaId: string;
   empresa?: string;
   telefone?: string;
   email?: string;
@@ -51,15 +68,18 @@ export interface Contato {
   interacoes: Interacao[];
   tarefas: Tarefa[];
   proximoContato?: string;
+  // Retrato do lead que originou a ficha, quando veio da mineracao.
+  lead?: DadosLead;
   criadoEm: string;
   atualizadoEm: string;
 }
 
+// Valor/oportunidade preso a um contato. Nao tem estagio: quem caminha no funil
+// e o contato. Um contato pode ter zero, um ou varios negocios (soma de valor).
 export interface Negocio {
   id: string;
   titulo: string;
   contatoId: string;
-  colunaId: string;
   valorEstimado?: number;
   criadoEm: string;
   atualizadoEm: string;
@@ -72,7 +92,7 @@ export interface Coluna {
 }
 
 export interface EstadoCrm {
-  versao: 2;
+  versao: 3;
   colunas: Coluna[];
   contatos: Contato[];
   negocios: Negocio[];
@@ -84,7 +104,7 @@ export interface ResultadoNormalizacaoCrm {
 }
 
 const COLUNAS_PADRAO = [
-  "Novo contato",
+  "Não iniciados",
   "Conversando",
   "Proposta enviada",
   "Fechado",
@@ -141,6 +161,24 @@ function saneiaColuna(v: unknown, indice: number): Coluna | null {
   };
 }
 
+function saneiaLead(v: unknown): DadosLead | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const l = v as Record<string, unknown>;
+  const txt = (x: unknown) => (typeof x === "string" && x.trim() ? x.trim() : undefined);
+  const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
+  const saida: DadosLead = {};
+  if (txt(l.placeId)) saida.placeId = txt(l.placeId);
+  if (txt(l.categoria)) saida.categoria = txt(l.categoria);
+  if (txt(l.endereco)) saida.endereco = txt(l.endereco);
+  if (txt(l.site)) saida.site = txt(l.site);
+  if (num(l.nota) !== undefined) saida.nota = num(l.nota);
+  if (num(l.totalAvaliacoes) !== undefined) saida.totalAvaliacoes = num(l.totalAvaliacoes);
+  if (txt(l.termoBusca)) saida.termoBusca = txt(l.termoBusca);
+  if (txt(l.localizacao)) saida.localizacao = txt(l.localizacao);
+  if (txt(l.capturadoEm)) saida.capturadoEm = txt(l.capturadoEm);
+  return Object.keys(saida).length > 0 ? saida : undefined;
+}
+
 function saneiaInteracao(v: unknown, contatoId: string, indice: number): Interacao | null {
   if (!v || typeof v !== "object") return null;
   const interacao = v as Record<string, unknown>;
@@ -188,11 +226,19 @@ function copiarCamposContato(
   ) {
     destino.proximoContato = origem.proximoContato;
   }
+  const lead = saneiaLead(origem.lead);
+  if (lead) destino.lead = lead;
 }
 
 // Fallback em vez de descarte: id ausente ganha um id novo, nome ausente vira
-// "Sem nome". So um valor que nao e nem objeto se perde de fato.
-function saneiaContatoV2(v: unknown): Contato | null {
+// "Sem nome", colunaId ausente ou invalido cai na primeira coluna do funil (e
+// marca pra salvar). So um valor que nao e nem objeto se perde de fato.
+function saneiaContato(
+  v: unknown,
+  colunasValidas: Set<string>,
+  primeira: string,
+  marcar: () => void,
+): Contato | null {
   if (!v || typeof v !== "object") return null;
   const contato = v as Record<string, unknown>;
   const id =
@@ -200,9 +246,17 @@ function saneiaContatoV2(v: unknown): Contato | null {
   const nome =
     typeof contato.nome === "string" && contato.nome.trim() ? contato.nome : "Sem nome";
   const agora = new Date().toISOString();
+  let colunaId: string;
+  if (typeof contato.colunaId === "string" && colunasValidas.has(contato.colunaId)) {
+    colunaId = contato.colunaId;
+  } else {
+    colunaId = primeira;
+    marcar();
+  }
   const saida: Contato = {
     id,
     nome,
+    colunaId,
     tags: Array.isArray(contato.tags)
       ? contato.tags.filter((tag): tag is string => typeof tag === "string")
       : [],
@@ -229,8 +283,7 @@ function saneiaNegocio(v: unknown): Negocio | null {
   if (
     typeof negocio.id !== "string" ||
     typeof negocio.titulo !== "string" ||
-    typeof negocio.contatoId !== "string" ||
-    typeof negocio.colunaId !== "string"
+    typeof negocio.contatoId !== "string"
   ) {
     return null;
   }
@@ -239,7 +292,6 @@ function saneiaNegocio(v: unknown): Negocio | null {
     id: negocio.id,
     titulo: negocio.titulo,
     contatoId: negocio.contatoId,
-    colunaId: negocio.colunaId,
     criadoEm: dataValida(negocio.criadoEm, agora),
     atualizadoEm: dataValida(negocio.atualizadoEm, agora),
   };
@@ -248,26 +300,29 @@ function saneiaNegocio(v: unknown): Negocio | null {
   return saida;
 }
 
-// Fallback em vez de descarte: id ausente ganha um id novo, nome ausente vira
-// "Sem nome", colunaId ausente cai na primeira coluna do funil. So um valor que
-// nao e nem objeto se perde de fato.
+// Migra um contato do CRM v1 (quando o contato ja carregava colunaId e valor).
+// O contato herda o estagio; o valor, se houver, vira um negocio sem estagio.
 function migrarContatoV1(
   v: unknown,
-  colunaPadraoId: string,
-): { contato: Contato; negocio: Negocio } | null {
+  primeira: string,
+  colunasValidas: Set<string>,
+): { contato: Contato; negocio: Negocio | null } | null {
   if (!v || typeof v !== "object") return null;
   const antigo = v as Record<string, unknown>;
   const id = typeof antigo.id === "string" && antigo.id ? antigo.id : gerarId("c");
   const nome =
     typeof antigo.nome === "string" && antigo.nome.trim() ? antigo.nome : "Sem nome";
   const colunaId =
-    typeof antigo.colunaId === "string" && antigo.colunaId ? antigo.colunaId : colunaPadraoId;
+    typeof antigo.colunaId === "string" && colunasValidas.has(antigo.colunaId)
+      ? antigo.colunaId
+      : primeira;
   const agora = new Date().toISOString();
   const criadoEm = dataValida(antigo.criadoEm, agora);
   const atualizadoEm = dataValida(antigo.atualizadoEm, criadoEm);
   const contato: Contato = {
     id,
     nome,
+    colunaId,
     tags: Array.isArray(antigo.tags)
       ? antigo.tags.filter((tag): tag is string => typeof tag === "string")
       : [],
@@ -290,17 +345,42 @@ function migrarContatoV1(
   };
   copiarCamposContato(contato, antigo);
 
-  const negocio: Negocio = {
-    id: `n-${id}`,
-    titulo: nome,
-    contatoId: id,
-    colunaId,
-    criadoEm,
-    atualizadoEm,
-  };
   const valor = numeroPreservado(antigo.valorEstimado);
-  if (valor !== undefined) negocio.valorEstimado = valor;
+  const negocio: Negocio | null = valor !== undefined
+    ? {
+        id: `n-${id}`,
+        titulo: nome,
+        contatoId: id,
+        valorEstimado: valor,
+        criadoEm,
+        atualizadoEm,
+      }
+    : null;
   return { contato, negocio };
+}
+
+// Estagio implicito de cada contato na migracao v2 para v3: o contato herda a
+// coluna do seu negocio mais recente (a v2 punha o estagio no negocio). Contato
+// sem negocio cai na primeira coluna.
+function estagiosDosNegociosV2(
+  negocios: unknown,
+  colunasValidas: Set<string>,
+): Map<string, string> {
+  const mapa = new Map<string, { colunaId: string; quando: number }>();
+  if (!Array.isArray(negocios)) return new Map();
+  for (const bruto of negocios) {
+    if (!bruto || typeof bruto !== "object") continue;
+    const n = bruto as Record<string, unknown>;
+    if (typeof n.contatoId !== "string" || typeof n.colunaId !== "string") continue;
+    if (!colunasValidas.has(n.colunaId)) continue;
+    const instante = typeof n.atualizadoEm === "string" ? Date.parse(n.atualizadoEm) : NaN;
+    const quando = Number.isNaN(instante) ? 0 : instante;
+    const anterior = mapa.get(n.contatoId);
+    if (!anterior || quando >= anterior.quando) {
+      mapa.set(n.contatoId, { colunaId: n.colunaId, quando });
+    }
+  }
+  return new Map([...mapa].map(([id, { colunaId }]) => [id, colunaId]));
 }
 
 // Funcao pura exportada para testar a migracao sem tocar nos dados reais.
@@ -317,45 +397,72 @@ export function normalizarEstadoCrm(bruto: unknown): ResultadoNormalizacaoCrm | 
     colunas = colunasPadrao();
     precisaSalvar = true;
   }
+  const colunasValidas = new Set(colunas.map((coluna) => coluna.id));
+  const primeira = ordenarColunas(colunas)[0].id;
 
-  if (dados.versao === 2) {
+  // v3: contato ja tem estagio, negocio ja e so valor.
+  if (dados.versao === 3) {
     const contatos = Array.isArray(dados.contatos)
-      ? dados.contatos.map(saneiaContatoV2).filter((c): c is Contato => c !== null)
+      ? dados.contatos
+          .map((c) => saneiaContato(c, colunasValidas, primeira, () => { precisaSalvar = true; }))
+          .filter((c): c is Contato => c !== null)
       : [];
+    const contatosValidos = new Set(contatos.map((c) => c.id));
     const negociosSaneados = Array.isArray(dados.negocios)
       ? dados.negocios.map(saneiaNegocio).filter((n): n is Negocio => n !== null)
       : [];
-    const contatosValidos = new Set(contatos.map((contato) => contato.id));
-    const colunasValidas = new Set(colunas.map((coluna) => coluna.id));
-    const negocios = negociosSaneados
-      .filter((negocio) => contatosValidos.has(negocio.contatoId))
-      .map((negocio) => {
-        if (colunasValidas.has(negocio.colunaId)) return negocio;
-        precisaSalvar = true;
-        return { ...negocio, colunaId: colunas[0].id };
-      });
+    const negocios = negociosSaneados.filter((n) => contatosValidos.has(n.contatoId));
     if (negocios.length !== negociosSaneados.length) precisaSalvar = true;
     return {
-      estado: { versao: 2, colunas: ordenarColunas(colunas), contatos, negocios },
+      estado: { versao: 3, colunas: ordenarColunas(colunas), contatos, negocios },
       precisaSalvar,
     };
   }
 
-  const colunaPadraoId = colunas[0].id;
-  const colunasValidas = new Set(colunas.map((coluna) => coluna.id));
+  // v2: o estagio vivia no negocio. Cada contato herda o estagio do seu negocio
+  // mais recente; os negocios perdem o estagio e viram so valor.
+  if (dados.versao === 2) {
+    precisaSalvar = true;
+    const estagios = estagiosDosNegociosV2(dados.negocios, colunasValidas);
+    const contatos = Array.isArray(dados.contatos)
+      ? dados.contatos
+          .map((c) => {
+            const raw = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
+            const id = typeof raw.id === "string" ? raw.id : "";
+            const colunaId =
+              typeof raw.colunaId === "string" && colunasValidas.has(raw.colunaId)
+                ? raw.colunaId
+                : estagios.get(id);
+            return saneiaContato({ ...raw, colunaId }, colunasValidas, primeira, () => {});
+          })
+          .filter((c): c is Contato => c !== null)
+      : [];
+    const contatosValidos = new Set(contatos.map((c) => c.id));
+    const negocios = Array.isArray(dados.negocios)
+      ? dados.negocios
+          .map(saneiaNegocio)
+          .filter((n): n is Negocio => n !== null)
+          .filter((n) => contatosValidos.has(n.contatoId))
+      : [];
+    return {
+      estado: { versao: 3, colunas: ordenarColunas(colunas), contatos, negocios },
+      precisaSalvar,
+    };
+  }
+
+  // v1: contato carregava colunaId e valor. Migra pro modelo novo.
+  precisaSalvar = true;
   const migrados = Array.isArray(dados.contatos)
     ? dados.contatos
-        .map((contato) => migrarContatoV1(contato, colunaPadraoId))
-        .filter((item): item is { contato: Contato; negocio: Negocio } => item !== null)
+        .map((contato) => migrarContatoV1(contato, primeira, colunasValidas))
+        .filter((item): item is { contato: Contato; negocio: Negocio | null } => item !== null)
     : [];
-  const negocios = migrados.map((item) =>
-    colunasValidas.has(item.negocio.colunaId)
-      ? item.negocio
-      : { ...item.negocio, colunaId: colunaPadraoId },
-  );
+  const negocios = migrados
+    .map((item) => item.negocio)
+    .filter((n): n is Negocio => n !== null);
   return {
     estado: {
-      versao: 2,
+      versao: 3,
       colunas: ordenarColunas(colunas),
       contatos: migrados.map((item) => item.contato),
       negocios,
@@ -426,12 +533,12 @@ function emitirCrm(tipo: string, dados: Record<string, unknown>): void {
 export function lerEstado(): EstadoCrm {
   const caminho = caminhoAtivo();
   if (!caminho) {
-    return { versao: 2, colunas: colunasPadrao(), contatos: [], negocios: [] };
+    return { versao: 3, colunas: colunasPadrao(), contatos: [], negocios: [] };
   }
   const existente = lerEstadoCrmDeArquivo(caminho);
   if (existente) return existente;
   const inicial: EstadoCrm = {
-    versao: 2,
+    versao: 3,
     colunas: colunasPadrao(),
     contatos: [],
     negocios: [],
@@ -522,12 +629,20 @@ function definirOpcional(
   else contato[campo] = valor;
 }
 
+function colunaValidaOuPrimeira(estado: EstadoCrm, v: unknown): string {
+  if (typeof v === "string" && estado.colunas.some((coluna) => coluna.id === v)) {
+    return v;
+  }
+  return primeiraColuna(estado).id;
+}
+
 export function criarContato(corpo: Record<string, unknown>): Contato {
   const estado = lerEstadoMutavel();
   const agora = new Date().toISOString();
   const contato: Contato = {
     id: gerarId("c"),
     nome: textoObrigatorio(corpo.nome, "Nome"),
+    colunaId: colunaValidaOuPrimeira(estado, corpo.colunaId),
     tags: normalizaTags(corpo.tags),
     interacoes: [],
     tarefas: [],
@@ -541,6 +656,8 @@ export function criarContato(corpo: Record<string, unknown>): Contato {
     const data = normalizaDataOpcional(corpo.proximoContato, "Proximo contato");
     if (data) contato.proximoContato = data;
   }
+  const lead = saneiaLead(corpo.lead);
+  if (lead) contato.lead = lead;
   estado.contatos.push(contato);
   salvar(estado);
   emitirCrm("crm:contato-criado", { contato });
@@ -563,6 +680,57 @@ export function atualizarContato(id: string, corpo: Record<string, unknown>): Co
   contato.atualizadoEm = new Date().toISOString();
   salvar(estado);
   emitirCrm("crm:contato-atualizado", { contato });
+  return contato;
+}
+
+// A ordem do array de contatos e a ordem visual do quadro, entao soltar um
+// cartao numa posicao precisa reposicionar o item de verdade. Insere no bloco
+// da coluna de destino, mantendo os blocos contiguos. Generica sobre qualquer
+// item com id e colunaId (contato hoje; negocio era assim na v2).
+export function posicionarNoFunil<T extends { id: string; colunaId: string }>(
+  itens: T[],
+  item: T,
+  indice: number,
+): T[] {
+  const outros = itens.filter((i) => i.id !== item.id);
+  const daColuna = outros
+    .map((i, global) => ({ i, global }))
+    .filter(({ i }) => i.colunaId === item.colunaId);
+  const alvo = Math.max(0, Math.min(Math.trunc(indice), daColuna.length));
+  const onde = alvo >= daColuna.length
+    ? (daColuna.length ? daColuna[daColuna.length - 1].global + 1 : outros.length)
+    : daColuna[alvo].global;
+  outros.splice(onde, 0, item);
+  return outros;
+}
+
+// Move um CONTATO de estagio (e, quando pedido, reposiciona na coluna). Emite o
+// mesmo evento crm:contato-movido de antes, agora disparado pela ficha e nao
+// pelo negocio, o que mantem as automacoes de mudanca de estagio funcionando.
+export function moverContato(id: string, corpo: Record<string, unknown>): Contato {
+  const estado = lerEstadoMutavel();
+  const contato = acharContato(estado, id);
+  const colunaId = textoObrigatorio(corpo.colunaId, "Coluna");
+  const colunaPara = acharColuna(estado, colunaId);
+  const colunaDe = contato.colunaId;
+  const nomeColunaDe = estado.colunas.find((coluna) => coluna.id === colunaDe)?.nome ?? "";
+  contato.colunaId = colunaId;
+  contato.atualizadoEm = new Date().toISOString();
+  if (typeof corpo.indice === "number" && Number.isFinite(corpo.indice)) {
+    estado.contatos = posicionarNoFunil(estado.contatos, contato, corpo.indice);
+  }
+  salvar(estado);
+  // So avisa o barramento quando a coluna mudou de verdade. Reordenar dentro da
+  // mesma coluna nao pode disparar automacao de mudanca de estagio.
+  if (colunaDe !== colunaId) {
+    emitirCrm("crm:contato-movido", {
+      contato,
+      colunaDe,
+      colunaPara: colunaId,
+      nomeColunaDe,
+      nomeColunaPara: colunaPara.nome,
+    });
+  }
   return contato;
 }
 
@@ -662,20 +830,17 @@ export function removerTarefa(id: string): void {
   salvar(estado);
 }
 
+// Negocio e valor/oportunidade preso a um contato. Nao tem estagio: quem caminha
+// no funil e o contato.
 export function criarNegocio(corpo: Record<string, unknown>): Negocio {
   const estado = lerEstadoMutavel();
   const contatoId = textoObrigatorio(corpo.contatoId, "Contato");
   const contato = acharContato(estado, contatoId);
-  const colunaId = corpo.colunaId === undefined || corpo.colunaId === null || corpo.colunaId === ""
-    ? primeiraColuna(estado).id
-    : textoObrigatorio(corpo.colunaId, "Coluna");
-  acharColuna(estado, colunaId);
   const agora = new Date().toISOString();
   const negocio: Negocio = {
     id: gerarId("n"),
     titulo: textoObrigatorio(corpo.titulo, "Titulo do negocio"),
     contatoId,
-    colunaId,
     criadoEm: agora,
     atualizadoEm: agora,
   };
@@ -696,11 +861,6 @@ export function atualizarNegocio(id: string, corpo: Record<string, unknown>): Ne
     acharContato(estado, contatoId);
     negocio.contatoId = contatoId;
   }
-  if ("colunaId" in corpo) {
-    const colunaId = textoObrigatorio(corpo.colunaId, "Coluna");
-    acharColuna(estado, colunaId);
-    negocio.colunaId = colunaId;
-  }
   if ("valorEstimado" in corpo) {
     const valor = normalizaValor(corpo.valorEstimado);
     if (valor === undefined) delete negocio.valorEstimado;
@@ -720,28 +880,6 @@ export function removerNegocio(id: string): void {
   estado.negocios = estado.negocios.filter((item) => item.id !== id);
   salvar(estado);
   emitirCrm("crm:negocio-excluido", contato ? { contato, negocio } : { negocio });
-}
-
-export function moverNegocio(id: string, corpo: Record<string, unknown>): Negocio {
-  const estado = lerEstadoMutavel();
-  const negocio = acharNegocio(estado, id);
-  const contato = acharContato(estado, negocio.contatoId);
-  const colunaId = textoObrigatorio(corpo.colunaId, "Coluna");
-  const colunaPara = acharColuna(estado, colunaId);
-  const colunaDe = negocio.colunaId;
-  const nomeColunaDe = estado.colunas.find((coluna) => coluna.id === colunaDe)?.nome ?? "";
-  negocio.colunaId = colunaId;
-  negocio.atualizadoEm = new Date().toISOString();
-  salvar(estado);
-  emitirCrm("crm:contato-movido", {
-    contato,
-    negocio,
-    colunaDe,
-    colunaPara: colunaId,
-    nomeColunaDe,
-    nomeColunaPara: colunaPara.nome,
-  });
-  return negocio;
 }
 
 export function criarColuna(corpo: Record<string, unknown>): Coluna {
@@ -773,10 +911,12 @@ export function removerColuna(id: string): void {
   }
   const restantes = ordenarColunas(estado.colunas.filter((coluna) => coluna.id !== id));
   const destino = restantes[0].id;
-  for (const negocio of estado.negocios) {
-    if (negocio.colunaId === id) {
-      negocio.colunaId = destino;
-      negocio.atualizadoEm = new Date().toISOString();
+  // Os contatos daquela coluna caem na primeira que sobrar, pra nenhum sumir do
+  // quadro.
+  for (const contato of estado.contatos) {
+    if (contato.colunaId === id) {
+      contato.colunaId = destino;
+      contato.atualizadoEm = new Date().toISOString();
     }
   }
   estado.colunas = restantes;

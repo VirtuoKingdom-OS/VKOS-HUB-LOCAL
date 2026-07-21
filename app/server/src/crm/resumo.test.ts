@@ -7,11 +7,12 @@ import { montarResumoCrm } from "./resumo.js";
 function estadoComVoz(texto: string): EstadoCrm {
   const agora = Date.now();
   return {
-    versao: 2,
+    versao: 3,
     colunas: [{ id: "novo", nome: "Novo", ordem: 0 }],
     contatos: [{
       id: "c-1",
       nome: "Maria Sobrenome",
+      colunaId: "novo",
       empresa: "Empresa privada",
       telefone: "+55 (11) 99999-8888",
       email: "maria.secreta@example.com",
@@ -31,7 +32,6 @@ function estadoComVoz(texto: string): EstadoCrm {
       id: "n-1",
       titulo: "Orcamento",
       contatoId: "c-1",
-      colunaId: "novo",
       valorEstimado: 2500,
       criadoEm: new Date(agora).toISOString(),
       atualizadoEm: new Date(agora).toISOString(),
@@ -47,7 +47,7 @@ test("resumo agrega o funil e remove telefone, email e nome completo", () => {
   estado.contatos[0].tags.push("11999998888");
   const resumo = montarResumoCrm(estado);
   assert.ok(resumo);
-  assert.match(resumo, /\[email removido\]: 1 negocio\(s\), valor 2\.500,00/);
+  assert.match(resumo, /\[email removido\]: 1 contato\(s\), valor 2\.500,00/);
   assert.match(resumo, /Maria \(mensagem\)/);
   assert.doesNotMatch(resumo, /Sobrenome/);
   assert.doesNotMatch(resumo, /maria\.secreta@example\.com/i);
@@ -66,5 +66,5 @@ test("resumo respeita o teto de 8 KB", () => {
 });
 
 test("resumo vazio nao injeta contexto", () => {
-  assert.equal(montarResumoCrm({ versao: 2, colunas: [], contatos: [], negocios: [] }), null);
+  assert.equal(montarResumoCrm({ versao: 3, colunas: [], contatos: [], negocios: [] }), null);
 });

@@ -21,6 +21,7 @@ import {
   substituirUrlFundo,
   type AlvoImagemCapturado,
 } from "./imagens";
+import type { DirecaoCamada, ItemCamada } from "./PainelCamadas";
 
 // ============================================================================
 // CONTRATO PUBLICO DO usarMotorSite
@@ -96,6 +97,14 @@ import {
 //       rotulo: nome amigavel (titulo interno ou tipo do bloco + posicao).
 //       tag: nome da tag em minusculas.
 //       selecionada: a secao e o elemento selecionado agora.
+//   camadas: ItemCamada[]
+//     Camadas da secao que contem a selecao atual, em ordem de fluxo (a
+//     primeira da lista e a primeira no DOM, o topo da secao). Dois niveis:
+//     filhos diretos da secao e, quando o filho e um conteiner, os filhos
+//     diretos dele. Vazio sem selecao dentro de uma secao. Formato do
+//     PainelCamadas compartilhado (id data-vk, papel, conteudo, setas).
+//   camadaSelecionadaId: string | null
+//     data-vk do selecionado quando ele aparece na lista de camadas.
 //   vars: VarCss[]
 //     Variaveis de cor do :root da pagina (nome + valor efetivo). Sao as cores
 //     globais que o painel lista e sobrescreve por aplicarVar.
@@ -124,6 +133,20 @@ import {
 //   aplicarVar(nome: string, valor: string): void
 //     Sobrescreve uma variavel de cor global num bloco :root dentro da folha
 //     vkos-ajustes (a folha original da pagina nunca e tocada). Desfazivel.
+//   selecionarCamada(id: string): void
+//     Seleciona no canvas o elemento da camada (id data-vk) e rola ate ele.
+//   moverCamada(id: string, direcao: "acima" | "abaixo"): void
+//     Troca o elemento com o vizinho de mesmo pai na ordem do DOM. Site e
+//     fluxo: "acima" sobe na pagina (antes no DOM), sem mexer em z-index.
+//     Desfazivel; suja o documento.
+//   inserirImagemLivre(file: File): Promise<void>
+//     Faz upload do arquivo e insere um <img> de bloco no FIM da secao que
+//     contem a selecao atual (largura 100% da coluna, altura automatica). A
+//     largura maxima e ajustavel pelo campo do painel (max-width). Rejeita sem
+//     selecao dentro de uma secao. Desfazivel.
+//   capturarInsercaoImagem(): AlvoImagemCapturado | null
+//     Mesma insercao, mas pro fluxo das fontes de dados: devolve o alvo com
+//     contexto da secao e aplicar(caminhoRelativo). Null sem secao de contexto.
 //   selecionarSecao(id: string): void
 //     Seleciona a secao pelo id (realce + selecao no painel).
 //   moverSecao(id: string, direcao: "cima" | "baixo"): void
@@ -183,6 +206,9 @@ export interface SelecaoSite {
   ehImagem: boolean;
   src: string;
   tipoImagem: "img" | "fundo" | null;
+  // Largura maxima efetiva da <img> em px (max-width computado, senao a largura
+  // renderizada). 0 quando o selecionado nao e uma tag img.
+  larguraMax: number;
   ehSecao: boolean;
   fonte: string;
   tamanho: number;
@@ -206,6 +232,8 @@ export interface MotorSite {
   podeDesfazer: boolean;
   selecao: SelecaoSite | null;
   secoes: SecaoSite[];
+  camadas: ItemCamada[];
+  camadaSelecionadaId: string | null;
   vars: VarCss[];
   fontesOpc: string[];
   aplicarTexto(v: string): void;
@@ -217,6 +245,10 @@ export interface MotorSite {
   excluirSelecionado(): void;
   capturarImagemSelecionada(): AlvoImagemCapturado | null;
   aplicarVar(nome: string, valor: string): void;
+  selecionarCamada(id: string): void;
+  moverCamada(id: string, direcao: DirecaoCamada): void;
+  inserirImagemLivre(file: File): Promise<void>;
+  capturarInsercaoImagem(): AlvoImagemCapturado | null;
   selecionarSecao(id: string): void;
   moverSecao(id: string, direcao: "cima" | "baixo"): void;
   duplicarSecao(id: string): void;
@@ -272,6 +304,8 @@ export function usarMotorSite(
   const [podeDesfazer, setPodeDesfazer] = useState(false);
   const [selecao, setSelecao] = useState<SelecaoSite | null>(null);
   const [secoes, setSecoes] = useState<SecaoSite[]>([]);
+  const [camadas, setCamadas] = useState<ItemCamada[]>([]);
+  const [camadaSelecionadaId, setCamadaSelecionadaId] = useState<string | null>(null);
   const [vars, setVars] = useState<VarCss[]>([]);
   const [fontesOpc, setFontesOpc] = useState<string[]>([]);
 
@@ -462,6 +496,11 @@ export function usarMotorSite(
         ? rgbParaHex(bg) || ""
         : "";
     const pai = el.parentElement;
+    // Largura maxima da <img>: o max-width computado quando ha um definido,
+    // senao a largura renderizada (ponto de partida honesto pro campo).
+    const larguraMax = ehImg
+      ? Math.round(parseFloat(cs.maxWidth) || el.getBoundingClientRect().width)
+      : 0;
     return {
       tag: el.tagName.toLowerCase(),
       classes: Array.from(el.classList).filter((c) => c !== "").join(" "),
@@ -475,6 +514,7 @@ export function usarMotorSite(
       ehImagem: ehImg || !!srcFundo,
       src: ehImg ? (el as HTMLImageElement).getAttribute("src") || "" : srcFundo,
       tipoImagem: ehImg ? "img" : srcFundo ? "fundo" : null,
+      larguraMax,
       ehSecao: ehSecaoEl(el),
       fonte: familia,
       tamanho: Math.round(parseFloat(cs.fontSize) || 0),
@@ -494,6 +534,7 @@ export function usarMotorSite(
     selRef.current = el;
     setSelecao(propsDe(el));
     marcarSecaoSelecionada();
+    relistarCamadas();
   }
 
   function ressincronizarSelecao() {
@@ -503,6 +544,7 @@ export function usarMotorSite(
       selRef.current = null;
       setSelecao(null);
     }
+    relistarCamadas();
   }
 
   function limparSelecao() {
@@ -512,6 +554,7 @@ export function usarMotorSite(
     selRef.current = null;
     setSelecao(null);
     marcarSecaoSelecionada();
+    relistarCamadas();
   }
 
   function selecionarPai(): void {
@@ -531,6 +574,7 @@ export function usarMotorSite(
     setSelecao(null);
     marcarMudou();
     relistarSecoes(doc);
+    relistarCamadas();
   }
 
   // ===== Edicao de texto in-place (duplo clique), via nucleo.
@@ -788,6 +832,159 @@ export function usarMotorSite(
     el.remove();
     marcarMudou();
     relistarSecoes(doc);
+    relistarCamadas();
+  }
+
+  // ===== Camadas da secao (E4): dois niveis, ordem de fluxo do DOM.
+  // A secao de contexto e a que contem a selecao atual (ou e a propria
+  // selecao). Sem selecao dentro de uma secao, a lista fica vazia.
+  function secaoDaSelecao(): HTMLElement | null {
+    const sel = selRef.current;
+    if (!sel || !sel.isConnected) return null;
+    for (const el of secoesRef.current.values()) {
+      if (el === sel || el.contains(sel)) return el;
+    }
+    return null;
+  }
+
+  // Filhos elegiveis pra camada: qualquer elemento util, sem o filtro de
+  // altura das secoes (um enfeite baixinho tambem e camada).
+  function filhosCamada(el: Element): HTMLElement[] {
+    return Array.from(el.children).filter(
+      (f): f is HTMLElement => f.nodeType === 1 && !NAO_SECAO.has(f.tagName),
+    );
+  }
+
+  function primeirasPalavras(el: HTMLElement, max = 28): string {
+    const t = (el.textContent || "").replace(/\s+/g, " ").trim();
+    return t.length > max ? t.slice(0, max) + "..." : t;
+  }
+
+  // Papel deduzido pro nome amigavel, mesmo criterio do carrossel.
+  function papelDe(el: HTMLElement): string {
+    const cs = el.ownerDocument.defaultView?.getComputedStyle(el);
+    if (el.tagName === "IMG" || extrairUrlFundo(cs?.backgroundImage || "")) {
+      return "Imagem";
+    }
+    if (cs?.pointerEvents === "none" || el.getAttribute("aria-hidden") === "true") {
+      return "Enfeite";
+    }
+    if (temTextoProprio(el) && soFilhosInlineComputado(el)) return "Texto";
+    return "Bloco";
+  }
+
+  function itemCamadaDe(el: HTMLElement, nivel: 0 | 1, ordem: HTMLElement[]): ItemCamada {
+    const i = ordem.indexOf(el);
+    const papel = papelDe(el);
+    return {
+      id: garantirVkId(el),
+      nome: papel,
+      conteudo: papel === "Texto" ? primeirasPalavras(el) : "",
+      detalhe:
+        el.tagName.toLowerCase() +
+        (el.classList.length ? "." + Array.from(el.classList).join(".") : ""),
+      nivel,
+      podeSubir: i > 0,
+      podeDescer: i >= 0 && i < ordem.length - 1,
+    };
+  }
+
+  // Um conteiner (bloco sem texto corrido proprio) aninha os filhos diretos um
+  // nivel. Dois niveis bastam pra anatomia das secoes geradas.
+  function ehConteinerCamada(el: HTMLElement): boolean {
+    if (el.children.length === 0) return false;
+    return !(temTextoProprio(el) && soFilhosInlineComputado(el));
+  }
+
+  function relistarCamadas() {
+    const secao = secaoDaSelecao();
+    if (!secao) {
+      setCamadas([]);
+      setCamadaSelecionadaId(null);
+      return;
+    }
+    const itens: ItemCamada[] = [];
+    const topo = filhosCamada(secao);
+    topo.forEach((el) => {
+      itens.push(itemCamadaDe(el, 0, topo));
+      if (ehConteinerCamada(el)) {
+        const filhos = filhosCamada(el);
+        filhos.forEach((f) => itens.push(itemCamadaDe(f, 1, filhos)));
+      }
+    });
+    setCamadas(itens);
+    const selId = selRef.current?.getAttribute("data-vk") || null;
+    setCamadaSelecionadaId(selId && itens.some((i) => i.id === selId) ? selId : null);
+  }
+
+  function selecionarCamada(id: string): void {
+    const el = getDoc()?.querySelector<HTMLElement>(`[data-vk="${id}"]`);
+    if (!el) return;
+    selecionar(el);
+    el.scrollIntoView({ block: "nearest" });
+  }
+
+  // Site e fluxo: reordenar e trocar de lugar no DOM com o vizinho de mesmo
+  // pai. "acima" sobe na pagina (antes no DOM). Sem mexer em z-index.
+  function moverCamada(id: string, direcao: DirecaoCamada): void {
+    const doc = getDoc();
+    const el = doc?.querySelector<HTMLElement>(`[data-vk="${id}"]`);
+    const pai = el?.parentElement;
+    if (!doc || !el || !pai) return;
+    const ordem = filhosCamada(pai);
+    const i = ordem.indexOf(el);
+    const j = direcao === "acima" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= ordem.length) return;
+    snapshot();
+    if (direcao === "acima") pai.insertBefore(el, ordem[j]);
+    else pai.insertBefore(ordem[j], el);
+    marcarMudou();
+    relistarSecoes(doc);
+    relistarCamadas();
+    ressincronizarSelecao();
+  }
+
+  // ===== Imagem propria (E3): <img> de bloco no fim da secao de contexto.
+  // Fluido de proposito (largura 100% da coluna, altura automatica): imagem
+  // absoluta quebra o responsivo do site. O max-width sai do campo do painel.
+  function inserirImagemNaSecao(caminhoRelativo: string): void {
+    const doc = getDoc();
+    const secao = secaoDaSelecao();
+    if (!doc || !secao) throw new Error("Selecione uma seção do site primeiro.");
+    snapshot();
+    const img = doc.createElement("img");
+    img.alt = "";
+    img.style.display = "block";
+    img.style.width = "100%";
+    img.style.height = "auto";
+    img.style.maxWidth = "100%";
+    img.style.marginLeft = "auto";
+    img.style.marginRight = "auto";
+    img.setAttribute("data-vk", "a" + ++contadorVkRef.current);
+    img.src = `${caminhoRelativo}?vk=${Date.now()}`;
+    secao.appendChild(img);
+    marcarMudou();
+    relistarSecoes(doc);
+    selecionar(img);
+  }
+
+  async function inserirImagemLivre(file: File): Promise<void> {
+    if (!secaoDaSelecao()) throw new Error("Selecione uma seção do site primeiro.");
+    const rel = await enviarImagem(optsRef.current.pasta, file);
+    inserirImagemNaSecao(rel);
+  }
+
+  function capturarInsercaoImagem(): AlvoImagemCapturado | null {
+    const secao = secaoDaSelecao();
+    if (!secao) return null;
+    const contexto = (secao.innerText || secao.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 400);
+    return {
+      contexto,
+      aplicar: (caminhoRelativo) => inserirImagemNaSecao(caminhoRelativo),
+    };
   }
 
   // ===== Troca de imagem (mesmo fluxo do carrossel).
@@ -853,6 +1050,7 @@ export function usarMotorSite(
     }
     marcarMudou();
     relistarSecoes(doc);
+    relistarCamadas();
   }
 
   function capturarImagemSelecionada(): AlvoImagemCapturado | null {
@@ -1005,6 +1203,7 @@ export function usarMotorSite(
     setVars(lerVarsRoot(doc));
     setFontesOpc(montarFontes(doc));
     relistarSecoes(doc);
+    relistarCamadas();
   }
 
   // ===== Instrumentacao: liga tudo ao (re)carregar o iframe, limpa no unmount.
@@ -1062,6 +1261,8 @@ export function usarMotorSite(
     podeDesfazer,
     selecao,
     secoes,
+    camadas,
+    camadaSelecionadaId,
     vars,
     fontesOpc,
     aplicarTexto,
@@ -1073,6 +1274,10 @@ export function usarMotorSite(
     excluirSelecionado,
     capturarImagemSelecionada,
     aplicarVar,
+    selecionarCamada,
+    moverCamada,
+    inserirImagemLivre,
+    capturarInsercaoImagem,
     selecionarSecao,
     moverSecao,
     duplicarSecao,

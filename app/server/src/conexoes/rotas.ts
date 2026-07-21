@@ -113,7 +113,7 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
   // descritas na trilha guiada antes do token ser criado.
   app.post("/conexoes/:id/testar", async (requisicao, resposta) => {
     const { id } = requisicao.params as { id: string };
-    if (id !== "github" && id !== "netlify") {
+    if (id !== "github" && id !== "netlify" && id !== "apify") {
       return resposta.status(400).send({ erro: "esta conexao nao tem teste remoto" });
     }
 
@@ -130,10 +130,11 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
         .send({ erro: "ative a conexao e salve um token antes de testar" });
     }
 
-    const url =
-      id === "github"
-        ? "https://api.github.com/user"
-        : "https://api.netlify.com/api/v1/accounts";
+    const url = id === "github"
+      ? "https://api.github.com/user"
+      : id === "netlify"
+        ? "https://api.netlify.com/api/v1/accounts"
+        : "https://api.apify.com/v2/users/me";
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
@@ -153,7 +154,9 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     } catch {
       return resposta
         .status(502)
-        .send({ erro: `nao foi possivel falar com ${id === "github" ? "o GitHub" : "a Netlify"}` });
+        .send({
+          erro: `não foi possível falar com ${id === "github" ? "o GitHub" : id === "netlify" ? "a Netlify" : "a Apify"}`,
+        });
     }
 
     if (!remota.ok) {
@@ -170,6 +173,11 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     if (id === "github") {
       const dados = (await remota.json()) as { login?: string };
       return { ok: true, ...(dados.login ? { conta: dados.login } : {}) };
+    }
+    if (id === "apify") {
+      const dados = (await remota.json()) as { data?: { username?: string } };
+      const conta = dados.data?.username?.trim();
+      return { ok: true, ...(conta ? { conta } : {}) };
     }
     const contas = (await remota.json()) as Array<{ slug?: string }>;
     const slug = contas.find((conta) => conta.slug?.trim())?.slug?.trim();

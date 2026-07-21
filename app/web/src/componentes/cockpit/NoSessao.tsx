@@ -578,7 +578,10 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   const modeloExibido = sessao?.modelo ?? modelo;
   const custoNum =
     typeof sessao?.custoUsd === "number" ? sessao.custoUsd : stream?.custoUsd;
-  const custoEstimado = sessao?.estimado === true || sessao?.provedor === "codex";
+  // Todo custo em dolar e estimativa por tabela de precos, nunca cobranca real,
+  // entao marca como aproximado sempre que ha gasto (inclusive sessao antiga que
+  // gravou estimado=false).
+  const custoEstimado = (custoNum ?? 0) > 0;
   const temTokens =
     typeof sessao?.tokensEntrada === "number" ||
     typeof sessao?.tokensSaida === "number";
@@ -968,8 +971,11 @@ function NoSessaoInterno({ id, data }: NodeProps) {
                   <>
                     {" | "}{custoEstimado ? "~" : ""}${custoNum.toFixed(2)}
                     {custoEstimado && (
-                      <span className="custo-estimado" title="Valor estimado por tokens">
-                        estimado por tokens
+                      <span
+                        className="custo-estimado"
+                        title="Valor aproximado, estimado por tabela de preços. Não é a cobrança real."
+                      >
+                        aproximado
                       </span>
                     )}
                   </>

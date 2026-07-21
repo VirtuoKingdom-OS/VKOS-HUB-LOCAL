@@ -633,7 +633,7 @@ function PassoTeste({
       </div>
       {custo && (
         <p className="setup-custo">
-          Custo {custo.estimado ? "estimado" : "informado pelo motor"}: <strong>{custoFormatado}</strong>
+          Custo aproximado, estimado por tabela de preços: <strong>{custoFormatado}</strong>
         </p>
       )}
       <div className="setup-acoes">

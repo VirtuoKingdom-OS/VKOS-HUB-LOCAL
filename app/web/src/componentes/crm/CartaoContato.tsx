@@ -1,45 +1,51 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { Contato, Negocio } from "../../api/crm";
+import type { Contato } from "../../api/crm";
 import { formatarReais, iniciais } from "./formatos";
 
-// O quadro move negocios. A pessoa aparece como contexto, sem voltar a fundir
-// contato e oportunidade no mesmo objeto.
+// O contato E o cartao do funil. Mostra a pessoa, a soma de valor dos negocios
+// presos a ela e um resumo curto (empresa ou categoria do lead) mais as tags.
 export function CartaoContato({
-  negocio,
   contato,
+  valorTotal,
   arrastando,
   selecionado,
   aoDescer,
 }: {
-  negocio: Negocio;
-  contato?: Contato;
+  contato: Contato;
+  valorTotal: number;
   arrastando: boolean;
   selecionado: boolean;
-  aoDescer: (negocio: Negocio, e: ReactPointerEvent) => void;
+  aoDescer: (contato: Contato, e: ReactPointerEvent) => void;
 }) {
+  const empresa = contato.empresa && contato.empresa !== contato.nome ? contato.empresa : "";
+  const subtitulo = empresa || contato.lead?.categoria || "";
   return (
     <article
       className={`crm-cartao${arrastando ? " arrastando" : ""}${selecionado ? " selecionado" : ""}`}
-      data-cartao={negocio.id}
-      onPointerDown={(e) => aoDescer(negocio, e)}
+      data-cartao={contato.id}
+      onPointerDown={(e) => aoDescer(contato, e)}
     >
       <div className="crm-cartao-topo">
-        <span className="crm-avatar" aria-hidden="true">
-          {iniciais(contato?.nome ?? negocio.titulo)}
-        </span>
+        <span className="crm-avatar" aria-hidden="true">{iniciais(contato.nome)}</span>
         <div className="crm-cartao-id">
-          <span className="crm-cartao-nome">{negocio.titulo}</span>
-          <span className="crm-cartao-empresa">{contato?.nome ?? "Contato indisponivel"}</span>
+          <span className="crm-cartao-nome">{contato.nome}</span>
+          {subtitulo && <span className="crm-cartao-empresa">{subtitulo}</span>}
         </div>
       </div>
 
-      {negocio.valorEstimado !== undefined && (
+      {valorTotal > 0 && (
         <div className="crm-cartao-meta">
-          <span className="crm-valor">{formatarReais(negocio.valorEstimado)}</span>
+          <span className="crm-valor">{formatarReais(valorTotal)}</span>
         </div>
       )}
 
-      {contato?.empresa && <span className="crm-cartao-notas">{contato.empresa}</span>}
+      {contato.tags.length > 0 && (
+        <div className="crm-cartao-tags">
+          {contato.tags.slice(0, 3).map((tag) => (
+            <span className="crm-tag" key={tag}>{tag}</span>
+          ))}
+        </div>
+      )}
     </article>
   );
 }

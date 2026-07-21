@@ -37,10 +37,23 @@ export interface DepsConformidade {
   statusSessao: (id: string) => StatusSessao | undefined;
 }
 
-// Condicao de disparo: skill "site" com pastaAlvo. Ajuste de peca e carrossel nao
-// tem pastaAlvo, entao nao entram. So a geracao guiada de site do wizard preenche.
+// Skills que passam pela conferencia: a geracao guiada de site e o ajuste de
+// site com IA. O ajuste entrou depois: editar um site pronto quebra tanto quanto
+// gerar um site errado (referencia a arquivo inexistente, contraste, vazamento em
+// 390px), e sem laco o erro so aparecia na hora de publicar. Carrossel nao entra:
+// a auditoria e de site.
+const SKILLS_COM_CONFERENCIA = new Set(["site", "ajuste-site"]);
+
+export function skillPassaPelaConferencia(skill: unknown): boolean {
+  return typeof skill === "string" && SKILLS_COM_CONFERENCIA.has(skill);
+}
+
+// Condicao de disparo: skill conferivel com pastaAlvo. A geracao guiada preenche
+// a pastaAlvo pelo contrato do wizard; o ajuste, pela peca aberta na tela.
 export function deveDispararLaco(sessao: Sessao): boolean {
-  return sessao.skill === "site" && typeof sessao.pastaAlvo === "string" && sessao.pastaAlvo.length > 0;
+  return skillPassaPelaConferencia(sessao.skill)
+    && typeof sessao.pastaAlvo === "string"
+    && sessao.pastaAlvo.length > 0;
 }
 
 // Prompt de correcao: curto, cirurgico, com a lista literal dos erros da auditoria.
