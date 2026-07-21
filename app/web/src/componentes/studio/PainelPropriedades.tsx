@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import { IconeCheck, IconeLixeira, IconeSubir } from "../comum/Icones";
 import { Confirmacao } from "../comum/Confirmacao";
 import type { MotorEdicao } from "../editor/motor";
-import { ControlesImagem } from "../editor/ControlesImagem";
+import { ControlesImagem, MenuAdicionarImagem } from "../editor/ControlesImagem";
+import { PainelCamadas } from "../editor/PainelCamadas";
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
 import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import {
@@ -47,6 +48,8 @@ export function PainelPropriedades({
 }: Props) {
   const sel = motor.selecao;
   const [enviando, setEnviando] = useState(false);
+  const [enviandoNova, setEnviandoNova] = useState(false);
+  const [erroNova, setErroNova] = useState<string | null>(null);
   const [erroUpload, setErroUpload] = useState<string | null>(null);
   const [confirmarExclusao, setConfirmarExclusao] = useState<"elemento" | "imagem" | null>(null);
   const [galeriaAberta, setGaleriaAberta] = useState(false);
@@ -92,8 +95,45 @@ export function PainelPropriedades({
     await aplicarImagemDaFonte(pecaPasta, arquivo, alvoGaleria.current);
   }
 
+  // ===== Adicionar imagem livre (E3): computador ou fontes de dados.
+  async function adicionarDoComputador(file: File) {
+    setErroNova(null);
+    setEnviandoNova(true);
+    try {
+      await motor.inserirImagemLivreArquivo(foco, file);
+    } catch (erro) {
+      setErroNova(erro instanceof Error ? erro.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviandoNova(false);
+    }
+  }
+
+  function adicionarDasFontes() {
+    setErroNova(null);
+    alvoGaleria.current = {
+      contexto: "",
+      aplicar: (caminhoRelativo) => motor.inserirImagemLivre(foco, caminhoRelativo),
+    };
+    setGaleriaAberta(true);
+  }
+
+  // Camadas da pagina em foco. Releitura direta a cada render: o motor sobe
+  // versaoDoc a cada mudanca no doc, entao o pai re-renderiza na hora certa.
+  const camadas = motor.pronto ? motor.listarCamadas(foco) : [];
+
   return (
     <aside className="editor-painel studio-painel nowheel">
+      {/* Camadas do slide em foco: seleciona pela lista, sobe e desce. */}
+      <section className="painel-secao">
+        <div className="secao-titulo rotulo-secao">Camadas da página {foco + 1}</div>
+        <PainelCamadas
+          itens={camadas}
+          selecionadoId={sel?.vkId || null}
+          aoSelecionar={motor.selecionarPorId}
+          aoMover={motor.moverCamada}
+        />
+      </section>
+
       {/* Cores globais do tema (variaveis do :root). */}
       <section className="painel-secao">
         <div className="secao-titulo rotulo-secao">Cores do tema</div>
@@ -255,6 +295,45 @@ export function PainelPropriedades({
                 </button>
               </div>
             )}
+
+            {/* Tamanho: alcas interativas nas bordas mais os campos exatos.
+                So elementos absolutos ganham alca (bloco de fluxo nao). */}
+            {sel.redimensionavel && (
+              <div className="campo-tamanho">
+                <span className="posicao-nota">
+                  Arraste as alças nas bordas para redimensionar. No canto, a
+                  imagem mantém a proporção (Shift libera; num bloco, Shift trava).
+                </span>
+                {!sel.ehImagem && (
+                  <div className="campo-tamanho-linha">
+                    <label className="campo">
+                      <span>Largura (px)</span>
+                      <input
+                        type="number"
+                        min={16}
+                        value={sel.larguraPx}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          if (v >= 16) motor.comEstilo("width", `${v}px`, false);
+                        }}
+                      />
+                    </label>
+                    <label className="campo">
+                      <span>Altura (px)</span>
+                      <input
+                        type="number"
+                        min={16}
+                        value={sel.alturaPx}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          if (v >= 16) motor.comEstilo("height", `${v}px`, false);
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -277,22 +356,54 @@ export function PainelPropriedades({
       <section className="painel-secao">
         <div className="secao-titulo rotulo-secao">Imagem da página {foco + 1}</div>
         {sel?.ehImagem ? (
-          <ControlesImagem
-            srcPreview={urlImagemPreview(sel.srcImagem, pecaPasta)}
-            enviando={enviando}
-            gerando={geracaoImagem.gerando}
-            iaDisponivel={geracaoImagem.disponivel}
-            erro={erroUpload || geracaoImagem.erro}
-            aoArquivo={(file) => void aoEscolher(file)}
-            aoAbrirGaleria={abrirGaleria}
-            aoGerar={aoGerar}
-            aoExcluir={() => setConfirmarExclusao("imagem")}
-          />
+          <>
+            <ControlesImagem
+              srcPreview={urlImagemPreview(sel.srcImagem, pecaPasta)}
+              enviando={enviando}
+              gerando={geracaoImagem.gerando}
+              iaDisponivel={geracaoImagem.disponivel}
+              erro={erroUpload || geracaoImagem.erro}
+              aoArquivo={(file) => void aoEscolher(file)}
+              aoAbrirGaleria={abrirGaleria}
+              aoGerar={aoGerar}
+              aoExcluir={() => setConfirmarExclusao("imagem")}
+            />
+            {sel.tipoImagem === "img" && (
+              <label className="campo">
+                <span>Largura (px)</span>
+                <input
+                  type="number"
+                  min={20}
+                  value={sel.larguraPx}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (v > 0) motor.comEstilo("width", `${v}px`, false);
+                  }}
+                />
+                <small className="campo-nota">A altura acompanha a proporção.</small>
+              </label>
+            )}
+          </>
         ) : (
           <p className="painel-vazio">
             Clique em qualquer imagem desta página para trocar, gerar outra ou excluir.
           </p>
         )}
+      </section>
+
+      {/* Adicionar imagem propria como elemento livre da pagina em foco. */}
+      <section className="painel-secao">
+        <div className="secao-titulo rotulo-secao">Adicionar imagem</div>
+        <MenuAdicionarImagem
+          enviando={enviandoNova}
+          erro={erroNova}
+          aoArquivo={(file) => void adicionarDoComputador(file)}
+          aoAbrirGaleria={adicionarDasFontes}
+        />
+        <p className="painel-vazio">
+          A imagem nasce no centro da página {foco + 1}. Arraste pra posicionar e
+          use as camadas pra escolher o que fica na frente.
+        </p>
       </section>
       {confirmarExclusao && sel && (
         <Confirmacao

@@ -209,6 +209,22 @@ const CATALOGO: EntradaCatalogo[] = [
       return { command: process.execPath, args, env };
     },
   },
+  {
+    id: "apify",
+    nome: "Apify (busca de leads)",
+    descricao: "Busca negócios no Google Maps com telefone, site e avaliações.",
+    disponivel: true,
+    transporte: "http",
+    campos: [
+      {
+        chave: "token",
+        rotulo: "Token de API",
+        segredo: true,
+        dica: "Encontre em console.apify.com, em Settings, Integrations",
+      },
+    ],
+    fonte: "Apify REST API v2, Actor compass/crawler-google-places",
+  },
 ];
 
 // Lista completa do catalogo (uso interno do modulo).

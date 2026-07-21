@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { DadosEtapasSite } from "./EtapasSite";
 import { montarPromptSite } from "./promptSite";
+
+// Snapshots do prompt do modo ligado, capturados ANTES do modo economico
+// existir. Provam que o interruptor desligado so troca o Bloco 1 e que o modo
+// ligado continua identico, linha por linha.
+const SNAPSHOT_LIGADO = readFileSync(
+  new URL("./fixtures/prompt-ligado-site.txt", import.meta.url),
+  "utf8"
+);
+const SNAPSHOT_LIGADO_COMPLETO = readFileSync(
+  new URL("./fixtures/prompt-ligado-site-completo.txt", import.meta.url),
+  "utf8"
+);
 
 function dadosBase(): DadosEtapasSite {
   return {
@@ -78,6 +91,54 @@ test("proibe wrapper generico no body, glow no cursor, vidro sem camada e absolu
   // (d) position absolute confinado, conferido em 390px.
   assert.match(prompt, /position absolute precisa estar confinado/);
   assert.match(prompt, /Confira em 390px que nada vaza/);
+});
+
+test("modo ligado gera prompt identico ao snapshot de antes do modo economico", () => {
+  // Sem o campo (rascunho antigo) e com o campo ligado, nos dois formatos.
+  assert.equal(montarPromptSite(dadosBase(), "site-teste"), SNAPSHOT_LIGADO);
+  const ligado = dadosBase();
+  ligado.aprimorarComIA = true;
+  assert.equal(montarPromptSite(ligado, "site-teste"), SNAPSHOT_LIGADO);
+  const completo = dadosBase();
+  completo.formato = "completo";
+  assert.equal(montarPromptSite(completo, "site-teste"), SNAPSHOT_LIGADO_COMPLETO);
+});
+
+test("modo desligado substitui o Bloco 1 de design pelo bloco de montagem", () => {
+  const dados = dadosBase();
+  dados.aprimorarComIA = false;
+  const prompt = montarPromptSite(dados, "site-teste");
+  // O Bloco 1 do modo ligado (cartela e escolha de direcao) some inteiro.
+  assert.doesNotMatch(prompt, /O DESIGN VEM PRIMEIRO/);
+  assert.doesNotMatch(prompt, /templates\/design\/cartela\.md/);
+  assert.doesNotMatch(prompt, /estilos\/indice\.md/);
+  assert.doesNotMatch(prompt, /Declare no início do trabalho/);
+  // No lugar entra o bloco enxuto com o estilo fixo Grade de zinco.
+  assert.match(prompt, /BLOCO 1, DESIGN NO MODO MONTAGEM/);
+  assert.match(prompt, /templates\/design\/estilos\/grade-zinco\.md/);
+  assert.match(prompt, /Não crie direção de arte nova/);
+  assert.match(prompt, /NUNCA cite a marca de origem do estilo/);
+});
+
+test("modo desligado mantem os Blocos 2 e 3 inteiros, com marcadores e contraste", () => {
+  const dados = dadosBase();
+  dados.aprimorarComIA = false;
+  dados.formato = "completo";
+  const prompt = montarPromptSite(dados, "site-teste");
+  // Blocos 2 e 3 e as exigencias finais continuam identicos ao modo ligado:
+  // tudo depois do Bloco 1 bate com o snapshot, pedaco a pedaco.
+  const inicioBloco2 = "BLOCO 2, conteúdo e estrutura.";
+  const caudaEconomico = prompt.slice(prompt.indexOf(inicioBloco2));
+  const caudaLigado = SNAPSHOT_LIGADO_COMPLETO.slice(
+    SNAPSHOT_LIGADO_COMPLETO.indexOf(inicioBloco2)
+  );
+  assert.equal(caudaEconomico, caudaLigado);
+  // Amostras do que o laco de conformidade audita.
+  assert.match(prompt, /<nav data-vk-nav>/);
+  assert.match(prompt, /<footer data-vk-footer>/);
+  assert.match(prompt, /<main data-vk-pagina>/);
+  assert.match(prompt, /4\.5:1 contra o fundo real/);
+  assert.match(prompt, /BLOCO 3, regras técnicas/);
 });
 
 test("visual personalizado troca so as cores e mantem a tipografia do estilo", () => {

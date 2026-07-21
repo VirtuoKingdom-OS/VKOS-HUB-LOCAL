@@ -33,6 +33,7 @@ import { garantirWorkspaceIntegrado } from "./workspaces/integrado.js";
 import { rotasProvedores } from "./provedores/rotas.js";
 import { rotasPublicacao } from "./publicacao/rotas.js";
 import { rotasMapa } from "./mapa.js";
+import { rotasLeads } from "./leads/rotas.js";
 
 const PORTA_PADRAO = 4600;
 const HOST = "127.0.0.1";
@@ -135,6 +136,7 @@ async function subir(): Promise<void> {
   await app.register(rotasIde, { prefix: "/api" });
   await app.register(rotasConexoes, { prefix: "/api" });
   await app.register(rotasCrm, { prefix: "/api" });
+  await app.register(rotasLeads, { prefix: "/api" });
   await app.register(rotasAutomacoes, { prefix: "/api" });
   await app.register(rotasCalendario, { prefix: "/api" });
   await app.register(rotasPublicacao, { prefix: "/api" });

@@ -8,11 +8,13 @@ import { lerCerebro } from "../vkos/cerebro.js";
 import { obterPastaVkos } from "../vkos/estado.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { gerenciador } from "./gerenciador.js";
+import { skillPassaPelaConferencia } from "./conformidade-site.js";
 import { lerTranscricao } from "./transcricao.js";
 import {
   ErroEscopoPeca,
   lerPrincipiosVisuaisSite,
   montarPromptAjustePeca,
+  pastaAlvoDoEscopo,
   resolverEscopoPeca,
   type EscopoPecaSolicitado,
 } from "./escopo-peca.js";
@@ -39,7 +41,8 @@ export function skillExigeCerebro(skill: unknown): boolean {
 // geracao guiada em paralelo com a correcao (A5).
 function conferenciaSiteEmAndamento(sessao: Sessao): boolean {
   const estado = sessao.conferenciaSite?.estado;
-  return sessao.skill === "site" && (estado === "conferindo" || estado === "corrigindo");
+  return skillPassaPelaConferencia(sessao.skill)
+    && (estado === "conferindo" || estado === "corrigindo");
 }
 
 // Carrossel e site escrevem uma arvore inteira dentro de conteudo/. Uma segunda
@@ -118,10 +121,15 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
   app.get("/custos", async () => {
     const ativo = idWorkspaceAtivo();
     const base = ativo ? lerCustos(ativo) : custosVazios();
+    const geralUsd = totalGeralUsd();
+    // O valor em dolar e sempre uma estimativa client-side (tabela de precos),
+    // nao cobranca real. Marca como estimado sempre que ha gasto, inclusive nos
+    // arquivos antigos que gravaram estimado=false antes desta regra.
     return {
       ...base,
-      totalGeralUsd: totalGeralUsd(),
-      totalGeralEstimado: totalGeralEstimado(),
+      estimado: base.estimado || base.totalUsd > 0,
+      totalGeralUsd: geralUsd,
+      totalGeralEstimado: totalGeralEstimado() || geralUsd > 0,
     };
   });
 
@@ -218,11 +226,15 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
 
     let pastaTrabalho = pasta;
     let skill = corpo.skill;
+    // Peca de site ajustada com IA tambem passa pela conferencia. A pasta vem do
+    // escopo ja resolvido e confinado pelo servidor, nunca do corpo HTTP.
+    let pastaAlvoDaPeca: string | undefined;
     if (corpo.escopoPeca !== undefined) {
       try {
         const escopo = resolverEscopoPeca(pasta, corpo.escopoPeca);
         pastaTrabalho = escopo.pastaTrabalho;
         skill = escopo.skill;
+        pastaAlvoDaPeca = pastaAlvoDoEscopo(escopo);
         const principios = escopo.revisaoDesign
           ? lerPrincipiosVisuaisSite(pasta)
           : undefined;
@@ -268,6 +280,7 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
         erro: erro instanceof Error ? erro.message : "pastaAlvo invalida",
       });
     }
+    if (pastaAlvoDaPeca) pastaAlvo = pastaAlvoDaPeca;
     const sessao = gerenciador.criar({
       titulo: corpo.titulo,
       prompt,

@@ -36,14 +36,14 @@ Fecha quando: o Jesse opera arquivos e conversa com o Claude sem abrir o VS Code
 
 ## Fase 5: conexões (MCP) (entregue em 2026-07-13, validar em uso real)
 
-- Entregue: tela #/conexoes por workspace. GitHub, Netlify, Notion e Google Calendar disponíveis. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config dos habilitados. Os tokens de GitHub e Netlify também alimentam a publicação REST de sites, têm configuração guiada e são validados nas APIs oficiais ao salvar.
+- Entregue: tela #/conexoes por workspace. GitHub, Netlify, Notion, Google Calendar e Apify disponíveis. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config somente dos habilitados que montam MCP. Os tokens de GitHub e Netlify alimentam a publicação REST de sites; o token da Apify alimenta a busca REST de leads e fica fora das sessões.
 - Pendência anotada pelo QA: falta ação de "remover token" na tela (desabilitar mantém o segredo no arquivo local).
 Fecha quando: uma sessão usa um MCP conectado pela tela, sem editar JSON na mão.
 
 ## Fase 6: CRM (v2 entregue em 2026-07-16, validar em uso real)
 
-- Entregue: CRM v2 com contatos separados de negócios, migração idempotente dos cartões antigos, linha do tempo de interações, tarefas, próximo contato integrado ao Calendário e eventos compatíveis com Automações.
-- A tela #/crm tem Hoje, Quadro e Contatos. O Quadro move negócios; a lista busca, filtra e ordena fichas; a ficha concentra negócios, interações, tarefas, tags e follow-up.
+- Entregue: CRM v2 com contatos separados de negócios, migração idempotente dos cartões antigos, linha do tempo de interações, tarefas, próximo contato integrado ao Calendário, eventos compatíveis com Automações e entrada confirmada de leads do Google Maps pela Apify.
+- A tela #/crm tem Hoje, Quadro, Contatos e Buscar leads. O Quadro move negócios; a lista busca, filtra e ordena fichas; a ficha concentra negócios, interações, tarefas, tags e follow-up. Buscar leads salva toda mineração antes de responder, mantém listas de Minerados e Arquivados e oferece termo, localização, quantidade e enriquecimento de email. A importação confirmada cria Contatos com origem e tag rastreáveis.
 - Sessões cujo pedido cita CRM recebem um resumo agregado do funil e das vozes dos clientes, com telefone e email removidos e regra dura contra publicar dado pessoal.
 - O Mapa interno em #/mapa documenta os módulos como uma rede didática. Seus dados vivem em `interno/`, fora do pacote de cliente, e o item desaparece quando eles não existem.
 Fecha quando: o Jesse gerencia os clientes da VK pelo CRM do hub.
@@ -52,6 +52,7 @@ Fecha quando: o Jesse gerencia os clientes da VK pelo CRM do hub.
 
 - Carrossel HTML-first com editor, Dashboard com criação guiada e Studio. A sidebar final tem um hub único de Fontes de dados, não mostra promessas de WhatsApp ou Instagram e abre a IDE como camada universal.
 - Em 2026-07-16, o wizard passou a escolher separadamente o estilo da capa e das páginas, com miniaturas reais de capa e página interna. O Studio reutiliza imagens das Fontes de dados copiando-as para dentro da peça.
+- Em 2026-07-20, o Studio ganhou clique geométrico (enfeites com pointer-events none viram selecionáveis), painel de camadas com reordenação e imagem própria posicionável; o wizard ganhou o interruptor "Aprimorar com IA" com modo econômico de montagem. Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 Fecha quando: o Jesse cria um carrossel pelo Dashboard e edita no Studio sem tocar no cockpit.
 
 ## Fase 6.6: Site Guiado (entregue em 2026-07-14, validar em uso real)
@@ -70,6 +71,7 @@ Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e publica.
 
 - A tela do site ganhou o modo Editar: edição manual profissional com painel de propriedades, escopo geral ou só no celular, seções, links, imagens e cores globais, convivendo com o Ajustar com IA. Ver decisoes/2026-07-15-studio-de-site.md.
 - Em 2026-07-16, o editor de imagem ganhou a galeria das Fontes de dados e o Ajustar com IA passou a priorizar anexos prontos, sem gerar substituto quando o pedido manda usar o arquivo enviado.
+- Em 2026-07-20, o modo Editar ganhou o painel de camadas da seção (mesmo componente do Studio) e inserção de imagem própria de bloco; o Ajustar com IA dos dois editores passou a abrir no modelo econômico do provedor. Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 - QA de gesto real em 2026-07-15 com regressão do Studio de carrossel e do Site Guiado limpas; bug de especificidade corrigido e revalidado no site real.
 Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem tocar em arquivo.
 

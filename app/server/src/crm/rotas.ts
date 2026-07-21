@@ -15,7 +15,7 @@ import {
   criarNegocio,
   criarTarefa,
   lerEstado,
-  moverNegocio,
+  moverContato,
   registrarInteracao,
   removerColuna,
   removerContato,
@@ -73,6 +73,17 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
     try {
       removerContato(id);
       return { ok: true };
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  // Move um contato de estagio no funil (e reposiciona na coluna). O contato e
+  // o cartao do quadro; isto e o que dispara crm:contato-movido.
+  app.patch("/crm/contatos/:id/mover", async (req, resposta) => {
+    const { id } = req.params as { id: string };
+    try {
+      return moverContato(id, corpoDe(req));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
@@ -155,15 +166,6 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.patch("/crm/negocios/:id/mover", async (req, resposta) => {
-    const { id } = req.params as { id: string };
-    try {
-      return moverNegocio(id, corpoDe(req));
-    } catch (erro) {
-      return responderErro(erro, resposta);
-    }
-  });
-
   // Cria uma coluna nova no fim do funil.
   app.post("/crm/colunas", async (req, resposta) => {
     try {
@@ -194,7 +196,7 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // Exclui uma coluna. Os negocios dela vao pra primeira coluna que sobrar.
+  // Exclui uma coluna. Os contatos dela vao pra primeira coluna que sobrar.
   app.delete("/crm/colunas/:id", async (req, resposta) => {
     const { id } = req.params as { id: string };
     try {

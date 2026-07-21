@@ -44,6 +44,7 @@ const MODELOS: OpcaoModelo[] = [
     alias: "gpt-5.4-mini",
     rotulo: "GPT-5.4 mini",
     observacaoCusto: "rapido e mais barato",
+    economico: true,
   },
 ];
 

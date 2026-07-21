@@ -60,7 +60,7 @@
       "grupo": "entrada",
       "nome": "Studio de carrossel",
       "resumo": "A bancada onde cada página do carrossel pode ser vista e refinada.",
-      "descricao": "Funciona como uma mesa de diagramação: a peça chega pronta, mas texto, imagem, posição e aparência ainda podem ser ajustados. A IA também pode ajudar sem sair dos limites daquela peça.",
+      "descricao": "Funciona como uma mesa de diagramação: a peça chega pronta, mas texto, imagem, posição e aparência ainda podem ser ajustados. Um painel de camadas lista o que há em cada página, deixa escolher o que fica na frente e aceita imagens próprias como elementos livres. A IA também pode ajudar sem sair dos limites daquela peça.",
       "conversaCom": [
         "pecas",
         "anexos",
@@ -72,7 +72,7 @@
       "grupo": "entrada",
       "nome": "Site Guiado e TelaSite",
       "resumo": "O caminho que transforma uma intenção em site e depois permite revisar cada página.",
-      "descricao": "É a dupla arquiteto e sala de visita. Primeiro, o guia reúne objetivo, estrutura, imagens e direção visual; o servidor confirma o destino e submete a entrega à mesma auditoria do deploy; depois, a TelaSite deixa conferir, editar e preparar a publicação sem esconder pendências. Depois de gerar, o Hub confere o site sozinho com a mesma inspeção da publicação e manda a própria sessão corrigir o que reprovar, até duas voltas, antes de entregar como pronto.",
+      "descricao": "É a dupla arquiteto e sala de visita. Primeiro, o guia reúne objetivo, estrutura, imagens e direção visual; o servidor confirma o destino e submete a entrega à mesma auditoria do deploy; depois, a TelaSite deixa conferir, editar e preparar a publicação sem esconder pendências. A conferência automática cobre os dois momentos em que a IA escreve o site: a geração e cada ajuste pedido na TelaSite. Nos dois casos o Hub roda a mesma inspeção da publicação e manda a própria sessão corrigir o que reprovar, até duas voltas, antes de dar a peça como pronta. Enquanto essa conferência roda, a tela diz que ainda está conferindo ou corrigindo, e nunca anuncia o ajuste como concluído. No modo de edição, um painel de camadas mostra o que compõe cada seção, deixa reordenar e aceita imagens próprias; no guia, o interruptor Aprimorar com IA permite trocar a criação caprichada por uma montagem econômica com estilo fixo, e a conferência roda igual nos dois casos.",
       "conversaCom": [
         "cerebro",
         "anexos",
@@ -97,7 +97,7 @@
       "grupo": "ia",
       "nome": "Sessões de IA, Claude e Codex",
       "resumo": "As conversas de trabalho que leem o contexto, executam pedidos e entregam resultados.",
-      "descricao": "São como profissionais chamados para uma tarefa, cada um com sua própria mesa e memória. O Hub escolhe Claude ou Codex, acompanha o andamento e preserva a conversa para continuar depois.",
+      "descricao": "São como profissionais chamados para uma tarefa, cada um com sua própria mesa e memória. O Hub escolhe Claude ou Codex, acompanha o andamento e preserva a conversa para continuar depois. Cada provedor indica também um modelo econômico, que o Hub sugere nas tarefas simples, como os ajustes pontuais, pra gastar menos onde a inteligência maior não faz diferença.",
       "conversaCom": [
         "cerebro",
         "skills",
@@ -188,13 +188,14 @@
       "id": "crm",
       "grupo": "dados",
       "nome": "CRM",
-      "resumo": "A memória de contatos, negócios, conversas, tarefas e próximos passos.",
-      "descricao": "É a caderneta viva do relacionamento comercial: a pessoa tem uma ficha, e cada oportunidade tem seu próprio caminho. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
+      "resumo": "A memória de contatos, negócios, conversas, tarefas, próximos passos e leads confirmados.",
+      "descricao": "É a caderneta viva do relacionamento comercial: cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. A entrada no CRM bloqueia telefone ou origem já existente e mantém origem e tag rastreáveis. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
       "conversaCom": [
         "sessoes",
         "calendario",
         "barramento",
-        "automacoes"
+        "automacoes",
+        "conexoes"
       ]
     },
     {
@@ -212,14 +213,15 @@
     {
       "id": "conexoes",
       "grupo": "integracoes",
-      "nome": "Conexões MCP",
-      "resumo": "As pontes locais que dão acesso controlado a serviços externos.",
-      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Elas permitem que sessões e publicações alcancem ferramentas externas, mantendo as credenciais guardadas apenas no computador.",
+      "nome": "Conexões",
+      "resumo": "As pontes locais que dão acesso controlado a serviços externos por MCP ou API direta.",
+      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Elas permitem que sessões, publicações, agenda e busca de leads alcancem ferramentas externas, mantendo as credenciais guardadas apenas no computador.",
       "conversaCom": [
         "sessoes",
         "calendario",
         "publicacao",
-        "setup"
+        "setup",
+        "crm"
       ]
     },
     {
@@ -401,6 +403,11 @@
       "rotulo": "autoriza"
     },
     {
+      "de": "conexoes",
+      "para": "crm",
+      "rotulo": "fornece leads"
+    },
+    {
       "de": "crm",
       "para": "calendario",
       "rotulo": "agenda"
@@ -429,6 +436,57 @@
       "de": "ide",
       "para": "sessoes",
       "rotulo": "conversa"
+    }
+  ],
+  "skills": [
+    {
+      "id": "instalar",
+      "nome": "/instalar",
+      "resumo": "A cerimonia que entrevista o dono e preenche o Cerebro do zero.",
+      "cor": "menta",
+      "percurso": ["cockpit", "sessoes", "skills", "cerebro"]
+    },
+    {
+      "id": "carrossel",
+      "nome": "/carrossel",
+      "resumo": "Do tema escolhido no wizard ao carrossel pronto na galeria.",
+      "cor": "amarelo",
+      "percurso": ["dashboard", "sessoes", "skills", "cerebro", "studio-carrossel", "pecas"]
+    },
+    {
+      "id": "stories",
+      "nome": "/stories",
+      "resumo": "Sequencia de stories montada com o mesmo motor do carrossel.",
+      "cor": "amarelo",
+      "percurso": ["dashboard", "sessoes", "skills", "cerebro", "studio-carrossel", "pecas"]
+    },
+    {
+      "id": "site",
+      "nome": "/site",
+      "resumo": "Site guiado que nasce, passa pela conferencia e vai pra publicacao.",
+      "cor": "menta",
+      "percurso": ["site-guiado", "sessoes", "skills", "cerebro", "pecas", "publicacao"]
+    },
+    {
+      "id": "revisar-design",
+      "nome": "/revisar-design",
+      "resumo": "Auditoria de design que revisa a peca pronta e corrige o que reprova.",
+      "cor": "alerta",
+      "percurso": ["site-guiado", "sessoes", "skills", "pecas"]
+    },
+    {
+      "id": "semana",
+      "nome": "/semana",
+      "resumo": "Planejamento do conteudo da semana a partir da identidade do negocio.",
+      "cor": "suave",
+      "percurso": ["cockpit", "sessoes", "skills", "cerebro"]
+    },
+    {
+      "id": "evoluir",
+      "nome": "/evoluir",
+      "resumo": "Evolucao do proprio produto conduzida pelo VKOS-IDE.",
+      "cor": "fraco",
+      "percurso": ["ide", "sessoes", "skills", "cerebro"]
     }
   ]
 }

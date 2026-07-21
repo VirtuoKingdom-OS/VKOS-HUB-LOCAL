@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   ErroEscopoPeca,
   montarPromptAjustePeca,
+  pastaAlvoDoEscopo,
   resolverEscopoPeca,
 } from "./escopo-peca.js";
 
@@ -127,5 +128,34 @@ test("prompt prioriza anexos somente quando o pedido cita a pasta", () => {
     assert.match(comAnexo, /eles sao a fonte preferencial/i);
     assert.match(comAnexo, /Nao gere imagem nova quando um anexo de imagem atende o pedido/i);
     assert.doesNotMatch(semAnexo, /eles sao a fonte preferencial/i);
+  });
+});
+
+// O ajuste de site alimenta o laco de conformidade: sem pastaAlvo, o Hub nao
+// reaudita depois da edicao e o erro so aparece na hora de publicar.
+test("ajuste de site vira alvo de conferencia, ajuste de carrossel nao", () => {
+  comVkos((base) => {
+    const site = resolverEscopoPeca(base, { pasta: "site-a", tipo: "site", arquivo: "index.html" });
+    assert.equal(pastaAlvoDoEscopo(site), "site-a");
+
+    const aninhada = resolverEscopoPeca(base, {
+      pasta: "site-a",
+      tipo: "site",
+      arquivo: "servicos/index.html",
+    });
+    // Vale a peca inteira, nao a pagina aberta: a conferencia audita o site todo.
+    assert.equal(pastaAlvoDoEscopo(aninhada), "site-a");
+
+    const carrossel = resolverEscopoPeca(base, { pasta: "carrossel-a", tipo: "carrossel" });
+    assert.equal(pastaAlvoDoEscopo(carrossel), undefined);
+  });
+});
+
+test("prompt de ajuste proibe referencia a arquivo que nao existe", () => {
+  comVkos((base) => {
+    const escopo = resolverEscopoPeca(base, { pasta: "site-a", tipo: "site", arquivo: "index.html" });
+    const prompt = montarPromptAjustePeca("Coloque minha foto no topo", escopo, "# Cérebro");
+    assert.match(prompt, /REFERENCIA SO PARA ARQUIVO QUE EXISTE/);
+    assert.match(prompt, /nunca invente nome de foto, logo ou icone/i);
   });
 });

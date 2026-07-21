@@ -1,0 +1,28 @@
+/carrossel sete ideias de conteúdo, usando a capa do modelo vkos09 e as paginas do modelo vkos06
+
+CONTRATO OBRIGATÓRIO DOS MODELOS ESCOLHIDOS:
+- Capa: vkos09, arquivo templates/carrossel/modelo-vkos09.html.
+- Páginas de conteúdo e CTA: vkos06, arquivo templates/carrossel/modelo-vkos06.html.
+- Copie primeiro o arquivo de páginas para conteudo/carrossel-teste/carrossel.html. Depois transplante a primeira .slide e somente o CSS necessário da capa vkos09, com classe exclusiva e regras escopadas.
+- Não redesenhe nem substitua esses modelos por uma interpretação parecida. Preserve estrutura, classes, geometria, hierarquia, ritmo, componentes e acabamento dos arquivos escolhidos.
+- Cores, fontes, imagens e instruções finais personalizam o conteúdo dentro dos modelos; não autorizam trocar a anatomia escolhida, salvo pedido explícito do usuário.
+- Antes de concluir, compare o HTML final com os dois arquivos e confirme que a capa vem do modelo de capa e as demais páginas vêm do modelo de páginas, sem vazamento de CSS.
+
+Instrucoes de formato e dimensao desta geracao:
+- Formato: carrossel de varias paginas, como de costume (capa, desenvolvimento e CTA).
+- Proporcao: Retrato 4:5 (1080x1350), o padrao do template. Nao precisa mexer nas dimensoes.
+- Entrega: NAO execute o Passo 5 da skill (renderizar). NAO gere nenhum PNG, NAO rode npm install nem playwright install pra isso. A entrega e so o conteudo/<AAAA-MM-DD>-<tema-curto>/carrossel.html completo e pronto (e a pasta img/ dentro dela, se usar imagem). O app renderiza o PNG sob demanda quando o usuario baixa a peca, entao o render aqui nao serve pra nada.
+- Modo direto: o Cerebro do negocio e todas as informacoes desta geracao ja foram dados. Nao faca nenhuma pergunta, nao ofereca opcoes nem menus, nao sugira /legenda nem outro comando no meio, nao peca confirmacao de estilo. Qualquer lacuna (angulo, numero de paginas, estilo quando nao veio) voce decide sozinho com base no Cerebro e segue ate o fim. Se o modelo escolhido pede imagem de capa e nao ha imagem disponivel, siga sem imagem: a capa funciona sem ela. A resposta final e curta, uma ou duas frases confirmando o caminho da pasta gerada, sem relatorio longo.
+
+Detalhes desta geracao:
+- Salve exatamente em conteudo/carrossel-teste/ (crie a pasta com esse nome exato).
+- O carrossel tem exatamente 3 paginas.
+- Use as imagens anexadas em materiais/cockpit/anexos/imagem.png como imagens das paginas (copie pra img/ da peca).
+- Distribua as imagens pelo contexto de cada pagina. Nao replique a mesma imagem em todas as paginas. Reutilize apenas quando isso fizer sentido editorial.
+- Toda imagem de conteudo precisa ser editavel depois: use <img> ou background-image em um elemento HTML real, nunca em pseudo-elemento CSS.
+- Borda, mascara, sombra e overlay ligados a uma imagem devem ficar no proprio elemento ou no container real que envolve essa imagem, para o Studio excluir o conjunto inteiro.
+
+INSTRUÇÕES FINAIS DO USUÁRIO, preserve integralmente o conteúdo e a ordem quando ele trouxer um roteiro:
+Slide 1: capa forte
+Slide 2: contexto
+Slide 3: CTA

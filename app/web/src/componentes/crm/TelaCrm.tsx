@@ -18,10 +18,11 @@ import {
   excluirContato as apiExcluirContato,
   excluirNegocio as apiExcluirNegocio,
   excluirTarefa as apiExcluirTarefa,
-  moverNegocio as apiMoverNegocio,
+  moverContato as apiMoverContato,
   obterCrm,
   registrarInteracao as apiRegistrarInteracao,
   renomearColuna as apiRenomearColuna,
+  reordenarColunas as apiReordenarColunas,
   type Coluna,
   type Contato,
   type DadosContato,
@@ -34,21 +35,25 @@ import {
   type TipoInteracao,
 } from "../../api/crm";
 import { ColunaCrm } from "./ColunaCrm";
+import { BuscaLeads } from "./BuscaLeads";
 import { PainelContato } from "./PainelContato";
 import { formatarDataHora, formatarDataHoraCurta, formatarReais, iniciais } from "./formatos";
 import { IconeMais, IconeX } from "../comum/Icones";
 import "../../estilos/crm.css";
 
-type AbaCrm = "hoje" | "quadro" | "contatos";
+type AbaCrm = "hoje" | "quadro" | "contatos" | "leads";
 type Ordenacao = "nome" | "interacao" | "valor";
 
 interface Arrasto {
-  negocio: Negocio;
+  contato: Contato;
   x0: number;
   y0: number;
   offX: number;
   offY: number;
   largura: number;
+  altura: number;
+  x: number;
+  y: number;
   moveu: boolean;
 }
 
@@ -57,14 +62,14 @@ interface Alvo {
   indice: number;
 }
 
-function textoCombina(contato: Contato | undefined, negocio: Negocio, termo: string): boolean {
+function contatoCombina(contato: Contato, termo: string): boolean {
   if (!termo) return true;
   const t = termo.toLowerCase();
   return (
-    negocio.titulo.toLowerCase().includes(t) ||
-    (contato?.nome ?? "").toLowerCase().includes(t) ||
-    (contato?.empresa ?? "").toLowerCase().includes(t) ||
-    (contato?.tags ?? []).some((tag) => tag.toLowerCase().includes(t))
+    contato.nome.toLowerCase().includes(t) ||
+    (contato.empresa ?? "").toLowerCase().includes(t) ||
+    (contato.lead?.categoria ?? "").toLowerCase().includes(t) ||
+    contato.tags.some((tag) => tag.toLowerCase().includes(t))
   );
 }
 
@@ -93,11 +98,22 @@ export function TelaCrm() {
     valor: string;
   }>({ aberto: false, contatoId: "", contatoTexto: "", titulo: "", valor: "" });
   const [salvandoNegocio, setSalvandoNegocio] = useState(false);
+  const [novoContatoForm, setNovoContatoForm] = useState<{
+    aberto: boolean;
+    nome: string;
+    empresa: string;
+    telefone: string;
+    email: string;
+  }>({ aberto: false, nome: "", empresa: "", telefone: "", email: "" });
+  const [salvandoContato, setSalvandoContato] = useState(false);
 
   const arrasto = useRef<Arrasto | null>(null);
   const alvoRef = useRef<Alvo | null>(null);
+  const quadroRef = useRef<HTMLDivElement>(null);
+  const fantasmaRef = useRef<HTMLDivElement>(null);
+  const rolagemRef = useRef<number | null>(null);
+  const desligarRef = useRef<() => void>(() => {});
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
-  const [fantasma, setFantasma] = useState<{ x: number; y: number; largura: number } | null>(null);
   const [alvo, setAlvo] = useState<Alvo | null>(null);
 
   const carregar = useCallback(async () => {
@@ -109,6 +125,14 @@ export function TelaCrm() {
       setErro(e instanceof Error ? e.message : "Nao deu pra carregar o CRM.");
     } finally {
       setCarregando(false);
+    }
+  }, []);
+
+  const sincronizarCrm = useCallback(async () => {
+    try {
+      setEstado(await obterCrm());
+    } catch (e) {
+      mostrarErro(e, "Os leads entraram, mas não deu pra atualizar o CRM agora.");
     }
   }, []);
 
@@ -124,15 +148,24 @@ export function TelaCrm() {
     () => new Map((estado?.contatos ?? []).map((contato) => [contato.id, contato])),
     [estado],
   );
-  const porColuna = useMemo(() => {
-    const mapa = new Map<string, Negocio[]>();
-    for (const coluna of colunas) mapa.set(coluna.id, []);
+  // Valor de cada contato: soma dos negocios (oportunidades) presos a ele.
+  const valorPorContato = useMemo(() => {
+    const mapa = new Map<string, number>();
     for (const negocio of estado?.negocios ?? []) {
-      if (!textoCombina(contatosPorId.get(negocio.contatoId), negocio, busca)) continue;
-      mapa.get(negocio.colunaId)?.push(negocio);
+      mapa.set(negocio.contatoId, (mapa.get(negocio.contatoId) ?? 0) + (negocio.valorEstimado ?? 0));
     }
     return mapa;
-  }, [busca, colunas, contatosPorId, estado]);
+  }, [estado]);
+  // O contato E o cartao: a ordem do array de contatos e a ordem no quadro.
+  const contatosPorColuna = useMemo(() => {
+    const mapa = new Map<string, Contato[]>();
+    for (const coluna of colunas) mapa.set(coluna.id, []);
+    for (const contato of estado?.contatos ?? []) {
+      if (!contatoCombina(contato, busca)) continue;
+      mapa.get(contato.colunaId)?.push(contato);
+    }
+    return mapa;
+  }, [busca, colunas, estado]);
   const contatoSelecionado = estado?.contatos.find((contato) => contato.id === selecionadoId) ?? null;
   const negociosDoSelecionado = estado?.negocios.filter((negocio) => negocio.contatoId === selecionadoId) ?? [];
   const sugestoesContato = useMemo(() => {
@@ -156,14 +189,29 @@ export function TelaCrm() {
     setNegocioDestaqueId(destaque);
   }
 
-  async function novoContato() {
+  function abrirNovoContato() {
+    setNovoContatoForm({ aberto: true, nome: "", empresa: "", telefone: "", email: "" });
+  }
+
+  async function salvarNovoContato() {
+    const nome = novoContatoForm.nome.trim();
+    if (!nome || salvandoContato) return;
+    setSalvandoContato(true);
     try {
-      const contato = await apiCriarContato({ nome: "Novo contato" });
+      const contato = await apiCriarContato({
+        nome,
+        ...(novoContatoForm.empresa.trim() ? { empresa: novoContatoForm.empresa.trim() } : {}),
+        ...(novoContatoForm.telefone.trim() ? { telefone: novoContatoForm.telefone.trim() } : {}),
+        ...(novoContatoForm.email.trim() ? { email: novoContatoForm.email.trim() } : {}),
+      });
       setEstado((anterior) => anterior ? { ...anterior, contatos: [...anterior.contatos, contato] } : anterior);
+      setNovoContatoForm({ aberto: false, nome: "", empresa: "", telefone: "", email: "" });
       setBusca("");
       abrirContato(contato.id);
     } catch (e) {
       mostrarErro(e, "Nao deu pra criar o contato.");
+    } finally {
+      setSalvandoContato(false);
     }
   }
 
@@ -178,6 +226,18 @@ export function TelaCrm() {
     } catch (e) {
       mostrarErro(e, "Nao deu pra atualizar o contato.");
       throw e;
+    }
+  }
+
+  async function moverEstagioContato(id: string, colunaId: string) {
+    try {
+      const contato = await apiMoverContato(id, colunaId);
+      setEstado((anterior) => anterior ? {
+        ...anterior,
+        contatos: anterior.contatos.map((item) => item.id === id ? contato : item),
+      } : anterior);
+    } catch (e) {
+      mostrarErro(e, "Nao deu pra mover o contato de estagio.");
     }
   }
 
@@ -302,10 +362,7 @@ export function TelaCrm() {
 
   async function atualizarNegocio(id: string, dados: DadosNegocio): Promise<Negocio> {
     try {
-      const somenteMover = Object.keys(dados).length === 1 && typeof dados.colunaId === "string";
-      const negocio = somenteMover
-        ? await apiMoverNegocio(id, dados.colunaId as string)
-        : await apiAtualizarNegocio(id, dados);
+      const negocio = await apiAtualizarNegocio(id, dados);
       setEstado((anterior) => anterior ? {
         ...anterior,
         negocios: anterior.negocios.map((item) => item.id === id ? negocio : item),
@@ -341,6 +398,24 @@ export function TelaCrm() {
     }
   }
 
+  async function moverColuna(id: string, direcao: -1 | 1) {
+    const indice = colunas.findIndex((coluna) => coluna.id === id);
+    const destino = indice + direcao;
+    if (indice < 0 || destino < 0 || destino >= colunas.length) return;
+    const ordem = colunas.map((coluna) => coluna.id);
+    [ordem[indice], ordem[destino]] = [ordem[destino], ordem[indice]];
+    setEstado((anterior) => anterior ? {
+      ...anterior,
+      colunas: anterior.colunas.map((coluna) => ({ ...coluna, ordem: ordem.indexOf(coluna.id) })),
+    } : anterior);
+    try {
+      await apiReordenarColunas(ordem);
+    } catch (e) {
+      mostrarErro(e, "Nao deu pra mover a coluna.");
+      await carregar();
+    }
+  }
+
   async function renomearColuna(id: string, nome: string) {
     try {
       const coluna = await apiRenomearColuna(id, nome);
@@ -362,93 +437,160 @@ export function TelaCrm() {
     }
   }
 
-  const moverNegocioLocal = useCallback((negocio: Negocio, colunaId: string, indice: number) => {
+  // Reordena localmente e persiste. A regra de insercao e a mesma do servidor
+  // (posicionarNoFunil), senao a tela e o disco discordam depois de recarregar.
+  const moverContatoLocal = useCallback((contato: Contato, colunaId: string, indice: number) => {
     setEstado((anterior) => {
       if (!anterior) return anterior;
-      const outros = anterior.negocios.filter((item) => item.id !== negocio.id);
-      const movido = { ...negocio, colunaId };
-      const destino = outros.map((item, global) => ({ item, global })).filter(({ item }) => item.colunaId === colunaId);
-      const onde = indice >= destino.length
-        ? (destino.length ? destino[destino.length - 1].global + 1 : outros.length)
-        : destino[indice].global;
+      const movido = { ...contato, colunaId };
+      const outros = anterior.contatos.filter((item) => item.id !== contato.id);
+      const daColuna = outros
+        .map((item, global) => ({ item, global }))
+        .filter(({ item }) => item.colunaId === colunaId);
+      const posicao = Math.max(0, Math.min(indice, daColuna.length));
+      const onde = posicao >= daColuna.length
+        ? (daColuna.length ? daColuna[daColuna.length - 1].global + 1 : outros.length)
+        : daColuna[posicao].global;
       outros.splice(onde, 0, movido);
-      return { ...anterior, negocios: outros };
+      return { ...anterior, contatos: outros };
     });
-    if (colunaId !== negocio.colunaId) apiMoverNegocio(negocio.id, colunaId).catch(() => void carregar());
+    // Reordenar dentro da mesma coluna tambem vai pro disco: antes so a troca
+    // de coluna era salva e a posicao voltava ao recarregar a tela.
+    apiMoverContato(contato.id, colunaId, indice).catch(() => void carregar());
   }, [carregar]);
 
-  const aoMover = useCallback((e: PointerEvent) => {
-    const atual = arrasto.current;
-    if (!atual) return;
-    const distancia = Math.abs(e.clientX - atual.x0) + Math.abs(e.clientY - atual.y0);
-    if (!atual.moveu && distancia < 6) return;
-    if (!atual.moveu) {
-      atual.moveu = true;
-      setArrastandoId(atual.negocio.id);
-      document.body.classList.add("crm-arrastando");
-    }
-    setFantasma({ x: e.clientX - atual.offX, y: e.clientY - atual.offY, largura: atual.largura });
-    const elemento = document.elementFromPoint(e.clientX, e.clientY);
-    const drop = elemento?.closest("[data-coluna-drop]");
-    if (!drop) {
-      alvoRef.current = null;
-      return setAlvo(null);
-    }
-    const colunaId = drop.getAttribute("data-coluna-drop") ?? "";
-    const cartoes = Array.from(drop.querySelectorAll("[data-cartao]"));
-    let indice = cartoes.length;
-    for (let i = 0; i < cartoes.length; i++) {
-      const retangulo = cartoes[i].getBoundingClientRect();
-      if (e.clientY < retangulo.top + retangulo.height / 2) {
-        indice = i;
-        break;
-      }
-    }
-    const proximo = { colunaId, indice };
+  const definirAlvo = useCallback((proximo: Alvo | null) => {
+    const atual = alvoRef.current;
+    if (atual?.colunaId === proximo?.colunaId && atual?.indice === proximo?.indice) return;
     alvoRef.current = proximo;
     setAlvo(proximo);
   }, []);
 
-  const aoSoltar = useCallback(() => {
-    window.removeEventListener("pointermove", aoMover);
-    window.removeEventListener("pointerup", aoSoltar);
+  // Onde o cartao cairia agora. O cartao arrastado fica de fora da contagem:
+  // ele continua no DOM, e conta-lo empurrava todos os indices em um.
+  const recalcularAlvo = useCallback((x: number, y: number) => {
+    const atual = arrasto.current;
+    if (!atual) return;
+    const drop = document.elementFromPoint(x, y)?.closest("[data-coluna-drop]");
+    if (!drop) return definirAlvo(null);
+    const cartoes = Array.from(drop.querySelectorAll("[data-cartao]"))
+      .filter((cartao) => cartao.getAttribute("data-cartao") !== atual.contato.id);
+    let indice = cartoes.length;
+    for (let i = 0; i < cartoes.length; i++) {
+      const retangulo = cartoes[i].getBoundingClientRect();
+      if (y < retangulo.top + retangulo.height / 2) {
+        indice = i;
+        break;
+      }
+    }
+    definirAlvo({ colunaId: drop.getAttribute("data-coluna-drop") ?? "", indice });
+  }, [definirAlvo]);
+
+  // Enquanto o ponteiro fica perto da borda, o quadro anda sozinho, pra dar
+  // pra soltar numa coluna que esta fora da tela.
+  const lacoRolagem = useCallback(() => {
+    const atual = arrasto.current;
+    const quadro = quadroRef.current;
+    if (!atual?.moveu || !quadro) {
+      rolagemRef.current = null;
+      return;
+    }
+    const caixa = quadro.getBoundingClientRect();
+    const zona = 110;
+    let passo = 0;
+    if (atual.x < caixa.left + zona) passo = -Math.ceil((caixa.left + zona - atual.x) / 5);
+    else if (atual.x > caixa.right - zona) passo = Math.ceil((atual.x - (caixa.right - zona)) / 5);
+    if (passo) {
+      const antes = quadro.scrollLeft;
+      quadro.scrollLeft = Math.max(0, Math.min(quadro.scrollWidth - quadro.clientWidth, antes + passo));
+      // O quadro andou embaixo do ponteiro parado: o alvo mudou sem mousemove.
+      if (quadro.scrollLeft !== antes) recalcularAlvo(atual.x, atual.y);
+    }
+    rolagemRef.current = requestAnimationFrame(lacoRolagem);
+  }, [recalcularAlvo]);
+
+  const aoMover = useCallback((e: PointerEvent) => {
+    const atual = arrasto.current;
+    if (!atual) return;
+    atual.x = e.clientX;
+    atual.y = e.clientY;
+    const distancia = Math.abs(e.clientX - atual.x0) + Math.abs(e.clientY - atual.y0);
+    if (!atual.moveu && distancia < 6) return;
+    if (!atual.moveu) {
+      atual.moveu = true;
+      document.body.classList.add("crm-arrastando");
+      document.body.style.setProperty("--crm-altura-arrasto", `${atual.altura}px`);
+      setArrastandoId(atual.contato.id);
+      if (rolagemRef.current === null) rolagemRef.current = requestAnimationFrame(lacoRolagem);
+    }
+    // O fantasma anda escrevendo direto no no. Guardar a posicao em estado
+    // redesenhava o quadro inteiro a cada pointermove, e era isso que fazia o
+    // cartao arrastar atrasado do ponteiro.
+    const no = fantasmaRef.current;
+    if (no) {
+      no.style.transform = `translate3d(${e.clientX - atual.offX}px, ${e.clientY - atual.offY}px, 0)`;
+    }
+    recalcularAlvo(e.clientX, e.clientY);
+  }, [lacoRolagem, recalcularAlvo]);
+
+  const encerrarArrasto = useCallback((aplicar: boolean) => {
+    desligarRef.current();
+    desligarRef.current = () => {};
+    if (rolagemRef.current !== null) {
+      cancelAnimationFrame(rolagemRef.current);
+      rolagemRef.current = null;
+    }
     document.body.classList.remove("crm-arrastando");
+    document.body.style.removeProperty("--crm-altura-arrasto");
     const atual = arrasto.current;
     const destino = alvoRef.current;
     arrasto.current = null;
     alvoRef.current = null;
     setArrastandoId(null);
-    setFantasma(null);
     setAlvo(null);
     if (!atual) return;
-    if (atual.moveu) {
-      if (destino) moverNegocioLocal(atual.negocio, destino.colunaId, destino.indice);
-    } else {
-      abrirContato(atual.negocio.contatoId, atual.negocio.id);
+    if (!atual.moveu) {
+      if (aplicar) abrirContato(atual.contato.id);
+      return;
     }
-  }, [aoMover, moverNegocioLocal]);
+    if (aplicar && destino) moverContatoLocal(atual.contato, destino.colunaId, destino.indice);
+  }, [moverContatoLocal]);
 
-  const aoDescerCartao = useCallback((negocio: Negocio, e: ReactPointerEvent) => {
+  const aoSoltar = useCallback(() => encerrarArrasto(true), [encerrarArrasto]);
+  // Menu de contexto, gesto do sistema ou toque cancelado: desfaz sem mover.
+  const aoCancelar = useCallback(() => encerrarArrasto(false), [encerrarArrasto]);
+
+  const aoDescerCartao = useCallback((contato: Contato, e: ReactPointerEvent) => {
     if (e.button !== 0) return;
     const retangulo = (e.currentTarget as HTMLElement).getBoundingClientRect();
     arrasto.current = {
-      negocio,
+      contato,
       x0: e.clientX,
       y0: e.clientY,
       offX: e.clientX - retangulo.left,
       offY: e.clientY - retangulo.top,
       largura: retangulo.width,
+      altura: retangulo.height,
+      x: e.clientX,
+      y: e.clientY,
       moveu: false,
     };
     window.addEventListener("pointermove", aoMover);
     window.addEventListener("pointerup", aoSoltar);
-  }, [aoMover, aoSoltar]);
+    window.addEventListener("pointercancel", aoCancelar);
+    desligarRef.current = () => {
+      window.removeEventListener("pointermove", aoMover);
+      window.removeEventListener("pointerup", aoSoltar);
+      window.removeEventListener("pointercancel", aoCancelar);
+    };
+  }, [aoCancelar, aoMover, aoSoltar]);
 
   useEffect(() => () => {
-    window.removeEventListener("pointermove", aoMover);
-    window.removeEventListener("pointerup", aoSoltar);
+    desligarRef.current();
+    if (rolagemRef.current !== null) cancelAnimationFrame(rolagemRef.current);
     document.body.classList.remove("crm-arrastando");
-  }, [aoMover, aoSoltar]);
+    document.body.style.removeProperty("--crm-altura-arrasto");
+  }, []);
 
   if (carregando) return <section className="tela-fluxo crm-tela"><div className="crm-carregando">Carregando o CRM...</div></section>;
   if (erro && !estado) return (
@@ -465,18 +607,20 @@ export function TelaCrm() {
           <h1>CRM</h1>
           <p className="subtitulo">Relacionamentos, oportunidades e proximos passos em um so lugar.</p>
         </div>
-        <div className="crm-topo-acoes">
-          <Busca valor={busca} aoMudar={setBusca} />
-          <button className="botao botao-principal" onClick={() => aba === "quadro" ? abrirNovoNegocio() : void novoContato()} type="button">
-            <IconeMais className="" /> {aba === "quadro" ? "Novo negocio" : "Novo contato"}
-          </button>
-        </div>
+        {aba !== "leads" && (
+          <div className="crm-topo-acoes">
+            <Busca valor={busca} aoMudar={setBusca} />
+            <button className="botao botao-principal" onClick={abrirNovoContato} type="button">
+              <IconeMais className="" /> Novo contato
+            </button>
+          </div>
+        )}
       </header>
 
       <nav className="crm-abas" role="tablist" aria-label="Visoes do CRM">
-        {(["hoje", "quadro", "contatos"] as AbaCrm[]).map((item) => (
+        {(["hoje", "quadro", "contatos", "leads"] as AbaCrm[]).map((item) => (
           <button className={aba === item ? "ativa" : ""} onClick={() => setAba(item)} type="button" role="tab" aria-selected={aba === item} key={item}>
-            {item === "hoje" ? "Hoje" : item === "quadro" ? "Quadro" : "Contatos"}
+            {item === "hoje" ? "Hoje" : item === "quadro" ? "Quadro" : item === "contatos" ? "Contatos" : "Buscar leads"}
           </button>
         ))}
       </nav>
@@ -489,25 +633,28 @@ export function TelaCrm() {
           colunas={colunas}
           aoAbrirContato={abrirContato}
           aoAbrirQuadro={() => setAba("quadro")}
-          aoCriarContato={() => void novoContato()}
+          aoCriarContato={abrirNovoContato}
         />
       )}
 
       {aba === "quadro" && (
-        <div className="crm-quadro">
-          {colunas.map((coluna) => {
-            const negocios = porColuna.get(coluna.id) ?? [];
+        <div className="crm-quadro" ref={quadroRef}>
+          {colunas.map((coluna, indice) => {
+            const contatosDaColuna = contatosPorColuna.get(coluna.id) ?? [];
             return (
               <ColunaCrm
                 key={coluna.id}
                 coluna={coluna}
-                negocios={negocios}
-                contatos={contatosPorId}
-                total={negocios.reduce((soma, negocio) => soma + (negocio.valorEstimado ?? 0), 0)}
-                selecionadoId={negocioDestaqueId}
+                contatos={contatosDaColuna}
+                valorDe={(contatoId) => valorPorContato.get(contatoId) ?? 0}
+                total={contatosDaColuna.reduce((soma, contato) => soma + (valorPorContato.get(contato.id) ?? 0), 0)}
+                selecionadoId={selecionadoId}
                 arrastandoId={arrastandoId}
                 alvoIndice={alvo?.colunaId === coluna.id ? alvo.indice : null}
                 podeExcluir={colunas.length > 1}
+                indice={indice}
+                totalColunas={colunas.length}
+                aoMoverColuna={(colunaId, direcao) => void moverColuna(colunaId, direcao)}
                 aoDescerCartao={aoDescerCartao}
                 aoRenomear={renomearColuna}
                 aoExcluir={excluirColuna}
@@ -537,6 +684,8 @@ export function TelaCrm() {
         <ListaContatos estado={estado} colunas={colunas} busca={busca} aoAbrir={abrirContato} />
       )}
 
+      {aba === "leads" && <BuscaLeads aoImportar={sincronizarCrm} />}
+
       {contatoSelecionado && (
         <PainelContato
           key={contatoSelecionado.id}
@@ -545,6 +694,7 @@ export function TelaCrm() {
           colunas={colunas}
           negocioDestaqueId={negocioDestaqueId}
           aoAtualizar={atualizarContato}
+          aoMoverEstagio={moverEstagioContato}
           aoRegistrarInteracao={registrarInteracao}
           aoCriarTarefa={criarTarefa}
           aoAtualizarTarefa={atualizarTarefa}
@@ -574,9 +724,32 @@ export function TelaCrm() {
         </div>
       )}
 
-      {fantasma && arrasto.current && (
-        <div className="crm-fantasma" style={{ left: fantasma.x, top: fantasma.y, width: fantasma.largura }}>
-          <article className="crm-cartao"><div className="crm-cartao-topo"><span className="crm-avatar">{iniciais(contatosPorId.get(arrasto.current.negocio.contatoId)?.nome ?? arrasto.current.negocio.titulo)}</span><div className="crm-cartao-id"><span className="crm-cartao-nome">{arrasto.current.negocio.titulo}</span><span className="crm-cartao-empresa">{contatosPorId.get(arrasto.current.negocio.contatoId)?.nome}</span></div></div></article>
+      {novoContatoForm.aberto && (
+        <div className="crm-modal-fundo" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setNovoContatoForm((atual) => ({ ...atual, aberto: false })); }}>
+          <form className="crm-modal" onSubmit={(e) => { e.preventDefault(); void salvarNovoContato(); }}>
+            <div className="crm-secao-topo"><div><span className="crm-painel-sobre">Ficha nova</span><h2>Novo contato</h2></div><button className="crm-painel-fechar" onClick={() => setNovoContatoForm((atual) => ({ ...atual, aberto: false }))} aria-label="Fechar" type="button"><IconeX className="" /></button></div>
+            <label className="crm-campo"><span className="crm-rotulo">Nome</span><input value={novoContatoForm.nome} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, nome: e.target.value }))} placeholder="Quem e a pessoa ou o negocio" maxLength={200} autoFocus required /></label>
+            <label className="crm-campo"><span className="crm-rotulo">Empresa</span><input value={novoContatoForm.empresa} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, empresa: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
+            <div className="crm-campos-grade">
+              <label className="crm-campo"><span className="crm-rotulo">Telefone</span><input type="tel" value={novoContatoForm.telefone} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, telefone: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
+              <label className="crm-campo"><span className="crm-rotulo">Email</span><input type="email" value={novoContatoForm.email} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, email: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
+            </div>
+            <span className="crm-ajuda">So o nome e obrigatorio. O resto voce completa na ficha quando quiser.</span>
+            <div className="crm-modal-acoes"><button className="botao botao-fantasma" onClick={() => setNovoContatoForm((atual) => ({ ...atual, aberto: false }))} type="button">Cancelar</button><button className="botao botao-principal" disabled={!novoContatoForm.nome.trim() || salvandoContato} type="submit">{salvandoContato ? "Criando..." : "Criar contato"}</button></div>
+          </form>
+        </div>
+      )}
+
+      {arrastandoId && arrasto.current && (
+        <div
+          className="crm-fantasma"
+          ref={fantasmaRef}
+          style={{
+            width: arrasto.current.largura,
+            transform: `translate3d(${arrasto.current.x - arrasto.current.offX}px, ${arrasto.current.y - arrasto.current.offY}px, 0)`,
+          }}
+        >
+          <article className="crm-cartao"><div className="crm-cartao-topo"><span className="crm-avatar">{iniciais(arrasto.current.contato.nome)}</span><div className="crm-cartao-id"><span className="crm-cartao-nome">{arrasto.current.contato.nome}</span>{arrasto.current.contato.empresa && arrasto.current.contato.empresa !== arrasto.current.contato.nome && <span className="crm-cartao-empresa">{arrasto.current.contato.empresa}</span>}</div></div></article>
         </div>
       )}
     </section>
@@ -606,7 +779,12 @@ function VisaoHoje({
   const followups = estado.contatos.filter((contato) => contato.proximoContato && diaLocal(new Date(contato.proximoContato)) <= hoje).sort((a, b) => new Date(a.proximoContato ?? 0).getTime() - new Date(b.proximoContato ?? 0).getTime());
   const esquecidos = estado.contatos.map((contato) => ({ contato, ultima: contato.interacoes[0]?.em ?? contato.criadoEm })).filter(({ ultima }) => new Date(ultima).getTime() < limiteEsquecido).sort((a, b) => new Date(a.ultima).getTime() - new Date(b.ultima).getTime()).slice(0, 10);
   const tarefas = estado.contatos.flatMap((contato) => contato.tarefas.filter((tarefa) => !tarefa.feita).map((tarefa) => ({ contato, tarefa }))).sort((a, b) => a.tarefa.prazo ? (b.tarefa.prazo ? new Date(a.tarefa.prazo).getTime() - new Date(b.tarefa.prazo).getTime() : -1) : 1);
-  const maximo = Math.max(1, ...colunas.map((coluna) => estado.negocios.filter((negocio) => negocio.colunaId === coluna.id).length));
+  const valorDoContato = new Map<string, number>();
+  for (const negocio of estado.negocios) valorDoContato.set(negocio.contatoId, (valorDoContato.get(negocio.contatoId) ?? 0) + (negocio.valorEstimado ?? 0));
+  const contatosDaColuna = (colunaId: string) => estado.contatos.filter((contato) => contato.colunaId === colunaId);
+  const valorDaColuna = (colunaId: string) => contatosDaColuna(colunaId).reduce((soma, contato) => soma + (valorDoContato.get(contato.id) ?? 0), 0);
+  const valorTotalFunil = estado.negocios.reduce((soma, negocio) => soma + (negocio.valorEstimado ?? 0), 0);
+  const maximo = Math.max(1, ...colunas.map((coluna) => contatosDaColuna(coluna.id).length));
 
   if (estado.contatos.length === 0) return (
     <div className="crm-hero crm-hero-hoje"><p className="crm-hero-titulo">Seu CRM esta pronto para o primeiro contato.</p><p className="crm-hero-texto">Crie uma ficha. Depois voce pode ligar negocios, interacoes, tarefas e proximos passos a ela.</p><button className="botao botao-principal" onClick={aoCriarContato} type="button"><IconeMais className="" /> Criar primeiro contato</button></div>
@@ -616,7 +794,7 @@ function VisaoHoje({
     <div className="crm-hoje">
       <section className="crm-hoje-bloco"><div className="crm-hoje-topo"><div><strong>{followups.length}</strong><h2>Follow-ups</h2></div><span>atrasados e de hoje</span></div><div className="crm-hoje-lista">{followups.length === 0 && <p className="crm-vazio-inline">Tudo em dia por aqui.</p>}{followups.map((contato) => { const atrasado = diaLocal(new Date(contato.proximoContato as string)) < hoje; return <button className={atrasado ? "crm-item-hoje atrasado" : "crm-item-hoje"} onClick={() => aoAbrirContato(contato.id)} type="button" key={contato.id}><span><b>{contato.nome}</b>{contato.empresa && <small>{contato.empresa}</small>}</span><time>{atrasado ? "Atrasado: " : "Hoje: "}{formatarDataHoraCurta(contato.proximoContato as string)}</time></button>; })}</div></section>
       <section className="crm-hoje-bloco"><div className="crm-hoje-topo"><div><strong>{esquecidos.length}</strong><h2>Clientes esquecidos</h2></div><span>sem interacao ha 30 dias</span></div><div className="crm-hoje-lista">{esquecidos.length === 0 && <p className="crm-vazio-inline">Ninguem ficou para tras.</p>}{esquecidos.map(({ contato, ultima }) => <button className="crm-item-hoje" onClick={() => aoAbrirContato(contato.id)} type="button" key={contato.id}><span><b>{contato.nome}</b><small>Ultima lembranca</small></span><time>{formatarDataHoraCurta(ultima)}</time></button>)}</div></section>
-      <section className="crm-hoje-bloco crm-hoje-funil"><div className="crm-hoje-topo"><div><strong>{estado.negocios.length}</strong><h2>Negocios no funil</h2></div><span>{formatarReais(estado.negocios.reduce((soma, negocio) => soma + (negocio.valorEstimado ?? 0), 0))} no total</span></div><button className="crm-funil-lista" onClick={aoAbrirQuadro} type="button">{colunas.map((coluna) => { const negocios = estado.negocios.filter((negocio) => negocio.colunaId === coluna.id); return <span className="crm-funil-linha" key={coluna.id}><span><b>{coluna.nome}</b><small>{negocios.length} {negocios.length === 1 ? "negocio" : "negocios"} | {formatarReais(negocios.reduce((soma, negocio) => soma + (negocio.valorEstimado ?? 0), 0))}</small></span><i style={{ width: `${Math.max(4, negocios.length / maximo * 100)}%` }} /></span>; })}</button></section>
+      <section className="crm-hoje-bloco crm-hoje-funil"><div className="crm-hoje-topo"><div><strong>{estado.contatos.length}</strong><h2>Contatos no funil</h2></div><span>{formatarReais(valorTotalFunil)} no total</span></div><button className="crm-funil-lista" onClick={aoAbrirQuadro} type="button">{colunas.map((coluna) => { const total = contatosDaColuna(coluna.id).length; return <span className="crm-funil-linha" key={coluna.id}><span><b>{coluna.nome}</b><small>{total} {total === 1 ? "contato" : "contatos"} | {formatarReais(valorDaColuna(coluna.id))}</small></span><i style={{ width: `${Math.max(4, total / maximo * 100)}%` }} /></span>; })}</button></section>
       <section className="crm-hoje-bloco"><div className="crm-hoje-topo"><div><strong>{tarefas.length}</strong><h2>Tarefas abertas</h2></div><span>por prazo mais proximo</span></div><div className="crm-hoje-lista">{tarefas.length === 0 && <p className="crm-vazio-inline">Nenhuma tarefa aberta.</p>}{tarefas.slice(0, 10).map(({ contato, tarefa }) => <button className="crm-item-hoje" onClick={() => aoAbrirContato(contato.id)} type="button" key={tarefa.id}><span><b>{tarefa.texto}</b><small>{contato.nome}</small></span><time>{tarefa.prazo ? formatarDataHoraCurta(tarefa.prazo) : "Sem prazo"}</time></button>)}</div></section>
     </div>
   );
@@ -634,7 +812,7 @@ function ListaContatos({ estado, colunas, busca, aoAbrir }: { estado: EstadoCrm;
   }).filter(({ contato, negocios }) => {
     const termo = busca.toLowerCase();
     const combinaBusca = !termo || contato.nome.toLowerCase().includes(termo) || (contato.empresa ?? "").toLowerCase().includes(termo) || contato.tags.some((item) => item.toLowerCase().includes(termo));
-    return combinaBusca && (!tag || contato.tags.includes(tag)) && (!coluna || negocios.some((negocio) => negocio.colunaId === coluna));
+    return combinaBusca && (!tag || contato.tags.includes(tag)) && (!coluna || contato.colunaId === coluna);
   }).sort((a, b) => {
     const resultado = ordem === "nome" ? a.contato.nome.localeCompare(b.contato.nome, "pt-BR") : ordem === "interacao" ? (new Date(a.ultima || 0).getTime() - new Date(b.ultima || 0).getTime()) : a.valor - b.valor;
     return resultado * direcao;

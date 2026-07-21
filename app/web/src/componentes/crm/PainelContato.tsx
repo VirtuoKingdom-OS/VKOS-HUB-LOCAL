@@ -28,12 +28,28 @@ const TIPOS: { valor: TipoInteracao; rotulo: string }[] = [
   { valor: "outro", rotulo: "Outro" },
 ];
 
+// Garante um endereco navegavel a partir do site do lead (pode vir sem http).
+function enderecoSite(site: string): string {
+  const limpo = site.trim();
+  return /^https?:\/\//i.test(limpo) ? limpo : `https://${limpo}`;
+}
+
+// Texto da nota do lead, com o total de avaliacoes quando houver.
+function textoNotaLead(lead: { nota?: number; totalAvaliacoes?: number }): string | null {
+  if (typeof lead.nota !== "number") return null;
+  const avaliacoes = typeof lead.totalAvaliacoes === "number"
+    ? ` (${lead.totalAvaliacoes.toLocaleString("pt-BR")} avaliações)`
+    : "";
+  return `${lead.nota.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de 5${avaliacoes}`;
+}
+
 export function PainelContato({
   contato,
   negocios,
   colunas,
   negocioDestaqueId,
   aoAtualizar,
+  aoMoverEstagio,
   aoRegistrarInteracao,
   aoCriarTarefa,
   aoAtualizarTarefa,
@@ -49,6 +65,7 @@ export function PainelContato({
   colunas: Coluna[];
   negocioDestaqueId: string | null;
   aoAtualizar: (id: string, dados: DadosContato) => Promise<Contato>;
+  aoMoverEstagio: (id: string, colunaId: string) => Promise<void> | void;
   aoRegistrarInteracao: (id: string, tipo: TipoInteracao, texto: string) => Promise<Interacao>;
   aoCriarTarefa: (id: string, texto: string, prazo?: string) => Promise<Tarefa>;
   aoAtualizarTarefa: (id: string, dados: { feita?: boolean; prazo?: string | null }) => Promise<Tarefa>;
@@ -155,6 +172,19 @@ export function PainelContato({
       </header>
 
       <div className="crm-painel-corpo">
+        <div className="crm-painel-estagio">
+          <span className="crm-rotulo">Estágio no funil</span>
+          <select
+            value={contato.colunaId}
+            onChange={(e) => void aoMoverEstagio(contato.id, e.target.value)}
+            aria-label="Estágio do contato no funil"
+          >
+            {colunas.map((coluna) => (
+              <option key={coluna.id} value={coluna.id}>{coluna.nome}</option>
+            ))}
+          </select>
+        </div>
+
         <section className="crm-painel-secao">
           <h3>Contato</h3>
           <label className="crm-campo crm-campo-nome">
@@ -226,9 +256,24 @@ export function PainelContato({
           </div>
         </section>
 
+        {contato.lead && (
+          <section className="crm-painel-secao">
+            <h3>Dados do lead</h3>
+            <dl className="crm-lead-ficha">
+              {contato.lead.categoria && <div><dt>Categoria</dt><dd>{contato.lead.categoria}</dd></div>}
+              {contato.lead.endereco && <div><dt>Endereço</dt><dd>{contato.lead.endereco}</dd></div>}
+              {contato.lead.site && <div><dt>Site</dt><dd><a href={enderecoSite(contato.lead.site)} target="_blank" rel="noreferrer">{contato.lead.site}</a></dd></div>}
+              {textoNotaLead(contato.lead) && <div><dt>Nota</dt><dd>{textoNotaLead(contato.lead)}</dd></div>}
+              {contato.lead.termoBusca && <div><dt>Termo da busca</dt><dd>{contato.lead.termoBusca}</dd></div>}
+              {contato.lead.localizacao && <div><dt>Localização</dt><dd>{contato.lead.localizacao}</dd></div>}
+              {contato.lead.capturadoEm && <div><dt>Minerado em</dt><dd>{formatarDataHora(contato.lead.capturadoEm)}</dd></div>}
+            </dl>
+          </section>
+        )}
+
         <section className="crm-painel-secao">
           <div className="crm-secao-topo">
-            <h3>Negocios</h3>
+            <h3>Negócios</h3>
             <button className="botao botao-neutro crm-botao-compacto" onClick={() => aoAbrirNovoNegocio(contato.id)} type="button">
               <IconeMais className="" /> Novo negocio
             </button>
@@ -239,7 +284,6 @@ export function PainelContato({
               <LinhaNegocio
                 key={negocio.id}
                 negocio={negocio}
-                colunas={colunas}
                 destaque={negocio.id === negocioDestaqueId}
                 aoAtualizar={aoAtualizarNegocio}
                 aoExcluir={aoExcluirNegocio}
@@ -324,13 +368,11 @@ export function PainelContato({
 
 function LinhaNegocio({
   negocio,
-  colunas,
   destaque,
   aoAtualizar,
   aoExcluir,
 }: {
   negocio: Negocio;
-  colunas: Coluna[];
   destaque: boolean;
   aoAtualizar: (id: string, dados: DadosNegocio) => Promise<Negocio>;
   aoExcluir: (id: string) => Promise<void>;
@@ -359,9 +401,6 @@ function LinhaNegocio({
     <article className={`crm-negocio-linha${destaque ? " destaque" : ""}`}>
       <input value={titulo} onChange={(e) => setTitulo(e.target.value)} onBlur={salvarTitulo} aria-label="Titulo do negocio" maxLength={200} />
       <div className="crm-negocio-campos">
-        <select value={negocio.colunaId} onChange={(e) => void aoAtualizar(negocio.id, { colunaId: e.target.value }).catch(() => undefined)} aria-label="Estagio do negocio">
-          {colunas.map((coluna) => <option key={coluna.id} value={coluna.id}>{coluna.nome}</option>)}
-        </select>
         <input value={valor} onChange={(e) => setValor(e.target.value)} onBlur={salvarValor} inputMode="decimal" aria-label="Valor estimado do negocio" placeholder={formatarReais(0)} />
         <BotaoConfirmar className="crm-excluir-negocio" titulo="Excluir negocio" aviso="Excluir negocio?" aoConfirmar={() => aoExcluir(negocio.id)}>
           <IconeLixeira className="" />

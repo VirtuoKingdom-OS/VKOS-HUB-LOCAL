@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { ModeloIA, OpcaoModeloIA } from "../../api/cliente";
 import type { AnexoAjuste } from "../../tipos/dominio";
 import { AnexosAjuste } from "../comum/AnexosAjuste";
@@ -34,6 +35,17 @@ export function PainelAjusteCarrossel({
   aoAjustar,
   aoFechar,
 }: Props) {
+  // Ao abrir o painel, o modelo inicia no economico do provedor ativo (campo
+  // `economico` vem do backend). Ajuste pontual raramente precisa de modelo
+  // grande; a escolha manual continua livre depois.
+  const inicializouRef = useRef(false);
+  const economico = modelos.find((item) => item.economico)?.alias;
+  useEffect(() => {
+    if (inicializouRef.current || !economico) return;
+    inicializouRef.current = true;
+    if (modelo !== economico) aoMudarModelo(economico);
+  }, [economico, modelo, aoMudarModelo]);
+
   return (
     <aside className="studio-ajuste">
       <header className="studio-ajuste-topo">
@@ -78,6 +90,10 @@ export function PainelAjusteCarrossel({
             </button>
           ))}
         </div>
+        <p className="studio-ajuste-nota">
+          Comece pelo econômico. Se o resultado não convencer, repita o pedido num
+          modelo maior.
+        </p>
 
         {ajustando && <div className="studio-ajuste-progresso"><span /></div>}
         {ajustando && <p className="studio-ajuste-nota">A IA está ajustando somente este carrossel.</p>}

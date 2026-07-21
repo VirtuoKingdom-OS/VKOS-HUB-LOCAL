@@ -264,12 +264,12 @@ export function Sidebar({
             </span>
           </div>
           {custoEstimado && (
-            <div className="rodape-custo-detalhe">estimado por tokens</div>
+            <div className="rodape-custo-detalhe">valor aproximado, estimado por tabela de preços</div>
           )}
           {temTotalGeral && (
             <div className="rodape-custo-detalhe">
               Geral, todos os clientes: {totalGeralEstimado ? "~" : ""}${totalGeral.toFixed(2)}
-              {totalGeralEstimado ? ", estimado por tokens" : ""}
+              {totalGeralEstimado ? ", aproximado" : ""}
             </div>
           )}
           {temDetalheEntrada && (

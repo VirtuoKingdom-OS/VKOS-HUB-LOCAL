@@ -241,8 +241,11 @@
   border-color: var(--menta);
   box-shadow: 0 0 0 1px var(--menta), var(--glow);
 }
+/* O cartao arrastado sai do fluxo e o placeholder ocupa exatamente a altura
+   dele. Assim a coluna nao cresce durante o arrasto: se crescesse, os cartoes
+   desciam, o ponto medio deles mudava e a posicao de soltar ficava piscando. */
 .crm-cartao.arrastando {
-  opacity: 0.4;
+  display: none;
 }
 .crm-cartao-topo {
   display: flex;
@@ -301,6 +304,56 @@
   font-size: 11.5px;
   color: var(--texto-fraco);
 }
+.crm-cartao-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Seletor de estagio no topo do painel do contato. */
+.crm-painel-estagio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 11px 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 3px solid var(--menta);
+  border-radius: var(--raio-p);
+}
+.crm-painel-estagio select {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+/* Ficha de dados do lead de origem (so leitura), no padrao dos cartoes da busca. */
+.crm-lead-ficha {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 9px 16px;
+}
+.crm-lead-ficha div { min-width: 0; }
+.crm-lead-ficha dt {
+  color: var(--texto-fraco);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.crm-lead-ficha dd {
+  margin-top: 2px;
+  color: var(--texto-suave);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.crm-lead-ficha a {
+  color: var(--menta-clara);
+  font-weight: 700;
+}
 
 /* Tag (chip). */
 .crm-tag {
@@ -320,26 +373,31 @@
   color: var(--texto-fraco);
 }
 
-/* Placeholder da posicao de soltar. */
+/* Placeholder da posicao de soltar. A altura acompanha o cartao arrastado:
+   se o vao fosse fixo, a lista subia ou descia ao soltar e a previa mentia. */
 .crm-placeholder {
-  height: 56px;
+  height: var(--crm-altura-arrasto, 56px);
   border-radius: var(--raio-p);
   border: 1px dashed var(--menta);
   background: rgba(var(--menta-rgb), 0.07);
   animation: crm-surgir 0.12s ease both;
 }
 
-/* Fantasma que segue o ponteiro no arrasto. */
+/* Fantasma que segue o ponteiro no arrasto. A posicao vem por transform,
+   escrita direto no no: o translate roda na composicao, sem relayout. */
 .crm-fantasma {
   position: fixed;
-  z-index: 90;
+  left: 0;
+  top: 0;
+  z-index: var(--z-modal, 100);
   pointer-events: none;
-  transform: rotate(2deg);
+  will-change: transform;
   box-shadow: 0 18px 40px rgba(var(--scrim-rgb), 0.5);
   border-radius: var(--raio-p);
 }
 .crm-fantasma .crm-cartao {
   border-color: var(--menta);
+  transform: rotate(2deg);
   animation: none;
 }
 body.crm-arrastando {
@@ -462,7 +520,9 @@ body.crm-arrastando .crm-cartao {
   background: var(--fundo-2);
   border-left: 1px solid var(--borda-forte);
   box-shadow: -20px 0 50px rgba(var(--scrim-rgb), 0.4);
-  z-index: 40;
+  /* Acima do cabecalho sticky da tela (--z-sticky no visual-hub), senao o
+     topo do painel fica coberto e o botao de fechar some. */
+  z-index: var(--z-overlay, 80);
   animation: crm-entrar-painel 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 @keyframes crm-entrar-painel {
@@ -1033,11 +1093,62 @@ body.crm-arrastando .crm-cartao {
   height: 13px;
 }
 
+/* Coluna de contatos sem negocio e reordenacao de colunas. */
+.crm-coluna-contatos {
+  border-style: dashed;
+  background: var(--fundo);
+}
+.crm-coluna-nome-fixa {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-cartao-contato {
+  cursor: default;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.crm-cartao-abrir {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+.crm-cartao-negocio {
+  flex-shrink: 0;
+  gap: 5px;
+  padding: 6px 9px;
+  font-size: 10.5px;
+}
+.crm-coluna-mover {
+  display: inline-flex;
+  gap: 2px;
+}
+.crm-coluna-mover .crm-acao-icone:hover {
+  color: var(--texto);
+  background: var(--superficie-2);
+}
+.crm-coluna-mover .crm-acao-icone:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.crm-chevron-direita {
+  transform: rotate(180deg);
+}
+
 /* Criacao de negocio. */
 .crm-modal-fundo {
   position: absolute;
   inset: 0;
-  z-index: 80;
+  /* O modal abre por cima do painel de contato: precisa de uma camada acima. */
+  z-index: var(--z-modal, 95);
   display: grid;
   place-items: center;
   padding: 20px;
@@ -1110,6 +1221,95 @@ body.crm-arrastando .crm-cartao {
   color: var(--texto-fraco);
   font-size: 11px;
 }
+
+/* Mineração persistente de leads do Google Maps. */
+.crm-leads-visao { container-name: leads; container-type: inline-size; flex: 1; min-height: 0; overflow-y: auto; position: relative; display: flex; flex-direction: column; }
+.crm-leads-aviso { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px; margin: 0 32px; padding: 11px 14px; color: var(--texto-suave); background: var(--fundo-2); border: 1px solid var(--borda); border-top: 0; border-radius: 0 0 var(--raio-p) var(--raio-p); box-shadow: 0 8px 18px rgba(var(--scrim-rgb), 0.14); }
+.crm-leads-aviso svg { flex: 0 0 auto; width: 17px; height: 17px; color: var(--aviso); }
+.crm-leads-aviso p { font-size: 12.5px; line-height: 1.45; }
+.crm-leads-conteudo { width: min(1160px, calc(100% - 64px)); margin: 0 auto; padding: 22px 0 38px; display: flex; flex-direction: column; gap: 16px; }
+.crm-leads-intro { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 24px; border: 1px solid var(--borda); border-radius: var(--raio); background: radial-gradient(100% 180% at 0 0, rgba(var(--menta-rgb), .1), transparent 62%), var(--fundo-2); }
+.crm-leads-intro-texto { align-self: center; min-width: 0; }
+.crm-leads-etiqueta { display: block; margin-bottom: 7px; color: var(--menta-clara); font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.crm-leads-intro h2, .crm-leads-lista-topo h3 { color: var(--texto); line-height: 1.2; }
+.crm-leads-intro h2 { max-width: none; font-size: clamp(19px, 2vw, 26px); }
+.crm-leads-intro p { margin-top: 9px; color: var(--texto-suave); font-size: 12.5px; line-height: 1.55; }
+.crm-leads-form { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .42fr); gap: 12px; align-items: end; }
+.crm-leads-campo { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--texto-suave); font-size: 11.5px; font-weight: 750; }
+.crm-leads-campo-principal { grid-column: 1 / -1; }
+.crm-leads-campo span { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crm-leads-campo span b, .crm-leads-campo span small { color: var(--texto-fraco); font-size: 9.5px; font-weight: 700; }
+.crm-leads-campo span b { color: var(--menta-clara); }
+.crm-leads-campo input, .crm-leads-campo select { width: 100%; min-width: 0; }
+.crm-leads-email { grid-column: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid var(--borda); border-radius: var(--raio-p); background: var(--superficie); cursor: pointer; }
+/* O global.css estica todo input pra 100% com padding de campo de texto: o
+   checkbox precisa voltar ao tamanho de checkbox. */
+.crm-leads-email input, .crm-lead-identidade > input { flex: 0 0 auto; width: 16px; height: 16px; padding: 0; accent-color: var(--menta); }
+/* Clique de mouse nao ganha anel de foco no checkbox; teclado ganha. */
+.crm-leads-email input:focus, .crm-lead-identidade > input:focus { border-color: var(--borda); box-shadow: none; }
+.crm-leads-email input:focus-visible, .crm-lead-identidade > input:focus-visible { outline: 2px solid var(--menta); outline-offset: 2px; }
+.crm-lead-importar { gap: 6px; padding: 7px 11px; font-size: 10.5px; }
+.crm-leads-email span, .crm-leads-email strong, .crm-leads-email small { min-width: 0; display: block; }
+.crm-leads-email strong { color: var(--texto); font-size: 11.5px; }
+.crm-leads-email small { margin-top: 2px; color: var(--texto-fraco); font-size: 10px; }
+.crm-leads-buscar { min-height: 42px; }
+.crm-leads-carregando, .crm-leads-erro, .crm-leads-resumo { display: flex; align-items: center; gap: 14px; padding: 15px 17px; border-radius: var(--raio-p); animation: crm-surgir .18s ease both; }
+.crm-leads-carregando { border: 1px solid rgba(var(--menta-rgb), .28); background: rgba(var(--menta-rgb), .07); }
+.crm-leads-carregando strong, .crm-leads-erro strong, .crm-leads-resumo strong { color: var(--texto); font-size: 13px; }
+.crm-leads-carregando p, .crm-leads-erro p, .crm-leads-resumo p { margin-top: 3px; color: var(--texto-suave); font-size: 12.5px; line-height: 1.45; }
+.crm-leads-carregando small { display: block; margin-top: 5px; color: var(--texto-fraco); font-size: 11px; }
+.crm-leads-pulso { flex: 0 0 auto; width: 48px; height: 36px; display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 11px; background: rgba(var(--menta-rgb), .12); }
+.crm-leads-pulso i { width: 5px; height: 5px; border-radius: 50%; background: var(--menta); animation: crm-leads-ponto 1s ease-in-out infinite; }
+.crm-leads-pulso i:nth-child(2) { animation-delay: .14s; }
+.crm-leads-pulso i:nth-child(3) { animation-delay: .28s; }
+@keyframes crm-leads-ponto { 0%, 70%, 100% { opacity: .32; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-4px); } }
+.crm-leads-erro { justify-content: space-between; border: 1px solid rgba(var(--alerta-rgb), .38); background: rgba(var(--alerta-rgb), .09); }
+.crm-leads-resumo { border: 1px solid rgba(var(--menta-rgb), .34); background: rgba(var(--menta-rgb), .08); }
+.crm-leads-resumo.informacao { border-color: var(--borda-forte); background: var(--superficie); }
+.crm-leads-resumo svg { flex: 0 0 auto; width: 18px; height: 18px; color: var(--menta); }
+.crm-leads-resumo p { margin: 0; }
+.crm-leads-biblioteca { overflow: hidden; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--fundo-2); }
+.crm-leads-lista-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; border-bottom: 1px solid var(--borda); }
+.crm-leads-lista-topo h3 { font-size: 17px; }
+.crm-leads-subabas { display: flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }
+.crm-leads-subabas button { display: flex; align-items: center; gap: 7px; padding: 7px 10px; color: var(--texto-fraco); border-radius: 7px; font-size: 11.5px; font-weight: 750; transition: color var(--transicao), background var(--transicao); }
+.crm-leads-subabas button.ativa { color: var(--texto); background: var(--fundo-2); box-shadow: 0 1px 5px rgba(var(--scrim-rgb), .15); }
+.crm-leads-subabas button span { min-width: 21px; padding: 2px 5px; color: var(--texto-suave); background: var(--superficie-2); border-radius: 999px; font-size: 9.5px; text-align: center; }
+.crm-leads-selecao-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--borda); background: var(--superficie); }
+.crm-leads-selecao-topo p { color: var(--texto-suave); font-size: 11.5px; }
+.crm-leads-selecao-topo strong { color: var(--texto); }
+.crm-leads-vazio { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 30px; text-align: center; }
+.crm-leads-vazio strong { color: var(--texto); font-size: 14px; }
+.crm-leads-vazio p { max-width: 500px; color: var(--texto-fraco); font-size: 12.5px; line-height: 1.5; }
+.crm-leads-grade { display: flex; flex-direction: column; }
+.crm-lead-cartao { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--borda); background: var(--fundo-2); transition: border-color var(--transicao), background var(--transicao); animation: crm-surgir .18s ease both; }
+.crm-lead-cartao:last-child { border-bottom: 0; }
+.crm-lead-cartao:hover { background: var(--superficie); }
+.crm-lead-cartao.marcado { background: rgba(var(--menta-rgb), .065); box-shadow: inset 3px 0 0 var(--menta); }
+.crm-lead-cartao.existente { background: var(--superficie); }
+.crm-lead-identidade { min-width: 0; display: flex; align-items: flex-start; gap: 10px; }
+.crm-lead-identidade > input { margin-top: 4px; }
+.crm-lead-identidade > div, .crm-lead-titulo-linha { min-width: 0; }
+.crm-lead-titulo-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.crm-lead-titulo-linha h4 { min-width: 0; color: var(--texto); font-size: 13.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.crm-lead-identidade p { margin-top: 3px; color: var(--texto-suave); font-size: 11.5px; }
+.crm-lead-identidade small { display: block; margin-top: 6px; color: var(--texto-fraco); font-size: 9.5px; line-height: 1.35; }
+.crm-lead-selo { flex: 0 0 auto; padding: 3px 7px; color: var(--menta-clara); background: rgba(var(--menta-rgb), .09); border: 1px solid rgba(var(--menta-rgb), .26); border-radius: 999px; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.crm-lead-dados { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 9px 16px; }
+.crm-lead-dados div { min-width: 0; }
+.crm-lead-dados dt { color: var(--texto-fraco); font-size: 9px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+.crm-lead-dados dd { margin-top: 2px; color: var(--texto-suave); font-size: 11.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.crm-lead-dados a { color: var(--menta-clara); font-weight: 700; }
+.crm-lead-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.crm-lead-acoes .botao { min-width: 0; justify-content: flex-start; gap: 6px; padding: 7px 9px; font-size: 10.5px; }
+.crm-lead-acoes svg { width: 14px; height: 14px; }
+.crm-lead-excluir { color: var(--texto-fraco); }
+.crm-lead-excluir.confirmar { color: var(--alerta); border-color: rgba(var(--alerta-rgb), .35); }
+.crm-leads-rodape { position: sticky; bottom: 0; z-index: 6; min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 11px 32px; background: var(--fundo-2); border-top: 1px solid var(--borda-forte); box-shadow: 0 -10px 24px rgba(var(--scrim-rgb), .18); }
+.crm-leads-rodape > span { color: var(--texto-suave); font-size: 12.5px; }
+.crm-leads-rodape > span strong { color: var(--texto); }
+.crm-leads-rodape > div { display: flex; gap: 8px; }
+
 .crm-contato-selecionado {
   display: flex;
   align-items: center;
@@ -1144,6 +1344,26 @@ body.crm-arrastando .crm-cartao {
   font-weight: 700;
 }
 
+@media (max-width: 1100px) {
+  .crm-leads-intro {
+    grid-template-columns: 1fr;
+  }
+  .crm-leads-intro h2 {
+    max-width: none;
+  }
+  .crm-lead-cartao {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .crm-lead-acoes {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .crm-lead-acoes .botao {
+    min-width: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .crm-hoje {
     grid-template-columns: 1fr;
@@ -1155,12 +1375,41 @@ body.crm-arrastando .crm-cartao {
     padding-left: 18px;
     padding-right: 18px;
   }
+  .crm-leads-aviso {
+    margin: 0 18px;
+  }
+  .crm-leads-conteudo {
+    width: calc(100% - 36px);
+  }
+  .crm-leads-intro {
+    grid-template-columns: 1fr;
+  }
+  .crm-leads-form {
+    grid-template-columns: minmax(0, 1fr) minmax(130px, .55fr);
+  }
+  .crm-leads-campo-principal {
+    grid-column: 1 / -1;
+  }
+  .crm-leads-email {
+    grid-column: 1;
+  }
+  .crm-leads-buscar {
+    grid-column: 2;
+  }
+  .crm-leads-lista-topo {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 560px) {
+  .crm-abas {
+    overflow-x: auto;
+  }
   .crm-abas button {
-    min-width: 0;
-    flex: 1;
+    min-width: 88px;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
   .crm-campos-grade,
   .crm-negocio-campos,
@@ -1179,6 +1428,65 @@ body.crm-arrastando .crm-cartao {
   .crm-tarefa time {
     grid-column: 1 / -1;
   }
+  .crm-leads-form {
+    grid-template-columns: 1fr;
+  }
+  .crm-leads-campo-principal,
+  .crm-leads-email {
+    grid-column: auto;
+  }
+  .crm-leads-erro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .crm-leads-buscar {
+    grid-column: auto;
+  }
+  .crm-leads-conteudo {
+    width: calc(100% - 24px);
+  }
+  .crm-leads-aviso {
+    margin: 0 12px;
+  }
+  .crm-leads-intro,
+  .crm-lead-cartao {
+    padding: 16px;
+  }
+  .crm-leads-lista-topo,
+  .crm-leads-selecao-topo {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .crm-leads-selecao-topo {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .crm-leads-subabas {
+    width: 100%;
+  }
+  .crm-leads-subabas button {
+    flex: 1;
+    justify-content: center;
+  }
+  .crm-lead-dados {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .crm-lead-acoes .botao {
+    flex: 1;
+    justify-content: center;
+  }
+  .crm-leads-rodape {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 10px 18px;
+  }
+  .crm-leads-rodape > div {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+  }
+  .crm-leads-rodape .botao {
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1193,7 +1501,35 @@ body.crm-arrastando .crm-cartao {
   .crm-aviso-confirmar {
     animation: none;
   }
+  .crm-lead-cartao,
+  .crm-leads-carregando,
+  .crm-leads-erro,
+  .crm-leads-resumo,
+  .crm-leads-pulso i {
+    animation: none;
+  }
   .crm-item-hoje:hover {
     transform: none;
   }
+}
+
+@container leads (min-width: 880px) {
+  .crm-lead-cartao { grid-template-columns: minmax(230px, .9fr) minmax(0, 1.3fr) auto; gap: 20px; }
+  .crm-lead-acoes { align-self: center; flex-direction: column; align-items: stretch; }
+}
+
+@container leads (max-width: 700px) {
+  .crm-leads-conteudo { width: calc(100% - 24px); }
+  .crm-leads-aviso { margin: 0 12px; }
+  .crm-leads-intro, .crm-lead-cartao { padding: 16px; }
+  .crm-leads-form { grid-template-columns: minmax(0, 1fr); }
+  .crm-leads-campo-principal, .crm-leads-email, .crm-leads-buscar { grid-column: auto; }
+  .crm-leads-lista-topo { align-items: stretch; flex-direction: column; padding: 16px 14px; }
+  .crm-leads-subabas { width: 100%; }
+  .crm-leads-subabas button { flex: 1; justify-content: center; }
+  .crm-leads-selecao-topo { align-items: stretch; flex-direction: column; padding-left: 14px; padding-right: 14px; }
+  .crm-lead-dados { grid-template-columns: minmax(0, 1fr); }
+  .crm-lead-acoes .botao { flex: 1; justify-content: center; }
+  .crm-leads-rodape { align-items: stretch; flex-direction: column; padding: 10px 12px; }
+  .crm-leads-rodape > div { display: grid; grid-template-columns: minmax(0, 1fr); }
 }

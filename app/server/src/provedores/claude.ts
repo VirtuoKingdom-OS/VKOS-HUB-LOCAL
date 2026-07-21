@@ -20,7 +20,7 @@ import { citarArg } from "./util.js";
 const MODELOS: OpcaoModelo[] = [
   { alias: "opus", rotulo: "Opus", observacaoCusto: "mais capaz, mais caro" },
   { alias: "sonnet", rotulo: "Sonnet", observacaoCusto: "equilíbrio" },
-  { alias: "haiku", rotulo: "Haiku", observacaoCusto: "rápido e barato" },
+  { alias: "haiku", rotulo: "Haiku", observacaoCusto: "rápido e barato", economico: true },
 ];
 
 class ProcessoClaude implements ProcessoSessao {

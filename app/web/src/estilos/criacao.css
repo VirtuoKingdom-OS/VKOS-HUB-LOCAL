@@ -955,12 +955,94 @@
   margin-top: 4px;
 }
 
+/* ===== Interruptor "Aprimorar com IA" (etapa de instrucoes finais) ===== */
+.criacao-aprimorar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--fundo);
+}
+.criacao-aprimorar-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.criacao-aprimorar-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+/* Switch no padrao visual da casa (mesmo desenho das conexoes/automacoes). */
+.criacao-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.criacao-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.criacao-switch-trilho {
+  width: 42px;
+  height: 24px;
+  border-radius: 100px;
+  background: var(--fundo-3);
+  border: 1px solid var(--borda-forte);
+  transition: background var(--transicao), border-color var(--transicao);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 3px;
+}
+.criacao-switch-bola {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--texto-fraco);
+  transition: transform var(--transicao), background var(--transicao);
+}
+.criacao-switch input:checked + .criacao-switch-trilho {
+  background: rgba(var(--menta-rgb), 0.22);
+  border-color: var(--menta);
+}
+.criacao-switch input:checked + .criacao-switch-trilho .criacao-switch-bola {
+  transform: translateX(18px);
+  background: var(--menta);
+}
+.criacao-switch input:focus-visible + .criacao-switch-trilho {
+  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.18);
+}
+
+/* Aviso inline do modo economico sem instrucoes: honesto, sem tom de erro. */
+.criacao-aviso {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--texto-suave);
+  background: rgba(var(--alerta-rgb), 0.08);
+  border: 1px solid rgba(var(--alerta-rgb), 0.3);
+  border-radius: 10px;
+  padding: 10px 12px;
+  animation: entrada-suave 180ms ease both;
+}
+
 /* Reduz o movimento pra quem pede menos animacao. */
 @media (prefers-reduced-motion: reduce) {
   .criacao-etapa.da-frente,
   .criacao-etapa.da-tras,
   .criacao-selo.pulsa,
-  .geracao-flutuante {
+  .geracao-flutuante,
+  .criacao-aviso {
     animation: none;
+  }
+  .criacao-switch-trilho,
+  .criacao-switch-bola {
+    transition: none;
   }
 }

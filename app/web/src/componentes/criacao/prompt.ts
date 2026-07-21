@@ -46,6 +46,10 @@ export interface DadosCriacao {
   caminhosImagens: string[];
   // Visual personalizado, ou null pra usar o do negocio (design-guide/Cerebro).
   visual: VisualPersonalizado | null;
+  // Interruptor "Aprimorar com IA" da etapa de instrucoes finais. Ligado
+  // (padrao, ou ausente em rascunho antigo): fluxo atual, nada muda. Desligado:
+  // o prompt ganha o bloco de montagem economica no fim.
+  aprimorarComIA?: boolean;
 }
 
 // Data de hoje no fuso local, no formato AAAA-MM-DD (o mesmo das pastas de peca).
@@ -191,6 +195,20 @@ function contratoModelo(dados: DadosCriacao, pasta: string): string {
   ].join("\n");
 }
 
+// Bloco anexado ao prompt quando o interruptor "Aprimorar com IA" esta
+// desligado. Nao muda nenhuma linha dos blocos do modo ligado: so ANEXA. O modo
+// montagem tira toda a liberdade criativa: o modelo barato copia o template e
+// preenche com o conteudo do usuario e do Cerebro, nada mais.
+export function blocoMontagemEconomica(): string {
+  return [
+    "MODO MONTAGEM (o usuário desligou o Aprimorar com IA):",
+    "- Esta geração é montagem, não criação. Siga o template modelo-X.html indicado no contrato acima SEM alterar anatomia, cores, fontes ou layout.",
+    "- O conteúdo vem das instruções finais do usuário e do Cérebro. Não invente direção de arte.",
+    "- Não adicione elementos novos que o template não tem. Não redesenhe nada.",
+    "- Preencha o template com o conteúdo e pare.",
+  ].join("\n");
+}
+
 // Prompt completo pronto pra criarSessao. Base /carrossel <tema>, o modelo de
 // estilo como sufixo quando escolhido, as instrucoes de formato e dimensao
 // (reusadas de fluxos.ts) e o bloco de detalhes desta geracao.
@@ -218,6 +236,12 @@ export function montarPromptCriacao(dados: DadosCriacao, pasta: string): string 
     partes.push(
       `INSTRUÇÕES FINAIS DO USUÁRIO, preserve integralmente o conteúdo e a ordem quando ele trouxer um roteiro:\n${detalhes}`,
     );
+  }
+
+  // Modo economico: o bloco de montagem e ANEXADO no fim. Nenhuma linha dos
+  // blocos do modo ligado muda.
+  if (dados.aprimorarComIA === false) {
+    partes.push(blocoMontagemEconomica());
   }
 
   return partes.join("\n\n");

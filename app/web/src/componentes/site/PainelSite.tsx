@@ -7,7 +7,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { EscopoEstilo, MotorSite } from "../editor/motorSite";
-import { ControlesImagem } from "../editor/ControlesImagem";
+import { ControlesImagem, MenuAdicionarImagem } from "../editor/ControlesImagem";
+import { PainelCamadas } from "../editor/PainelCamadas";
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
 import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import {
@@ -25,6 +26,9 @@ import {
   IconeSeta,
 } from "../comum/Icones";
 import "../../estilos/site.css";
+// Estilos do PainelCamadas e do menu de adicionar imagem (blocos camadas-* e
+// editor-imagem-* compartilhados com o editor de carrossel).
+import "../../estilos/editor.css";
 
 // Contrato da rodada: a tela (dono B) passa exatamente estas props.
 interface Props {
@@ -69,6 +73,9 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
   // Troca de imagem em andamento.
   const [enviando, setEnviando] = useState(false);
   const [erroImagem, setErroImagem] = useState<string | null>(null);
+  // Insercao de imagem nova na secao (Adicionar imagem).
+  const [inserindo, setInserindo] = useState(false);
+  const [erroInserir, setErroInserir] = useState<string | null>(null);
   // Exclusao de secao armada (confirmacao de dois cliques padrao do app).
   const [armado, setArmado] = useState<string | null>(null);
   const [confirmarExclusao, setConfirmarExclusao] = useState<"elemento" | "imagem" | null>(null);
@@ -140,6 +147,32 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
   async function escolherDaGaleria(arquivo: ArquivoGaleriaFonte) {
     if (!alvoGaleria.current) throw new Error("A imagem selecionada não está mais disponível.");
     await aplicarImagemDaFonte(pecaPasta, arquivo, alvoGaleria.current);
+  }
+
+  // ===== Adicionar imagem na secao selecionada (insercao, nao troca).
+  async function inserirImagem(file: File) {
+    setErroInserir(null);
+    setInserindo(true);
+    try {
+      await motor.inserirImagemLivre(file);
+    } catch (err) {
+      setErroInserir(
+        err instanceof Error ? err.message : "Não foi possível adicionar a imagem.",
+      );
+    } finally {
+      setInserindo(false);
+    }
+  }
+
+  function abrirGaleriaInsercao() {
+    setErroInserir(null);
+    const alvo = motor.capturarInsercaoImagem();
+    if (!alvo) {
+      setErroInserir("Selecione uma seção do site primeiro.");
+      return;
+    }
+    alvoGaleria.current = alvo;
+    setGaleriaAberta(true);
   }
 
   function excluir(id: string) {
@@ -224,6 +257,9 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
                 ))}
               </ul>
             )}
+            <small className="ps-nota">
+              Selecione uma seção pra ver e reordenar as camadas dela.
+            </small>
           </section>
         ) : (
           // ===== Com selecao: elemento, tipografia, escopo, link, imagem.
@@ -449,8 +485,61 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
                   aoGerar={gerarImagem}
                   aoExcluir={() => setConfirmarExclusao("imagem")}
                 />
+                {sel.tipoImagem === "img" && (
+                  <label className="ps-campo">
+                    <span>Largura máxima</span>
+                    <div className="ps-num">
+                      <input
+                        type="number"
+                        value={sel.larguraMax}
+                        min={1}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          if (Number.isFinite(n) && n > 0) {
+                            mudarEstilo("max-width", `${n}px`);
+                          }
+                        }}
+                      />
+                      <span className="ps-num-un">px</span>
+                    </div>
+                    <small className="ps-nota">
+                      A imagem ocupa a coluna até este limite e encolhe junto
+                      com a tela.
+                    </small>
+                  </label>
+                )}
               </div>
             )}
+          </section>
+        )}
+
+        {/* ===== Camadas da seção: aparece quando a seleção está dentro de uma
+            seção listada. A lista segue a ordem da página (primeiro item no
+            topo); as setas trocam a posição no fluxo. ===== */}
+        {sel && (
+          <section className="ps-secao ps-camadas">
+            <div className="ps-titulo">Camadas da seção</div>
+            {motor.camadas.length > 0 ? (
+              <PainelCamadas
+                itens={motor.camadas}
+                selecionadoId={motor.camadaSelecionadaId}
+                aoSelecionar={motor.selecionarCamada}
+                aoMover={motor.moverCamada}
+              />
+            ) : (
+              <p className="ps-vazio">
+                Este elemento está fora das seções da página.
+              </p>
+            )}
+            <MenuAdicionarImagem
+              enviando={inserindo}
+              erro={erroInserir}
+              aoArquivo={(file) => void inserirImagem(file)}
+              aoAbrirGaleria={abrirGaleriaInsercao}
+            />
+            <small className="ps-nota">
+              A imagem entra no fim da seção selecionada, na largura da coluna.
+            </small>
           </section>
         )}
 

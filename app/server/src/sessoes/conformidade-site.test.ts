@@ -6,6 +6,7 @@ import {
   criarLacoConformidade,
   deveDispararLaco,
   montarPromptCorrecao,
+  skillPassaPelaConferencia,
   type DepsConformidade,
   type ResultadoConferencia,
 } from "./conformidade-site.js";
@@ -62,11 +63,26 @@ function montarLaco(opcoes: {
   };
 }
 
-test("dispara so para skill site com pastaAlvo", () => {
+// Esta e a regra que o gerenciador usa pra decidir se guarda a pastaAlvo da
+// sessao. Sem ela o laco nunca sabe qual peca auditar.
+test("skills que passam pela conferencia sao geracao e ajuste de site", () => {
+  assert.equal(skillPassaPelaConferencia("site"), true);
+  assert.equal(skillPassaPelaConferencia("ajuste-site"), true);
+  assert.equal(skillPassaPelaConferencia("carrossel"), false);
+  assert.equal(skillPassaPelaConferencia("ajuste-carrossel"), false);
+  assert.equal(skillPassaPelaConferencia("imagem"), false);
+  assert.equal(skillPassaPelaConferencia(undefined), false);
+});
+
+test("dispara para geracao e para ajuste de site, sempre com pastaAlvo", () => {
   assert.equal(deveDispararLaco(sessaoSite()), true);
+  // Ajuste de site com IA quebra o site do mesmo jeito que a geracao: entra.
+  assert.equal(deveDispararLaco(sessaoSite({ skill: "ajuste-site" })), true);
   assert.equal(deveDispararLaco(sessaoSite({ skill: "carrossel" })), false);
+  assert.equal(deveDispararLaco(sessaoSite({ skill: "ajuste-carrossel" })), false);
   assert.equal(deveDispararLaco(sessaoSite({ pastaAlvo: undefined })), false);
   assert.equal(deveDispararLaco(sessaoSite({ skill: "site", pastaAlvo: "" })), false);
+  assert.equal(deveDispararLaco(sessaoSite({ skill: "ajuste-site", pastaAlvo: "" })), false);
 });
 
 test("nao roda quando a pasta nao e peca de site", async () => {

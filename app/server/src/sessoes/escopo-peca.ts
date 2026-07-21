@@ -102,6 +102,13 @@ export function resolverEscopoPeca(
   };
 }
 
+// Qual peca o laco de conformidade vai auditar depois do ajuste. Site entra:
+// editar um site pronto quebra igual a gerar um errado, e sem isso o problema
+// so aparecia na hora de publicar. Carrossel nao entra: a auditoria e de site.
+export function pastaAlvoDoEscopo(escopo: EscopoPecaResolvido): string | undefined {
+  return escopo.tipo === "site" ? escopo.pasta : undefined;
+}
+
 export function lerPrincipiosVisuaisSite(pastaVkos: string): string {
   const caminho = join(pastaVkos, "templates", "site", "principios-visuais.md");
   try {
@@ -136,6 +143,7 @@ export function montarPromptAjustePeca(
     "A fonte atual do arquivo principal esta incluida abaixo. Use-a como referencia exata e aplique a edicao diretamente no arquivo, sem depender de comandos de shell para conseguir comecar.",
     "Faca a menor alteracao suficiente para atender ao pedido e preserve tudo que nao foi solicitado.",
     "Voce pode editar apenas arquivos que ja estejam dentro do diretorio de trabalho atual e pode criar imagens somente em img/ quando o pedido exigir.",
+    "REFERENCIA SO PARA ARQUIVO QUE EXISTE: todo src, href e url() precisa apontar pra um arquivo que exista de verdade na peca quando voce terminar. Nunca escreva um caminho esperando que alguem crie o arquivo depois, e nunca invente nome de foto, logo ou icone. Se o pedido precisa de uma imagem que voce nao pode produzir, resolva com o que ja existe na peca ou com CSS puro (iniciais, forma, gradiente) e diga na resposta o que faltou. Uma referencia quebrada reprova a conferencia e bloqueia a publicacao do site.",
     ...(pedido.includes("anexos/")
       ? [
           "Se o pedido citar materiais em anexos/, eles sao a fonte preferencial. Imagem anexada se copia de anexos/ para img/ e se referencia por caminho relativo img/<nome> no HTML. Nao gere imagem nova quando um anexo de imagem atende o pedido.",
