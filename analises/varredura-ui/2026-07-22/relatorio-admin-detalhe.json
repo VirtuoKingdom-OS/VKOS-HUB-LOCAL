@@ -1,0 +1,62 @@
+{
+  "criadoEm": "2026-07-23T02:22:14.086Z",
+  "base": "http://localhost:5173",
+  "capturas": [
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "detalhe",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "admin-detalhe-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "detalhe",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "admin-detalhe-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "detalhe",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "admin-detalhe-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "detalhe",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "admin-detalhe-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "detalhe",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "admin-detalhe-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "detalhe",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "admin-detalhe-claro-desktop.png",
+      "erros": []
+    }
+  ],
+  "ignoradas": [],
+  "falhas": []
+}

@@ -1,0 +1,62 @@
+{
+  "criadoEm": "2026-07-23T02:22:37.648Z",
+  "base": "http://localhost:5173",
+  "capturas": [
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "consumo",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "admin-consumo-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "consumo",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "admin-consumo-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "consumo",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "admin-consumo-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "consumo",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "admin-consumo-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "consumo",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "admin-consumo-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "consumo",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "admin-consumo-claro-desktop.png",
+      "erros": []
+    }
+  ],
+  "ignoradas": [],
+  "falhas": []
+}

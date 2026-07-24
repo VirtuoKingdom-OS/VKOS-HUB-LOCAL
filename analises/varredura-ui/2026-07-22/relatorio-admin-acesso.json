@@ -1,0 +1,62 @@
+{
+  "criadoEm": "2026-07-23T02:22:25.787Z",
+  "base": "http://localhost:5173",
+  "capturas": [
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "acesso",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "admin-acesso-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "acesso",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "admin-acesso-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "acesso",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "admin-acesso-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "acesso",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "admin-acesso-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "acesso",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "admin-acesso-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "acesso",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "admin-acesso-claro-desktop.png",
+      "erros": []
+    }
+  ],
+  "ignoradas": [],
+  "falhas": []
+}

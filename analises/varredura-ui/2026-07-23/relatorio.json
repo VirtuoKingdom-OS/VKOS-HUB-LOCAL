@@ -1,0 +1,809 @@
+{
+  "criadoEm": "2026-07-23T01:18:25.560Z",
+  "base": "http://localhost:5173",
+  "capturas": [
+    {
+      "tela": "acesso",
+      "rota": "#/dashboard",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "acesso-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "acesso",
+      "rota": "#/dashboard",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "acesso-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "acesso",
+      "rota": "#/dashboard",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "acesso-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "acesso",
+      "rota": "#/dashboard",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "acesso-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "acesso",
+      "rota": "#/dashboard",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "acesso-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "acesso",
+      "rota": "#/dashboard",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "acesso-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "admin-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "admin-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "admin-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "admin-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "admin-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "admin-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "dashboard",
+      "rota": "#/dashboard",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "dashboard-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "dashboard",
+      "rota": "#/dashboard",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "dashboard-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "dashboard",
+      "rota": "#/dashboard",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "dashboard-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "dashboard",
+      "rota": "#/dashboard",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "dashboard-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "dashboard",
+      "rota": "#/dashboard",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "dashboard-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "dashboard",
+      "rota": "#/dashboard",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "dashboard-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "cockpit",
+      "rota": "#/cockpit",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "cockpit-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "cockpit",
+      "rota": "#/cockpit",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "cockpit-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "cockpit",
+      "rota": "#/cockpit",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "cockpit-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "cockpit",
+      "rota": "#/cockpit",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "cockpit-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "cockpit",
+      "rota": "#/cockpit",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "cockpit-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "cockpit",
+      "rota": "#/cockpit",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "cockpit-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "crm",
+      "rota": "#/crm",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "crm-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "crm",
+      "rota": "#/crm",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "crm-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "crm",
+      "rota": "#/crm",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "crm-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "crm",
+      "rota": "#/crm",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "crm-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "crm",
+      "rota": "#/crm",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "crm-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "crm",
+      "rota": "#/crm",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "crm-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "calendario",
+      "rota": "#/calendario",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "calendario-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "calendario",
+      "rota": "#/calendario",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "calendario-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "calendario",
+      "rota": "#/calendario",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "calendario-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "calendario",
+      "rota": "#/calendario",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "calendario-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "calendario",
+      "rota": "#/calendario",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "calendario-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "calendario",
+      "rota": "#/calendario",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "calendario-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "automacoes",
+      "rota": "#/automacoes",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "automacoes-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "automacoes",
+      "rota": "#/automacoes",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "automacoes-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "automacoes",
+      "rota": "#/automacoes",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "automacoes-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "automacoes",
+      "rota": "#/automacoes",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "automacoes-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "automacoes",
+      "rota": "#/automacoes",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "automacoes-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "automacoes",
+      "rota": "#/automacoes",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "automacoes-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "conexoes",
+      "rota": "#/conexoes",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "conexoes-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "conexoes",
+      "rota": "#/conexoes",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "conexoes-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "conexoes",
+      "rota": "#/conexoes",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "conexoes-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "conexoes",
+      "rota": "#/conexoes",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "conexoes-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "conexoes",
+      "rota": "#/conexoes",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "conexoes-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "conexoes",
+      "rota": "#/conexoes",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "conexoes-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "mapa",
+      "rota": "#/mapa",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "mapa-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "mapa",
+      "rota": "#/mapa",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "mapa-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "mapa",
+      "rota": "#/mapa",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "mapa-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "mapa",
+      "rota": "#/mapa",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "mapa-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "mapa",
+      "rota": "#/mapa",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "mapa-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "mapa",
+      "rota": "#/mapa",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "mapa-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "galerias",
+      "rota": "#/galerias",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "galerias-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "galerias",
+      "rota": "#/galerias",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "galerias-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "galerias",
+      "rota": "#/galerias",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "galerias-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "galerias",
+      "rota": "#/galerias",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "galerias-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "galerias",
+      "rota": "#/galerias",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "galerias-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "galerias",
+      "rota": "#/galerias",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "galerias-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "fluxo-site",
+      "rota": "#/fluxo/site",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "fluxo-site-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "fluxo-site",
+      "rota": "#/fluxo/site",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "fluxo-site-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "fluxo-site",
+      "rota": "#/fluxo/site",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "fluxo-site-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "fluxo-site",
+      "rota": "#/fluxo/site",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "fluxo-site-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "fluxo-site",
+      "rota": "#/fluxo/site",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "fluxo-site-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "fluxo-site",
+      "rota": "#/fluxo/site",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "fluxo-site-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "fontes",
+      "rota": "#/fontes",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "fontes-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "fontes",
+      "rota": "#/fontes",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "fontes-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "fontes",
+      "rota": "#/fontes",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "fontes-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "fontes",
+      "rota": "#/fontes",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "fontes-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "fontes",
+      "rota": "#/fontes",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "fontes-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "fontes",
+      "rota": "#/fontes",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "fontes-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-carrossel",
+      "rota": "#/criar/carrossel",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "criar-carrossel-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-carrossel",
+      "rota": "#/criar/carrossel",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "criar-carrossel-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-carrossel",
+      "rota": "#/criar/carrossel",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "criar-carrossel-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-carrossel",
+      "rota": "#/criar/carrossel",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "criar-carrossel-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-carrossel",
+      "rota": "#/criar/carrossel",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "criar-carrossel-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-carrossel",
+      "rota": "#/criar/carrossel",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "criar-carrossel-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-post",
+      "rota": "#/criar/post",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "criar-post-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-post",
+      "rota": "#/criar/post",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "criar-post-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-post",
+      "rota": "#/criar/post",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "criar-post-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-post",
+      "rota": "#/criar/post",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "criar-post-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-post",
+      "rota": "#/criar/post",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "criar-post-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-post",
+      "rota": "#/criar/post",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "criar-post-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-story",
+      "rota": "#/criar/story",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "criar-story-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-story",
+      "rota": "#/criar/story",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "criar-story-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-story",
+      "rota": "#/criar/story",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "criar-story-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-story",
+      "rota": "#/criar/story",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "criar-story-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-story",
+      "rota": "#/criar/story",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "criar-story-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-story",
+      "rota": "#/criar/story",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "criar-story-claro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-site",
+      "rota": "#/criar/site",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "criar-site-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-site",
+      "rota": "#/criar/site",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "criar-site-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-site",
+      "rota": "#/criar/site",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "criar-site-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-site",
+      "rota": "#/criar/site",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "criar-site-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-site",
+      "rota": "#/criar/site",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "criar-site-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "criar-site",
+      "rota": "#/criar/site",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "criar-site-claro-desktop.png",
+      "erros": []
+    }
+  ],
+  "ignoradas": [
+    {
+      "id": "splash",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "servidor-fora",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "onboarding",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "ide",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "fonte",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "geracao-flutuante",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "studio",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    },
+    {
+      "id": "site",
+      "motivo": "estado sem hash fixo ou rota parametrizada"
+    }
+  ],
+  "falhas": []
+}

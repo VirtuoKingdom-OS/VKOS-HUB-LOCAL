@@ -1,0 +1,62 @@
+{
+  "criadoEm": "2026-07-23T02:22:49.414Z",
+  "base": "http://localhost:5173",
+  "capturas": [
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "modelos",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "admin-modelos-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "modelos",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "admin-modelos-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "modelos",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "admin-modelos-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "modelos",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "admin-modelos-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "modelos",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "admin-modelos-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "modelos",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "admin-modelos-claro-desktop.png",
+      "erros": []
+    }
+  ],
+  "ignoradas": [],
+  "falhas": []
+}

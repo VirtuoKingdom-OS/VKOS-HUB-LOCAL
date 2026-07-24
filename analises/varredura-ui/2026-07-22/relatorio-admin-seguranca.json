@@ -1,0 +1,62 @@
+{
+  "criadoEm": "2026-07-23T02:23:01.075Z",
+  "base": "http://localhost:5173",
+  "capturas": [
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "seguranca",
+      "tema": "escuro",
+      "largura": "celular",
+      "arquivo": "admin-seguranca-escuro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "seguranca",
+      "tema": "escuro",
+      "largura": "tablet",
+      "arquivo": "admin-seguranca-escuro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "seguranca",
+      "tema": "escuro",
+      "largura": "desktop",
+      "arquivo": "admin-seguranca-escuro-desktop.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "seguranca",
+      "tema": "claro",
+      "largura": "celular",
+      "arquivo": "admin-seguranca-claro-celular.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "seguranca",
+      "tema": "claro",
+      "largura": "tablet",
+      "arquivo": "admin-seguranca-claro-tablet.png",
+      "erros": []
+    },
+    {
+      "tela": "admin",
+      "rota": "#/admin",
+      "estado": "seguranca",
+      "tema": "claro",
+      "largura": "desktop",
+      "arquivo": "admin-seguranca-claro-desktop.png",
+      "erros": []
+    }
+  ],
+  "ignoradas": [],
+  "falhas": []
+}
