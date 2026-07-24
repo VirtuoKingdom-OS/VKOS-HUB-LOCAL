@@ -6,7 +6,7 @@ Este é o braço de desenvolvimento do VKOS Hub. Pasta autônoma, separada do wo
 
 Workspace multi-IA vertical. Um canvas ou cockpit onde várias sessões de Claude trabalham em paralelo, todas lendo o mesmo Cérebro (a identidade do negócio em markdown, o mecanismo do produto VKOS atual). O Cérebro como contexto compartilhado é o diferencial.
 
-Público: dono de negócio ou prestador de serviço, não desenvolvedor. Local-first, pagamento único, nada hospedado. Também é a ferramenta de produtividade do próprio Jesse. Referências de inspiração: AIOX-CORE e Maestri.
+Público: dono de negócio ou prestador de serviço, não desenvolvedor. Desde 2026-07-22, o produto roda na nuvem com um CORE exclusivo do Jesse e workspaces de clientes com login. Também é a ferramenta de produtividade do próprio Jesse. Referências de inspiração: AIOX-CORE e Maestri.
 
 ## Leitura de contexto
 
@@ -51,7 +51,7 @@ Em decisões estratégicas ele gosta de debater antes de travar. Apresentar opç
 
 Em execução ele quer velocidade e iteração. Quando ele disser "bora torar", é pra construir, não pra planejar mais.
 
-Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. O tema sai de duas camadas: `app/web/src/estilos/global.css` define a base dos tokens e `app/web/src/estilos/visual-hub.css` carrega por último e é a camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
+Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (`#2fd4a7` no Escuro), glow sutil e contraste confortável. O app tem dois temas: Escuro, padrão em grafite neutro, e Claro off-white. O valor antigo `vkos` salvo no navegador migra para Escuro. O tema sai de duas camadas: `app/web/src/estilos/global.css` define a base dos tokens e `app/web/src/estilos/visual-hub.css` carrega por último e fixa o valor final de cada token por tema. Toda cor passa por esses tokens. A camada comum em `app/web/src/componentes/comum/` concentra botões, campos, cartões, abas, avisos, estados e limites de erro. Toda interface funciona nos dois temas e nas larguras de 390, 768 e 1440 px.
 
 ## Código
 

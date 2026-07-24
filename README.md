@@ -1,84 +1,97 @@
-# VKOS Hub, repositório de desenvolvimento
+# VKOS Hub 3.0
 
-**Versão 2.0.0.** Repositório privado. O pacote público do cliente vive em [vkos-hub-beta](https://github.com/OJESSEGOMES-VKOS/vkos-hub-beta) sob AGPL-3.0.
+Repositório privado da plataforma VKOS na nuvem. O mesmo monorepo entrega dois lados separados:
 
-O VKOS Hub é um workspace multi-IA local-first: várias sessões de Claude Code ou Codex trabalhando em paralelo, todas lendo o mesmo Cérebro (a identidade do negócio em markdown). O usuário não é desenvolvedor; ele vê o negócio operando, não a orquestração.
+- `CORE`: painel exclusivo do operador, com Claude Code local, modelos, clientes, consumo e auditoria.
+- `hub`: workspace dos clientes no navegador, sem CLI de IA e sem acesso ao cofre.
+- `motor`: broker interno que resolve Gemini ou Claude do próprio cliente, mede consumo e aplica limites.
 
-> Este README orienta quem desenvolve. Quem for **usar** o produto começa pelo [LEIA-ME.md](LEIA-ME.md). Quem for **trabalhar no código** (pessoa ou IA) lê o [CLAUDE.md](CLAUDE.md) primeiro, que tem as regras da casa.
+O plano e as decisões estão em `planos/vkos-3-nuvem/` e `decisoes/2026-07-22-vkos-3-nuvem.md`.
 
 ## Estrutura
 
-```
-app/                  O produto
-├── server/           Fastify + TypeScript: sessões de IA, peças, publicação,
-│                     CRM, calendário, automações, conexões
-└── web/              React + Vite: cockpit, Studio, wizards, telas (3 temas)
-
-vkos2/                Template do workspace entregue ao cliente
-                      (Cérebro em branco, 33 skills, camada de design)
-
-contexto/             O contexto vivo lido antes de agir
-├── visao.md          O que é o produto e para quem
-├── arquitetura.md    Como o app é construído por dentro
-├── roadmap.md        As fases, em ordem
-└── ecossistema.md    O produto VKOS e o posicionamento da VK
-
-decisoes/             Uma decisão de produto ou técnica por arquivo
-interno/              Material interno: mapa do sistema, resumo de contexto
-planos/               Planos de rodada (temporários, apagados após executar)
-ojessegomes/          Workspace real: marca pessoal
-estudio-aura/         Workspace real: cliente
-
-app/CONTRATO.md       O contrato técnico detalhado das rodadas
-CHANGELOG.md          Histórico de versões
+```text
+app/
+  server/       Fastify, identidade, autorização, features e APIs
+  web/          React e Vite, interface compartilhada
+  motor/        broker interno de IA
+infra/
+  backup/       backup diário cifrado e restauração
+  gcp/          infraestrutura Terraform
+  Caddyfile     TLS, roteamento e headers de segurança
+vkos2/          primeira semente de modelo de workspace
+contexto/       contexto vivo do produto
+decisoes/       decisões registradas
+interno/        mapas do sistema e das telas
 ```
 
-Fora do versionamento: `app/dados/` (dados e credenciais do usuário), `vkos/` e `outros/` (referências externas), `node_modules/`.
+Dados reais não entram na imagem nem no Git. Em produção ficam sob `runtime/dados/`, ignorado pelo repositório.
 
-## Rodando
+## Desenvolvimento
 
-Requer Node 20 ou mais recente. A partir de `app/`:
+Requer Node.js 20 ou mais recente. A partir de `app/`:
 
 ```bash
 npm install
-npm run dev -w server    # backend na porta 4600
-npm run dev -w web       # frontend na porta 5173, com proxy pro backend
+npm run dev
 ```
 
-Ou `npm run dev` para subir os dois juntos.
-
-Antes de fechar qualquer rodada:
+Para subir apenas o PostgreSQL de desenvolvimento:
 
 ```bash
-npm run checar -w server && npm run checar -w web    # typecheck
-npm run testar -w server && npm run testar -w web    # 133 testes
-npm run build -w web                                 # a 4600 serve o build
+docker compose -f docker-compose.dev.yml up -d
 ```
 
-## Como o trabalho acontece aqui
+Configure o servidor com:
 
-1. **Rodada grande começa por um plano.** Uma pasta em `planos/` com visão, arquitetura e execução, auditada antes de executar. Depois de executada e fechada, a pasta é apagada.
-2. **Toda decisão vira registro.** Um arquivo curto em `decisoes/AAAA-MM-DD-titulo.md` com contexto, decisão e por quê. Antes de reabrir um debate, conferir se já existe decisão.
-3. **O contexto se mantém vivo.** Quando uma fase fecha ou a arquitetura muda, o arquivo correspondente em `contexto/` é atualizado na linha certa. Mudança que altera módulo, tela ou fluxo também atualiza `interno/mapa-sistema.json`.
-4. **Nada de commit sem ordem.** Commit, push e PR só acontecem por pedido explícito.
+```text
+MODO=core
+DATABASE_URL=postgresql://vkos:vkos_dev@localhost:54329/vkos
+```
 
-## Princípios que não se negociam
+Sem `PRODUCAO=1`, o CORE abre direto como operador local, com ou sem banco. Use `PRODUCAO=1` somente para ensaiar o login de produção. O modo `hub` sempre exige banco e autenticação.
 
-1. **Local-first.** Nenhum dado do usuário sai da máquina dele. Sem backend hospedado, sem telemetria.
-2. **A credencial é do usuário.** O Hub nunca recebe nem guarda token de IA; o login é pelo programa oficial do motor.
-3. **Dado do usuário é sagrado.** Arquivo existente nunca é sobrescrito às cegas: na dúvida, quarentena com data. Migração usa valor padrão, nunca descarta registro.
-4. **Dado pessoal de cliente nunca entra em peça publicável.** Insight agregado sim, nome e telefone nunca.
-5. **Geração é verificada, não confiada.** Auditoria determinística antes de dar por pronto e antes de publicar.
-6. **Funciona para leigo total, de fábrica.** Se exige configuração ou vocabulário técnico, ainda não está pronto.
+## Qualidade
 
-## Convenções
+```bash
+npm run checar
+npm run testar
+npm run build -w web
+npm run checar -w motor
+```
 
-- Português brasileiro em código, comentário, commit e interface.
-- Sem travessão e sem ponto centrado em nenhum texto. Vírgula, ponto ou dois-pontos.
-- Frase curta e direta. Sem jargão de startup.
-- Cor só por token. A base é `app/web/src/estilos/global.css` e a camada final de tema é `app/web/src/estilos/visual-hub.css`, que carrega por último. Tudo funciona nos três temas: Escuro (padrão), Dark VKOS e Claro.
-- Motion sutil, sempre respeitando `prefers-reduced-motion`.
+O ensaio ponta a ponta exige CORE e hub ligados ao mesmo PostgreSQL:
 
-## Distribuição
+```bash
+npm run smoke:nuvem
+```
 
-O pacote do cliente leva `app/`, o template `VKOS/`, os dois `.cmd` e o `LEIA-ME.md`. O instalador cuida de Node, dependências e Chromium. Ficam de fora: `app/dados/`, `contexto/`, `decisoes/`, `planos/`, `interno/` e os workspaces reais.
+A interface usa os temas Escuro e Claro off-white. Para gerar o lote visual em 390, 768 e 1440 px, com checagem de overflow, console e contraste:
+
+```bash
+npm run varrer:ui
+```
+
+As capturas ficam em `analises/varredura-ui/<data>/`. Em desenvolvimento isolado, `VARREDURA_FIXTURES=1` usa somente dados fictícios. `VARREDURA_TELAS=acesso,admin,crm` limita a rodada a telas específicas.
+
+## Produção
+
+1. Copie `.env.example` para `.env` e informe domínio, projeto e bucket.
+2. Execute `infra/inicializar-runtime.ps1` uma vez.
+3. Na VM, use `infra/carregar-segredos-gcp.sh` para montar as versões do Secret Manager. Vertex e backup usam identidades separadas, disponíveis apenas nos containers correspondentes.
+4. Suba `docker compose up -d --build`.
+5. Faça o bootstrap do operador em `core.seudominio`. Se quiser a proteção extra, ligue o TOTP em Administração, Segurança.
+
+O `docker-compose.yml` não publica Postgres nem motor. O volume do Claude pessoal existe apenas no CORE. O cofre existe apenas no CORE e no motor. O hub recebe somente um token para chamar o broker interno.
+
+## Google Cloud
+
+`infra/gcp/` cria VM `e2-standard-2`, IP fixo, firewall, bucket versionado com retenção de 30 dias, service account mínima e segredos. DNS e aplicação do Terraform exigem acesso ao projeto real e são ações externas deliberadas.
+
+## Regras
+
+- Nunca apagar ou sobrescrever dados de workspace às cegas.
+- Dado pessoal de cliente nunca entra em peça publicável.
+- Credenciais nunca aparecem em resposta, tela ou log.
+- O hub nunca executa IA local.
+- Commit, push e PR somente por ordem explícita.

@@ -16,6 +16,10 @@ build/
 
 # Runtime data
 app/dados/
+runtime/
+.env
+infra/gcp/.terraform/
+infra/gcp/*.tfstate*
 app/web/dist/
 
 # Dados privados e cópias locais. As barras iniciais limitam os padrões à raiz.

@@ -8,15 +8,16 @@
     <title>VKOS Hub</title>
     <script>
       // Aplica o tema salvo ANTES do bundle carregar, senao a tela pisca num
-      // tema errado por um frame. Sao tres temas: "escuro" (padrao novo),
-      // "claro" e "vkos" (o dark original). SEMPRE grava um data-theme na raiz,
-      // inclusive "vkos", pra nao sobrar duvida de qual tema esta ativo.
+      // tema errado por um frame. Sao dois temas: "escuro" (padrao) e "claro".
+      // O valor antigo "vkos" migra de forma segura para o Escuro.
       (function () {
         var tema = "escuro";
         try {
           var salvo = localStorage.getItem("vkos-tema");
-          if (salvo === "claro" || salvo === "escuro" || salvo === "vkos") {
+          if (salvo === "claro" || salvo === "escuro") {
             tema = salvo;
+          } else if (salvo === "vkos") {
+            localStorage.setItem("vkos-tema", "escuro");
           }
         } catch (e) {}
         document.documentElement.dataset.theme = tema;

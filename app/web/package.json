@@ -1,8 +1,8 @@
 {
   "name": "web",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Frontend do VKOS Hub. Cockpit visual em React com canvas React Flow.",
+  "description": "Frontend compartilhado do VKOS CORE e dos workspaces de clientes.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,12 +13,14 @@
   },
   "dependencies": {
     "@xyflow/react": "^12.3.0",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

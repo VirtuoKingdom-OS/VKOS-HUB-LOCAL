@@ -1,17 +1,23 @@
 {
   "name": "vkosapp",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "VKOS Hub. Cockpit web local multi-IA, orquestrando o VKOS pelo Cerebro.",
+  "description": "VKOS Hub 3.0. CORE e workspaces de clientes na nuvem.",
   "type": "module",
   "workspaces": [
     "server",
-    "web"
+    "web",
+    "motor"
   ],
   "scripts": {
     "dev": "concurrently -n servidor,web -c green,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
-    "build": "npm run build -w web",
-    "start": "npm run start -w server"
+    "build": "npm run build -w web && npm run build -w server && npm run build -w motor",
+    "start": "npm run start -w server",
+    "start:motor": "npm run start -w motor",
+    "checar": "npm run checar -w server && npm run checar -w web && npm run checar -w motor",
+    "testar": "npm run testar -w server && npm run testar -w web && npm run testar -w motor",
+    "smoke:nuvem": "node ../infra/smoke-nuvem.mjs",
+    "varrer:ui": "node ../infra/varredura-ui.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
