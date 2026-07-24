@@ -1,5 +1,5 @@
 /* Automacoes: lista de regras, assistente de criacao e historico. Toda cor vem
-   dos tokens de global.css, funciona nos tres temas. Motion sutil, menta como
+   dos tokens de global.css, funciona nos dois temas. Motion sutil, menta como
    destaque. Segue o espirito visual da tela de Conexoes. */
 
 .aut-topo-titulo {
@@ -225,7 +225,7 @@
   background: var(--superficie-2);
   border: 1px solid rgba(var(--alerta-rgb), 0.55);
   box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
-  z-index: 30;
+  z-index: var(--z-veu);
   animation: entrada-no 0.12s ease-out;
 }
 
@@ -458,7 +458,7 @@
 .aut-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-dica);
   background: rgba(var(--scrim-rgb), 0.72);
   display: flex;
   align-items: center;

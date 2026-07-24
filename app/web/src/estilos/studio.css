@@ -1,13 +1,13 @@
 /* Studio de edicao do carrossel HTML-first. Pagina inteira (cobre a area de
    conteudo como as telas de fluxo), nivel Canva/Figma-lite: todas as paginas
    lado a lado num iframe, painel de propriedades e barra de zoom flutuante.
-   Toda cor via tokens de tema, funciona nos 3 temas, sem backdrop-filter sobre
+   Toda cor via tokens de tema, funciona nos 2 temas, sem backdrop-filter sobre
    o canvas (scrim solido). Motion curto e sutil. */
 
 .tela-studio {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: var(--z-flutuante);
   display: flex;
   flex-direction: column;
   background: var(--fundo);
@@ -79,7 +79,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  flex-shrink: 1;
+  scrollbar-width: thin;
 }
 .studio-acoes .botao {
   padding: 8px 14px;
@@ -104,7 +108,7 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 10;
+  z-index: var(--z-flutuante);
   min-width: 200px;
   padding: 6px;
   display: flex;
@@ -249,7 +253,7 @@
 /* ===== Painel direito: reusa .editor-painel do editor.css, so acerta a borda
    e o encaixe na pagina inteira. ===== */
 .studio-painel {
-  z-index: 2;
+  z-index: var(--z-flutuante);
 }
 
 /* Painel Ajustar com IA. Ocupa a mesma faixa do painel de propriedades. */
@@ -258,7 +262,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  z-index: 3;
+  z-index: var(--z-flutuante);
   background: var(--fundo-2);
   border-left: 1px solid var(--borda);
   animation: entrada-no 180ms ease both;
@@ -385,7 +389,7 @@
 .studio-ajuste-travado {
   position: absolute;
   inset: 0 clamp(300px, 28vw, 380px) 0 0;
-  z-index: 12;
+  z-index: var(--z-flutuante);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -426,7 +430,7 @@
   background: rgba(var(--painel-rgb), 0.94);
   border: 1px solid var(--borda);
   box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.45);
-  z-index: 4;
+  z-index: var(--z-flutuante);
 }
 .studio-barra-pagina {
   font-size: 12px;
@@ -501,7 +505,7 @@
 .studio-confirm-scrim {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: var(--z-fixo);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -540,4 +544,52 @@
 .studio-confirm-acoes .botao {
   padding: 9px 14px;
   font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .studio-topo {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .studio-titulo {
+    display: none;
+  }
+
+  .studio-acoes .botao {
+    min-height: 42px;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  .studio-corpo {
+    flex-direction: column;
+  }
+
+  .studio-canvas {
+    min-height: 42%;
+    padding: 28px 0 48px;
+  }
+
+  .studio-painel,
+  .studio-ajuste {
+    width: 100%;
+    height: 48%;
+    border-top: 1px solid var(--borda);
+    border-left: 0;
+  }
+
+  .studio-ajuste-travado {
+    inset: 0 0 48% 0;
+  }
+
+  .studio-barra {
+    right: 8px;
+    bottom: calc(48% + 8px);
+    left: 8px;
+    width: calc(100% - 16px);
+    max-width: max-content;
+    transform: none;
+    overflow-x: auto;
+  }
 }

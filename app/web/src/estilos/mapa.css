@@ -303,7 +303,7 @@
   position: absolute;
   top: 16px;
   left: 16px;
-  z-index: 5;
+  z-index: var(--z-flutuante);
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -387,7 +387,7 @@
   position: absolute;
   top: -11px;
   left: -11px;
-  z-index: 2;
+  z-index: var(--z-flutuante);
   display: grid;
   place-items: center;
   width: 24px;
@@ -434,7 +434,7 @@
 
 .mapa-passo-num {
   --mapa-cor: var(--texto-suave);
-  z-index: 1;
+  z-index: var(--z-flutuante);
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -1066,7 +1066,7 @@
   position: absolute;
   right: 16px;
   bottom: 16px;
-  z-index: 4;
+  z-index: var(--z-flutuante);
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;

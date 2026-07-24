@@ -252,9 +252,6 @@ export function BuscaLeads({ aoImportar }: Props) {
     }
   }
 
-  const faltaConexao = erro?.status === 400
-    && /apify|conex(?:a|ã)o|token/i.test(erro.message);
-
   return (
     <div className="crm-leads-visao">
       <aside className="crm-leads-aviso">
@@ -304,7 +301,7 @@ export function BuscaLeads({ aoImportar }: Props) {
         )}
 
         {erro && !buscando && (
-          <div className="crm-leads-erro" role="alert"><div><strong>Não deu pra concluir</strong><p>{erro.message}</p></div>{faltaConexao && <a className="botao botao-neutro" href="#/conexoes">Ir para Conexões</a>}</div>
+          <div className="crm-leads-erro" role="alert"><div><strong>Não deu pra concluir</strong><p>{erro.message}</p></div></div>
         )}
 
         {feedback && (

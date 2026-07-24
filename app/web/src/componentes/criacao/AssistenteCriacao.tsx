@@ -12,7 +12,11 @@ import {
   IconeSubir,
   IconeX,
 } from "../comum/Icones";
-import { montarPromptCriacao, pastaUnica } from "./prompt";
+import {
+  modelosUsadosDaCriacao,
+  montarPromptCriacao,
+  pastaUnica,
+} from "./prompt";
 import {
   CONFIG_TIPO,
   EtapasCriacao,
@@ -43,7 +47,7 @@ interface Props {
   // Chamado quando o usuario desiste (cancelou ou minimizou a geracao).
   aoCancelar: () => void;
   // Destinos internos usados pelos estados de recuperacao do assistente.
-  aoAbrirDestino: (destino: "cockpit" | "galerias") => void;
+  aoAbrirDestino: (destino: "cockpit" | "arquivos") => void;
 }
 
 export function AssistenteCriacao({
@@ -52,7 +56,7 @@ export function AssistenteCriacao({
   aoCancelar,
   aoAbrirDestino,
 }: Props) {
-  const { pecas, sessoes, modeloPadrao, pararSessao } = usarEstado();
+  const { pecas, sessoes, modeloPadrao, pararSessao, estadoVkos } = usarEstado();
   const { ativo: provedorAtivo, modelos: modelosIA } = usarProvedoresIA();
   const {
     ativa,
@@ -92,6 +96,15 @@ export function AssistenteCriacao({
       setDadosSite((d) => ({ ...d, ...parcial })),
     []
   );
+
+  // Identidade da geracao. Com Cerebro preenchido, o fluxo e o de sempre e o
+  // portao nao aparece. Com Cerebro em branco, o usuario escolhe: montar o
+  // Cerebro primeiro (recomendado) ou seguir sem ele nesta geracao.
+  const cerebroPreenchido = estadoVkos?.cerebroPreenchido ?? false;
+  const [identidade, setIdentidade] = useState<"cerebro" | "sem" | null>(null);
+  const [descricaoNegocio, setDescricaoNegocio] = useState("");
+  const semCerebro = !cerebroPreenchido && identidade === "sem";
+  const precisaEscolherIdentidade = !cerebroPreenchido && identidade === null;
 
   // Confirmacao de saida.
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
@@ -144,23 +157,34 @@ export function AssistenteCriacao({
       (provedorAtivo === "codex" ? "gpt-5.4-mini" : "haiku");
     const economicoSite = provedorAtivo === "codex" ? "gpt-5.6-terra" : "sonnet";
 
+    // Identidade sem Cerebro carregada na geracao: o prompt recebe o flag e a
+    // descricao livre, e iniciar repassa semCerebro ao backend pra liberar a
+    // guarda. Com Cerebro preenchido, ambos ficam neutros.
+    const descricao = descricaoNegocio.trim();
+
     // Site Guiado: etapas e prompt proprios, skill "site", tipo "site".
     if (tipo === "site") {
       const tema = dadosSite.tema.trim();
       const pasta = pastaUnica(tema, pecas);
+      const dadosSiteFinal: DadosEtapasSite = {
+        ...dadosSite,
+        semCerebro,
+        descricaoNegocio: descricao,
+      };
       await iniciar({
         titulo: `Site: ${tema}`,
-        prompt: montarPromptSite(dadosSite, pasta),
+        prompt: montarPromptSite(dadosSiteFinal, pasta),
         skill: "site",
         modelo:
           dadosSite.aprimorarComIA === false ? economicoSite : dadosSite.modelo,
         pastaAlvo: pasta,
         tema,
         tipo: "site",
+        semCerebro,
       });
       return;
     }
-    const dc = dadosCriacaoDe(dados, tipo);
+    const dc = { ...dadosCriacaoDe(dados, tipo), semCerebro, descricaoNegocio: descricao };
     const pasta = pastaUnica(dc.tema, pecas);
     const nome = cfg.substantivo.charAt(0).toUpperCase() + cfg.substantivo.slice(1);
     await iniciar({
@@ -172,8 +196,10 @@ export function AssistenteCriacao({
       pastaAlvo: pasta,
       tema: dc.tema.trim(),
       tipo,
+      semCerebro,
+      modelosUsados: modelosUsadosDaCriacao(dc),
     });
-  }, [tipo, dadosSite, dados, pecas, cfg.substantivo, iniciar, provedorAtivo, modelosIA]);
+  }, [tipo, dadosSite, dados, pecas, cfg.substantivo, iniciar, provedorAtivo, modelosIA, semCerebro, descricaoNegocio]);
 
   // Sai de vez: para a sessao se estiver gerando, limpa o estado global e
   // devolve o controle ao pai.
@@ -243,7 +269,42 @@ export function AssistenteCriacao({
         </header>
 
         {!gerando ? (
-          tipo === "site" ? (
+          precisaEscolherIdentidade ? (
+            <div className="criacao-estado criacao-portao">
+              <h2 className="criacao-titulo">Este negócio ainda não tem Cérebro</h2>
+              <p className="criacao-texto">
+                O Cérebro é a identidade do negócio, a fonte que toda geração usa. Montar ele primeiro deixa o {cfg.substantivo} muito melhor. Mas dá pra seguir sem ele nesta geração se você quiser.
+              </p>
+              <label className="criacao-portao-campo">
+                <span>Descreva o negócio em poucas linhas, opcional</span>
+                <textarea
+                  className="criacao-textarea nodrag nowheel"
+                  value={descricaoNegocio}
+                  onChange={(e) => setDescricaoNegocio(e.target.value)}
+                  placeholder="Nome, o que vende, pra quem, cidade. Ajuda a IA a dar identidade à peça."
+                  rows={3}
+                />
+              </label>
+              <div className="criacao-estado-acoes">
+                <button
+                  className="botao botao-neutro"
+                  onClick={() => setIdentidade("sem")}
+                >
+                  Seguir sem o Cérebro
+                </button>
+                <button
+                  className="botao botao-principal"
+                  onClick={() => {
+                    limpar();
+                    aoAbrirDestino("cockpit");
+                  }}
+                >
+                  <IconeRaio className="" />
+                  Montar o Cérebro primeiro
+                </button>
+              </div>
+            </div>
+          ) : tipo === "site" ? (
             <EtapasSite
               dados={dadosSite}
               aoMudar={aoMudarSite}
@@ -323,7 +384,7 @@ export function AssistenteCriacao({
                     className="botao botao-principal"
                     onClick={() => {
                       limpar();
-                      aoAbrirDestino("galerias");
+                      aoAbrirDestino("arquivos");
                     }}
                   >
                     <IconeGaleria className="" />

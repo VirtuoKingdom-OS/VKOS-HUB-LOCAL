@@ -416,7 +416,7 @@ export function TelaCalendario() {
             </span>
             <a
               className="botao botao-principal cal-banner-btn"
-              href="#/conexoes"
+              href="/conexoes"
               onClick={() => setPedirConexao(false)}
             >
               Conectar em Conexões
@@ -428,7 +428,7 @@ export function TelaCalendario() {
           <div className="cal-banner-erro">
             <IconeAlerta className="cal-banner-icone" />
             <span>{erroApi}</span>
-            <a className="cal-banner-link" href="#/conexoes">
+            <a className="cal-banner-link" href="/conexoes">
               Ir pra Conexões
             </a>
           </div>
@@ -927,4 +927,3 @@ function FormularioEvento({
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
 /* Calendario: agenda do cliente em visao de mes, local-first, com sincronizacao
-   opcional pro Google. Toda cor vem dos tokens de global.css, tres temas.
+   opcional pro Google. Toda cor vem dos tokens de global.css, dois temas.
    Motion sutil, menta como destaque, sem backdrop-filter nos overlays (scrim
    solido, pra nunca travar o canvas animado por baixo). */
 
@@ -397,7 +397,7 @@
 .cal-drawer-scrim {
   position: fixed;
   inset: 0;
-  z-index: 85;
+  z-index: var(--z-dica);
   background: rgba(var(--scrim-rgb), 0.55);
   display: flex;
   justify-content: flex-end;
@@ -532,7 +532,7 @@
 .cal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-dica);
   background: rgba(var(--scrim-rgb), 0.72);
   display: flex;
   align-items: center;

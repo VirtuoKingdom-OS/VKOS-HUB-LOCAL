@@ -1,0 +1,25 @@
+/carrossel 5 dicas de skincare, usando o modelo teste
+
+MODO SEM CÉREBRO (escolha explícita do usuário nesta geração):
+- NÃO leia cerebro/cerebro.md e NÃO chame /instalar. Não faça nenhuma pergunta.
+- A identidade desta geração vem SOMENTE do que o usuário forneceu neste prompt (tema, descrição do negócio, instruções finais). O que não foi dito, resolva com bom senso genérico do nicho, sem inventar nome, endereço, preço ou prova social.
+- Onde a skill mandar usar o Cérebro, use a identidade desta geração no lugar.
+- O usuário descreveu o negócio assim: clínica de estética em São Paulo
+
+CONTRATO OBRIGATÓRIO DO MODELO ESCOLHIDO:
+- Modelo: teste, arquivo templates/carrossel/modelo-teste.html.
+- Antes de escrever o conteúdo, copie esse arquivo para conteudo/2026-07-24-skincare/carrossel.html e edite a cópia.
+- Não redesenhe nem substitua o modelo por uma interpretação parecida. Preserve estrutura, classes, geometria, hierarquia, ritmo, componentes e acabamento do arquivo escolhido.
+- Cores, fontes, imagens e instruções finais personalizam o conteúdo dentro do modelo; não autorizam trocar a anatomia escolhida, salvo pedido explícito do usuário.
+- Antes de concluir, compare o HTML final com o arquivo do modelo e confira que os tipos de slide e as classes estruturais continuam reconhecíveis.
+
+Instrucoes de formato e dimensao desta geracao:
+- Formato: carrossel de varias paginas, como de costume (capa, desenvolvimento e CTA).
+- Proporcao: Stories 9:16. Antes de renderizar, ajuste no HTML a dimensao de cada elemento .slide pra 1080x1920 px (a width e a height do .slide) e reposicione o conteudo pra caber bem nessa altura, sem cortar texto nem deixar vao grande. O render tira o print do proprio .slide, entao e a dimensao dele que define o tamanho final da imagem.
+- Entrega: NAO execute o Passo 5 da skill (renderizar). NAO gere nenhum PNG, NAO rode npm install nem playwright install pra isso. A entrega e so o conteudo/<AAAA-MM-DD>-<tema-curto>/carrossel.html completo e pronto (e a pasta img/ dentro dela, se usar imagem). O app renderiza o PNG sob demanda quando o usuario baixa a peca, entao o render aqui nao serve pra nada.
+- Modo direto: o Cerebro do negocio e todas as informacoes desta geracao ja foram dados. Nao faca nenhuma pergunta, nao ofereca opcoes nem menus, nao sugira /legenda nem outro comando no meio, nao peca confirmacao de estilo. Qualquer lacuna (angulo, numero de paginas, estilo quando nao veio) voce decide sozinho com base no Cerebro e segue ate o fim. Se o modelo escolhido pede imagem de capa e nao ha imagem disponivel, siga sem imagem: a capa funciona sem ela. A resposta final e curta, uma ou duas frases confirmando o caminho da pasta gerada, sem relatorio longo.
+
+Detalhes desta geracao:
+- Salve exatamente em conteudo/2026-07-24-skincare/ (crie a pasta com esse nome exato).
+- O carrossel tem exatamente 5 paginas.
+- Nao use imagem nenhuma, escolha um modelo que funcione sem imagem.

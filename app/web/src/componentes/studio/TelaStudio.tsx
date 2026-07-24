@@ -12,6 +12,7 @@ import { blocoDeAnexos } from "../comum/AnexosAjuste";
 import { IconeSeta, IconeArquivo, IconeGaleria, IconeChevron, IconeRaio } from "../comum/Icones";
 import "../../estilos/editor.css";
 import "../../estilos/studio.css";
+import { navegarParaCaminho } from "../layout/rotas";
 
 interface Props {
   // Subpasta da peca (um segmento decodificado), ex "2026-07-14-tema-curto".
@@ -385,7 +386,7 @@ export function TelaStudio({ pasta }: Props) {
 
   // ===== Sair: volta pra de onde veio, com aviso se houver mudanca nao salva.
   // history.back() so e seguro quando existe uma entrada anterior DO PROPRIO app:
-  // abrir #/studio/<pasta> direto numa aba nova deixa about:blank como entrada
+  // abrir /studio/<pasta> direto numa aba nova deixa about:blank como entrada
   // anterior, e um back() cego cairia nela. Usamos o referrer como sinal: se a
   // pagina anterior e da mesma origem, back() volta pra ela; senao, vai pras
   // galerias por hash (troca interna, nunca sai do app).
@@ -398,7 +399,7 @@ export function TelaStudio({ pasta }: Props) {
       mesmaOrigem = false;
     }
     if (window.history.length > 1 && mesmaOrigem) window.history.back();
-    else window.location.hash = "#/galerias";
+    else navegarParaCaminho("/galerias");
   }
   function tentarSair() {
     if (motor.naoSalvo) setConfirmando(true);
@@ -466,7 +467,7 @@ export function TelaStudio({ pasta }: Props) {
             Esta peça não existe mais ou não é um carrossel editável. Volte pras
             Galerias para escolher outra.
           </p>
-          <a className="botao botao-principal" href="#/galerias">
+          <a className="botao botao-principal" href="/galerias">
             Ir pras Galerias
           </a>
         </div>

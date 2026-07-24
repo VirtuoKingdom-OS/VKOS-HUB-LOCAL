@@ -16,6 +16,12 @@ const SNAPSHOT_LIGADO_COMPLETO = readFileSync(
   new URL("./fixtures/prompt-ligado-site-completo.txt", import.meta.url),
   "utf8"
 );
+// Snapshot do modo sem Cerebro: trava o bloco de topo, a troca da linha do
+// Cerebro no Bloco 1, o CTA sem contato do Cerebro e o visual pela paleta.
+const SNAPSHOT_SEM_CEREBRO = readFileSync(
+  new URL("./fixtures/prompt-sem-cerebro-site.txt", import.meta.url),
+  "utf8"
+);
 
 function dadosBase(): DadosEtapasSite {
   return {
@@ -150,4 +156,40 @@ test("visual personalizado troca so as cores e mantem a tipografia do estilo", (
   assert.match(prompt, /A escala tipográfica[\s\S]*continuam vindo do estilo escolhido/);
   // O "ignore o design-guide" morreu.
   assert.doesNotMatch(prompt, /ignore.*design-guide/i);
+});
+
+function dadosSemCerebro(): DadosEtapasSite {
+  const dados = dadosBase();
+  dados.linkObjetivo = "";
+  dados.semCerebro = true;
+  dados.descricaoNegocio = "estúdio de fotografia de gestante e newborn em Curitiba";
+  return dados;
+}
+
+test("modo sem Cerebro casa com o snapshot e nao manda ler o Cerebro", () => {
+  assert.equal(montarPromptSite(dadosSemCerebro(), "site-teste"), SNAPSHOT_SEM_CEREBRO);
+  const prompt = montarPromptSite(dadosSemCerebro(), "site-teste");
+  assert.match(prompt, /MODO SEM CÉREBRO/);
+  // No Bloco 1, a leitura do Cerebro vira uma proibicao explicita.
+  assert.match(prompt, /NÃO leia cerebro\/cerebro\.md\. A identidade/);
+  assert.doesNotMatch(prompt, /É a fonte da verdade do visual e do conteúdo/);
+});
+
+test("modo sem Cerebro: CTA sem link e visual nao citam o Cerebro", () => {
+  const prompt = montarPromptSite(dadosSemCerebro(), "site-teste");
+  // CTA sem numero aponta pra #contato, sem recuperar contato do Cerebro.
+  assert.match(prompt, /Sem número informado, aponte o CTA pra #contato/);
+  assert.doesNotMatch(prompt, /WhatsApp do Cérebro/);
+  // Visual padrao usa a paleta do estilo, sem "identidade do Cérebro".
+  assert.match(prompt, /use o sistema completo do estilo escolhido, incluindo a paleta dele/);
+  assert.doesNotMatch(prompt, /As cores se adaptam à identidade do Cérebro/);
+});
+
+test("modo sem Cerebro tambem vale no modo montagem economico", () => {
+  const dados = dadosSemCerebro();
+  dados.aprimorarComIA = false;
+  const prompt = montarPromptSite(dados, "site-teste");
+  assert.match(prompt, /BLOCO 1, DESIGN NO MODO MONTAGEM/);
+  assert.match(prompt, /NÃO leia cerebro\/cerebro\.md\. O conteúdo vem do que o usuário forneceu/);
+  assert.doesNotMatch(prompt, /É a fonte da verdade do conteúdo/);
 });

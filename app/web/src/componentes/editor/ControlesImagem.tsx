@@ -118,7 +118,7 @@ export function ControlesImagem({
 // Botao "Adicionar imagem" com as mesmas duas origens do ControlesImagem
 // (computador e fontes de dados), sem o gerar com IA e sem excluir: insere uma
 // imagem NOVA como elemento livre, nao troca uma existente. Reusa as classes
-// do menu pra manter o mesmo sistema visual nos 3 temas.
+// do menu pra manter o mesmo sistema visual nos 2 temas.
 interface PropsAdicionar {
   enviando: boolean;
   erro?: string | null;

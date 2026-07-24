@@ -36,8 +36,11 @@ type AbaCompacta = "arquivos" | "editor" | "conversa";
 // Painel da VKOS-IDE: arvore de arquivos, editor e chat, tudo escopado na pasta
 // do cliente ativo. Em telas compactas uma navegacao local exibe uma coluna por
 // vez, sem empurrar o restante do painel para fora da viewport.
-export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
+// fixa: modo doca do CORE. O painel preenche o container, sem arrasto nem
+// minimizar; a janela flutuante fica so na experiencia de workspace.
+export function TelaIde({ aoFechar, fixa = false }: { aoFechar?: () => void; fixa?: boolean }) {
   const janela = usarJanelaIde();
+  const minimizada = !fixa && janela.minimizada;
   const [arvore, setArvore] = useState<RespostaArvore | null>(null);
   const [carregandoArvore, setCarregandoArvore] = useState(true);
   const [erroArvore, setErroArvore] = useState<string | null>(null);
@@ -151,23 +154,24 @@ export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
   return (
     <section
       ref={janela.painelRef}
-      style={janela.estilo}
-      className={`tela-ide${janela.media ? " ide-media" : ""}${
+      style={fixa ? undefined : janela.estilo}
+      className={`tela-ide${fixa ? " ide-fixa" : ""}${janela.media ? " ide-media" : ""}${
         janela.compacta ? " ide-compacta" : ""
       }${janela.estreita ? " ide-estreita" : ""}${
-        janela.minimizada ? " minimizada" : ""
+        minimizada ? " minimizada" : ""
       }${janela.arrastando ? " arrastando" : ""}`}
     >
       <header
         className="ide-barra"
-        onPointerDown={janela.aoPointerDown}
-        onPointerMove={janela.aoPointerMove}
-        onPointerUp={janela.aoPointerUp}
-        onPointerCancel={janela.aoPointerCancel}
-        onDoubleClick={janela.recentralizar}
+        onPointerDown={fixa ? undefined : janela.aoPointerDown}
+        onPointerMove={fixa ? undefined : janela.aoPointerMove}
+        onPointerUp={fixa ? undefined : janela.aoPointerUp}
+        onPointerCancel={fixa ? undefined : janela.aoPointerCancel}
+        onDoubleClick={fixa ? undefined : janela.recentralizar}
       >
         <strong>VKOS-IDE</strong>
         <div className="ide-barra-acoes">
+          {!fixa && (
           <button
             type="button"
             className="ide-barra-botao ide-minimizar"
@@ -185,6 +189,7 @@ export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
               </svg>
             )}
           </button>
+          )}
           {aoFechar && (
             <button
               type="button"
@@ -273,7 +278,7 @@ export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
             abaCompacta === "conversa" ? " compacta-ativa" : ""
           }`}
         >
-          {!janela.minimizada && (
+          {!minimizada && (
             <button
               className="ide-chat-toggle"
               title={chatRecolhido ? "Abrir a conversa" : "Recolher a conversa"}
@@ -285,7 +290,7 @@ export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
               />
             </button>
           )}
-          {chatRecolhido && !janela.minimizada ? (
+          {chatRecolhido && !minimizada ? (
             <span className="ide-chat-rotulo-vert">Conversa</span>
           ) : (
             <ChatIde />

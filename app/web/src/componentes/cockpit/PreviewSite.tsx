@@ -4,6 +4,7 @@ import { usarEstado } from "../../estado/contexto";
 import type { Peca } from "../../tipos/dominio";
 import { formatarTema, nomePagina } from "../telas/fluxos";
 import { IconeLapis, IconeSeta, IconeX } from "../comum/Icones";
+import { navegarParaCaminho } from "../layout/rotas";
 
 // Dimensoes de viewport presetadas. Mobile costuma caber quase inteiro;
 // desktop encolhe pra caber na area limitada do painel.
@@ -224,7 +225,7 @@ export function PreviewSite({ pasta, paginaInicial, aoFechar }: Props) {
                   className="abrir-nova-aba editar-site-preview"
                   onClick={() => {
                     aoFechar();
-                    window.location.hash = "#/site/" + encodeURIComponent(pasta);
+                    navegarParaCaminho("/site/" + encodeURIComponent(pasta));
                   }}
                   title="Abrir no editor de site"
                 >

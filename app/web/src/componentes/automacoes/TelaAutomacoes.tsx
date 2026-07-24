@@ -124,7 +124,7 @@ export function TelaAutomacoes() {
               Conecte o Google Calendar pra as regras poderem criar eventos. As
               regras podem ser criadas e ensaiadas mesmo sem conexão.
             </span>
-            <a className="aut-aviso-link" href="#/conexoes">
+            <a className="aut-aviso-link" href="/conexoes">
               Ir para Conexões
             </a>
           </p>

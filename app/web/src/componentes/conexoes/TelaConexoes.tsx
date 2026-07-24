@@ -343,15 +343,6 @@ function BlocoMotorIA({
           <span className="conx-motor-ativo">
             {ativo === "codex" ? "Codex" : "Claude"}
           </span>
-          <button
-            type="button"
-            className="conx-motor-guia"
-            onClick={() => {
-              window.location.hash = "#/setup";
-            }}
-          >
-            Abrir configuração guiada
-          </button>
         </div>
       </header>
 

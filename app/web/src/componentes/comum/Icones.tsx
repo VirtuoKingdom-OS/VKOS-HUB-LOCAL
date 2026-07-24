@@ -121,6 +121,15 @@ export function IconeAlerta({ className, style }: PropsIcone) {
   );
 }
 
+export function IconeMeta({ className, style }: PropsIcone) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} {...base}>
+      <path d="M3.5 15.5c1.2-5.3 2.8-8 5-8 3.1 0 4.4 9 7.2 9 1.8 0 3.2-2.3 4.8-7.2" />
+      <path d="M3.5 15.5c.7 1.1 1.5 1.7 2.5 1.7 3 0 4.4-9.7 7.5-9.7 2.3 0 4.7 3.2 7 8" />
+    </svg>
+  );
+}
+
 export function IconeSeta({ className, style }: PropsIcone) {
   return (
     <svg viewBox="0 0 24 24" className={className} style={style} {...base}>

@@ -1,13 +1,13 @@
 /* Tela do site gerado (Site Guiado), rodada 17. Tela cheia irma do Studio:
    cobre a area de conteudo, topo com voltar e acoes, viewport central com o
    iframe escalado (padrao do PreviewSite) e painel lateral de ajuste com IA.
-   Toda cor via tokens de tema, funciona nos 3 temas, sem backdrop-filter
+   Toda cor via tokens de tema, funciona nos 2 temas, sem backdrop-filter
    (scrim e fundos solidos). Motion curto e sutil. */
 
 .tela-site {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: var(--z-flutuante);
   display: flex;
   flex-direction: column;
   background: var(--fundo);
@@ -78,7 +78,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  flex-shrink: 1;
+  scrollbar-width: thin;
 }
 .site-acoes .botao {
   padding: 8px 14px;
@@ -183,7 +187,7 @@
   border: 1px solid var(--borda-forte);
   border-radius: 8px;
   overflow: hidden;
-  background: #fff;
+  background: var(--branco-preview);
   box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.5),
     0 0 0 1px rgba(var(--menta-rgb), 0.06);
   transition: width 140ms ease, height 140ms ease;
@@ -422,7 +426,7 @@
 }
 
 /* ===== Modo Editar: toggle, indicador de sujo, zoom, avisos (dono B) =====
-   Toda cor por token, funciona nos 3 temas, motion curto, sem backdrop-filter
+   Toda cor por token, funciona nos 2 temas, motion curto, sem backdrop-filter
    (scrim solido). Fica antes do bloco PainelSite do dono C. */
 
 /* Toggle segmentado Visualizar | Editar, no padrao dos presets. */
@@ -549,7 +553,7 @@
 .site-editor-travado {
   position: absolute;
   inset: 0;
-  z-index: 18;
+  z-index: var(--z-fixo);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -569,7 +573,7 @@
   left: 50%;
   bottom: 22px;
   transform: translateX(-50%);
-  z-index: 16;
+  z-index: var(--z-fixo);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -621,7 +625,7 @@
 .site-confirm-scrim {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: var(--z-fixo);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -665,7 +669,7 @@
 
 /* ===== PainelSite ===== */
 /* Painel de propriedades do modo Editar. Mesma faixa lateral do site-ajuste,
-   mas com estado do usarMotorSite. Todas as cores por token, 3 temas, motion
+   mas com estado do usarMotorSite. Todas as cores por token, 2 temas, motion
    curto, sem backdrop-filter. Fronteira do dono C: so este bloco. */
 .ps-painel {
   width: clamp(300px, 28vw, 380px);
@@ -1224,7 +1228,7 @@
   position: absolute;
   top: 64px;
   right: 18px;
-  z-index: 40;
+  z-index: var(--z-modal);
   width: min(480px, calc(100% - 36px));
   color: var(--texto);
   background: var(--fundo-2);
@@ -1455,7 +1459,7 @@
 
 /* ===== Revisao de design ===== */
 /* Atalho discreto no topo do painel Ajustar com IA. Preset do fluxo de ajuste,
-   nao um caminho novo. Tokens de tema, 3 temas, hover sutil. */
+   nao um caminho novo. Tokens de tema, 2 temas, hover sutil. */
 .site-revisao {
   display: flex;
   flex-direction: column;
@@ -1510,4 +1514,44 @@
 .ps-camadas .camadas-lista {
   max-height: 280px;
   overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .site-topo {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .site-titulo {
+    display: none;
+  }
+
+  .site-acoes .botao,
+  .site-modo-btn {
+    min-height: 42px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-viewport {
+    padding: 14px;
+  }
+
+  .site-barra {
+    padding: 8px 10px;
+  }
+
+  .site-corpo:has(.site-ajuste),
+  .site-corpo:has(.ps-painel) {
+    flex-direction: column;
+  }
+
+  .site-ajuste,
+  .ps-painel {
+    width: 100%;
+    height: 48%;
+    border-top: 1px solid var(--borda);
+    border-left: 0;
+  }
 }

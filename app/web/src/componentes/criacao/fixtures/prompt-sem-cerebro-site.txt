@@ -1,0 +1,69 @@
+Construa um site HTML estático completo, bonito e pronto pra publicar sobre: estúdio fotográfico.
+
+MODO SEM CÉREBRO (escolha explícita do usuário nesta geração):
+- NÃO leia cerebro/cerebro.md e NÃO chame /instalar. Não faça nenhuma pergunta.
+- A identidade desta geração vem SOMENTE do que o usuário forneceu neste prompt (tema, descrição do negócio, instruções finais). O que não foi dito, resolva com bom senso genérico do nicho, sem inventar nome, endereço, preço ou prova social.
+- Onde a skill mandar usar o Cérebro, use a identidade desta geração no lugar.
+- O usuário descreveu o negócio assim: estúdio de fotografia de gestante e newborn em Curitiba
+
+BLOCO 1, O DESIGN VEM PRIMEIRO. Antes de escrever qualquer linha, resolva o design:
+- NÃO leia cerebro/cerebro.md. A identidade (voz, oferta, público) vem do que o usuário forneceu nesta geração; não invente nome, endereço, preço nem prova social.
+- Leia templates/site/principios-visuais.md: a leitura de design, as regras, as proibições e o teste anti-slop.
+- Leia templates/design/cartela.md e escolha UMA direção que case com o negócio.
+- Leia templates/design/estilos/indice.md e escolha UM estilo que case com o negócio e com a direção. Leia o arquivo desse estilo INTEIRO antes de decidir cores, tipografia, spacing e motion.
+- Declare no início do trabalho, em até 3 linhas: a leitura de design que fez, a direção da cartela, o estilo escolhido e por quê.
+- Aplique o sistema do estilo inteiro (cores, escala tipográfica, spacing, motion), adaptado ao negócio. Um estilo por site, executado inteiro. Misturar estilos é proibido.
+- NUNCA cite a marca de origem do estilo em nenhum texto do site.
+
+Visual: use o sistema completo do estilo escolhido, incluindo a paleta dele nos tokens de cor.
+
+BLOCO 2, conteúdo e estrutura.
+- Leia .claude/skills/site/SKILL.md: o contrato de mensagem e estrutura dos três formatos. Siga a arquitetura do formato escolhido e a voz do negócio. NÃO salve site.md: o entregável é o site em HTML, não texto solto.
+- Objetivo número 1 do site, definido pelo usuário: vender o pacote fotográfico premium
+
+Seções: monte a estrutura seguindo esta descrição do usuário, na ordem que ele deu (adapte nomes ao método da skill /site sem inventar seção que ele não pediu):
+abertura com foto, três pacotes com preços, depoimentos e contato
+
+Objetivo e CTA principal:
+- O objetivo nº 1 é gerar contato no WhatsApp. Sem número informado, aponte o CTA pra #contato e deixe claro no texto que o contato ainda será definido.
+- Um objetivo por página: tudo empurra pro CTA principal.
+
+Imagens:
+- Sem imagens do usuário. Resolva o visual com gradientes, formas, cor e tipografia. Não use nenhuma imagem de stock externa nem link pra imagem que não existe.
+
+BLOCO 3, regras técnicas. Onde salvar e como nomear:
+- Salve tudo em conteudo/site-teste/ (crie a pasta com esse nome exato).
+- Formato: página única, uma landing de uma tela só. Entregue um único index.html com todas as seções numa rolagem só.
+- O site sempre precisa ter index.html na raiz. O CSS pode ficar num styles.css compartilhado ou embutido no HTML.
+- Se usar CSS ou JavaScript separado, referencie esses arquivos em TODAS as páginas que dependem deles.
+- Todos os caminhos internos são relativos ao arquivo atual, sem começar com /. Isso vale pra páginas, CSS, JavaScript, imagens, fontes, favicon e manifest. Pode importar fontes do Google Fonts.
+- PROIBIDO criar um arquivo chamado carrossel.html. PROIBIDO salvar qualquer arquivo .md nessa pasta: senão o app classifica o site errado.
+
+Marcadores de estrutura (opcionais neste formato, mas não custam):
+- A navegação compartilhada fica dentro de <nav data-vk-nav>, idêntica em todas as páginas.
+- O rodapé compartilhado fica dentro de <footer data-vk-footer>, idêntico em todas as páginas.
+- O conteúdo próprio de cada página fica dentro de <main data-vk-pagina>.
+- Cada página tem <title> e <meta name="description"> únicos e específicos.
+- Um único CSS principal (styles.css ou equivalente) referenciado igual em todas as páginas.
+- São atributos sem valor, invisíveis pro visitante e pro Studio.
+Exemplo mínimo do corpo de cada página:
+<nav data-vk-nav>menu igual em todas as páginas</nav>
+<main data-vk-pagina>conteúdo próprio desta página</main>
+<footer data-vk-footer>rodapé igual em todas as páginas</footer>
+
+Exigências finais:
+- Entregue somente arquivos do site. Não crie site.md nem qualquer outro arquivo .md dentro da pasta da peça.
+- Site responsivo mobile-first: precisa ficar bom em 390px de largura e em 1440px.
+- Capriche no visual: hierarquia clara, respiro generoso e contraste mensurável. O motion obedece à direção visual declarada e aos detalhes do usuário; na ausência de instrução, use motion sutil. prefers-reduced-motion precisa desligar toda animação e todo deslocamento, sem exceção: inclua a media query no CSS zerando transition, animation e transform de reveal.
+- Contraste vale pra TODO texto, não só título e parágrafo principal: nota, legenda, rodapé, copyright, tag e link de menu precisam de 4.5:1 contra o fundo real onde estão. Em fundo escuro, texto secundário rebaixado demais reprova a auditoria e bloqueia a publicação; rebaixe saturação, não luminosidade.
+- Tudo local e relativo: nenhuma imagem de stock externa, nenhum link pra recurso que não existe.
+- Antes de terminar, confira página por página: index.html existe na raiz, toda folha CSS e todo script referenciado existe, todas as imagens abrem, todos os links internos chegam a uma página existente e nenhuma URL interna começa com /.
+- Marcação amigável ao editor: os filhos diretos do <body> são as seções semânticas da página (header, main, section, footer) quando o layout permitir. Camada decorativa (partículas, orbs, fundo animado) sempre com aria-hidden="true".
+- PROIBIDO envolver o conteúdo da página num painel ou wrapper genérico (um <div> único abraçando todo o body). O menu mobile é um overlay position fixed que abre e fecha, nunca um contêiner que embrulha o body. A conferência do Hub reprova wrapper genérico no body.
+- PROIBIDO efeito decorativo que segue o cursor (glow, blob, spotlight, aura que persegue o mouse): cria overflow, gera rolagem horizontal e reprova a conferência.
+- backdrop-filter só em elemento que fica de fato sobre conteúdo real (uma imagem ou seção atrás dele). Vidro decorativo sem nada atrás é proibido: sem camada real, o efeito não existe e a conferência marca.
+- QUALQUER elemento com position absolute precisa estar confinado: overflow controlado no pai ou inset limitado. Confira em 390px que nada vaza pra fora da tela.
+- Use semântica de interação real: navegação, CTA e cartão que levam a um destino são <a>; filtros, menu hambúrguer, abrir/fechar diálogo, favoritos e demais ações na própria página são <button type="button">. Item de destino "em breve" é <a> sem href e com aria-disabled="true". Nunca use pointer-events pra fingir estado desativado.
+- Antes de concluir, percorra a rolagem inteira de cada página, confira que todo reveal apareceu e abra o site também com JavaScript desligado e com prefers-reduced-motion ativo.
+- Escrita: frase curta e direta, português brasileiro. NUNCA use travessão (—) nem o caractere ·, em nenhum texto do site, nem no <title>. Use vírgula, ponto ou dois-pontos.
+- Não faça nenhuma pergunta: decida com bom senso e entregue o site pronto.

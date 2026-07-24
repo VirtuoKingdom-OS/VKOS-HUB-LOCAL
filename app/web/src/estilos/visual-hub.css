@@ -7,46 +7,44 @@
  */
 
 :root {
-  --raio: 16px;
-  --raio-p: 10px;
-  --raio-g: 22px;
+  --raio: var(--raio-g);
+  --raio-p: var(--raio-m);
   --sombra-suave: 0 1px 2px rgba(var(--scrim-rgb), 0.16),
     0 10px 30px rgba(var(--scrim-rgb), 0.12);
   --sombra-media: 0 18px 48px rgba(var(--scrim-rgb), 0.24);
   --sombra-forte: 0 30px 90px rgba(var(--scrim-rgb), 0.48),
     0 0 0 1px rgba(var(--realce-rgb), 0.04);
   --sombra-flutuante: 0 20px 60px rgba(var(--scrim-rgb), 0.34);
-  --transicao: 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  --transicao: var(--dur-2) var(--curva);
   --fonte: "Segoe UI Variable Text", "Segoe UI Variable", "Inter", system-ui,
     -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --z-dropdown: 60;
-  --z-sticky: 70;
-  --z-overlay: 90;
-  --z-modal: 100;
-  --z-toast: 120;
+  --z-dropdown: var(--z-flutuante);
+  --z-sticky: var(--z-fixo);
+  --z-overlay: var(--z-veu);
 }
 
 :root[data-theme="escuro"] {
-  --fundo: #111419;
-  --fundo-2: #15191f;
-  --fundo-3: #1a2028;
-  --superficie: #1c222a;
-  --superficie-2: #232a34;
-  --borda: #2b333e;
-  --borda-forte: #3a4552;
+  --fundo: #101312;
+  --fundo-2: #141816;
+  --fundo-3: #1a1f1c;
+  --superficie: #171b19;
+  --superficie-2: #1e2320;
+  --superficie-elevada: #1e2320;
+  --borda: rgba(233, 237, 235, 0.09);
+  --borda-forte: rgba(233, 237, 235, 0.16);
   --menta: #2fd4a7;
   --menta-clara: #67e0bd;
   --menta-escura: #06241c;
-  --texto: #f1f4f7;
-  --texto-suave: #b1bac6;
-  --texto-fraco: #7e8997;
-  --fundo-rgb: 17, 20, 25;
-  --painel-rgb: 28, 34, 42;
+  --texto: #e9edeb;
+  --texto-suave: #a7b0ac;
+  --texto-fraco: #7f8984;
+  --fundo-rgb: 16, 19, 18;
+  --painel-rgb: 23, 27, 25;
   --scrim-rgb: 4, 7, 10;
   --menta-rgb: 47, 212, 167;
-  --suave-rgb: 177, 186, 198;
-  --fraco-rgb: 126, 137, 151;
-  --pontos-canvas: #29313b;
+  --suave-rgb: 167, 176, 172;
+  --fraco-rgb: 127, 137, 132;
+  --pontos-canvas: #252b28;
   --confirmar-perigo-fundo: rgba(60, 16, 16, 0.97);
   --confirmar-perigo-botao: rgba(90, 22, 22, 0.98);
   --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.55);
@@ -59,57 +57,32 @@
   );
 }
 
-:root[data-theme="vkos"] {
-  --fundo: #08100e;
-  --fundo-2: #0b1512;
-  --fundo-3: #101d19;
-  --superficie: #13211d;
-  --superficie-2: #192923;
-  --borda: #22362f;
-  --borda-forte: #315044;
-  --menta: #21d6a4;
-  --menta-clara: #69e6c2;
-  --texto: #f2f7f5;
-  --texto-suave: #a8bbb4;
-  --texto-fraco: #748b83;
-  --fundo-rgb: 8, 16, 14;
-  --painel-rgb: 19, 33, 29;
-  --scrim-rgb: 2, 8, 6;
-  --menta-rgb: 33, 214, 164;
-  --suave-rgb: 168, 187, 180;
-  --fraco-rgb: 116, 139, 131;
-  --pontos-canvas: #183128;
-  --confirmar-perigo-fundo: rgba(60, 16, 16, 0.97);
-  --confirmar-perigo-botao: rgba(90, 22, 22, 0.98);
-  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.55);
-  --confirmar-perigo-texto: #ffd7d7;
-}
-
 :root[data-theme="claro"] {
-  --fundo: #f3f6f5;
-  --fundo-2: #edf2f0;
-  --fundo-3: #e5ece9;
-  --superficie: #fbfdfc;
-  --superficie-2: #f1f5f3;
-  --borda: #d6e0dc;
-  --borda-forte: #b9c9c3;
-  --menta: #078f70;
-  --menta-clara: #08765f;
-  --menta-escura: #e7f8f2;
-  --texto: #17241f;
-  --texto-suave: #52645d;
-  --texto-fraco: #60736b;
-  --fundo-rgb: 243, 246, 245;
-  --painel-rgb: 251, 253, 252;
+  --fundo: #f4f6f5;
+  --fundo-2: #eef1ef;
+  --fundo-3: #e7ece9;
+  --superficie: #fbfcfb;
+  --superficie-2: #f2f5f3;
+  --superficie-elevada: #fdfdfc;
+  --borda: rgba(27, 31, 29, 0.1);
+  --borda-forte: rgba(27, 31, 29, 0.18);
+  --menta: #1d9d7a;
+  --menta-clara: #14775d;
+  --menta-escura: #f4f6f5;
+  --texto: #1b1f1d;
+  --texto-suave: #525a56;
+  --texto-fraco: #5d6661;
+  --fundo-rgb: 244, 246, 245;
+  --painel-rgb: 251, 252, 251;
   --scrim-rgb: 18, 29, 25;
-  --menta-rgb: 7, 143, 112;
-  --suave-rgb: 82, 100, 93;
-  --fraco-rgb: 96, 115, 107;
-  --pontos-canvas: #cfdbd6;
+  --menta-rgb: 29, 157, 122;
+  --suave-rgb: 82, 90, 86;
+  --fraco-rgb: 93, 102, 97;
+  --pontos-canvas: #d5ddd9;
   --confirmar-perigo-fundo: rgba(190, 45, 45, 0.97);
   --confirmar-perigo-botao: rgba(158, 34, 34, 0.98);
   --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.6);
-  --confirmar-perigo-texto: #fff;
+  --confirmar-perigo-texto: #fdfdfc;
   --grad-cerebro: radial-gradient(
     120% 130% at 50% 0%,
     #d8f3e9 0%,
@@ -1263,6 +1236,135 @@ select:focus {
   .crm-quadro {
     padding-left: 22px;
     padding-right: 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: var(--z-fixo);
+    width: 100%;
+    height: 68px;
+    display: block;
+    padding: var(--esp-2);
+    border: 0;
+    border-top: 1px solid var(--borda);
+    box-shadow: 0 -8px 28px rgba(var(--scrim-rgb), .14);
+  }
+
+  .sidebar-marca-bloco,
+  .seletor-workspace,
+  .sidebar-rodape,
+  .sidebar-secao {
+    display: none;
+  }
+
+  .sidebar-nav {
+    height: 52px;
+    display: flex;
+    flex-direction: row;
+    gap: var(--esp-1);
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .item-nav {
+    min-width: 62px;
+    width: auto;
+    min-height: 52px;
+    flex: 0 0 auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: var(--esp-1) var(--esp-2);
+    font-size: 10px;
+    line-height: 1.1;
+  }
+
+  .item-nav svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .item-nav-rotulo {
+    flex: 0 0 auto;
+    max-width: 72px;
+  }
+
+  .item-nav-contagem {
+    display: none;
+  }
+
+  .item-nav.ativo {
+    order: -1;
+  }
+
+  .sidebar-nav-fim {
+    display: block;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .shell-conteudo {
+    width: 100%;
+    height: calc(100% - 68px);
+  }
+
+  .tela-fluxo-topo,
+  .tela-fluxo-corpo,
+  .conx-corpo,
+  .aut-corpo,
+  .cal-corpo {
+    padding-left: var(--esp-4);
+    padding-right: var(--esp-4);
+  }
+
+  .crm-topo {
+    position: relative;
+    align-items: stretch;
+    padding: var(--esp-4);
+  }
+
+  .crm-topo-acoes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--esp-2);
+  }
+
+  .crm-busca {
+    min-width: 0;
+  }
+
+  .crm-abas {
+    padding: 0 var(--esp-4) var(--esp-3);
+  }
+
+  .crm-hero {
+    display: flex;
+    margin: var(--esp-3) var(--esp-4) 0;
+    padding: var(--esp-4);
+  }
+
+  .crm-hero .botao {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .admin-tela {
+    padding: var(--esp-5) var(--esp-4) var(--esp-7);
   }
 }
 

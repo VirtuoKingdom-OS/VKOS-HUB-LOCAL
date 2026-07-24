@@ -36,9 +36,11 @@ import {
 } from "../../api/crm";
 import { ColunaCrm } from "./ColunaCrm";
 import { BuscaLeads } from "./BuscaLeads";
+import { obterDisponibilidadeLeads } from "../../api/leads";
 import { PainelContato } from "./PainelContato";
 import { formatarDataHora, formatarDataHoraCurta, formatarReais, iniciais } from "./formatos";
 import { IconeMais, IconeX } from "../comum/Icones";
+import { Abas } from "../comum/Sistema";
 import "../../estilos/crm.css";
 
 type AbaCrm = "hoje" | "quadro" | "contatos" | "leads";
@@ -85,6 +87,7 @@ export function TelaCrm() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aba, setAba] = useState<AbaCrm>("hoje");
+  const [leadsDisponiveis, setLeadsDisponiveis] = useState(false);
   const [busca, setBusca] = useState("");
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [negocioDestaqueId, setNegocioDestaqueId] = useState<string | null>(null);
@@ -139,6 +142,22 @@ export function TelaCrm() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    let ativo = true;
+    obterDisponibilidadeLeads()
+      .then((disponivel) => {
+        if (ativo) setLeadsDisponiveis(disponivel);
+      })
+      .catch(() => {
+        if (ativo) setLeadsDisponiveis(false);
+      });
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!leadsDisponiveis && aba === "leads") setAba("hoje");
+  }, [aba, leadsDisponiveis]);
 
   const colunas = useMemo(
     () => (estado ? [...estado.colunas].sort((a, b) => a.ordem - b.ordem) : []),
@@ -605,7 +624,7 @@ export function TelaCrm() {
       <header className="tela-fluxo-topo crm-topo">
         <div className="crm-topo-titulo">
           <h1>CRM</h1>
-          <p className="subtitulo">Relacionamentos, oportunidades e proximos passos em um so lugar.</p>
+          <p className="subtitulo">Relacionamentos, oportunidades e próximos passos em um só lugar.</p>
         </div>
         {aba !== "leads" && (
           <div className="crm-topo-acoes">
@@ -617,13 +636,20 @@ export function TelaCrm() {
         )}
       </header>
 
-      <nav className="crm-abas" role="tablist" aria-label="Visoes do CRM">
-        {(["hoje", "quadro", "contatos", "leads"] as AbaCrm[]).map((item) => (
-          <button className={aba === item ? "ativa" : ""} onClick={() => setAba(item)} type="button" role="tab" aria-selected={aba === item} key={item}>
-            {item === "hoje" ? "Hoje" : item === "quadro" ? "Quadro" : item === "contatos" ? "Contatos" : "Buscar leads"}
-          </button>
-        ))}
-      </nav>
+      <Abas
+        className="crm-abas"
+        rotulo="Visões do CRM"
+        ativa={aba}
+        aoMudar={setAba}
+        itens={[
+          { id: "hoje", nome: "Hoje" },
+          { id: "quadro", nome: "Quadro" },
+          { id: "contatos", nome: "Contatos" },
+          ...(leadsDisponiveis
+            ? [{ id: "leads" as const, nome: "Buscar leads" }]
+            : []),
+        ]}
+      />
 
       {erro && <div className="crm-erro-faixa">{erro}<button onClick={() => setErro(null)} aria-label="Fechar aviso" type="button"><IconeX className="" /></button></div>}
 
@@ -684,7 +710,7 @@ export function TelaCrm() {
         <ListaContatos estado={estado} colunas={colunas} busca={busca} aoAbrir={abrirContato} />
       )}
 
-      {aba === "leads" && <BuscaLeads aoImportar={sincronizarCrm} />}
+      {aba === "leads" && leadsDisponiveis && <BuscaLeads aoImportar={sincronizarCrm} />}
 
       {contatoSelecionado && (
         <PainelContato
@@ -787,7 +813,7 @@ function VisaoHoje({
   const maximo = Math.max(1, ...colunas.map((coluna) => contatosDaColuna(coluna.id).length));
 
   if (estado.contatos.length === 0) return (
-    <div className="crm-hero crm-hero-hoje"><p className="crm-hero-titulo">Seu CRM esta pronto para o primeiro contato.</p><p className="crm-hero-texto">Crie uma ficha. Depois voce pode ligar negocios, interacoes, tarefas e proximos passos a ela.</p><button className="botao botao-principal" onClick={aoCriarContato} type="button"><IconeMais className="" /> Criar primeiro contato</button></div>
+    <div className="crm-hero crm-hero-hoje"><p className="crm-hero-titulo">Seu CRM está pronto para o primeiro contato.</p><p className="crm-hero-texto">Crie uma ficha. Depois você pode ligar negócios, interações, tarefas e próximos passos a ela.</p><button className="botao botao-principal" onClick={aoCriarContato} type="button"><IconeMais className="" /> Criar primeiro contato</button></div>
   );
 
   return (

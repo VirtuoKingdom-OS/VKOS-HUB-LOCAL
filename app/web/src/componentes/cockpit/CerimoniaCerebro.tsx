@@ -166,6 +166,8 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
   }, [aoFechar]);
 
   const conversaComecou = Boolean(sessao);
+  const falhaSessao = sessao?.status === "erro";
+  const mensagemErro = erro ?? (falhaSessao ? sessao.erro : null);
   const celebrar = cerebroPronto && conversaComecou && !rodando;
 
   return createPortal(
@@ -203,11 +205,47 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
               disabled={comecando}
             >
               <IconeRaio className="" />
-              {comecando ? "Preparando..." : "Começar a entrevista"}
+              {comecando
+                ? "Preparando..."
+                : mensagemErro
+                  ? "Tentar novamente"
+                  : "Começar a entrevista"}
             </button>
+            {mensagemErro && (
+              <div className="cerimonia-erro" role="alert">
+                {mensagemErro}
+              </div>
+            )}
             <span className="cerimonia-dica">
               Pode parar no meio e voltar depois: nada se perde.
             </span>
+          </div>
+        ) : falhaSessao ? (
+          <div className="cerimonia-intro">
+            <div className="cerimonia-selo">
+              <IconeCerebro className="" />
+            </div>
+            <h2>A entrevista foi interrompida</h2>
+            <p>
+              Nada do que já foi respondido foi apagado. Você pode tentar abrir
+              uma nova entrevista agora.
+            </p>
+            {mensagemErro && (
+              <div className="cerimonia-erro" role="alert">
+                {mensagemErro}
+              </div>
+            )}
+            <button
+              className="botao botao-principal cerimonia-comecar"
+              onClick={() => void comecar()}
+              disabled={comecando}
+            >
+              <IconeRaio className="" />
+              {comecando ? "Preparando..." : "Tentar novamente"}
+            </button>
+            <button className="botao botao-fantasma" onClick={aoFechar}>
+              Voltar pro cockpit
+            </button>
           </div>
         ) : celebrar ? (
           <div className="cerimonia-intro">
@@ -258,7 +296,7 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
                 </div>
               )}
             </div>
-            {erro && <div className="cerimonia-erro">{erro}</div>}
+            {mensagemErro && <div className="cerimonia-erro">{mensagemErro}</div>}
             <div className="cerimonia-envio">
               <input
                 ref={refCampo}

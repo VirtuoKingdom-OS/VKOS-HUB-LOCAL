@@ -33,7 +33,12 @@ import { mensagemDeErro } from "../../util/erros";
 import { lerBase64 } from "../../util/arquivo";
 import { montarPromptCompleto, type MaterialConectado } from "../../util/prompt";
 import type { TipoCriacao } from "../../estado/geracao";
-import { montarPromptCriacao, pastaUnica, type DadosCriacao } from "../criacao/prompt";
+import {
+  modelosUsadosDaCriacao,
+  montarPromptCriacao,
+  pastaUnica,
+  type DadosCriacao,
+} from "../criacao/prompt";
 import {
   EtapasCriacao,
   criarDadosEtapas,
@@ -456,6 +461,7 @@ function NoSessaoInterno({ id, data }: NodeProps) {
         prompt,
         skill: "carrossel",
         modelo: dadosEtapas.modelo,
+        modelosUsados: modelosUsadosDaCriacao(dc),
       });
       autoScroll.current = true;
       baseStream.current = 0;

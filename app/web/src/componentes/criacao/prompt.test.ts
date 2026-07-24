@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   blocoMontagemEconomica,
+  modelosUsadosDaCriacao,
   montarPromptCriacao,
   type DadosCriacao,
 } from "./prompt";
@@ -14,6 +15,16 @@ const SNAPSHOT_LIGADO = readFileSync(
   new URL("./fixtures/prompt-ligado-carrossel.txt", import.meta.url),
   "utf8"
 );
+// Snapshot do modo sem Cerebro: trava o bloco de topo e a troca da linha do
+// Cerebro no modo montagem.
+const SNAPSHOT_SEM_CEREBRO = readFileSync(
+  new URL("./fixtures/prompt-sem-cerebro-carrossel.txt", import.meta.url),
+  "utf8"
+);
+const SNAPSHOT_CTA = readFileSync(
+  new URL("./fixtures/prompt-cta-carrossel.txt", import.meta.url),
+  "utf8"
+).trimEnd();
 
 function dadosBase(): DadosCriacao {
   return {
@@ -40,6 +51,21 @@ test("modelo composto vira contrato de arquivos e estrutura", () => {
   assert.match(prompt, /Copie primeiro o arquivo de páginas/);
   assert.match(prompt, /Não redesenhe nem substitua esses modelos/);
   assert.match(prompt, /sem vazamento de CSS/);
+});
+
+test("modelo de CTA distinto entra no contrato dos tres arquivos", () => {
+  const dados = dadosBase();
+  dados.estiloCapa = "b-capa-editorial";
+  dados.estiloPaginas = "b-grid-textual";
+  dados.estiloCta = "b-fecho-direto";
+  const prompt = montarPromptCriacao(dados, "carrossel-teste");
+  assert.equal(prompt, SNAPSHOT_CTA);
+  assert.match(prompt, /Fecho e CTA: b-fecho-direto/);
+  assert.match(prompt, /transplante a última \.slide do modelo de CTA/);
+  assert.deepEqual(
+    modelosUsadosDaCriacao(dados),
+    ["b-capa-editorial", "b-grid-textual", "b-fecho-direto"],
+  );
 });
 
 test("modelo simples legado aponta para o arquivo real", () => {
@@ -82,4 +108,37 @@ test("imagens e instrucoes finais chegam literais ao prompt", () => {
   assert.match(prompt, /INSTRUÇÕES FINAIS DO USUÁRIO/);
   assert.match(prompt, /Slide 1: capa forte\nSlide 2: contexto\nSlide 3: CTA/);
   assert.match(prompt, /preserve integralmente o conteúdo e a ordem/);
+});
+
+function dadosSemCerebro(): DadosCriacao {
+  return {
+    tema: "5 dicas de skincare", detalhes: "", paginas: 5, estilo: "teste",
+    estiloCapa: "", estiloPaginas: "", formato: "multiplas", proporcao: "9x16",
+    modoImagem: "sem", origemImagem: "usuario", caminhosImagens: [], visual: null,
+    semCerebro: true, descricaoNegocio: "clínica de estética em São Paulo",
+  };
+}
+
+test("modo sem Cerebro casa com o snapshot e insere o bloco de topo", () => {
+  assert.equal(montarPromptCriacao(dadosSemCerebro(), "2026-07-24-skincare"), SNAPSHOT_SEM_CEREBRO);
+  const prompt = montarPromptCriacao(dadosSemCerebro(), "2026-07-24-skincare");
+  assert.match(prompt, /MODO SEM CÉREBRO/);
+  assert.match(prompt, /NÃO leia cerebro\/cerebro\.md e NÃO chame \/instalar/);
+  assert.match(prompt, /clínica de estética em São Paulo/);
+});
+
+test("modo sem Cerebro e montagem economica: a linha do Cerebro some", () => {
+  const dados = dadosSemCerebro();
+  dados.aprimorarComIA = false;
+  const prompt = montarPromptCriacao(dados, "2026-07-24-skincare");
+  assert.match(prompt, /O conteúdo vem das instruções finais do usuário\. Não invente/);
+  assert.doesNotMatch(prompt, /instruções finais do usuário e do Cérebro/);
+});
+
+test("sem descricao livre, o bloco de topo nao inventa a linha de descricao", () => {
+  const dados = dadosSemCerebro();
+  dados.descricaoNegocio = "";
+  const prompt = montarPromptCriacao(dados, "2026-07-24-skincare");
+  assert.match(prompt, /MODO SEM CÉREBRO/);
+  assert.doesNotMatch(prompt, /O usuário descreveu o negócio assim/);
 });

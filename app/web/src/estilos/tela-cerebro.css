@@ -1,0 +1,164 @@
+/* Tela Cerebro do Negocio: os cards por secao do cerebro.md. */
+
+/* O corpo herda o padding e os cortes responsivos de .tela-fluxo-corpo, mas
+   empilha em coluna em vez da grade padrao. O root .tela-fluxo NAO leva padding:
+   isso mantem o header sticky colado nas bordas, sem flutuar sobre o conteudo. */
+.cerebro-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.cerebro-topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--esp-4);
+  flex-wrap: wrap;
+}
+.cerebro-progresso {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  color: var(--texto-suave);
+  font-size: var(--texto-13);
+}
+.cerebro-progresso-trilho {
+  display: block;
+  height: 6px;
+  background: var(--superficie-2, var(--superficie));
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cerebro-progresso-fatia {
+  display: block;
+  height: 100%;
+  background: var(--menta);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.cerebro-chamada {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-4);
+  flex-wrap: wrap;
+  padding: var(--esp-4) var(--esp-5);
+  background: rgba(var(--menta-rgb), 0.06);
+  border: 1px solid rgba(var(--menta-rgb), 0.25);
+  border-radius: var(--raio-g);
+}
+.cerebro-chamada div {
+  display: grid;
+  gap: 3px;
+}
+.cerebro-chamada span {
+  color: var(--texto-suave);
+  font-size: var(--texto-13);
+}
+
+.cerebro-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--esp-4);
+  align-items: start;
+}
+.cerebro-cartao {
+  display: grid;
+  gap: var(--esp-3);
+  padding: var(--esp-4) var(--esp-5);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-g);
+}
+.cerebro-cartao.em-branco {
+  border-style: dashed;
+}
+.cerebro-cartao-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+.cerebro-cartao-topo h2 {
+  margin: 0;
+  font-size: var(--texto-15, 15px);
+}
+.cerebro-cartao-badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  color: var(--texto-fraco);
+  border: 1px dashed var(--borda);
+  border-radius: 999px;
+  font-size: var(--texto-10, 10px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cerebro-cartao-corpo {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: var(--texto-13);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cerebro-cartao.em-branco .cerebro-cartao-corpo {
+  color: var(--texto-fraco);
+}
+.cerebro-cartao-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--esp-2);
+}
+.cerebro-cartao-dica {
+  margin-right: auto;
+  color: var(--texto-fraco);
+  font-size: var(--texto-12);
+}
+.cerebro-cartao-edicao {
+  display: grid;
+  gap: var(--esp-3);
+}
+.cerebro-cartao-textarea {
+  width: 100%;
+  padding: var(--esp-3);
+  color: var(--texto);
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-m, 8px);
+  font: inherit;
+  font-size: var(--texto-13);
+  line-height: 1.55;
+  resize: vertical;
+}
+.cerebro-cartao-textarea:focus {
+  outline: none;
+  border-color: rgba(var(--menta-rgb), 0.6);
+}
+
+.cerebro-tela-vazia,
+.cerebro-tela-carregando {
+  display: grid;
+  justify-items: center;
+  gap: var(--esp-3);
+  padding: clamp(40px, 8vw, 90px) var(--esp-5);
+  text-align: center;
+  color: var(--texto-suave);
+}
+.cerebro-tela-vazia h2 {
+  margin: 0;
+}
+.cerebro-tela-vazia p {
+  max-width: 440px;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .cerebro-grade {
+    grid-template-columns: 1fr;
+  }
+}

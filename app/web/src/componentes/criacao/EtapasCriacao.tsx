@@ -23,9 +23,11 @@ import {
   IconeStories,
   IconeX,
 } from "../comum/Icones";
+import { MiniModelo } from "../comum/MiniModelo";
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
 import { ehImagem } from "../telas/fontes";
 import type { DadosCriacao, ModoImagem, OrigemImagem } from "./prompt";
+import { modelosDoGrupo } from "./grupos";
 import "../../estilos/criacao.css";
 
 // Um anexo ja enviado pro backend: nome do arquivo e caminho relativo devolvido.
@@ -48,6 +50,7 @@ export interface DadosEtapas {
   // Opcionais para aceitar rascunhos salvos antes da composicao de modelos.
   estiloCapa?: string;
   estiloPaginas?: string;
+  estiloCta?: string;
   proporcao: IdProporcao;
   modoImagem: ModoImagem;
   // Opcional por compatibilidade com rascunhos salvos antes da geracao por IA.
@@ -75,6 +78,7 @@ export function criarDadosEtapas(modelo: ModeloIA): DadosEtapas {
     estilo: "",
     estiloCapa: "",
     estiloPaginas: "",
+    estiloCta: "",
     proporcao: "4x5",
     modoImagem: "sem",
     origemImagem: "usuario",
@@ -144,6 +148,7 @@ export function dadosCriacaoDe(d: DadosEtapas, tipo: TipoCriacao): DadosCriacao 
       tipo === "carrossel" ? (d.estiloCapa ?? d.estilo ?? "") : "",
     estiloPaginas:
       tipo === "carrossel" ? (d.estiloPaginas ?? d.estilo ?? "") : "",
+    estiloCta: tipo === "carrossel" ? (d.estiloCta ?? "") : "",
     formato: cfg.formato,
     proporcao: cfg.proporcaoFixa ?? d.proporcao,
     modoImagem: d.modoImagem,
@@ -172,6 +177,7 @@ export function etapasTemPreenchimento(d: DadosEtapas): boolean {
     d.estilo !== "" ||
     (d.estiloCapa ?? "") !== "" ||
     (d.estiloPaginas ?? "") !== "" ||
+    (d.estiloCta ?? "") !== "" ||
     d.modoImagem !== "sem" ||
     d.visualModo !== "negocio" ||
     d.aprimorarComIA === false
@@ -260,6 +266,12 @@ export function EtapasCriacao({
   const refTema = useRef<HTMLInputElement>(null);
   const estiloCapa = dados.estiloCapa ?? dados.estilo ?? "";
   const estiloPaginas = dados.estiloPaginas ?? dados.estilo ?? "";
+  const estiloCta = dados.estiloCta ?? "";
+  const modelosCapa = modelosDoGrupo(modelosCarrossel, "capa");
+  const modelosPaginas = modelosDoGrupo(modelosCarrossel, "desenvolvimento");
+  const modelosCta = modelosDoGrupo(modelosCarrossel, "cta");
+  const modelosUnicos = modelosDoGrupo(modelosCarrossel, "unica");
+  const temGrupoCta = modelosCarrossel.some((modelo) => modelo.tipo === "cta");
   const paginasTocadasRef = useRef(
     estiloPaginas !== "" && estiloPaginas !== estiloCapa,
   );
@@ -549,7 +561,12 @@ export function EtapasCriacao({
                       }`}
                       onClick={() => {
                         paginasTocadasRef.current = false;
-                        aoMudar({ estilo: "", estiloCapa: "", estiloPaginas: "" });
+                        aoMudar({
+                          estilo: "",
+                          estiloCapa: "",
+                          estiloPaginas: "",
+                          estiloCta: "",
+                        });
                       }}
                     >
                       <span className="criacao-modelo-thumb vazia">
@@ -560,7 +577,7 @@ export function EtapasCriacao({
                         O sistema decide os dois estilos.
                       </span>
                     </button>
-                    {modelosCarrossel.map((mc) => (
+                    {modelosCapa.map((mc) => (
                       <button
                         key={mc.id}
                         className={`criacao-card-op com-thumb${
@@ -592,7 +609,7 @@ export function EtapasCriacao({
                 >
                   <span className="criacao-rotulo-mini">Páginas de conteúdo</span>
                   <div className="criacao-modelos-grade">
-                    {modelosCarrossel.map((mc) => (
+                    {modelosPaginas.map((mc) => (
                       <button
                         key={mc.id}
                         disabled={estiloCapa === ""}
@@ -613,6 +630,48 @@ export function EtapasCriacao({
                     ))}
                   </div>
                 </div>
+                {temGrupoCta && (
+                  <div
+                    className={`criacao-bloco criacao-modelos-grupo${
+                      estiloPaginas === "" ? " desabilitado" : ""
+                    }`}
+                  >
+                    <span className="criacao-rotulo-mini">Fecho (CTA)</span>
+                    <div className="criacao-modelos-grade">
+                      <button
+                        disabled={estiloPaginas === ""}
+                        className={`criacao-card-op com-thumb${
+                          estiloCta === "" ? " ativo" : ""
+                        }`}
+                        onClick={() => aoMudar({ estiloCta: "" })}
+                      >
+                        <span className="criacao-modelo-thumb vazia">
+                          <IconeRaio className="" />
+                        </span>
+                        <span className="criacao-card-nome">Seguir as páginas</span>
+                        <span className="criacao-card-desc">
+                          Usa o fecho do modelo de conteúdo.
+                        </span>
+                      </button>
+                      {modelosCta.map((mc) => (
+                        <button
+                          key={mc.id}
+                          disabled={estiloPaginas === ""}
+                          className={`criacao-card-op com-thumb${
+                            estiloCta === mc.id ? " ativo" : ""
+                          }`}
+                          onClick={() => aoMudar({ estiloCta: mc.id })}
+                        >
+                          <MiniModelo id={mc.id} slide={99} />
+                          <span className="criacao-card-nome">{mc.nome}</span>
+                          {mc.descricao && (
+                            <span className="criacao-card-desc">{mc.descricao}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="criacao-bloco">
@@ -630,7 +689,7 @@ export function EtapasCriacao({
                     <span className="criacao-card-nome">Deixar a IA escolher</span>
                     <span className="criacao-card-desc">O sistema decide o modelo.</span>
                   </button>
-                  {modelosCarrossel.map((mc) => (
+                  {modelosUnicos.map((mc) => (
                     <button
                       key={mc.id}
                       className={`criacao-card-op com-thumb${
@@ -975,93 +1034,5 @@ export function EtapasCriacao({
         </button>
       </footer>
     </>
-  );
-}
-
-// Miniatura viva de um modelo de carrossel na etapa 2: um mini-iframe de
-// /modelos-html/<id>/preview escalado pra caber na moldura, lazy por
-// IntersectionObserver (nao carrega todos de uma vez). Fallback elegante quando
-// o preview nao existe (404) ou nao tem .slide.
-function MiniModelo({ id, slide = 1 }: { id: string; slide?: number }) {
-  const refCaixa = useRef<HTMLDivElement>(null);
-  const refIframe = useRef<HTMLIFrameElement>(null);
-  const [visivel, setVisivel] = useState(false);
-  const [dims, setDims] = useState<{ largura: number; altura: number } | null>(null);
-  const [fator, setFator] = useState(0);
-  const [falhou, setFalhou] = useState(false);
-
-  useEffect(() => {
-    const caixa = refCaixa.current;
-    if (!caixa) return;
-    const io = new IntersectionObserver(
-      (entradas) => {
-        for (const e of entradas) {
-          if (e.isIntersecting) {
-            setVisivel(true);
-            io.disconnect();
-            break;
-          }
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    io.observe(caixa);
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const caixa = refCaixa.current;
-    if (!caixa || !dims) return;
-    const medir = () => {
-      const f = caixa.clientWidth / dims.largura;
-      setFator(f > 0 ? f : 0);
-    };
-    const ro = new ResizeObserver(medir);
-    ro.observe(caixa);
-    medir();
-    return () => ro.disconnect();
-  }, [dims]);
-
-  function aoCarregar() {
-    const doc = refIframe.current?.contentDocument;
-    if (!doc?.body || !doc.querySelector(".slide")) {
-      setFalhou(true);
-      return;
-    }
-    setFalhou(false);
-    setDims({ largura: doc.body.scrollWidth, altura: doc.body.scrollHeight });
-  }
-
-  const url = `/modelos-html/${encodeURIComponent(id)}/preview?slide=${slide}`;
-
-  return (
-    <span className="criacao-modelo-thumb" ref={refCaixa}>
-      {falhou || !visivel ? (
-        <span className="criacao-modelo-fallback">
-          <IconeCarrossel className="" />
-        </span>
-      ) : (
-        <iframe
-          ref={refIframe}
-          className="criacao-modelo-frame"
-          src={url}
-          title=""
-          tabIndex={-1}
-          aria-hidden="true"
-          scrolling="no"
-          onLoad={aoCarregar}
-          onError={() => setFalhou(true)}
-          style={
-            dims && fator > 0
-              ? {
-                  width: `${dims.largura}px`,
-                  height: `${dims.altura}px`,
-                  transform: `scale(${fator})`,
-                }
-              : { opacity: 0 }
-          }
-        />
-      )}
-    </span>
   );
 }

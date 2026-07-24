@@ -9,6 +9,7 @@ import {
   type IdProporcao,
 } from "../../config/fluxos";
 import type { Peca } from "../../tipos/dominio";
+import { blocoSemCerebro } from "./blocoSemCerebro";
 
 // Modo de imagem escolhido no wizard.
 export type ModoImagem = "sem" | "com" | "intercalado";
@@ -35,6 +36,7 @@ export interface DadosCriacao {
   // No wizard de carrossel, capa e paginas podem vir de modelos diferentes.
   estiloCapa: string;
   estiloPaginas: string;
+  estiloCta?: string;
   // Formato da geracao: carrossel de varias paginas ou pagina unica (post/story).
   formato: IdFormato;
   proporcao: IdProporcao;
@@ -50,6 +52,11 @@ export interface DadosCriacao {
   // (padrao, ou ausente em rascunho antigo): fluxo atual, nada muda. Desligado:
   // o prompt ganha o bloco de montagem economica no fim.
   aprimorarComIA?: boolean;
+  // Geracao sem Cerebro: so quando o negocio ainda nao tem Cerebro e o usuario
+  // escolheu seguir mesmo assim. Ausente = fluxo normal com Cerebro.
+  semCerebro?: boolean;
+  // Descricao livre do negocio, opcional, usada apenas no modo sem Cerebro.
+  descricaoNegocio?: string;
 }
 
 // Data de hoje no fuso local, no formato AAAA-MM-DD (o mesmo das pastas de peca).
@@ -165,11 +172,25 @@ function arquivoDoModelo(id: string): string {
 function contratoModelo(dados: DadosCriacao, pasta: string): string {
   const capa = dados.estiloCapa?.trim() ?? "";
   const paginas = dados.estiloPaginas?.trim() ?? "";
+  const cta = dados.estiloCta?.trim() ?? "";
   const simples = capa || paginas || dados.estilo.trim();
   if (!simples) {
     return [
       "CONTRATO DO MODELO VISUAL:",
       "- Nenhum modelo foi travado na interface. Escolha um pelo método da skill e use o arquivo real como base estrutural.",
+    ].join("\n");
+  }
+
+  if (cta && cta !== paginas) {
+    return [
+      "CONTRATO OBRIGATÓRIO DOS MODELOS ESCOLHIDOS:",
+      `- Capa: ${capa || paginas}, arquivo templates/carrossel/${arquivoDoModelo(capa || paginas)}.`,
+      `- Páginas de conteúdo: ${paginas || capa}, arquivo templates/carrossel/${arquivoDoModelo(paginas || capa)}.`,
+      `- Fecho e CTA: ${cta}, arquivo templates/carrossel/${arquivoDoModelo(cta)}.`,
+      `- Copie primeiro o arquivo de páginas para conteudo/${pasta}/carrossel.html. Transplante a primeira .slide da capa quando ela diferir e transplante a última .slide do modelo de CTA, sempre com classes exclusivas e somente o CSS necessário e escopado.`,
+      "- Não redesenhe nem substitua esses modelos por uma interpretação parecida. Preserve estrutura, classes, geometria, hierarquia, ritmo, componentes e acabamento dos arquivos escolhidos.",
+      "- Cores, fontes, imagens e instruções finais personalizam o conteúdo dentro dos modelos; não autorizam trocar a anatomia escolhida, salvo pedido explícito do usuário.",
+      "- Antes de concluir, compare o HTML final com os três arquivos e confirme a origem da capa, das páginas e do CTA, sem vazamento de CSS.",
     ].join("\n");
   }
 
@@ -199,11 +220,13 @@ function contratoModelo(dados: DadosCriacao, pasta: string): string {
 // desligado. Nao muda nenhuma linha dos blocos do modo ligado: so ANEXA. O modo
 // montagem tira toda a liberdade criativa: o modelo barato copia o template e
 // preenche com o conteudo do usuario e do Cerebro, nada mais.
-export function blocoMontagemEconomica(): string {
+export function blocoMontagemEconomica(semCerebro = false): string {
   return [
     "MODO MONTAGEM (o usuário desligou o Aprimorar com IA):",
     "- Esta geração é montagem, não criação. Siga o template modelo-X.html indicado no contrato acima SEM alterar anatomia, cores, fontes ou layout.",
-    "- O conteúdo vem das instruções finais do usuário e do Cérebro. Não invente direção de arte.",
+    semCerebro
+      ? "- O conteúdo vem das instruções finais do usuário. Não invente direção de arte."
+      : "- O conteúdo vem das instruções finais do usuário e do Cérebro. Não invente direção de arte.",
     "- Não adicione elementos novos que o template não tem. Não redesenhe nada.",
     "- Preencha o template com o conteúdo e pare.",
   ].join("\n");
@@ -216,20 +239,31 @@ export function montarPromptCriacao(dados: DadosCriacao, pasta: string): string 
   const tema = dados.tema.trim();
   const estiloCapa = dados.estiloCapa?.trim() ?? "";
   const estiloPaginas = dados.estiloPaginas?.trim() ?? "";
+  const estiloCta = dados.estiloCta?.trim() ?? "";
   const estiloSimples = estiloCapa || estiloPaginas || dados.estilo;
   const base =
-    estiloCapa && estiloPaginas && estiloCapa !== estiloPaginas
+    estiloCta && estiloCta !== estiloPaginas
+      ? `/carrossel ${tema}, usando a capa do modelo ${estiloCapa || estiloPaginas}, as paginas do modelo ${estiloPaginas || estiloCapa} e o CTA do modelo ${estiloCta}`
+      : estiloCapa && estiloPaginas && estiloCapa !== estiloPaginas
       ? `/carrossel ${tema}, usando a capa do modelo ${estiloCapa} e as paginas do modelo ${estiloPaginas}`
       : estiloSimples
         ? `/carrossel ${tema}, usando o modelo ${estiloSimples}`
         : `/carrossel ${tema}`;
 
-  const partes = [
-    base,
+  const semCerebro = dados.semCerebro === true;
+  const partes = [base];
+
+  // Instrucao de topo do modo sem Cerebro: logo apos o comando, antes do
+  // contrato do modelo, pra o agente nunca procurar uma identidade que nao existe.
+  if (semCerebro) {
+    partes.push(blocoSemCerebro(dados.descricaoNegocio));
+  }
+
+  partes.push(
     contratoModelo(dados, pasta),
     instrucoesImagem(dados.formato, dados.proporcao, "instagram"),
     linhasExtras(dados, pasta),
-  ];
+  );
 
   const detalhes = dados.detalhes.trim();
   if (detalhes) {
@@ -241,8 +275,17 @@ export function montarPromptCriacao(dados: DadosCriacao, pasta: string): string 
   // Modo economico: o bloco de montagem e ANEXADO no fim. Nenhuma linha dos
   // blocos do modo ligado muda.
   if (dados.aprimorarComIA === false) {
-    partes.push(blocoMontagemEconomica());
+    partes.push(blocoMontagemEconomica(semCerebro));
   }
 
   return partes.join("\n\n");
+}
+
+export function modelosUsadosDaCriacao(dados: DadosCriacao): string[] {
+  return [...new Set([
+    dados.estilo,
+    dados.estiloCapa,
+    dados.estiloPaginas,
+    dados.estiloCta ?? "",
+  ].map((id) => id.trim()).filter(Boolean))];
 }

@@ -1,12 +1,12 @@
 /* Assistente de criacao (wizard do Dashboard). Card central estilo
    Notion/Typeform: uma pergunta por tela, respiro generoso, hierarquia clara.
-   Todas as cores via tokens de global.css, funciona nos 3 temas. Scrim solido,
+   Todas as cores via tokens de global.css, funciona nos 2 temas. Scrim solido,
    NUNCA backdrop-filter (trava o canvas por baixo). */
 
 .criacao-fundo {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--z-dica);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -307,7 +307,7 @@
   transform-origin: top left;
   border: 0;
   pointer-events: none;
-  background: #fff;
+  background: var(--branco-preview);
 }
 @media (max-width: 520px) {
   .criacao-modelos-grade {
@@ -664,11 +664,31 @@
   margin-top: 6px;
 }
 
+/* Portao de identidade: escolha entre montar o Cerebro ou seguir sem ele. */
+.criacao-portao {
+  gap: 18px;
+}
+.criacao-portao-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(440px, 100%);
+  text-align: left;
+}
+.criacao-portao-campo > span {
+  color: var(--texto-suave);
+  font-size: 13px;
+  font-weight: 600;
+}
+.criacao-portao .criacao-textarea {
+  width: 100%;
+}
+
 /* Confirmacao de saida: scrim solido sobre o card. */
 .criacao-confirma {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: var(--z-flutuante);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -709,7 +729,7 @@
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 120;
+  z-index: var(--z-dica);
   width: 300px;
   max-width: calc(100vw - 40px);
   display: flex;

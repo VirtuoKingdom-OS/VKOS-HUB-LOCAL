@@ -4,7 +4,7 @@ import { IconeChevron } from "../comum/Icones";
 // so apresentacao: recebe a lista pronta de camadas do slide ou da secao (do
 // mais alto pro mais baixo no empilhamento), a selecao atual e os callbacks.
 // Quem monta (Studio, overlay do carrossel, painel do site) traduz as acoes
-// pro motor correspondente. Estilos em editor.css, por token, nos 3 temas.
+// pro motor correspondente. Estilos em editor.css, por token, nos 2 temas.
 
 export type DirecaoCamada = "acima" | "abaixo";
 

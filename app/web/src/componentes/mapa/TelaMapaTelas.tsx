@@ -19,12 +19,12 @@ import {
 } from "@xyflow/react";
 import "../../estilos/mapa.css";
 import { usarEstado } from "../../estado/contexto";
-import { telaParaHash } from "../layout/rotas";
+import { navegarParaCaminho, telaParaCaminho } from "../layout/rotas";
 import type { Contexto, Peca, TipoPeca } from "../../tipos/dominio";
 
 // ===== Mapa de Telas: espelho visual do app, sem efeito no sistema. =====
 // O dado vem de /api/mapa/telas (interno/mapa-telas.json). Cada no e uma tela,
-// rota ou estado; o botao Abrir navega por hash, o mesmo caminho do Voltar do
+// rota ou estado; o botao Abrir navega pelo History API, o mesmo caminho do Voltar do
 // navegador. Nada aqui muda o comportamento real de navegacao.
 
 interface ZonaTela {
@@ -87,7 +87,7 @@ const ALTURA_TELA = 420;
 // Tipos de peca de imagem (Studio) e de site (Tela do Site).
 const TIPOS_IMAGEM: TipoPeca[] = ["carrossel", "post", "stories"];
 
-type Resolucao = { hash: string } | { motivo: string };
+type Resolucao = { caminho: string } | { motivo: string };
 
 // A peca mais recente de um conjunto de tipos, pra resolver os destinos @.
 function pecaMaisRecente(pecas: Peca[], tipos: TipoPeca[]): Peca | null {
@@ -100,43 +100,36 @@ function pecaMaisRecente(pecas: Peca[], tipos: TipoPeca[]): Peca | null {
     )[0];
 }
 
-// Converte o destino do dado em um hash navegavel. Destinos @ dependem do
+// Converte o destino do dado em um caminho navegavel. Destinos @ dependem do
 // cliente ativo: sem candidato, devolve um motivo pra desabilitar o botao.
 function resolverDestino(
   destino: string,
   pecas: Peca[],
   contextos: Contexto[],
 ): Resolucao {
-  if (destino === "setup") return { hash: "#/setup" };
-  if (destino === "ide") return { hash: "#/ide" };
+  if (destino === "ide") return { caminho: "/ide" };
 
   if (destino.startsWith("studio:@")) {
     const peca = pecaMaisRecente(pecas, TIPOS_IMAGEM);
     if (!peca) return { motivo: "Nenhuma peça de imagem neste cliente ainda." };
-    return { hash: `#/studio/${encodeURIComponent(peca.pasta)}` };
+    return { caminho: `/studio/${encodeURIComponent(peca.pasta)}` };
   }
   if (destino.startsWith("site:@")) {
     const peca = pecaMaisRecente(pecas, ["site"]);
     if (!peca) return { motivo: "Nenhum site neste cliente ainda." };
-    return { hash: `#/site/${encodeURIComponent(peca.pasta)}` };
+    return { caminho: `/site/${encodeURIComponent(peca.pasta)}` };
   }
   if (destino.startsWith("fonte:@")) {
     const fonte = contextos[0];
     if (!fonte) return { motivo: "Nenhuma fonte de dados neste cliente ainda." };
-    return { hash: `#/fonte/${fonte.tipo}` };
+    return { caminho: `/fonte/${fonte.tipo}` };
   }
 
-  return { hash: telaParaHash(destino) };
+  return { caminho: telaParaCaminho(destino) };
 }
 
-// Navega de verdade: setar o hash dispara o hashchange que o Shell escuta.
-function abrir(hash: string): void {
-  if (window.location.hash === hash) {
-    // Mesma tela: forca o Shell a reagir mesmo sem mudanca de hash.
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-    return;
-  }
-  window.location.hash = hash;
+function abrir(caminho: string): void {
+  navegarParaCaminho(caminho);
 }
 
 type DadosNoTela = {
@@ -147,7 +140,7 @@ type DadosNoTela = {
   zonaNome: string;
   cor: string;
   estados: string[];
-  abrirHash: string | null;
+  abrirCaminho: string | null;
   abrirMotivo: string | null;
   passo?: number;
 } & Record<string, unknown>;
@@ -160,15 +153,6 @@ function EsqueletoTela({ tipo }: { tipo: string }) {
   switch (tipo) {
     case "splash":
       conteudo = <span className="esq-alvo" />;
-      break;
-    case "setup":
-      conteudo = (
-        <>
-          <div className="esq-passos">{bloco("p")}{bloco("p")}{bloco("p")}</div>
-          {bloco("linha")}
-          {bloco("linha-curta")}
-        </>
-      );
       break;
     case "wizard":
       conteudo = (
@@ -282,13 +266,13 @@ function NoTela({ data, selected }: NodeProps<Node<DadosNoTela, "tela">>) {
           {resto > 0 && <span className="mapa-no-tela-estado mapa-no-tela-mais">+{resto}</span>}
         </div>
       )}
-      {data.abrirHash ? (
+      {data.abrirCaminho ? (
         <button
           type="button"
           className="mapa-no-tela-abrir"
           onClick={(evento) => {
             evento.stopPropagation();
-            abrir(data.abrirHash as string);
+            abrir(data.abrirCaminho as string);
           }}
         >
           Abrir <IconeAbrir />
@@ -422,11 +406,11 @@ function MapaTelasCarregado({ mapa }: { mapa: MapaTelas }) {
       const zona = zonasPorId.get(tela.zona);
       const cor = zona?.cor ?? "suave";
       const pos = posicoes.get(tela.id) ?? { x: 0, y: 0 };
-      let abrirHash: string | null = null;
+      let abrirCaminho: string | null = null;
       let abrirMotivo: string | null = null;
       if (tela.destino !== null) {
         const r = resolverDestino(tela.destino, pecas, contextos);
-        if ("hash" in r) abrirHash = r.hash;
+        if ("caminho" in r) abrirCaminho = r.caminho;
         else abrirMotivo = r.motivo;
       }
       const passo = jornada ? passosPorTela.get(tela.id) : undefined;
@@ -444,7 +428,7 @@ function MapaTelasCarregado({ mapa }: { mapa: MapaTelas }) {
           zonaNome: zona?.nome ?? tela.zona,
           cor,
           estados: tela.estados,
-          abrirHash,
+          abrirCaminho,
           abrirMotivo,
           passo,
         } satisfies DadosNoTela,
@@ -615,7 +599,7 @@ function DetalheTela({
 }) {
   const resolucao =
     tela.destino !== null ? resolverDestino(tela.destino, pecas, contextos) : null;
-  const hash = resolucao && "hash" in resolucao ? resolucao.hash : null;
+  const caminho = resolucao && "caminho" in resolucao ? resolucao.caminho : null;
   const motivo = resolucao && "motivo" in resolucao ? resolucao.motivo : null;
   return (
     <>
@@ -632,12 +616,12 @@ function DetalheTela({
       <p className="mapa-painel-resumo">{tela.resumo}</p>
       <p className="mapa-painel-descricao">{tela.descricao}</p>
 
-      {hash && (
-        <button type="button" className="mapa-abrir-grande" onClick={() => abrir(hash)}>
+      {caminho && (
+        <button type="button" className="mapa-abrir-grande" onClick={() => abrir(caminho)}>
           Abrir esta tela <IconeAbrir />
         </button>
       )}
-      {!hash && motivo && <p className="mapa-abrir-aviso">{motivo}</p>}
+      {!caminho && motivo && <p className="mapa-abrir-aviso">{motivo}</p>}
       {tela.destino === null && (
         <p className="mapa-abrir-aviso">Este é um estado, não uma tela navegável direto.</p>
       )}

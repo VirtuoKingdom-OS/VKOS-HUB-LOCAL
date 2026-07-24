@@ -18,6 +18,7 @@ import * as api from "../../api/cliente";
 import { usarEstado } from "../../estado/contexto";
 import { FLUXOS_VISIVEIS } from "../../config/fluxos";
 import type { TipoContexto } from "../../tipos/dominio";
+import { EVENTO_ABRIR_CRIACAO } from "../layout/rotas";
 import { PopoverFluxos } from "./PopoverFluxos";
 import { CerimoniaCerebro } from "./CerimoniaCerebro";
 import { NoCerebro } from "./NoCerebro";
@@ -198,7 +199,7 @@ function arestaCerebro(idSessao: string): Edge {
     target: idSessao,
     animated: true,
     className: "aresta-viva",
-    markerEnd: { type: MarkerType.ArrowClosed, color: "#00c896" },
+    markerEnd: { type: MarkerType.ArrowClosed, color: "var(--menta)" },
   };
 }
 
@@ -1247,7 +1248,7 @@ function CanvasCockpit() {
           proOptions={{ hideAttribution: true }}
           deleteKeyCode={null}
         >
-          <Background variant={BackgroundVariant.Dots} gap={26} size={1} color="#1a2621" />
+          <Background variant={BackgroundVariant.Dots} gap={26} size={1} color="var(--pontos-canvas)" />
           <Controls showInteractive={false} />
         </ReactFlow>
 
@@ -1293,6 +1294,19 @@ function CanvasCockpit() {
                   <button className="botao botao-fantasma" onClick={abrirCerebro}>
                     <IconeLapis className="" />
                     Prefiro escrever à mão
+                  </button>
+                  <button
+                    type="button"
+                    className="bv-secundario"
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent(EVENTO_ABRIR_CRIACAO, {
+                          detail: { tipo: "carrossel" },
+                        }),
+                      )
+                    }
+                  >
+                    Criar sem o Cérebro
                   </button>
                 </>
               ) : (

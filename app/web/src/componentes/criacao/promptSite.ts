@@ -8,6 +8,7 @@
 // Entrega tudo pronto sem fazer nenhuma pergunta.
 
 import type { DadosEtapasSite } from "./EtapasSite";
+import { blocoSemCerebro } from "./blocoSemCerebro";
 
 // So os digitos de um numero de WhatsApp: tira espaco, parentese, hifen, sinal.
 function limparNumero(v: string): string {
@@ -36,8 +37,14 @@ function secoesLinhas(secoesLivre: string): string {
 }
 
 // O objetivo numero 1 e o CTA principal. WhatsApp vira link wa.me com o numero
-// limpo; os outros apontam pro link informado, ou pro contato do Cerebro.
-function ctaLinhas(objetivo: DadosEtapasSite["objetivo"], link: string): string {
+// limpo; os outros apontam pro link informado, ou pro contato do Cerebro. No
+// modo sem Cerebro nao ha contato de negocio pra recuperar: o CTA sem link
+// aponta pra #contato, sem citar o Cerebro.
+function ctaLinhas(
+  objetivo: DadosEtapasSite["objetivo"],
+  link: string,
+  semCerebro: boolean,
+): string {
   const alvo = link.trim();
   const linhas = ["Objetivo e CTA principal:"];
 
@@ -46,6 +53,10 @@ function ctaLinhas(objetivo: DadosEtapasSite["objetivo"], link: string): string 
       const num = limparNumero(alvo);
       linhas.push(
         `- O objetivo nº 1 é gerar contato no WhatsApp. O botão principal e todos os CTAs abrem https://wa.me/${num} (abrir em nova aba).`
+      );
+    } else if (semCerebro) {
+      linhas.push(
+        "- O objetivo nº 1 é gerar contato no WhatsApp. Sem número informado, aponte o CTA pra #contato e deixe claro no texto que o contato ainda será definido."
       );
     } else {
       linhas.push(
@@ -62,6 +73,10 @@ function ctaLinhas(objetivo: DadosEtapasSite["objetivo"], link: string): string 
     if (alvo) {
       linhas.push(
         `- O objetivo nº 1 é ${rotulo}. O botão principal e os CTAs apontam pra ${alvo}.`
+      );
+    } else if (semCerebro) {
+      linhas.push(
+        `- O objetivo nº 1 é ${rotulo}. Sem link informado, aponte os CTAs pra #contato.`
       );
     } else {
       linhas.push(
@@ -143,10 +158,12 @@ function marcadoresLinhas(formato: DadosEtapasSite["formato"]): string {
 // direcao: um estilo fixo da biblioteca, aplicado como esta. O estilo padrao e
 // o Grade de zinco, o mais neutro e legivel do indice (cinza neutro dominante,
 // um acento so, bordas finas).
-export function blocoDesignEconomicoSite(): string {
+export function blocoDesignEconomicoSite(semCerebro = false): string {
   return [
     "BLOCO 1, DESIGN NO MODO MONTAGEM (o usuário desligou o Aprimorar com IA):",
-    "- Leia cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do conteúdo.",
+    semCerebro
+      ? "- NÃO leia cerebro/cerebro.md. O conteúdo vem do que o usuário forneceu nesta geração (tema, descrição, instruções finais)."
+      : "- Leia cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do conteúdo.",
     "- Não crie direção de arte nova. Use o estilo fixo Grade de zinco: leia templates/design/estilos/grade-zinco.md INTEIRO e aplique os tokens dele (cores, escala tipográfica, spacing, motion) como estão, sem inventar variação.",
     "- Não leia a cartela nem escolha outra direção. Um estilo, executado inteiro, sem mistura.",
     "- NUNCA cite a marca de origem do estilo em nenhum texto do site.",
@@ -159,21 +176,29 @@ export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string 
   const tema = dados.tema.trim();
   // Modo economico: so o Bloco 1 muda (inteiro). Blocos 2 e 3 permanecem.
   const economico = dados.aprimorarComIA === false;
+  const semCerebro = dados.semCerebro === true;
   const partes: string[] = [];
 
   partes.push(
     `Construa um site HTML estático completo, bonito e pronto pra publicar sobre: ${tema}.`
   );
 
+  // Instrucao de topo do modo sem Cerebro: inequivoca, antes de qualquer bloco.
+  if (semCerebro) {
+    partes.push(blocoSemCerebro(dados.descricaoNegocio));
+  }
+
   // ===== BLOCO 1: O DESIGN VEM PRIMEIRO. Antes de qualquer linha de codigo.
   // No modo economico o bloco inteiro e substituido pelo enxuto.
   if (economico) {
-    partes.push(blocoDesignEconomicoSite());
+    partes.push(blocoDesignEconomicoSite(semCerebro));
   } else {
   partes.push(
     [
       "BLOCO 1, O DESIGN VEM PRIMEIRO. Antes de escrever qualquer linha, resolva o design:",
-      "- Leia cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do visual e do conteúdo.",
+      semCerebro
+        ? "- NÃO leia cerebro/cerebro.md. A identidade (voz, oferta, público) vem do que o usuário forneceu nesta geração; não invente nome, endereço, preço nem prova social."
+        : "- Leia cerebro/cerebro.md: a identidade do negócio (voz, oferta, dor, desejo, provas, cidade, contato). É a fonte da verdade do visual e do conteúdo.",
       "- Leia templates/site/principios-visuais.md: a leitura de design, as regras, as proibições e o teste anti-slop.",
       "- Leia templates/design/cartela.md e escolha UMA direção que case com o negócio.",
       "- Leia templates/design/estilos/indice.md e escolha UM estilo que case com o negócio e com a direção. Leia o arquivo desse estilo INTEIRO antes de decidir cores, tipografia, spacing e motion.",
@@ -186,6 +211,10 @@ export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string 
 
   if (dados.visualModo === "personalizado") {
     partes.push(visualLinha(dados));
+  } else if (semCerebro) {
+    partes.push(
+      "Visual: use o sistema completo do estilo escolhido, incluindo a paleta dele nos tokens de cor."
+    );
   } else {
     partes.push(
       "Visual: use o sistema completo do estilo escolhido. As cores se adaptam à identidade do Cérebro: se o Cérebro tiver paleta, ela manda nos tokens de cor; se não houver, use a paleta do estilo."
@@ -208,7 +237,7 @@ export function montarPromptSite(dados: DadosEtapasSite, pasta: string): string 
     partes.push(secoesLinhas(dados.secoesLivre));
   }
 
-  partes.push(ctaLinhas(dados.objetivo, dados.linkObjetivo));
+  partes.push(ctaLinhas(dados.objetivo, dados.linkObjetivo, semCerebro));
   partes.push(imagensLinhas(dados, pasta));
 
   // ===== BLOCO 3: regras tecnicas, compactas no fim.

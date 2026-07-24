@@ -1,7 +1,7 @@
 /* Editor visual do carrossel HTML-first. Overlay tela cheia (reusa
    overlay-tela-cheia do canvas.css, scrim solido sem blur). Identidade VK:
    minimalista, menta de destaque via tokens, glow sutil, motion curto.
-   Toda cor vem dos tokens de tema, nada hardcoded, funciona nos 3 temas. */
+   Toda cor vem dos tokens de tema, nada hardcoded, funciona nos 2 temas. */
 
 .editor-shell {
   width: min(1360px, 96vw);
@@ -480,7 +480,7 @@
 .editor-confirm-scrim {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: var(--z-flutuante);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -522,7 +522,7 @@
 }
 
 /* ===== Painel de camadas (PainelCamadas, compartilhado carrossel/site).
-   Tudo por token: funciona nos 3 temas. Motion so em transicao curta. ===== */
+   Tudo por token: funciona nos 2 temas. Motion so em transicao curta. ===== */
 .camadas-lista {
   list-style: none;
   margin: 0;

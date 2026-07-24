@@ -16,6 +16,7 @@ import {
   IconeX,
 } from "../comum/Icones";
 import "../../estilos/criacao.css";
+import { navegarParaCaminho } from "../layout/rotas";
 
 // Rotulos curtos por tipo, pro titulo do mini card.
 const ROTULO_TIPO: Record<string, string> = {
@@ -25,14 +26,14 @@ const ROTULO_TIPO: Record<string, string> = {
   site: "site",
 };
 
-// Vai pro Studio de uma peca (pasta URL-encoded no hash).
+// Vai pro Studio de uma peca.
 function irParaStudio(pasta: string) {
-  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+  navegarParaCaminho("/studio/" + encodeURIComponent(pasta));
 }
 
-// Vai pra tela do site de uma peca (pasta URL-encoded no hash).
+// Vai pra tela do site de uma peca.
 function irParaSite(pasta: string) {
-  window.location.hash = "#/site/" + encodeURIComponent(pasta);
+  navegarParaCaminho("/site/" + encodeURIComponent(pasta));
 }
 
 export function GeracaoFlutuante() {

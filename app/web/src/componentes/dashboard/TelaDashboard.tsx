@@ -21,6 +21,7 @@ import {
 } from "../comum/Icones";
 import { MiniaturaSite } from "../cockpit/MiniaturaSite";
 import { paginaInicialSite } from "../cockpit/PreviewSite";
+import { navegarParaCaminho } from "../layout/rotas";
 import "../../estilos/dashboard.css";
 
 // Tipo de conteudo visual que o seletor oferece.
@@ -30,14 +31,14 @@ interface Props {
   aoCriar: (tipo: TipoGeracao) => void;
 }
 
-// Vai pro Studio de uma peca (pasta URL-encoded no hash).
+// Vai pro Studio de uma peca.
 function irParaStudio(pasta: string) {
-  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+  navegarParaCaminho("/studio/" + encodeURIComponent(pasta));
 }
 
-// Vai pra tela de um site (pasta URL-encoded no hash).
+// Vai pra tela de um site.
 function irParaSite(pasta: string) {
-  window.location.hash = "#/site/" + encodeURIComponent(pasta);
+  navegarParaCaminho("/site/" + encodeURIComponent(pasta));
 }
 
 // Rota de abertura de uma peca a partir do card de recentes: fonteHtml pronta
@@ -51,7 +52,7 @@ function abrirPeca(peca: Peca) {
     irParaSite(peca.pasta);
     return;
   }
-  window.location.hash = "#/galerias";
+  navegarParaCaminho("/galerias");
 }
 
 // Porta de entrada simplificada: saudacao, criacao guiada de carrossel, cards
@@ -186,7 +187,7 @@ export function TelaDashboard({ aoCriar }: Props) {
               <button
                 className="recentes-vertodas"
                 onClick={() => {
-                  window.location.hash = "#/galerias";
+                  navegarParaCaminho("/galerias");
                 }}
                 type="button"
               >
@@ -232,7 +233,7 @@ export function TelaDashboard({ aoCriar }: Props) {
           <button
             className="dash-atalho"
             onClick={() => {
-              window.location.hash = "#/cockpit";
+              navegarParaCaminho("/cockpit");
             }}
             type="button"
           >
@@ -245,7 +246,7 @@ export function TelaDashboard({ aoCriar }: Props) {
           <button
             className="dash-atalho"
             onClick={() => {
-              window.location.hash = "#/galerias";
+              navegarParaCaminho("/galerias");
             }}
             type="button"
           >

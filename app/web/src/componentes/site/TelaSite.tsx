@@ -11,7 +11,7 @@
 // Guarda de estado sujo em toda troca que perderia edicao, e aviso de conflito
 // externo sem recarregar por cima do trabalho.
 // Interface { pasta } e o export default sao contrato da rodada 17.
-// Toda cor via tokens de tema, funciona nos 3 temas, sem backdrop-filter.
+// Toda cor via tokens de tema, funciona nos 2 temas, sem backdrop-filter.
 
 import {
   useCallback,
@@ -25,6 +25,7 @@ import {
 } from "react";
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
+import { navegarParaCaminho } from "../layout/rotas";
 import {
   obterPublicacao,
   publicarGithub,
@@ -591,7 +592,7 @@ export default function TelaSite({ pasta }: Props) {
       mesmaOrigem = false;
     }
     if (window.history.length > 1 && mesmaOrigem) window.history.back();
-    else window.location.hash = "#/dashboard";
+    else navegarParaCaminho("/dashboard");
   }, []);
 
   // ===== Guarda de estado sujo. Executa a acao pendente depois de resolver.
@@ -813,7 +814,7 @@ export default function TelaSite({ pasta }: Props) {
             Esta peça não existe mais ou ainda não tem páginas pra mostrar. Volte
             pro Dashboard e escolha outra.
           </p>
-          <a className="botao botao-principal" href="#/dashboard">
+          <a className="botao botao-principal" href="/dashboard">
             Voltar pro Dashboard
           </a>
         </div>
@@ -1299,7 +1300,7 @@ function PainelPublicacao({
           {nenhumConectado && (
             <div className="site-publicar-vazio">
               <p>Conecte o GitHub ou a Netlify para publicar este site.</p>
-              <a className="botao botao-principal" href="#/conexoes">Conectar em Conexões</a>
+              <a className="botao botao-principal" href="/conexoes">Conectar em Conexões</a>
             </div>
           )}
 
@@ -1399,7 +1400,7 @@ function DestinoPublicacao({
             : rotuloAcao}
         </button>
       ) : (
-        <a className="site-publicar-conectar" href="#/conexoes">Conectar em Conexões</a>
+        <a className="site-publicar-conectar" href="/conexoes">Conectar em Conexões</a>
       )}
     </section>
   );

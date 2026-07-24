@@ -47,6 +47,12 @@ export interface DadosEtapasSite {
   // Interruptor "Aprimorar com IA" da etapa de detalhes. Opcional por
   // compatibilidade com rascunho antigo: ausente = ligado (padrao).
   aprimorarComIA?: boolean;
+  // Geracao sem Cerebro: so quando o negocio ainda nao tem Cerebro e o usuario
+  // escolheu seguir mesmo assim. Ausente = fluxo normal com Cerebro.
+  semCerebro?: boolean;
+  // Descricao livre do negocio, opcional, usada apenas no modo sem Cerebro pra
+  // dar alguma identidade a geracao.
+  descricaoNegocio?: string;
 }
 
 // Valores iniciais das etapas. O modelo vem do padrao do workspace. Defaults

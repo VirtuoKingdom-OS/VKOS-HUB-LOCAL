@@ -1,6 +1,6 @@
 /* Telas da rodada 13: Dashboard (porta de entrada), chips da Galeria unificada,
    abas "em breve" e o placeholder do Studio. Toda cor via tokens do global.css,
-   funciona nos tres temas. Motion sutil (140-220ms), glow discreto de menta. */
+   funciona nos dois temas. Motion sutil (140-220ms), glow discreto de menta. */
 
 /* ===== Dashboard ===== */
 .tela-dashboard {
@@ -334,7 +334,7 @@
 .dash-overlay-wizard {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--z-dica);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -485,4 +485,34 @@
   padding: 8px 14px;
   font-size: 13px;
   flex-shrink: 0;
+}
+
+/* ===== Tela Arquivos: o teto unico de criacoes e fontes de dados ===== */
+.arquivos-topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--esp-4);
+  flex-wrap: wrap;
+}
+.arquivos-abas {
+  display: flex;
+  gap: var(--esp-2);
+  flex-wrap: wrap;
+}
+.painel-criacoes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  min-height: 0;
+}
+.painel-criacoes-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+.painel-fontes-topo {
+  margin: 0 0 var(--esp-3);
 }

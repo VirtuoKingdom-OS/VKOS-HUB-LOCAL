@@ -2,7 +2,7 @@
 // Editar (a tela, dono B, monta este componente com as props abaixo). Espelha o
 // estado do usarMotorSite (dono A) e chama os metodos dele: texto, tipografia,
 // escopo geral ou so no celular, link, imagem, secoes e cores globais. Toda cor
-// vem dos tokens de tema (global.css), funciona nos 3 temas, sem backdrop-filter.
+// vem dos tokens de tema (global.css), funciona nos 2 temas, sem backdrop-filter.
 // Estilos proprios no bloco /* ===== PainelSite ===== */ no fim de site.css.
 
 import { useEffect, useRef, useState } from "react";

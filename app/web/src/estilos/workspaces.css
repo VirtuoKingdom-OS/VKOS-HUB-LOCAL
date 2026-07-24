@@ -86,7 +86,7 @@
   right: auto;
   width: 300px;
   max-width: calc(100vw - 24px);
-  z-index: 60;
+  z-index: var(--z-dica);
   background: rgba(var(--painel-rgb), 0.98);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio);
@@ -267,7 +267,7 @@
   box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
   pointer-events: auto;
   cursor: pointer;
-  z-index: 30;
+  z-index: var(--z-veu);
   animation: sw-surge-balao 0.12s ease-out;
 }
 .sw-balao:hover {
@@ -434,7 +434,7 @@
   position: fixed;
   bottom: 18px;
   left: 18px;
-  z-index: 90;
+  z-index: var(--z-dica);
   width: min(340px, calc(100vw - 36px));
   background: rgba(var(--painel-rgb), 0.98);
   border: 1px solid var(--borda-forte);
@@ -502,7 +502,7 @@
 .veu-troca {
   position: absolute;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-modal);
   background: var(--fundo);
   opacity: 0;
   pointer-events: none;
