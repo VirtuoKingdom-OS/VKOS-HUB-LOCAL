@@ -20,6 +20,7 @@ export function TelaAcesso({ estado, aoEntrar }: Props) {
   const tokenConvite = parametros.get("token");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [segredo, setSegredo] = useState("");
   const [codigoTotp, setCodigoTotp] = useState("");
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -37,7 +38,7 @@ export function TelaAcesso({ estado, aoEntrar }: Props) {
         return;
       }
       if (bootstrap) {
-        const sessao = await criarOperador({ email, senha });
+        const sessao = await criarOperador({ email, senha, segredo });
         navegarParaCaminho("/dashboard", true);
         aoEntrar(sessao);
         return;
@@ -91,6 +92,14 @@ export function TelaAcesso({ estado, aoEntrar }: Props) {
             <input type="password" autoComplete={bootstrap || tokenConvite ? "new-password" : "current-password"} minLength={12} value={senha} onChange={(e) => setSenha(e.target.value)} required />
             {(bootstrap || tokenConvite) && <small>Use pelo menos 12 caracteres.</small>}
           </label>
+
+          {bootstrap && (
+            <label>
+              <span>Segredo de instalação</span>
+              <input type="password" autoComplete="off" value={segredo} onChange={(e) => setSegredo(e.target.value)} required />
+              <small>O valor de OPERADOR_BOOTSTRAP_SEGREDO que você definiu no servidor.</small>
+            </label>
+          )}
 
           {estado.modo === "core" && !tokenConvite && !bootstrap && estado.totpAtivo && (
             <label>

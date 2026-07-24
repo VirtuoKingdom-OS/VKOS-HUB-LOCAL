@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import argon2 from "argon2";
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 
@@ -24,6 +24,22 @@ function normalizarEmail(valor: unknown): string {
 
 function senhaValida(valor: unknown): valor is string {
   return typeof valor === "string" && valor.length >= 12 && valor.length <= 200;
+}
+
+// Segredo de instalacao: sem ele configurado, o cadastro do primeiro operador
+// fica desligado. Isso fecha a brecha de "quem chegar primeiro na URL vira dono".
+function segredoBootstrap(): string | null {
+  const valor = process.env.OPERADOR_BOOTSTRAP_SEGREDO?.trim();
+  return valor ? valor : null;
+}
+
+// Comparacao em tempo constante sobre o hash, pra nao vazar o segredo por timing
+// nem pelo tamanho.
+function segredoConfere(recebido: unknown, esperado: string): boolean {
+  const texto = typeof recebido === "string" ? recebido : "";
+  const a = createHash("sha256").update(texto).digest();
+  const b = createHash("sha256").update(esperado).digest();
+  return timingSafeEqual(a, b);
 }
 
 export function hashToken(token: string): string {
@@ -121,7 +137,9 @@ export const rotasIdentidade: FastifyPluginAsync = async (app) => {
       "SELECT count(*)::int AS total, bool_or(totp_secret IS NOT NULL) AS totp_ativo FROM usuarios WHERE papel = 'operador'",
     );
     return {
-      precisaBootstrap: total.rows[0].total === 0,
+      // So oferece o cadastro do primeiro dono quando nao ha operador E o segredo
+      // de instalacao esta configurado. Sem o segredo, cai na tela de login.
+      precisaBootstrap: total.rows[0].total === 0 && segredoBootstrap() !== null,
       modo: MODO,
       obrigatoria: true,
       totpAtivo: total.rows[0].totp_ativo === true,
@@ -146,6 +164,11 @@ export const rotasIdentidade: FastifyPluginAsync = async (app) => {
   app.post("/auth/bootstrap", async (requisicao, resposta) => {
     if (MODO !== "core")
       return resposta.code(404).send({ erro: "rota nao encontrada" });
+    const segredo = segredoBootstrap();
+    if (!segredo)
+      return resposta.code(403).send({
+        erro: "Cadastro do primeiro operador desativado. Configure OPERADOR_BOOTSTRAP_SEGREDO.",
+      });
     const db = exigirBanco();
     const existente = await db.query(
       "SELECT 1 FROM usuarios WHERE papel = 'operador' LIMIT 1",
@@ -155,7 +178,10 @@ export const rotasIdentidade: FastifyPluginAsync = async (app) => {
     const corpo = (requisicao.body ?? {}) as {
       email?: unknown;
       senha?: unknown;
+      segredo?: unknown;
     };
+    if (!segredoConfere(corpo.segredo, segredo))
+      return resposta.code(403).send({ erro: "Segredo de instalacao invalido." });
     const email = normalizarEmail(corpo.email);
     if (!email.includes("@") || !senhaValida(corpo.senha)) {
       return resposta

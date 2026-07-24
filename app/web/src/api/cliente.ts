@@ -167,7 +167,7 @@ export function sair(): Promise<{ ok: true }> {
   return pedir<{ ok: true }>("/api/auth/logout", { method: "POST" });
 }
 
-export function criarOperador(dados: { email: string; senha: string }): Promise<SessaoWeb> {
+export function criarOperador(dados: { email: string; senha: string; segredo: string }): Promise<SessaoWeb> {
   return pedir("/api/auth/bootstrap", corpoJson(dados));
 }
 

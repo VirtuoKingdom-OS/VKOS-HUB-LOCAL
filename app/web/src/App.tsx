@@ -51,7 +51,10 @@ function ConteudoApp() {
         try {
           setSessaoWeb(await obterSessaoWeb());
         } catch (erro) {
-          if (!(erro instanceof ErroApi) || erro.status !== 401 || estado.obrigatoria) throw erro;
+          // 401 aqui significa apenas "nao logado": mostra a tela de acesso, nunca
+          // trata como servidor fora do ar. Qualquer outro erro sobe e vira a tela
+          // de servidor indisponivel.
+          if (!(erro instanceof ErroApi) || erro.status !== 401) throw erro;
           setSessaoWeb(null);
         }
       }

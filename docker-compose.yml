@@ -32,6 +32,7 @@ services:
       VKOS_HOST: 0.0.0.0
       VKOS_HOSTS_PERMITIDOS: ${CORE_DOMAIN}
       APP_URL: https://${APP_DOMAIN}
+      OPERADOR_BOOTSTRAP_SEGREDO: ${OPERADOR_BOOTSTRAP_SEGREDO:-}
       DATABASE_URL_FILE: /run/secrets/database_url
       COFRE_MASTER_KEY_FILE: /run/secrets/cofre_master_key
       MOTOR_URL: http://motor:4700
