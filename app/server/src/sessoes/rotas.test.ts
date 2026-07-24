@@ -4,6 +4,7 @@ import test from "node:test";
 import type { Sessao } from "../tipos.js";
 import {
   extrairPastaAlvoDoPrompt,
+  geracaoBarradaPorCerebro,
   geracaoVisualEmAndamento,
   promptCitaCrm,
   resolverPastaAlvoGeracaoSite,
@@ -18,6 +19,26 @@ test("exige Cerebro nos fluxos que criam artefato visual", () => {
 test("mantem livres sessoes gerais e a cerimonia de instalacao", () => {
   assert.equal(skillExigeCerebro("instalar"), false);
   assert.equal(skillExigeCerebro(undefined), false);
+});
+
+test("barra a geracao visual quando o Cerebro esta em branco e o usuario nao dispensou", () => {
+  assert.equal(geracaoBarradaPorCerebro("carrossel", false, false), true);
+  assert.equal(geracaoBarradaPorCerebro("site", false, false), true);
+});
+
+test("libera a geracao visual sem Cerebro quando o usuario dispensa de forma explicita", () => {
+  assert.equal(geracaoBarradaPorCerebro("carrossel", false, true), false);
+  assert.equal(geracaoBarradaPorCerebro("site", false, true), false);
+});
+
+test("Cerebro preenchido nunca barra e o flag semCerebro fica irrelevante", () => {
+  assert.equal(geracaoBarradaPorCerebro("carrossel", true, false), false);
+  assert.equal(geracaoBarradaPorCerebro("site", true, true), false);
+});
+
+test("skill fora da geracao visual nunca e barrada por Cerebro", () => {
+  assert.equal(geracaoBarradaPorCerebro("instalar", false, false), false);
+  assert.equal(geracaoBarradaPorCerebro(undefined, false, false), false);
 });
 
 function sessao(parcial: Partial<Sessao>): Sessao {

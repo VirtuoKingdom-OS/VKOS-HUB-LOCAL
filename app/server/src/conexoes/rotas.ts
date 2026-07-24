@@ -9,6 +9,10 @@ import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { desconectar, iniciarConexao, ErroOAuth } from "../google/oauth.js";
 import { catalogoPublico, entradaCatalogo, listaCatalogo } from "./catalogo.js";
 import { lerConexoes, salvarConexoes, type EstadoServidor } from "./estado.js";
+import {
+  obterEstadoCredencialMeta,
+  salvarCredencialMeta,
+} from "../meta/credencial.js";
 
 // Mascara um segredo: mostra so os 4 ultimos caracteres, o resto vira asteriscos.
 // Deterministica: o mesmo segredo sempre gera a mesma mascara, entao o front pode
@@ -56,7 +60,16 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     const estado = id ? lerConexoes(id) : { servidores: {} };
     const servidores: Record<string, ReturnType<typeof estadoMascarado>> = {};
     for (const entrada of listaCatalogo()) {
-      servidores[entrada.id] = estadoMascarado(entrada.id, estado.servidores[entrada.id]);
+      if (entrada.id === "meta") {
+        const meta = await obterEstadoCredencialMeta();
+        servidores[entrada.id] = {
+          habilitado: meta.configurada,
+          config: { ...meta.config },
+          conectado: meta.configurada,
+        };
+      } else {
+        servidores[entrada.id] = estadoMascarado(entrada.id, estado.servidores[entrada.id]);
+      }
     }
     return { catalogo: catalogoPublico(), estado: { servidores } };
   });
@@ -75,14 +88,28 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
       return resposta.status(400).send({ erro: "conexao ainda indisponivel" });
     }
 
-    const workspaceId = idWorkspaceAtivo();
-    if (!workspaceId) {
-      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
-    }
-
     const corpo = (requisicao.body ?? {}) as { habilitado?: unknown; config?: unknown };
     if (typeof corpo.habilitado !== "boolean") {
       return resposta.status(400).send({ erro: "habilitado precisa ser booleano" });
+    }
+
+    if (id === "meta") {
+      const config = corpo.config && typeof corpo.config === "object"
+        ? corpo.config as Partial<import("../meta/credencial.js").CredencialMeta>
+        : {};
+      const meta = await salvarCredencialMeta(config);
+      return {
+        servidor: {
+          habilitado: corpo.habilitado && meta.configurada,
+          config: { ...meta.config },
+          conectado: meta.configurada,
+        },
+      };
+    }
+
+    const workspaceId = idWorkspaceAtivo();
+    if (!workspaceId) {
+      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
     }
 
     const estado = lerConexoes(workspaceId);

@@ -17,8 +17,32 @@ import {
 import path from "node:path";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 
+import { fileURLToPath } from "node:url";
+
 import { obterPastaVkos } from "../vkos/estado.js";
 import { gravarTextoAtomico } from "../util/gravarJson.js";
+import { MODO } from "../plataforma/modo.js";
+import { exigirBanco } from "../plataforma/banco.js";
+import { pastaDoWorkspace } from "../plataforma/provisionamento.js";
+import {
+  garantirWorkspaceOculto,
+  idWorkspaceAtivo,
+  lerRegistro,
+  workspacePorId,
+} from "../workspaces/estado.js";
+
+// Raiz do repositorio do VKOS HUB: sobe de src/ide (ou dist/ide) ate app e mais
+// um nivel. E a base da raiz "sistema" da IDE geral do CORE.
+const pastaRepositorio = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "..",
+);
+
+// Id fixo da entrada oculta que representa o sistema inteiro no registro.
+const ID_RAIZ_SISTEMA = "w-sistema";
 
 // Pastas ignoradas na arvore: ruido pesado que nao interessa editar.
 const IGNORAR = new Set(["node_modules", ".git", "dist"]);
@@ -150,6 +174,43 @@ function pareceBinario(buffer: Buffer): boolean {
 }
 
 export const rotasIde: FastifyPluginAsync = async (app) => {
+  // Raizes da IDE geral do CORE: o sistema inteiro (o repositorio do hub), os
+  // workspaces do estudio e os clientes do banco ja materializados. Selecionar
+  // uma raiz no front ativa o workspace correspondente, entao arvore, editor e
+  // chat passam a operar nela. So existe no CORE: cliente nunca ve isso.
+  if (MODO === "core") {
+    app.get("/ide/raizes", async () => {
+      const sistema = garantirWorkspaceOculto(
+        ID_RAIZ_SISTEMA,
+        "VKOS HUB (sistema)",
+        pastaRepositorio,
+      );
+      const raizes: { id: string; nome: string; tipo: string }[] = [
+        { id: sistema.id, nome: sistema.nome, tipo: "sistema" },
+      ];
+      for (const w of lerRegistro().workspaces) {
+        if (!w.oculto) raizes.push({ id: w.id, nome: w.nome, tipo: "estudio" });
+      }
+      try {
+        const clientes = await exigirBanco().query(
+          "SELECT id, nome FROM workspaces ORDER BY nome",
+        );
+        for (const linha of clientes.rows as { id: string; nome: string }[]) {
+          try {
+            if (existsSync(pastaDoWorkspace(linha.id))) {
+              raizes.push({ id: linha.id, nome: linha.nome, tipo: "cliente" });
+            }
+          } catch {
+            // id fora do formato uuid: nao e um cliente materializavel.
+          }
+        }
+      } catch {
+        // Banco fora do ar: a IDE geral segue com sistema e estudio.
+      }
+      return { raizes, ativo: idWorkspaceAtivo() };
+    });
+  }
+
   // Arvore completa da pasta do workspace ativo.
   app.get("/ide/arvore", async (_req, resposta) => {
     const pasta = obterPastaVkos();
@@ -163,7 +224,11 @@ export const rotasIde: FastifyPluginAsync = async (app) => {
       base = path.resolve(pasta);
     }
     const itens = construirArvore(base, "", 1);
-    return { base: path.basename(base), itens };
+    // Nome amigavel: o nome do workspace ativo quando registrado (a pasta de um
+    // cliente materializado e um uuid, feio de mostrar). Senao, o basename.
+    const ativo = idWorkspaceAtivo();
+    const nome = (ativo && workspacePorId(ativo)?.nome) || path.basename(base);
+    return { base: nome, itens };
   });
 
   // Le um arquivo de texto. Recusa binario e arquivo acima de 1MB (413).

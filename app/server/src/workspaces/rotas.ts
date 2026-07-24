@@ -7,12 +7,11 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { validarPastaVkos } from "../vkos/estado.js";
 import { gerenciador } from "../sessoes/gerenciador.js";
 import { invalidarCacheContextos } from "../contextos/armazenamento.js";
-import { lerConexoes } from "../conexoes/estado.js";
-import { ID_CONEXAO_GOOGLE, revogarToken } from "../google/oauth.js";
 import { ativarPorId, registrarEAtivar } from "./ativacao.js";
 import { criarWorkspaceNovo, ErroWorkspace } from "./clonagem.js";
 import {
   apagarPastaDadosWorkspace,
+  garantirWorkspaceOculto,
   idWorkspaceAtivo,
   lerRegistro,
   renomearWorkspace,
@@ -20,28 +19,56 @@ import {
   workspacePorId,
   workspacePorPasta,
 } from "./estado.js";
+import { existsSync } from "node:fs";
+import { pastaDoWorkspace } from "../plataforma/provisionamento.js";
+import { MODO } from "../plataforma/modo.js";
+import { contextoAtual } from "../plataforma/contexto.js";
+import { exigirBanco } from "../plataforma/banco.js";
+import { COOKIE_SESSAO, hashToken } from "../plataforma/identidade.js";
 
-// Best effort: revoga o refresh token do Google desse workspace antes de apagar a
-// pasta de dados. Falhou (offline, token ja invalido, conexoes ilegivel): loga e
-// segue, a exclusao nunca trava por causa do Google.
-async function revogarGoogleDoWorkspace(id: string): Promise<void> {
+// Ativa no CORE um workspace de cliente que so existe no banco. Registra a
+// pasta materializada (dados/clientes/<id>) como entrada oculta com o MESMO id
+// do banco e ativa. Devolve null se o banco nao responde, o id nao existe ou a
+// pasta nao foi materializada.
+async function ativarClienteDoBanco(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   try {
-    const config = lerConexoes(id).servidores[ID_CONEXAO_GOOGLE]?.config ?? {};
-    const refreshToken = typeof config.refreshToken === "string" ? config.refreshToken.trim() : "";
-    if (refreshToken) await revogarToken(refreshToken);
-  } catch (erro) {
-    console.error(`[workspaces] falha ao revogar o Google do workspace ${id}:`, erro);
+    const resultado = await exigirBanco().query(
+      "SELECT id, nome FROM workspaces WHERE id = $1",
+      [id],
+    );
+    if (!resultado.rowCount) return null;
+    const pasta = pastaDoWorkspace(id);
+    if (!existsSync(pasta)) return null;
+    garantirWorkspaceOculto(id, resultado.rows[0].nome, pasta);
+    return ativarPorId(id);
+  } catch {
+    return null;
   }
 }
 
 export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
   // Registro inteiro: { workspaces, ativo }.
   app.get("/workspaces", async () => {
+    if (MODO === "hub") {
+      const contexto = contextoAtual();
+      const resultado = await exigirBanco().query(
+        `SELECT w.id, w.nome, w.pasta, w.criado_em
+           FROM workspaces w JOIN membros_workspace m ON m.workspace_id = w.id
+          WHERE m.usuario_id = $1 AND w.status = 'ativo' ORDER BY w.nome`,
+        [contexto?.usuario?.id],
+      );
+      return {
+        workspaces: resultado.rows.map((item) => ({ id: item.id, nome: item.nome, pasta: "", criadoEm: item.criado_em, ultimoUso: item.criado_em })),
+        ativo: contexto?.workspaceId ?? null,
+      };
+    }
     return lerRegistro();
   });
 
   // Registra uma pasta VKOS existente como workspace e ativa.
   app.post("/workspaces", async (req: FastifyRequest, resposta: FastifyReply) => {
+    if (MODO === "hub") return resposta.status(404).send({ erro: "rota nao encontrada" });
     const corpo = (req.body ?? {}) as { pasta?: unknown; nome?: unknown };
     const pasta = typeof corpo.pasta === "string" ? corpo.pasta.trim() : "";
     const nome = typeof corpo.nome === "string" ? corpo.nome.trim() : undefined;
@@ -62,6 +89,7 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
 
   // Cria um cliente novo clonando a estrutura do ativo.
   app.post("/workspaces/novo", async (req: FastifyRequest, resposta: FastifyReply) => {
+    if (MODO === "hub") return resposta.status(404).send({ erro: "rota nao encontrada" });
     const corpo = (req.body ?? {}) as { nome?: unknown; pastaDestino?: unknown };
     const nome = typeof corpo.nome === "string" ? corpo.nome : "";
     const pastaDestino = typeof corpo.pastaDestino === "string" ? corpo.pastaDestino.trim() : "";
@@ -79,7 +107,25 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
   // Ativa um workspace ja registrado.
   app.post("/workspaces/:id/ativar", async (req: FastifyRequest, resposta: FastifyReply) => {
     const { id } = req.params as { id: string };
-    const registro = ativarPorId(id);
+    if (MODO === "hub") {
+      const contexto = contextoAtual();
+      const membro = await exigirBanco().query("SELECT 1 FROM membros_workspace WHERE usuario_id = $1 AND workspace_id = $2", [contexto?.usuario?.id, id]);
+      const token = req.cookies[COOKIE_SESSAO];
+      if (!membro.rowCount || !token) return resposta.status(404).send({ erro: "Workspace nao encontrado." });
+      await exigirBanco().query("UPDATE sessoes_web SET workspace_id = $1 WHERE token_hash = $2", [id, hashToken(token)]);
+      const registro = await exigirBanco().query("SELECT id, nome, pasta, criado_em FROM workspaces WHERE id = $1", [id]);
+      const item = registro.rows[0];
+      const workspace = { id: item.id, nome: item.nome, pasta: "", criadoEm: item.criado_em, ultimoUso: new Date().toISOString() };
+      return { workspace, workspaces: [workspace], ativo: id };
+    }
+    let registro = ativarPorId(id);
+    if (!registro) {
+      // Fallback do CORE: o id pode ser um workspace de cliente do banco, que
+      // nao vive no registro local. Se a pasta materializada existe, entra no
+      // registro como entrada oculta (fora do Estudio) e ativa. Sem isso, a
+      // entrada em /w/<id> abria o workspace anterior por engano.
+      registro = await ativarClienteDoBanco(id);
+    }
     if (!registro) {
       return resposta.status(404).send({ erro: "Workspace nao encontrado." });
     }
@@ -88,6 +134,7 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
 
   // Renomeia um workspace.
   app.patch("/workspaces/:id", async (req: FastifyRequest, resposta: FastifyReply) => {
+    if (MODO === "hub") return resposta.status(404).send({ erro: "rota nao encontrada" });
     const { id } = req.params as { id: string };
     const corpo = (req.body ?? {}) as { nome?: unknown };
     const nome = typeof corpo.nome === "string" ? corpo.nome.trim() : "";
@@ -101,9 +148,11 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     return { workspace, ...lerRegistro() };
   });
 
-  // Remove um workspace. Apaga a pasta de dados do hub (segredos e PII) e revoga o
-  // Google (best effort); a pasta VKOS do cliente fica INTACTA. 400 se ativo.
+  // Remove um workspace. Apaga a pasta de dados do hub (PII); a pasta VKOS do
+  // cliente fica INTACTA. 400 se ativo. As conexoes agora sao centrais do CORE
+  // (app/dados/conexoes.json), entao remover um workspace nao revoga o Google.
   app.delete("/workspaces/:id", async (req: FastifyRequest, resposta: FastifyReply) => {
+    if (MODO === "hub") return resposta.status(404).send({ erro: "rota nao encontrada" });
     const { id } = req.params as { id: string };
     if (!workspacePorId(id)) {
       return resposta.status(404).send({ erro: "Workspace nao encontrado." });
@@ -118,9 +167,8 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     }
     // Descarta o cache do indice de contextos desse workspace.
     invalidarCacheContextos(id);
-    // Revoga o Google (le o token antes de apagar a pasta) e apaga os dados do hub
-    // desse workspace: conexoes.json (segredos), crm.json (PII), calendario, logs.
-    await revogarGoogleDoWorkspace(id);
+    // Apaga os dados do hub desse workspace: crm.json (PII), calendario, logs e
+    // eventuais conexoes.json legados de antes da centralizacao.
     apagarPastaDadosWorkspace(id);
     removerWorkspaceRegistro(id);
     return lerRegistro();

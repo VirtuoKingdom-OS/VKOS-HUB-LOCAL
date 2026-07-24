@@ -7,6 +7,7 @@ import {
 } from "../crm/estado.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import {
+  apifyDisponivel,
   buscarLeads,
   ErroLeads,
   LIMITE_RESULTADOS,
@@ -173,6 +174,14 @@ function lerIds(v: unknown): string[] {
 }
 
 export const rotasLeads: FastifyPluginAsync = async (app) => {
+  app.get("/leads/disponivel", async (_requisicao, resposta) => {
+    try {
+      return { disponivel: await apifyDisponivel(workspaceAtivoOuErro()) };
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
   app.get("/leads", async (_requisicao, resposta) => {
     try {
       return montarListas(workspaceAtivoOuErro());

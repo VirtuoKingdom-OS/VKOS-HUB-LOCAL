@@ -225,6 +225,41 @@ const CATALOGO: EntradaCatalogo[] = [
     ],
     fonte: "Apify REST API v2, Actor compass/crawler-google-places",
   },
+  {
+    id: "meta",
+    nome: "Meta",
+    descricao:
+      "Le metricas de Instagram, anuncios e Paginas dos clientes vinculados a Business Manager da VirtuoKingdom.",
+    disponivel: true,
+    transporte: "http",
+    campos: [
+      {
+        chave: "appId",
+        rotulo: "App ID",
+        segredo: false,
+        dica: "Copie o identificador do App do tipo Business.",
+      },
+      {
+        chave: "appSecret",
+        rotulo: "App Secret",
+        segredo: true,
+        dica: "Copie o segredo do App. Ele fica somente no servidor.",
+      },
+      {
+        chave: "businessId",
+        rotulo: "ID da Business Manager",
+        segredo: false,
+        dica: "Use o ID da empresa VirtuoKingdom no Meta Business.",
+      },
+      {
+        chave: "tokenSistema",
+        rotulo: "Token do usuario de sistema",
+        segredo: true,
+        dica: "Gere na Business Manager com as permissoes descritas no guia.",
+      },
+    ],
+    fonte: "Meta Graph API v25.0",
+  },
 ];
 
 // Lista completa do catalogo (uso interno do modulo).

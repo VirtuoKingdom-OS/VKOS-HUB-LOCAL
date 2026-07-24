@@ -4,9 +4,10 @@
 import fastifyWebsocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
+import { contextoAtual } from "./plataforma/contexto.js";
 
 // Conjunto das conexoes ativas. Cada cliente aberto entra aqui e sai ao fechar.
-const clientes = new Set<WebSocket>();
+const clientes = new Map<WebSocket, { workspaceId: string | null; operador: boolean }>();
 
 // Registra o plugin de WebSocket e a rota /ws.
 // Guarda cada conexao nova e limpa quando o cliente cai.
@@ -14,7 +15,11 @@ export async function configurarWs(app: FastifyInstance): Promise<void> {
   await app.register(fastifyWebsocket);
 
   app.get("/ws", { websocket: true }, (socket) => {
-    clientes.add(socket);
+    const contexto = contextoAtual();
+    clientes.set(socket, {
+      workspaceId: contexto?.workspaceId ?? null,
+      operador: contexto?.usuario?.papel === "operador",
+    });
 
     socket.on("close", () => {
       clientes.delete(socket);
@@ -38,7 +43,11 @@ export function transmitir(mensagem: object): void {
     return;
   }
 
-  for (const cliente of clientes) {
+  const workspaceId = typeof (mensagem as { workspaceId?: unknown }).workspaceId === "string"
+    ? (mensagem as { workspaceId: string }).workspaceId
+    : null;
+  for (const [cliente, escopo] of clientes) {
+    if (workspaceId && !escopo.operador && escopo.workspaceId !== workspaceId) continue;
     try {
       // readyState 1 = OPEN. So envia pra quem esta pronto.
       if (cliente.readyState === 1) {

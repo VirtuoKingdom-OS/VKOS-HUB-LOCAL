@@ -11,6 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { contextoAtual } from "../plataforma/contexto.js";
 
 // Este modulo mora em src/workspaces (dev) ou dist/workspaces (build). Subir tres
 // niveis chega na pasta app nos dois casos.
@@ -20,14 +21,18 @@ const pastaApp = resolve(pastaModulo, "..", "..", "..");
 const pastaDados = join(pastaApp, "dados");
 const caminhoRegistro = join(pastaDados, "workspaces.json");
 const pastaWorkspaces = join(pastaDados, "workspaces");
+const pastaClientesNuvem = process.env.DADOS_CLIENTES?.trim();
 
 // Um cliente do prestador. A pasta e uma instalacao VKOS completa.
+// oculto: entrada tecnica do CORE (workspace de cliente do banco ou a raiz do
+// sistema) que pode ser ativada mas nao aparece na lista do Estudio.
 export interface Workspace {
   id: string;
   nome: string;
   pasta: string;
   criadoEm: string;
   ultimoUso: string;
+  oculto?: boolean;
 }
 
 // O registro inteiro, do jeito que a rota GET /api/workspaces devolve.
@@ -50,7 +55,11 @@ function garantirPastaDados(): void {
 function ehWorkspace(v: unknown): v is Workspace {
   if (!v || typeof v !== "object") return false;
   const w = v as Record<string, unknown>;
-  return typeof w.id === "string" && typeof w.pasta === "string" && typeof w.nome === "string";
+  return (
+    typeof w.id === "string" &&
+    typeof w.pasta === "string" &&
+    typeof w.nome === "string"
+  );
 }
 
 // Diz se o arquivo do registro ja existe em disco. A migracao usa isso pra
@@ -90,6 +99,8 @@ export function salvarRegistro(reg: RegistroWorkspaces): void {
 
 // Id do workspace ativo, ou null. So devolve id que aponta pra um workspace real.
 export function idWorkspaceAtivo(): string | null {
+  const escopo = contextoAtual();
+  if (escopo?.workspaceId) return escopo.workspaceId;
   const reg = lerRegistro();
   if (reg.ativo && reg.workspaces.some((w) => w.id === reg.ativo)) {
     return reg.ativo;
@@ -99,6 +110,8 @@ export function idWorkspaceAtivo(): string | null {
 
 // Pasta de dados escopada de um workspace: app/dados/workspaces/<id>/.
 export function pastaDadosWorkspace(id: string): string {
+  if (pastaClientesNuvem && /^[0-9a-f-]{36}$/i.test(id))
+    return join(pastaClientesNuvem, id);
   return join(pastaWorkspaces, id);
 }
 
@@ -141,7 +154,9 @@ export function chavePasta(p: string): string {
 // Acha um workspace ja registrado pra uma pasta, comparando de forma robusta.
 export function workspacePorPasta(p: string): Workspace | null {
   const chave = chavePasta(p);
-  return lerRegistro().workspaces.find((w) => chavePasta(w.pasta) === chave) ?? null;
+  return (
+    lerRegistro().workspaces.find((w) => chavePasta(w.pasta) === chave) ?? null
+  );
 }
 
 // Ultimo segmento de um caminho, pra virar nome padrao do workspace.
@@ -170,6 +185,39 @@ export function adicionarWorkspace(pasta: string, nome?: string): Workspace {
     pasta: normalizarPasta(pasta),
     criadoEm: agora,
     ultimoUso: agora,
+  };
+  reg.workspaces.push(ws);
+  salvarRegistro(reg);
+  return ws;
+}
+
+// Garante uma entrada oculta no registro com id explicito (workspace de cliente
+// do banco ou a raiz do sistema no CORE). Se o id ja existe, atualiza nome e
+// pasta pra acompanhar a fonte da verdade e devolve a entrada.
+export function garantirWorkspaceOculto(
+  id: string,
+  nome: string,
+  pasta: string,
+): Workspace {
+  const reg = lerRegistro();
+  const existente = reg.workspaces.find((w) => w.id === id);
+  if (existente) {
+    const pastaNova = normalizarPasta(pasta);
+    if (existente.nome !== nome || existente.pasta !== pastaNova) {
+      existente.nome = nome;
+      existente.pasta = pastaNova;
+      salvarRegistro(reg);
+    }
+    return existente;
+  }
+  const agora = new Date().toISOString();
+  const ws: Workspace = {
+    id,
+    nome,
+    pasta: normalizarPasta(pasta),
+    criadoEm: agora,
+    ultimoUso: agora,
+    oculto: true,
   };
   reg.workspaces.push(ws);
   salvarRegistro(reg);

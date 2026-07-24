@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+
 import { lerConexoes } from "../conexoes/estado.js";
+import { MODO } from "../plataforma/modo.js";
 
 const API_APIFY = "https://api.apify.com/v2";
 const ATOR_GOOGLE_MAPS = "compass~crawler-google-places";
@@ -104,11 +107,56 @@ function tokenApify(workspaceId: string): string {
   const token = conexao?.config.token?.trim() ?? "";
   if (!conexao?.habilitado || !token) {
     throw new ErroLeads(
-      "Conecte a Apify em Conexões antes de buscar leads.",
+      "Busca de leads ainda não foi configurada para este workspace.",
       400,
     );
   }
   return token;
+}
+
+function tokenMotor(): string {
+  const arquivo = process.env.MOTOR_INTERNAL_TOKEN_FILE?.trim();
+  return arquivo
+    ? readFileSync(arquivo, "utf8").trim()
+    : (process.env.MOTOR_INTERNAL_TOKEN ?? "").trim();
+}
+
+async function chamarMotor(
+  caminho: string,
+  corpo: Record<string, unknown>,
+  fetchImpl: typeof fetch,
+): Promise<Response> {
+  return fetchImpl(`${process.env.MOTOR_URL ?? "http://motor:4700"}${caminho}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-motor-token": tokenMotor(),
+    },
+    body: JSON.stringify(corpo),
+    signal: AbortSignal.timeout(TIMEOUT_BUSCA_MS),
+  });
+}
+
+export async function apifyDisponivel(
+  workspaceId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  if (MODO === "core") {
+    const conexao = lerConexoes(workspaceId).servidores.apify;
+    return Boolean(conexao?.habilitado && conexao.config.token?.trim());
+  }
+  try {
+    const resposta = await chamarMotor(
+      "/interno/apify/disponivel",
+      { workspaceId },
+      fetchImpl,
+    );
+    if (!resposta.ok) return false;
+    const corpo = await resposta.json() as { disponivel?: unknown };
+    return corpo.disponivel === true;
+  } catch {
+    return false;
+  }
 }
 
 async function lerErroApify(resposta: Response): Promise<ErroApify> {
@@ -189,7 +237,6 @@ export async function buscarLeads(
   opcoes: OpcoesBuscaLeads = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<LeadEncontrado[]> {
-  const token = tokenApify(workspaceId);
   const consulta = termo.trim();
   if (!consulta) throw new ErroLeads("Informe o que você quer buscar.", 400);
 
@@ -199,25 +246,41 @@ export async function buscarLeads(
   );
   const localizacao = opcoes.localizacao?.trim() || undefined;
   const buscarEmails = opcoes.buscarEmails !== false;
-  const url = `${API_APIFY}/acts/${ATOR_GOOGLE_MAPS}/run-sync-get-dataset-items?clean=true&maxItems=${limite}`;
   let resposta: Response;
   try {
-    resposta = await fetchImpl(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(corpoDaBusca(
-        consulta,
-        localizacao,
-        limite,
-        buscarEmails,
-      )),
-      signal: AbortSignal.timeout(TIMEOUT_BUSCA_MS),
-    });
+    if (MODO === "hub") {
+      resposta = await chamarMotor(
+        "/interno/apify/buscar",
+        {
+          workspaceId,
+          termo: consulta,
+          localizacao,
+          limite,
+          buscarEmails,
+        },
+        fetchImpl,
+      );
+    } else {
+      const token = tokenApify(workspaceId);
+      const url = `${API_APIFY}/acts/${ATOR_GOOGLE_MAPS}/run-sync-get-dataset-items?clean=true&maxItems=${limite}`;
+      resposta = await fetchImpl(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(corpoDaBusca(
+          consulta,
+          localizacao,
+          limite,
+          buscarEmails,
+        )),
+        signal: AbortSignal.timeout(TIMEOUT_BUSCA_MS),
+      });
+    }
   } catch (erro) {
+    if (erro instanceof ErroLeads) throw erro;
     // DOMException não herda de Error no Node: comparar só o nome.
     const nome = (erro as { name?: unknown } | null)?.name;
     if (nome === "TimeoutError" || nome === "AbortError") {
@@ -230,7 +293,15 @@ export async function buscarLeads(
     );
   }
 
-  if (!resposta.ok) throw await traduzirErroApify(resposta);
+  if (!resposta.ok) {
+    if (MODO === "hub" && resposta.status === 409) {
+      throw new ErroLeads(
+        "Busca de leads ainda não foi configurada para este workspace.",
+        400,
+      );
+    }
+    throw await traduzirErroApify(resposta);
+  }
 
   let itens: unknown;
   try {

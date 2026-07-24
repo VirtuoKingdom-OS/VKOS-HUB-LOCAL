@@ -74,6 +74,20 @@ test("prompt injeta contexto integral e repete o limite da peca", () => {
   });
 });
 
+test("peca sem Cerebro ajusta sem bloco vazio e preserva a identidade da peca", () => {
+  comVkos((base) => {
+    const escopo = resolverEscopoPeca(base, { pasta: "site-a", tipo: "site", arquivo: "index.html" });
+    const prompt = montarPromptAjustePeca("Mude o CTA", escopo, "   ");
+    // Sem Cerebro, nenhum bloco <cerebro> (nem vazio) entra no prompt.
+    assert.doesNotMatch(prompt, /<cerebro>/);
+    assert.match(prompt, /ainda nao tem Cerebro/i);
+    assert.match(prompt, /nao invente dados novos/i);
+    // O ajuste segue funcional: pedido e limites continuam no prompt.
+    assert.match(prompt, /<pedido>Mude o CTA<\/pedido>/);
+    assert.match(prompt, /nao autoriza nenhuma mudanca fora desta peca/i);
+  });
+});
+
 test("revisao de design injeta o guia e autoriza o site inteiro", () => {
   comVkos((base) => {
     const escopo = resolverEscopoPeca(base, {

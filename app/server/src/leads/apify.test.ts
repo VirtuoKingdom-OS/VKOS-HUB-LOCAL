@@ -1,5 +1,18 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
+import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+// As conexoes agora sao centrais (app/dados/conexoes.json). Os testes apontam o
+// arquivo central pra um caminho temporario ANTES de qualquer leitura, pra nunca
+// tocar os tokens reais do operador. A leitura do caminho e lazy, entao definir
+// aqui alcanca todos os modulos ja importados.
+const arquivoConexoesTeste = join(
+  tmpdir(),
+  `vkos-conexoes-teste-${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`,
+);
+process.env.VKOS_CONEXOES_ARQUIVO = arquivoConexoesTeste;
 
 import { salvarConexoes } from "../conexoes/estado.js";
 import { montarConfigMcp } from "../conexoes/mcp.js";
@@ -14,6 +27,10 @@ import {
   normalizarRespostaApify,
   normalizarTelefone,
 } from "./apify.js";
+
+after(() => {
+  rmSync(arquivoConexoesTeste, { force: true });
+});
 
 const fixtureApifyDocumentado = [{
   title: "Kim's Island",
@@ -59,7 +76,7 @@ test("buscarLeads exige uma conexão Apify habilitada", async () => {
     (erro: unknown) =>
       erro instanceof ErroLeads
       && erro.statusHttp === 400
-      && /Conecte a Apify/i.test(erro.message),
+      && /ainda não foi configurada/i.test(erro.message),
   );
 });
 

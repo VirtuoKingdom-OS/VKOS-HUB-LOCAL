@@ -161,10 +161,18 @@ export function montarPromptAjustePeca(
       : `A fonte de ${escopo.arquivo} excede o limite de contexto e deve ser lida diretamente no diretorio atual.`,
     ...(fonteNoPrompt ? ["<arquivo_atual>", fonteNoPrompt, "</arquivo_atual>"] : []),
     "",
-    "Contexto integral do negocio, somente para orientar identidade, voz, oferta e visual:",
-    "<cerebro>",
-    cerebro.trim(),
-    "</cerebro>",
+    // Peca criada sem Cerebro nao tem identidade pra anexar: sem o bloco vazio,
+    // que so confundiria o agente. A propria peca ja carrega a identidade dela.
+    ...(cerebro.trim()
+      ? [
+          "Contexto integral do negocio, somente para orientar identidade, voz, oferta e visual:",
+          "<cerebro>",
+          cerebro.trim(),
+          "</cerebro>",
+        ]
+      : [
+          "Este negocio ainda nao tem Cerebro. Preserve a identidade que ja existe na propria peca (voz, cores, tipografia) e nao invente dados novos.",
+        ]),
     ...(escopo.revisaoDesign && principiosVisuais
       ? [
           "",

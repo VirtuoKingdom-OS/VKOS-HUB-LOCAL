@@ -28,6 +28,11 @@ import {
   lerCerebro,
   lerCerebroCompleto,
 } from "./cerebro.js";
+import {
+  dividirSecoes,
+  ErroSecaoCerebro,
+  substituirSecao,
+} from "./cerebroSecoes.js";
 import { ErroCarrossel, gravarCarrossel, salvarImagem } from "./carrossel.js";
 import { salvarAnexoPeca } from "./anexoPeca.js";
 import { ErroPaginaSite, gravarPaginaSite } from "./paginaSite.js";
@@ -38,9 +43,11 @@ import { registrarEAtivar } from "../workspaces/ativacao.js";
 import { lerSkills } from "./skills.js";
 import { contarSlides, extrairDataTema, lerPecas, reinstalarObservador } from "./pecas.js";
 import { baseDoTema, servirZip } from "./zip.js";
-import { lerModelosCarrossel } from "./modelos.js";
+import { lerModelosCarrossel, unirModelosCarrossel } from "./modelos.js";
+import { lerHtmlSemente, lerModeloBanco, listarBanco } from "./bancoModelos.js";
 import { tipoConteudo } from "./tipoConteudo.js";
 import { neutralizarScriptsParaEdicao } from "./siteEstatico.js";
+import { MODO } from "../plataforma/modo.js";
 
 // Monta o EstadoVkos a partir da pasta atual (ou null).
 function montarEstado(pasta: string | null): EstadoVkos {
@@ -100,6 +107,7 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
 
   // Escolhe (e valida) a pasta do VKOS. Erro 400 com mensagem clara se invalida.
   app.post("/vkos", async (req: FastifyRequest, resposta: FastifyReply) => {
+    if (MODO === "hub") return resposta.code(404).send({ erro: "rota nao encontrada" });
     const corpo = (req.body ?? {}) as { caminho?: unknown };
     const caminho = typeof corpo.caminho === "string" ? corpo.caminho.trim() : "";
 
@@ -166,6 +174,56 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // O Cerebro dividido em secoes editaveis (a vista de cards da tela Cerebro).
+  // O markdown continua a fonte da verdade; isto e so uma leitura estruturada.
+  app.get("/vkos/cerebro/secoes", async (_req, resposta) => {
+    const pasta = obterPastaVkos();
+    if (!pasta) {
+      return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
+    }
+    const cerebro = lerCerebroCompleto(pasta);
+    if (!cerebro) {
+      return resposta.status(404).send({ erro: "Nao achei o cerebro.md nessa pasta." });
+    }
+    return {
+      ...dividirSecoes(cerebro.texto),
+      atualizadoEm: cerebro.atualizadoEm,
+      preenchido: cerebroPreenchido(cerebro.texto),
+    };
+  });
+
+  // Edita o corpo de UMA secao. Rele o arquivo do disco na hora (nunca confia
+  // em estado de memoria), troca so a secao pedida e grava pelo caminho atomico
+  // com backup. Corpo vazio restaura o marcador de em branco.
+  app.put("/vkos/cerebro/secoes/:indice", async (req: FastifyRequest, resposta: FastifyReply) => {
+    const pasta = obterPastaVkos();
+    if (!pasta) {
+      return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
+    }
+    const cerebro = lerCerebroCompleto(pasta);
+    if (!cerebro) {
+      return resposta.status(404).send({ erro: "Nao achei o cerebro.md nessa pasta." });
+    }
+    const { indice: indiceCru } = req.params as { indice: string };
+    const indice = Number.parseInt(indiceCru, 10);
+    const corpo = ((req.body ?? {}) as { corpo?: unknown }).corpo;
+    try {
+      const textoNovo = substituirSecao(cerebro.texto, indice, corpo);
+      const salvo = gravarCerebro(pasta, textoNovo);
+      transmitir({ tipo: "cerebro:atualizado" });
+      return {
+        ...dividirSecoes(salvo.texto),
+        atualizadoEm: salvo.atualizadoEm,
+        preenchido: cerebroPreenchido(salvo.texto),
+      };
+    } catch (erro) {
+      if (erro instanceof ErroSecaoCerebro || erro instanceof ErroCerebro) {
+        return resposta.status(erro.status).send({ erro: erro.message });
+      }
+      throw erro;
+    }
+  });
+
   // Lista das skills (comandos) do VKOS.
   app.get("/vkos/skills", async (_req, resposta) => {
     const pasta = obterPastaVkos();
@@ -230,7 +288,9 @@ export const rotasVkos: FastifyPluginAsync = async (app) => {
     if (!pasta) {
       return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
     }
-    return { modelos: lerModelosCarrossel(pasta) };
+    return {
+      modelos: unirModelosCarrossel(lerModelosCarrossel(pasta), listarBanco()),
+    };
   });
 
   // Grava o carrossel.html da peca. Corpo { texto }. Escrita atomica, backup
@@ -618,27 +678,37 @@ async function servirPreviewModelo(
   req: FastifyRequest,
   resposta: FastifyReply,
 ): Promise<FastifyReply> {
-  const pastaVkos = obterPastaVkos();
-  if (!pastaVkos) {
-    return resposta.status(400).send({ erro: "Nenhuma pasta de VKOS escolhida ainda." });
-  }
-
   const { id } = req.params as { id: string };
   const { slide: slideCru } = req.query as { slide?: string };
   if (!/^[a-z0-9-]+$/.test(id)) {
     return resposta.status(404).send({ erro: "Modelo não encontrado." });
   }
 
-  const modelo = lerModelosCarrossel(pastaVkos).find((m) => m.id === id);
-  if (!modelo) {
-    return resposta.status(404).send({ erro: "Modelo não encontrado." });
+  // Resolucao em tres niveis: banco central (sobrescrita ou modelo novo),
+  // depois o arquivo local do workspace ativo, depois a semente de fabrica.
+  // O fallback da semente deixa o painel de gestao mostrar os originais mesmo
+  // sem workspace ativo.
+  let html: string | null = lerModeloBanco(id)?.html ?? null;
+  if (html === null) {
+    const pastaVkos = obterPastaVkos();
+    if (pastaVkos) {
+      const modelo = lerModelosCarrossel(pastaVkos).find((m) => m.id === id);
+      if (modelo) {
+        try {
+          html = readFileSync(
+            join(pastaVkos, "templates", "carrossel", modelo.arquivo),
+            "utf8",
+          );
+        } catch {
+          html = null;
+        }
+      }
+    }
   }
-
-  const htmlPath = join(pastaVkos, "templates", "carrossel", modelo.arquivo);
-  let html: string;
-  try {
-    html = readFileSync(htmlPath, "utf8");
-  } catch {
+  if (html === null) {
+    html = lerHtmlSemente(id);
+  }
+  if (html === null) {
     return resposta.status(404).send({ erro: "Modelo não encontrado." });
   }
 

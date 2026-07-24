@@ -382,10 +382,10 @@ function paginaRetorno(ok: boolean): string {
   // No sucesso, a aba se redireciona sozinha pro Calendario do hub (porta 4600,
   // a que serve o app compilado). O link manual fica de reserva.
   const redirecionar = ok
-    ? `<meta http-equiv="refresh" content="1;url=http://localhost:4600/#/calendario">`
+    ? `<meta http-equiv="refresh" content="1;url=http://localhost:4600/calendario">`
     : "";
   const linkReserva = ok
-    ? `<p style="margin-top:12px"><a href="http://localhost:4600/#/calendario" style="color:#00C896">Abrir o Calendario</a></p>`
+    ? `<p style="margin-top:12px"><a href="http://localhost:4600/calendario" style="color:#00C896">Abrir o Calendario</a></p>`
     : "";
   return `<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

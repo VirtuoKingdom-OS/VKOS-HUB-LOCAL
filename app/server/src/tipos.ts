@@ -72,6 +72,10 @@ export interface Sessao {
   // a geracao guiada de site vai criar. So a skill "site" do wizard preenche.
   // E a chave que o laco usa pra auditar a peca certa depois que a sessao conclui.
   pastaAlvo?: string;
+  // Geracao visual sem Cerebro: o usuario escolheu criar carrossel ou site sem
+  // a identidade do negocio. So registrado pra transcricao e depuracao contarem
+  // a historia certa; a guarda de Cerebro ja liberou a geracao no POST.
+  semCerebro?: boolean;
   // Estado do laco de conformidade, atualizado pelo gerenciador e emitido no WS.
   conferenciaSite?: ConferenciaSite;
 }
@@ -96,6 +100,8 @@ export interface ModeloCarrossel {
   descricao: string;
   arquivo: string;
   pedeImagem: boolean;
+  tipo?: "capa" | "desenvolvimento" | "cta" | "completo";
+  origem?: "workspace" | "banco";
 }
 
 export type TipoPeca = "carrossel" | "stories" | "post" | "site" | "texto" | "outro";

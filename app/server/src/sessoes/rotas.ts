@@ -26,12 +26,25 @@ import {
   totalGeralEstimado,
   totalGeralUsd,
 } from "./custos.js";
+import { garantirModelosNoWorkspace } from "../vkos/bancoModelos.js";
 
 const SKILLS_QUE_EXIGEM_CEREBRO = new Set(["carrossel", "site"]);
 const STATUS_EM_EXECUCAO = new Set(["fila", "iniciando", "rodando"]);
 
 export function skillExigeCerebro(skill: unknown): boolean {
   return typeof skill === "string" && SKILLS_QUE_EXIGEM_CEREBRO.has(skill);
+}
+
+// Decide se a geracao deve ser barrada por falta de Cerebro. So barra skill
+// visual (carrossel, site) com Cerebro em branco e sem a dispensa explicita do
+// usuario. Cerebro preenchido ou skill fora da geracao visual nunca barra; o
+// flag semCerebro so tem efeito quando o Cerebro esta em branco.
+export function geracaoBarradaPorCerebro(
+  skill: unknown,
+  cerebroPreenchido: boolean,
+  semCerebro: boolean,
+): boolean {
+  return skillExigeCerebro(skill) && !cerebroPreenchido && !semCerebro;
 }
 
 // Uma sessao de site com o laco de conformidade ainda rodando (conferindo ou
@@ -177,7 +190,13 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
       permissao?: string;
       escopoPeca?: EscopoPecaSolicitado;
       pastaAlvo?: string;
+      semCerebro?: boolean;
+      modelosUsados?: unknown;
     };
+
+    // Escolha explicita do usuario de gerar sem a identidade do negocio. So tem
+    // efeito quando o Cerebro esta em branco: com Cerebro preenchido, ignorado.
+    const semCerebro = corpo.semCerebro === true;
 
     let prompt = typeof corpo.prompt === "string" ? corpo.prompt.trim() : "";
     if (!prompt) {
@@ -210,10 +229,30 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
     if (!pasta) {
       return resposta.code(400).send({ erro: "nenhuma pasta VKOS escolhida" });
     }
+    if (corpo.modelosUsados !== undefined) {
+      if (
+        !Array.isArray(corpo.modelosUsados)
+        || corpo.modelosUsados.length > 4
+        || corpo.modelosUsados.some((id) => typeof id !== "string")
+      ) {
+        return resposta.code(400).send({ erro: "Lista de modelos inválida." });
+      }
+      try {
+        garantirModelosNoWorkspace(pasta, corpo.modelosUsados as string[]);
+      } catch (erro) {
+        return resposta.code(400).send({
+          erro: erro instanceof Error ? erro.message : "Não foi possível preparar o modelo.",
+        });
+      }
+    }
     // Carrossel e site dependem da identidade do negocio. Sem esta guarda, os
     // provedores encerram o turno com uma explicacao, a sessao vira concluida e
-    // o frontend fica esperando um arquivo que nunca sera criado.
-    if (skillExigeCerebro(corpo.skill) && !lerCerebro(pasta).preenchido) {
+    // o frontend fica esperando um arquivo que nunca sera criado. O usuario pode
+    // dispensar o Cerebro de forma explicita (semCerebro): nesse caso o prompt
+    // ja carrega o bloco que instrui o agente a nao ler o Cerebro e a entrega
+    // segue com a identidade fornecida na propria geracao.
+    const cerebroPreenchido = lerCerebro(pasta).preenchido;
+    if (geracaoBarradaPorCerebro(corpo.skill, cerebroPreenchido, semCerebro)) {
       return resposta.code(409).send({
         erro:
           "O Cérebro deste negócio ainda está em branco. Monte o Cérebro antes de gerar carrosséis ou sites.",
@@ -291,6 +330,9 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
       permissao,
       contextoCrm,
       pastaAlvo,
+      // So registra a marca quando a geracao guiada realmente dispensou o
+      // Cerebro (skill visual, Cerebro em branco e escolha explicita).
+      semCerebro: semCerebro && skillExigeCerebro(skill) && !cerebroPreenchido,
     });
 
     return resposta.code(201).send({ sessao });

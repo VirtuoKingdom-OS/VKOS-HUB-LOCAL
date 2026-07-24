@@ -230,6 +230,7 @@ export class GerenciadorSessoes {
     permissao?: "padrao" | "total";
     contextoCrm?: string;
     pastaAlvo?: string;
+    semCerebro?: boolean;
   }): Sessao {
     const agora = new Date().toISOString();
     const provedor = obterProvedorAtivo();
@@ -245,6 +246,7 @@ export class GerenciadorSessoes {
     const enxuto =
       obterConfigApp().modoEnxuto &&
       entrada.skill !== "carrossel" &&
+      entrada.skill !== "modelo-carrossel" &&
       entrada.skill !== "site";
     const sessao: Sessao = {
       id: this.gerarId(),
@@ -265,6 +267,8 @@ export class GerenciadorSessoes {
       // Chave do laco de conformidade. Geracao guiada de site e ajuste de site
       // preenchem; qualquer outra skill nunca carrega pastaAlvo.
       pastaAlvo: skillPassaPelaConferencia(entrada.skill) ? entrada.pastaAlvo : undefined,
+      // So marca quando a geracao guiada de fato dispensou o Cerebro.
+      semCerebro: entrada.semCerebro === true ? true : undefined,
     };
 
     this.execucoes.set(sessao.id, {

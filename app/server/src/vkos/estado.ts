@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { contextoAtual } from "../plataforma/contexto.js";
 
 // Este modulo mora em src/vkos (dev) ou dist/vkos (build). Subir tres niveis
 // chega na pasta app em ambos os casos, porque src e dist sao irmaos dentro de server.
@@ -50,6 +51,8 @@ function carregar(): void {
 
 // Retorna a pasta VKOS escolhida, ou null se ainda nao escolheram nenhuma.
 export function obterPastaVkos(): string | null {
+  const workspaceId = contextoAtual()?.workspaceId;
+  if (workspaceId) return contextoAtual()?.workspacePasta ?? null;
   carregar();
   return pastaVkosCache;
 }

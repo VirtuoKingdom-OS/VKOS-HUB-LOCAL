@@ -9,6 +9,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ModeloCarrossel } from "../tipos.js";
+import type { ModeloBanco } from "./bancoModelos.js";
 
 // Modelos que pedem imagem-heroi gerada por IA (conforme o estilos.md / contrato).
 const PEDEM_IMAGEM = new Set([
@@ -67,11 +68,53 @@ export function lerModelosCarrossel(pastaVkos: string): ModeloCarrossel[] {
       descricao: info?.descricao ?? "",
       arquivo,
       pedeImagem: PEDEM_IMAGEM.has(id),
+      tipo: "completo",
+      origem: "workspace",
     };
   });
 
   modelos.sort(ordenar);
   return modelos;
+}
+
+export function unirModelosCarrossel(
+  locais: ModeloCarrossel[],
+  banco: ModeloBanco[],
+): ModeloCarrossel[] {
+  const porId = new Map(banco.map((modelo) => [modelo.id, modelo]));
+  // Local com sobrescrita no banco: o banco e a fonte da verdade dos metadados,
+  // na posicao original da lista. O arquivo local permanece (a atualizacao no
+  // uso converge o conteudo dele na proxima geracao).
+  const semSombras = locais
+    .filter((modelo) => !modelo.id.startsWith("b-"))
+    .map((modelo) => {
+      const sobrescrita = porId.get(modelo.id);
+      if (!sobrescrita) return modelo;
+      return {
+        id: modelo.id,
+        nome: sobrescrita.nome,
+        descricao: sobrescrita.descricao,
+        arquivo: modelo.arquivo,
+        pedeImagem: sobrescrita.pedeImagem,
+        tipo: sobrescrita.tipo,
+        origem: "banco" as const,
+      };
+    });
+  const idsListados = new Set(semSombras.map((modelo) => modelo.id));
+  const centrais = banco
+    .filter((modelo) => !idsListados.has(modelo.id))
+    .map((modelo) => ({
+      id: modelo.id,
+      nome: modelo.nome,
+      descricao: modelo.descricao,
+      arquivo:
+        modelo.id === "dark" ? "modelo.html" : `modelo-${modelo.id}.html`,
+      pedeImagem: modelo.pedeImagem,
+      tipo: modelo.tipo,
+      origem: "banco" as const,
+    }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return [...semSombras, ...centrais];
 }
 
 // id = miolo do nome do arquivo. modelo.html vira "dark" (o legado base).
