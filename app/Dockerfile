@@ -23,6 +23,10 @@ FROM runtime AS hub
 FROM runtime AS core-root
 USER root
 RUN npm install --global @anthropic-ai/claude-code
+# A pasta do Claude do CORE precisa nascer como node no build, senao o volume
+# claude_core monta como root e o processo (usuario node) toma EACCES ao salvar
+# o login, ficando "Not logged in" mesmo apos autenticar.
+RUN mkdir -p /home/node/.claude && chown -R node:node /home/node/.claude
 USER node
 
 FROM core-root AS core

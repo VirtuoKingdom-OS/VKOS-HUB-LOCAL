@@ -10,6 +10,7 @@ mkdir -p \
   "$raiz/dados/clientes" \
   "$raiz/dados/core" \
   "$raiz/dados/hub" \
+  "$raiz/dados/modelos-carrossel" \
   "$raiz/backups"
 
 criar_hex() {
@@ -45,5 +46,17 @@ do
 done
 
 chmod 700 "$raiz" "$segredos"
-chmod 600 "$segredos"/*
+# 644, nao 600: o docker compose (fora do modo Swarm) monta segredo como bind
+# mount direto do arquivo do host, preservando o dono e a permissao dele. Com
+# 600, o processo do container (usuario "node", uid diferente do dono do
+# arquivo na VM) toma EACCES ao ler /run/secrets/*. A pasta continua 700, entao
+# so o dono do host consegue sequer entrar nela; o arquivo legivel por todos
+# dentro dela nao expoe nada a mais.
+chmod 644 "$segredos"/*
+# As pastas de dados sao gravadas pelos containers, que rodam como uid 1000
+# (usuario node), diferente do dono no host. Sem liberar escrita, o processo do
+# container toma EACCES ao gravar (registro de workspaces, pecas, backups). A
+# pasta runtime em volta continua 700, entao no host so o dono entra aqui, e so
+# estes containers montam estas pastas.
+chmod -R 777 "$raiz/dados" "$raiz/backups"
 echo "Runtime preparado em $raiz. Segredos existentes foram preservados."
