@@ -1,0 +1,12 @@
+.git
+**/node_modules
+app/web/dist
+app/server/dist
+app/motor/dist
+app/dados
+runtime
+outros
+ojessegomes
+estudio-aura
+vkos
+*.log

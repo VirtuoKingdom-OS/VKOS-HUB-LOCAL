@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 // Frontend dev na 5173, com proxy pro backend na 4600.
 // /api e /pecas sao HTTP. /ws e WebSocket.
 export default defineConfig({
+  appType: "spa",
   plugins: [react()],
   server: {
     port: 5173,

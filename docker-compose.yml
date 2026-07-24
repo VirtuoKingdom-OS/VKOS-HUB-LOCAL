@@ -1,0 +1,204 @@
+name: vkos3
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      CORE_DOMAIN: ${CORE_DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [proxy_core, proxy_hub]
+    depends_on: [core, hub]
+
+  core:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      target: core
+    restart: unless-stopped
+    environment:
+      MODO: core
+      PRODUCAO: "1"
+      VKOS_HOST: 0.0.0.0
+      VKOS_HOSTS_PERMITIDOS: ${CORE_DOMAIN}
+      APP_URL: https://${APP_DOMAIN}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      COFRE_MASTER_KEY_FILE: /run/secrets/cofre_master_key
+      MOTOR_URL: http://motor:4700
+      MOTOR_INTERNAL_TOKEN_FILE: /run/secrets/motor_internal_token
+      DADOS_CLIENTES: /dados/clientes
+      DADOS_MODELOS: /dados/modelos-carrossel
+      NODE_ENV: production
+    secrets: [database_url, cofre_master_key, motor_internal_token]
+    volumes:
+      - ./runtime/dados/clientes:/dados/clientes
+      - ./runtime/dados/modelos-carrossel:/dados/modelos-carrossel
+      - ./runtime/dados/core:/opt/vkos/app/dados
+      - claude_core:/home/node/.claude
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [proxy_core, dados_core, broker]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      motor:
+        condition: service_started
+
+  hub:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      target: hub
+    restart: unless-stopped
+    environment:
+      MODO: hub
+      VKOS_HOST: 0.0.0.0
+      VKOS_HOSTS_PERMITIDOS: ${APP_DOMAIN}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      MOTOR_URL: http://motor:4700
+      MOTOR_INTERNAL_TOKEN_FILE: /run/secrets/motor_internal_token
+      DADOS_CLIENTES: /dados/clientes
+      DADOS_MODELOS: /dados/modelos-carrossel
+      NODE_ENV: production
+    secrets: [database_url, motor_internal_token]
+    volumes:
+      - ./runtime/dados/clientes:/dados/clientes
+      - ./runtime/dados/modelos-carrossel:/dados/modelos-carrossel
+      - ./runtime/dados/hub:/opt/vkos/app/dados
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [proxy_hub, dados_hub, broker]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      motor:
+        condition: service_started
+
+  motor:
+    build:
+      context: .
+      dockerfile: app/motor/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      MOTOR_INTERNAL_TOKEN_FILE: /run/secrets/motor_internal_token
+      COFRE_MASTER_KEY_FILE: /run/secrets/cofre_master_key
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      VERTEX_LOCATION: ${VERTEX_LOCATION:-us-central1}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/vertex_credentials
+      GEMINI_MODELO_PADRAO: ${GEMINI_MODELO_PADRAO:-gemini-2.5-flash}
+      GEMINI_MODELO_ECONOMICO: ${GEMINI_MODELO_ECONOMICO:-gemini-2.5-flash}
+      GEMINI_MODELO_FORTE: ${GEMINI_MODELO_FORTE:-gemini-2.5-pro}
+      CLAUDE_MODELO_ECONOMICO: ${CLAUDE_MODELO_ECONOMICO:-claude-sonnet-4-5}
+      CLAUDE_MODELO_PADRAO: ${CLAUDE_MODELO_PADRAO:-claude-sonnet-4-5}
+      CLAUDE_MODELO_FORTE: ${CLAUDE_MODELO_FORTE:-claude-opus-4-5}
+      PRECO_GEMINI_ENTRADA: ${PRECO_GEMINI_ENTRADA}
+      PRECO_GEMINI_SAIDA: ${PRECO_GEMINI_SAIDA}
+      PRECO_GEMINI_ECONOMICO_ENTRADA: ${PRECO_GEMINI_ECONOMICO_ENTRADA:-}
+      PRECO_GEMINI_ECONOMICO_SAIDA: ${PRECO_GEMINI_ECONOMICO_SAIDA:-}
+      PRECO_GEMINI_PADRAO_ENTRADA: ${PRECO_GEMINI_PADRAO_ENTRADA:-}
+      PRECO_GEMINI_PADRAO_SAIDA: ${PRECO_GEMINI_PADRAO_SAIDA:-}
+      PRECO_GEMINI_FORTE_ENTRADA: ${PRECO_GEMINI_FORTE_ENTRADA:-}
+      PRECO_GEMINI_FORTE_SAIDA: ${PRECO_GEMINI_FORTE_SAIDA:-}
+      PRECO_CLAUDE_TEAM_ENTRADA: ${PRECO_CLAUDE_TEAM_ENTRADA}
+      PRECO_CLAUDE_TEAM_SAIDA: ${PRECO_CLAUDE_TEAM_SAIDA}
+      PRECO_CLAUDE_TEAM_ECONOMICO_ENTRADA: ${PRECO_CLAUDE_TEAM_ECONOMICO_ENTRADA:-}
+      PRECO_CLAUDE_TEAM_ECONOMICO_SAIDA: ${PRECO_CLAUDE_TEAM_ECONOMICO_SAIDA:-}
+      PRECO_CLAUDE_TEAM_PADRAO_ENTRADA: ${PRECO_CLAUDE_TEAM_PADRAO_ENTRADA:-}
+      PRECO_CLAUDE_TEAM_PADRAO_SAIDA: ${PRECO_CLAUDE_TEAM_PADRAO_SAIDA:-}
+      PRECO_CLAUDE_TEAM_FORTE_ENTRADA: ${PRECO_CLAUDE_TEAM_FORTE_ENTRADA:-}
+      PRECO_CLAUDE_TEAM_FORTE_SAIDA: ${PRECO_CLAUDE_TEAM_FORTE_SAIDA:-}
+    secrets:
+      [database_url, motor_internal_token, cofre_master_key, vertex_credentials]
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [broker, dados_motor, motor_egress]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vkos
+      POSTGRES_USER: vkos
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [dados_core, dados_hub, dados_motor, dados_backup]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vkos -d vkos"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backup:
+    build:
+      context: .
+      dockerfile: infra/backup/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      BACKUP_KEY_FILE: /run/secrets/backup_key
+      GCS_BUCKET: ${GCS_BUCKET}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/backup_credentials
+    secrets: [database_url, backup_key, backup_credentials]
+    volumes:
+      - ./runtime/dados:/dados:ro
+      - ./runtime/backups:/backups
+    read_only: true
+    tmpfs: [/tmp, /var/run]
+    networks: [dados_backup, backup_egress]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  proxy_core:
+  proxy_hub:
+  broker:
+    internal: true
+  dados_core:
+    internal: true
+  dados_hub:
+    internal: true
+  dados_motor:
+    internal: true
+  dados_backup:
+    internal: true
+  motor_egress:
+  backup_egress:
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  claude_core:
+
+secrets:
+  postgres_password:
+    file: ./runtime/secrets/postgres_password
+  database_url:
+    file: ./runtime/secrets/database_url
+  cofre_master_key:
+    file: ./runtime/secrets/cofre_master_key
+  motor_internal_token:
+    file: ./runtime/secrets/motor_internal_token
+  backup_key:
+    file: ./runtime/secrets/backup_key
+  vertex_credentials:
+    file: ./runtime/secrets/vertex_credentials.json
+  backup_credentials:
+    file: ./runtime/secrets/backup_credentials.json
