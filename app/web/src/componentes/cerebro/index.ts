@@ -1,0 +1,1 @@
+export { TelaCerebro } from "./TelaCerebro";

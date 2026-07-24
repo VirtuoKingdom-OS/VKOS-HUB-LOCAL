@@ -106,6 +106,11 @@ export function obterLeads(): Promise<ListasLeads> {
   return pedir<ListasLeads>("/api/leads");
 }
 
+export async function obterDisponibilidadeLeads(): Promise<boolean> {
+  const resposta = await pedir<{ disponivel: boolean }>("/api/leads/disponivel");
+  return resposta.disponivel;
+}
+
 export function buscarLeads(filtros: FiltrosBuscaLeads): Promise<ResultadoBuscaLeads> {
   // Um pouco acima do timeout do server (180s), pra mensagem de erro real
   // chegar em vez de o client abortar primeiro.

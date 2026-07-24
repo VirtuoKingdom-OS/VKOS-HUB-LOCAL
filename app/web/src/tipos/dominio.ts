@@ -67,6 +67,8 @@ export interface ModeloCarrossel {
   descricao: string;
   arquivo: string;
   pedeImagem: boolean;
+  tipo?: "capa" | "desenvolvimento" | "cta" | "completo";
+  origem?: "workspace" | "banco";
 }
 
 export type TipoPeca = "carrossel" | "post" | "stories" | "site" | "texto" | "outro";
@@ -157,6 +159,9 @@ export interface Workspace {
   pasta: string;
   criadoEm: string;
   ultimoUso: string;
+  // Entrada tecnica do CORE (cliente do banco ou raiz do sistema): pode ser
+  // ativada, mas nao aparece na lista do Estudio.
+  oculto?: boolean;
 }
 
 // Resposta de GET /api/workspaces: a lista e qual esta ativo.
@@ -225,4 +230,5 @@ export type MensagemWs =
       workspaceId?: string;
     }
   | { tipo: "pecas:atualizadas" }
+  | { tipo: "cerebro:atualizado" }
   | { tipo: "workspace:ativado"; id: string };

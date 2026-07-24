@@ -132,8 +132,34 @@ function corpo(metodo: string, dados: unknown): RequestInit {
   return { method: metodo, body: JSON.stringify(dados) };
 }
 
-export function obterCrm(): Promise<EstadoCrm> {
-  return pedir<EstadoCrm>("/api/crm");
+function lista<T>(valor: unknown): T[] {
+  return Array.isArray(valor) ? valor as T[] : [];
+}
+
+export function normalizarEstadoCrm(valor: unknown): EstadoCrm {
+  const resposta = valor && typeof valor === "object" ? valor as Record<string, unknown> : {};
+  const embrulhado = resposta.dados && typeof resposta.dados === "object"
+    ? resposta.dados as Record<string, unknown>
+    : resposta.crm && typeof resposta.crm === "object"
+      ? resposta.crm as Record<string, unknown>
+      : resposta;
+  const contatos = lista<Contato>(embrulhado.contatos).map((contato) => ({
+    ...contato,
+    nome: typeof contato?.nome === "string" && contato.nome.trim() ? contato.nome : "Sem nome",
+    tags: lista<string>(contato?.tags),
+    interacoes: lista<Interacao>(contato?.interacoes),
+    tarefas: lista<Tarefa>(contato?.tarefas),
+  }));
+  return {
+    versao: 3,
+    colunas: lista<Coluna>(embrulhado.colunas),
+    contatos,
+    negocios: lista<Negocio>(embrulhado.negocios),
+  };
+}
+
+export async function obterCrm(): Promise<EstadoCrm> {
+  return normalizarEstadoCrm(await pedir<unknown>("/api/crm"));
 }
 
 export function criarContato(dados: DadosContato): Promise<Contato> {

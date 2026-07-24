@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
 import { mensagemDeErro } from "../../util/erros";
-import { escolherPastaNativa } from "../../api/cliente";
+import { escolherPastaNativa, obterEstadoAutenticacao, obterSessaoWeb } from "../../api/cliente";
 import {
   IconeAlerta,
   IconeCheck,
@@ -49,6 +49,7 @@ export function SeletorWorkspace() {
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [ehOperador, setEhOperador] = useState(false);
   const [avisos, setAvisos] = useState<string[] | null>(null);
 
   // Edicao inline do nome de um cliente.
@@ -86,6 +87,16 @@ export function SeletorWorkspace() {
   }, []);
 
   // Esc e clique fora fecham o painel.
+  useEffect(() => {
+    obterEstadoAutenticacao()
+      .then(async (estado) => {
+        if (!estado.obrigatoria) return setEhOperador(true);
+        const sessao = await obterSessaoWeb();
+        setEhOperador(sessao.usuario.papel === "operador");
+      })
+      .catch(() => setEhOperador(false));
+  }, []);
+
   useEffect(() => {
     if (!aberto) return;
     const aoTeclar = (e: KeyboardEvent) => {
@@ -324,9 +335,7 @@ export function SeletorWorkspace() {
                               <span className="sw-item-nome" title={w.nome}>
                                 {w.nome}
                               </span>
-                              <span className="sw-item-caminho" title={w.pasta}>
-                                {encurtar(w.pasta)}
-                              </span>
+                              {ehOperador && w.pasta && <span className="sw-item-caminho" title={w.pasta}>{encurtar(w.pasta)}</span>}
                             </span>
                             {ehAtivo && (
                               <IconeCheck className="sw-item-check" />
@@ -334,7 +343,7 @@ export function SeletorWorkspace() {
                           </button>
                         )}
 
-                        {!editando && (
+                        {!editando && ehOperador && (
                           <div className="sw-item-acoes">
                             <button
                               className="sw-acao"
@@ -375,7 +384,7 @@ export function SeletorWorkspace() {
                 </div>
               )}
 
-              <div className="sw-rodape">
+              {ehOperador && <div className="sw-rodape">
                 <button
                   className="sw-acao-rodape"
                   onClick={() => {
@@ -396,7 +405,7 @@ export function SeletorWorkspace() {
                   <IconeMais className="" />
                   Novo cliente
                 </button>
-              </div>
+              </div>}
             </>
           )}
 

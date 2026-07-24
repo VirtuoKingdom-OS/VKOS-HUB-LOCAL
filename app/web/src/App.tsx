@@ -4,15 +4,31 @@ import { usarImersao } from "./util/imersao";
 import { ServidorForaDoAr, Splash } from "./componentes/comum/Telas";
 import { Onboarding } from "./componentes/onboarding/Onboarding";
 import { Shell } from "./componentes/layout/Shell";
-import { TelaSetup } from "./componentes/setup/TelaSetup";
+import { ShellGestao } from "./componentes/gestao/ShellGestao";
+import { TelaAcesso } from "./componentes/acesso/TelaAcesso";
+import { LimiteErro } from "./componentes/comum/Sistema";
 import {
-  atualizarConfig,
-  obterConfig,
-  type ConfigApp,
+  basePrefixoWorkspace,
+  EVENTO_NAVEGACAO,
+  idDoCaminhoWorkspace,
+} from "./componentes/layout/rotas";
+import {
+  ErroApi,
+  obterEstadoAutenticacao,
+  obterSessaoWeb,
+  type EstadoAutenticacao,
+  type SessaoWeb,
 } from "./api/cliente";
-import type { ProvedorIA } from "./tipos/dominio";
 
 export function App() {
+  return (
+    <LimiteErro contexto="aplicativo">
+      <ConteudoApp />
+    </LimiteErro>
+  );
+}
+
+function ConteudoApp() {
   usarImersao();
   const {
     carregandoInicial,
@@ -20,43 +36,54 @@ export function App() {
     cockpitLiberado,
     recarregarInicial,
   } = usarEstado();
-  const [config, setConfig] = useState<ConfigApp | null>(null);
-  const [configCarregada, setConfigCarregada] = useState(false);
-  const [hash, setHash] = useState(window.location.hash);
+  const [estadoAuth, setEstadoAuth] = useState<EstadoAutenticacao | null>(null);
+  const [sessaoWeb, setSessaoWeb] = useState<SessaoWeb | null>(null);
+  const [authCarregada, setAuthCarregada] = useState(false);
+  const [erroAuth, setErroAuth] = useState(false);
 
-  const carregarConfig = useCallback(async () => {
-    setConfigCarregada(false);
+  const carregarAuth = useCallback(async () => {
+    setAuthCarregada(false);
+    setErroAuth(false);
     try {
-      setConfig(await obterConfig());
+      const estado = await obterEstadoAutenticacao();
+      setEstadoAuth(estado);
+      if (!estado.precisaBootstrap) {
+        try {
+          setSessaoWeb(await obterSessaoWeb());
+        } catch (erro) {
+          if (!(erro instanceof ErroApi) || erro.status !== 401 || estado.obrigatoria) throw erro;
+          setSessaoWeb(null);
+        }
+      }
     } catch {
-      setConfig(null);
+      setEstadoAuth(null);
+      setErroAuth(true);
     } finally {
-      setConfigCarregada(true);
+      setAuthCarregada(true);
     }
   }, []);
 
   useEffect(() => {
-    const aoMudarHash = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", aoMudarHash);
-    return () => window.removeEventListener("hashchange", aoMudarHash);
-  }, []);
+    void carregarAuth();
+  }, [carregarAuth]);
 
-  useEffect(() => {
-    if (servidorOnline && !carregandoInicial) void carregarConfig();
-  }, [servidorOnline, carregandoInicial, carregarConfig]);
+  if (!authCarregada) return <Splash />;
 
-  useEffect(() => {
-    if (
-      configCarregada &&
-      config &&
-      !config.provedorPadrao &&
-      !/^#\/setup(?:$|\/)/.test(hash)
-    ) {
-      history.replaceState(null, "", "#/setup");
-      setHash("#/setup");
-    }
-  }, [configCarregada, config, hash]);
+  if (erroAuth || !estadoAuth) {
+    return <ServidorForaDoAr aoTentar={() => void carregarAuth()} />;
+  }
 
+  if (estadoAuth.obrigatoria && !sessaoWeb) {
+    return (
+      <TelaAcesso
+        estado={estadoAuth}
+        aoEntrar={(sessao) => {
+          setSessaoWeb(sessao);
+          void recarregarInicial();
+        }}
+      />
+    );
+  }
   if (!servidorOnline) {
     return <ServidorForaDoAr aoTentar={() => void recarregarInicial()} />;
   }
@@ -65,38 +92,54 @@ export function App() {
     return <Splash />;
   }
 
-  if (!configCarregada) {
-    return <Splash />;
-  }
-  if (!config) {
-    return <ServidorForaDoAr aoTentar={() => void carregarConfig()} />;
+  if (!sessaoWeb) {
+    return <ServidorForaDoAr aoTentar={() => void carregarAuth()} />;
   }
 
-  const primeiraExecucao = !config.provedorPadrao;
-  const setupAberto = /^#\/setup(?:$|\/)/.test(hash);
+  // O onboarding de criação é conceito de workspace, não do CORE. O operador
+  // vai direto pro painel de gestão; o empty state de workspace é tratado
+  // dentro da própria experiência de workspace.
+  if (!cockpitLiberado && sessaoWeb.usuario.papel !== "operador") {
+    return <Onboarding />;
+  }
 
-  if (primeiraExecucao || setupAberto) {
+  return <Raiz sessao={sessaoWeb} />;
+}
+
+// Decide o shell pela URL: cliente sempre na experiencia de workspace; operador
+// no painel de gestao (CORE), ou na experiencia de workspace quando entra num
+// workspace por /w/<id>. A troca acompanha a navegacao sem recarregar a pagina.
+function Raiz({ sessao }: { sessao: SessaoWeb }) {
+  const { workspaces } = usarEstado();
+  const ehOperador = sessao.usuario.papel === "operador";
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const aoNavegar = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", aoNavegar);
+    window.addEventListener(EVENTO_NAVEGACAO, aoNavegar);
+    return () => {
+      window.removeEventListener("popstate", aoNavegar);
+      window.removeEventListener(EVENTO_NAVEGACAO, aoNavegar);
+    };
+  }, []);
+
+  if (!ehOperador) return <Shell sessao={sessao} />;
+
+  const idWorkspace = idDoCaminhoWorkspace(pathname);
+  if (idWorkspace) {
+    const nome = workspaces.find((w) => w.id === idWorkspace)?.nome ?? "Workspace do cliente";
     return (
-      <TelaSetup
-        primeiraExecucao={primeiraExecucao}
-        provedorAtual={config.provedorPadrao}
-        aoConcluir={async (provedor: ProvedorIA) => {
-          // O motor so vira padrao neste gesto final. Nenhuma etapa anterior
-          // grava escolha parcial na config.
-          const atualizada = await atualizarConfig({ provedorPadrao: provedor });
-          setConfig(atualizada);
-          const destino = primeiraExecucao ? "#/dashboard" : "#/conexoes";
-          history.replaceState(null, "", destino);
-          setHash(destino);
-          await recarregarInicial();
+      <Shell
+        sessao={sessao}
+        base={basePrefixoWorkspace(idWorkspace)}
+        nomeWorkspace={nome}
+        aoSair={() => {
+          history.pushState(null, "", "/");
+          window.dispatchEvent(new Event(EVENTO_NAVEGACAO));
         }}
       />
     );
   }
-
-  if (!cockpitLiberado) {
-    return <Onboarding />;
-  }
-
-  return <Shell />;
+  return <ShellGestao sessao={sessao} />;
 }

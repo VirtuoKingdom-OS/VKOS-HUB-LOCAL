@@ -8,19 +8,16 @@ interface Props {
   aoNavegar: (tela: string) => void;
 }
 
-export function TelaFontes({ itens, aoNavegar }: Props) {
+// Painel de fontes de dados, a antiga TelaFontes virou o miolo da sub-aba
+// Fontes de dados da tela Arquivos.
+export function PainelFontes({ itens, aoNavegar }: Props) {
   const total = itens.reduce((soma, item) => soma + item.total, 0);
 
   return (
-    <section className="tela-fluxo tela-fontes">
-      <header className="tela-fluxo-topo">
-        <div>
-          <h1>Fontes de dados</h1>
-          <p className="subtitulo">
-            {total === 1 ? "1 fonte disponível" : `${total} fontes disponíveis`}
-          </p>
-        </div>
-      </header>
+    <div className="painel-fontes">
+      <p className="subtitulo painel-fontes-topo">
+        {total === 1 ? "1 fonte disponível" : `${total} fontes disponíveis`}
+      </p>
 
       <div className="fontes-hub-grade">
         {itens.map((item, indice) => (
@@ -39,7 +36,7 @@ export function TelaFontes({ itens, aoNavegar }: Props) {
           </button>
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 

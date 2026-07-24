@@ -80,6 +80,21 @@ export interface ConfigApp {
   modoEnxuto?: boolean;
 }
 
+export interface SessaoWeb {
+  usuario: { id: string; email: string; papel: "operador" | "cliente" };
+  workspaceId: string | null;
+  features: string[];
+  modo: "core" | "hub";
+  totpAtivo?: boolean;
+}
+
+export interface EstadoAutenticacao {
+  precisaBootstrap: boolean;
+  modo: "core" | "hub";
+  obrigatoria: boolean;
+  totpAtivo?: boolean;
+}
+
 // Erro de rede: servidor fora do ar ou inalcancavel.
 export class ErroRede extends Error {
   constructor(mensagem = "Servidor fora do ar.") {
@@ -136,113 +151,317 @@ function corpoJson(dados: unknown): RequestInit {
   return { method: "POST", body: JSON.stringify(dados) };
 }
 
-// Ambiente e onboarding.
-export function obterAmbiente(atualizar = false): Promise<Ambiente> {
-  return pedir<Ambiente>(`/api/ambiente${atualizar ? "?atualizar=1" : ""}`);
+export function obterEstadoAutenticacao(): Promise<EstadoAutenticacao> {
+  return pedir<EstadoAutenticacao>("/api/auth/estado");
 }
 
-export function abrirLoginMotor(provedor: ProvedorIA): Promise<{ ok: true }> {
-  return pedir<{ ok: true }>(
-    "/api/ambiente/login",
-    corpoJson({ provedor })
+export function obterSessaoWeb(): Promise<SessaoWeb> {
+  return pedir<SessaoWeb>("/api/auth/me");
+}
+
+export function entrar(dados: { email: string; senha: string; codigoTotp?: string }): Promise<SessaoWeb> {
+  return pedir<SessaoWeb>("/api/auth/login", corpoJson(dados));
+}
+
+export function sair(): Promise<{ ok: true }> {
+  return pedir<{ ok: true }>("/api/auth/logout", { method: "POST" });
+}
+
+export function criarOperador(dados: { email: string; senha: string }): Promise<SessaoWeb> {
+  return pedir("/api/auth/bootstrap", corpoJson(dados));
+}
+
+export function aceitarConvite(dados: { token: string; senha: string }): Promise<{ ok: true }> {
+  return pedir("/api/auth/aceitar-convite", corpoJson(dados));
+}
+
+export interface FeaturePlataforma {
+  id: string;
+  nome: string;
+  descricao: string;
+  usaIa: boolean;
+  disponivelParaCliente: boolean;
+  dependeDe: string[];
+}
+
+export interface ModeloWorkspace {
+  id: string;
+  nome: string;
+  descricao: string;
+  features_json: Array<{ id: string; config?: object }>;
+  motor_padrao: "claude_team" | "gemini" | "nenhum";
+}
+
+export interface WorkspacePlataforma {
+  id: string;
+  nome: string;
+  slug: string;
+  motor: "claude_team" | "gemini" | "nenhum";
+  status: "ativo" | "suspenso";
+  consumo_mes: number;
+  features_ativas: string[];
+  orcamento_mensal: number;
+  acao_ao_estourar: "avisar" | "cortar";
+  motor_estado: "nao_testado" | "operante" | "manutencao";
+  motor_testado_em: string | null;
+  motor_erro_codigo: string | null;
+  claude_credencial_configurada: boolean;
+  claude_credencial_status: "ausente" | "nao_testada" | "valida" | "invalida";
+  claude_credencial_testada_em: string | null;
+  logo: string | null;
+  membros_resumo: Array<{ email: string; papel: "dono" | "membro" }>;
+}
+
+export interface EstadoMotoresAdmin {
+  gemini: {
+    disponivel: boolean;
+    localizacao: string;
+    modelos: object;
+  };
+  claudeTeam: { disponivel: boolean; modelos: object };
+}
+
+export interface EstadoClaudeCore {
+  instalado: boolean;
+  versao: string | null;
+  logado: boolean | null;
+  conta: string | null;
+  loginVps: string;
+}
+
+export interface ConviteWorkspaceAdmin {
+  id: string;
+  email: string;
+  papel: "dono" | "membro";
+  expira_em: string;
+  usado_em: string | null;
+  criado_em: string;
+  estado: "pendente" | "usado" | "expirado";
+}
+
+export interface MembroWorkspaceAdmin {
+  usuario_id: string;
+  email: string;
+  status: "ativo" | "bloqueado";
+  papel: "dono" | "membro";
+  ultimo_acesso: string | null;
+}
+
+export type TipoModeloBanco =
+  | "capa"
+  | "desenvolvimento"
+  | "cta"
+  | "completo";
+
+export interface ModeloBancoVisual {
+  id: string;
+  nome: string;
+  descricao: string;
+  tipo: TipoModeloBanco;
+  pedeImagem: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+// Um original da semente visto pelo painel: metadados vigentes (sobrescrita
+// quando existe) mais as marcas de estado.
+export interface OriginalBancoVisual {
+  id: string;
+  nome: string;
+  descricao: string;
+  tipo: TipoModeloBanco;
+  pedeImagem: boolean;
+  temSobrescrita: boolean;
+  atualizado: boolean;
+}
+
+export type OrigemHtmlBanco =
+  | { modo: "colar"; html: string }
+  | { modo: "peca"; workspaceId: string; pasta: string };
+
+export interface EntradaModeloBanco {
+  nome: string;
+  descricao: string;
+  tipo: TipoModeloBanco;
+  pedeImagem: boolean;
+  origemHtml?: OrigemHtmlBanco;
+}
+
+export function obterFeaturesAtivas(): Promise<{ features: string[]; workspaceId: string | null }> {
+  return pedir("/api/features-ativas");
+}
+
+export function listarFeaturesAdmin(): Promise<{ features: FeaturePlataforma[] }> {
+  return pedir("/api/admin/features");
+}
+
+export function listarModelosAdmin(): Promise<{ modelos: ModeloWorkspace[] }> {
+  return pedir("/api/admin/modelos");
+}
+
+export function criarModeloAdmin(dados: { nome: string; descricao: string; motorPadrao: string; features: string[]; semente: string | null }): Promise<{ modelo: ModeloWorkspace }> {
+  return pedir("/api/admin/modelos", corpoJson(dados));
+}
+
+export function listarWorkspacesAdmin(): Promise<{ workspaces: WorkspacePlataforma[] }> {
+  return pedir("/api/admin/workspaces");
+}
+
+export function obterEstadoMotoresAdmin(): Promise<EstadoMotoresAdmin> {
+  return pedir("/api/admin/motores");
+}
+
+export function criarWorkspaceAdmin(dados: { nome: string; modeloId: string }): Promise<{ workspace: WorkspacePlataforma }> {
+  return pedir("/api/admin/workspaces", corpoJson(dados));
+}
+
+export function alterarFeatureAdmin(workspaceId: string, featureId: string, ativa: boolean): Promise<{ ok: true }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}/features/${encodeURIComponent(featureId)}`, { method: "PUT", body: JSON.stringify({ ativa }) });
+}
+
+export function alterarWorkspaceAdmin(workspaceId: string, dados: object): Promise<{ workspace: WorkspacePlataforma }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}`, { method: "PATCH", body: JSON.stringify(dados) });
+}
+
+export function criarConviteAdmin(workspaceId: string, email: string): Promise<{ convite: { email: string; expiraEm: string; url: string } }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}/convites`, corpoJson({ email }));
+}
+
+export function listarConvitesAdmin(workspaceId: string): Promise<{ convites: ConviteWorkspaceAdmin[] }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}/convites`);
+}
+
+export function revogarConviteAdmin(workspaceId: string, conviteId: string): Promise<{ ok: true }> {
+  return pedir(
+    `/api/admin/workspaces/${encodeURIComponent(workspaceId)}/convites/${encodeURIComponent(conviteId)}`,
+    { method: "DELETE" },
   );
 }
 
-export function criarAtalhoHub(): Promise<{ ok: true; caminho: string }> {
-  return pedir<{ ok: true; caminho: string }>("/api/ambiente/atalho", {
+export function listarMembrosAdmin(workspaceId: string): Promise<{ membros: MembroWorkspaceAdmin[] }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}/membros`);
+}
+
+export function removerMembroAdmin(workspaceId: string, usuarioId: string): Promise<{ ok: true }> {
+  return pedir(
+    `/api/admin/workspaces/${encodeURIComponent(workspaceId)}/membros/${encodeURIComponent(usuarioId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function derrubarSessoesAdmin(workspaceId: string): Promise<{ ok: true; total: number }> {
+  return pedir(
+    `/api/admin/workspaces/${encodeURIComponent(workspaceId)}/derrubar-sessoes`,
+    { method: "POST" },
+  );
+}
+
+export function listarBancoModelos(): Promise<{
+  originais: OriginalBancoVisual[];
+  proprios: ModeloBancoVisual[];
+}> {
+  return pedir("/api/admin/banco-modelos");
+}
+
+export function restaurarBancoModelo(
+  id: string,
+): Promise<{ modelo: ModeloBancoVisual }> {
+  return pedir(`/api/admin/banco-modelos/${encodeURIComponent(id)}/restaurar`, {
     method: "POST",
   });
 }
 
-export type EventoTesteSetup =
-  | { tipo: "inicio"; modelo: string }
-  | { tipo: "texto"; texto: string }
-  | {
-      tipo: "resultado";
-      texto: string;
-      custoUsd: number;
-      estimado: boolean;
-    }
-  | { tipo: "erro"; mensagem: string }
-  | { tipo: "fim"; sucesso: boolean; modelo?: string };
-
-export type EventoInstalacaoMotor =
-  | { tipo: "inicio"; provedor: ProvedorIA; pacote: string }
-  | { tipo: "texto"; texto: string }
-  | { tipo: "erro"; mensagem: string }
-  | { tipo: "fim"; sucesso: boolean };
-
-async function lerFluxoNdjson<T>(
-  url: string,
-  dados: unknown,
-  mensagemSemFluxo: string,
-  aoEvento: (evento: T) => void,
-): Promise<void> {
-  let resposta: Response;
-  try {
-    resposta = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dados),
-    });
-  } catch {
-    throw new ErroRede();
-  }
-
-  if (!resposta.ok) {
-    let mensagem = `Erro ${resposta.status}`;
-    try {
-      const corpo = (await resposta.json()) as { erro?: string };
-      if (corpo.erro) mensagem = corpo.erro;
-    } catch {
-      // Corpo sem JSON, mantém a mensagem curta.
-    }
-    throw new ErroApi(mensagem, resposta.status);
-  }
-
-  if (!resposta.body) throw new ErroRede(mensagemSemFluxo);
-
-  const leitor = resposta.body.getReader();
-  const decodificador = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await leitor.read();
-    buffer += decodificador.decode(value, { stream: !done });
-    const linhas = buffer.split("\n");
-    buffer = linhas.pop() ?? "";
-    for (const linha of linhas) {
-      if (!linha.trim()) continue;
-      aoEvento(JSON.parse(linha) as T);
-    }
-    if (done) break;
-  }
-  if (buffer.trim()) aoEvento(JSON.parse(buffer) as T);
-}
-
-export function instalarMotorSetup(
-  provedor: ProvedorIA,
-  aoEvento: (evento: EventoInstalacaoMotor) => void,
-): Promise<void> {
-  return lerFluxoNdjson(
-    "/api/ambiente/instalar",
-    { provedor },
-    "O servidor não abriu o fluxo da instalação.",
-    aoEvento,
+export function abrirStudioBancoModelo(
+  id: string,
+  workspaceId: string,
+): Promise<{ pasta: string }> {
+  return pedir(
+    `/api/admin/banco-modelos/${encodeURIComponent(id)}/abrir-studio`,
+    corpoJson({ workspaceId }),
   );
 }
 
-// Le a resposta NDJSON do teste de motor conforme ela chega. Esse caminho nao
-// cria uma Sessao do hub e funciona antes de existir workspace.
-export async function testarMotorSetup(
-  provedor: ProvedorIA,
-  aoEvento: (evento: EventoTesteSetup) => void
-): Promise<void> {
-  return lerFluxoNdjson(
-    "/api/ambiente/teste",
-    { provedor },
-    "O servidor não abriu o fluxo do teste.",
-    aoEvento,
+export function criarBancoModelo(
+  dados: EntradaModeloBanco & { origemHtml: OrigemHtmlBanco },
+): Promise<{ modelo: ModeloBancoVisual; avisos: string[] }> {
+  return pedir("/api/admin/banco-modelos", corpoJson(dados));
+}
+
+export function atualizarBancoModelo(
+  id: string,
+  dados: EntradaModeloBanco,
+): Promise<{ modelo: ModeloBancoVisual; avisos: string[] }> {
+  return pedir(`/api/admin/banco-modelos/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+
+export function excluirBancoModelo(id: string): Promise<{ ok: true }> {
+  return pedir(`/api/admin/banco-modelos/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function definirCredencialAdmin(workspaceId: string, tipo: "apify" | "claude_team", valor: string, consentimento = false): Promise<{ ok: true; mascara: string }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}/credencial`, {
+    method: "PUT",
+    body: JSON.stringify({ tipo, valor, consentimento }),
+  });
+}
+
+export function testarMotorAdmin(
+  workspaceId: string,
+  motor: "gemini" | "claude_team",
+): Promise<{ ok: true; modelo: string; custoEstimado: number; resposta: string }> {
+  return pedir(
+    `/api/admin/workspaces/${encodeURIComponent(workspaceId)}/testar-motor`,
+    corpoJson({ motor }),
   );
+}
+
+export interface EventoAuditoria {
+  id: string;
+  usuario_id: string | null;
+  workspace_id: string | null;
+  acao: string;
+  alvo: string | null;
+  detalhes_json: unknown;
+  ip: string | null;
+  criado_em: string;
+}
+
+export function listarAuditoriaAdmin(workspaceId?: string): Promise<{ eventos: EventoAuditoria[] }> {
+  return pedir(`/api/admin/auditoria${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""}`);
+}
+
+export function abrirWorkspaceAdmin(workspaceId: string): Promise<{ ok: true }> {
+  return pedir(`/api/admin/workspaces/${encodeURIComponent(workspaceId)}/abrir`, { method: "POST" });
+}
+
+export function obterClaudeCoreAdmin(atualizar = false): Promise<EstadoClaudeCore> {
+  return pedir(`/api/admin/meu-claude${atualizar ? "?atualizar=1" : ""}`);
+}
+
+export function testarClaudeCoreAdmin(): Promise<{ ok: true; resposta: string }> {
+  return pedir("/api/admin/meu-claude/testar", { method: "POST" });
+}
+
+export function iniciarTotp(): Promise<{ segredoTotp: string; uriTotp: string }> {
+  return pedir("/api/auth/totp/iniciar", { method: "POST" });
+}
+
+export function confirmarTotp(segredoTotp: string, codigoTotp: string): Promise<{ ok: true; totpAtivo: true }> {
+  return pedir("/api/auth/totp/confirmar", corpoJson({ segredoTotp, codigoTotp }));
+}
+
+export function desativarTotp(): Promise<{ ok: true; totpAtivo: false }> {
+  return pedir("/api/auth/totp", { method: "DELETE" });
+}
+
+// Ambiente e onboarding.
+export function obterAmbiente(atualizar = false): Promise<Ambiente> {
+  return pedir<Ambiente>(`/api/ambiente${atualizar ? "?atualizar=1" : ""}`);
 }
 
 // Abre o seletor de pasta NATIVO do Windows (o do Explorer) na maquina do
@@ -286,6 +505,37 @@ export function salvarCerebro(texto: string): Promise<RespostaCerebro> {
   });
 }
 
+// O Cerebro dividido em secoes editaveis, a vista de cards da tela Cerebro.
+export interface SecaoCerebro {
+  indice: number;
+  titulo: string;
+  corpo: string;
+  preenchida: boolean;
+}
+
+export interface CerebroEmSecoes {
+  preambulo: string;
+  secoes: SecaoCerebro[];
+  epilogo: string;
+  atualizadoEm: string;
+  preenchido: boolean;
+}
+
+export function obterCerebroSecoes(): Promise<CerebroEmSecoes> {
+  return pedir<CerebroEmSecoes>("/api/vkos/cerebro/secoes");
+}
+
+// Grava o corpo de UMA secao. Corpo vazio volta a secao pro estado em branco.
+export function salvarCerebroSecao(
+  indice: number,
+  corpo: string,
+): Promise<CerebroEmSecoes> {
+  return pedir<CerebroEmSecoes>(`/api/vkos/cerebro/secoes/${indice}`, {
+    method: "PUT",
+    body: JSON.stringify({ corpo }),
+  });
+}
+
 export function listarSkills(): Promise<{ skills: SkillVkos[] }> {
   return pedir<{ skills: SkillVkos[] }>("/api/vkos/skills");
 }
@@ -309,6 +559,10 @@ export function criarSessao(dados: {
   // Geracao guiada de site: subpasta alvo em conteudo/. Liga o laco de
   // conformidade a peca certa depois que a sessao conclui.
   pastaAlvo?: string;
+  // Geracao visual sem Cerebro: escolha explicita do usuario. Libera a guarda
+  // de Cerebro no backend quando o negocio ainda nao tem Cerebro.
+  semCerebro?: boolean;
+  modelosUsados?: string[];
 }): Promise<{ sessao: Sessao }> {
   return pedir<{ sessao: Sessao }>("/api/sessoes", corpoJson(dados));
 }

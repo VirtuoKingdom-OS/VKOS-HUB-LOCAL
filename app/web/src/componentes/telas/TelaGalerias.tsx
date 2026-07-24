@@ -6,6 +6,7 @@ import { CartaoPeca } from "../pecas/CartaoPeca";
 import { Lightbox } from "../pecas/Lightbox";
 import { IconeGaleria } from "../comum/Icones";
 import "../../estilos/dashboard.css";
+import { navegarParaCaminho } from "../layout/rotas";
 
 interface EstadoVisor {
   peca: Peca;
@@ -30,13 +31,13 @@ const ROTULO_CHIP: Record<Filtro, string> = {
 
 // Navega pro Studio de uma peca fonteHtml (pasta URL-encoded no hash).
 function irParaStudio(pasta: string) {
-  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+  navegarParaCaminho("/studio/" + encodeURIComponent(pasta));
 }
 
-// Galeria unificada de todas as pecas de imagem (carrossel, post, stories).
-// Reaproveita CartaoPeca e Lightbox como a TelaFluxo faz, com chips de filtro
-// por tipo. Editar de peca fonteHtml leva ao Studio, nao abre mais overlay.
-export function TelaGalerias() {
+// Painel de criacoes visuais (carrossel, post, stories), a antiga TelaGalerias
+// virou o miolo da sub-aba Criacoes da tela Arquivos. Reaproveita CartaoPeca e
+// Lightbox com chips de filtro por tipo; editar peca fonteHtml leva ao Studio.
+export function PainelCriacoes() {
   const { pecas } = usarEstado();
   const [visor, setVisor] = useState<EstadoVisor | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("todos");
@@ -79,12 +80,9 @@ export function TelaGalerias() {
   const condensado = filtroValido === "todos";
 
   return (
-    <section className="tela-fluxo tela-galerias">
-      <header className="tela-fluxo-topo">
-        <div className="galerias-topo-linha">
-          <h1>Galerias</h1>
-          <p className="subtitulo">{rotuloContagem}</p>
-        </div>
+    <div className="painel-criacoes">
+      <div className="galerias-topo-linha painel-criacoes-topo">
+        <p className="subtitulo">{rotuloContagem}</p>
         {tiposPresentes.length > 0 && (
           <div className="galerias-chips" role="tablist" aria-label="Filtrar por tipo">
             <button
@@ -108,7 +106,7 @@ export function TelaGalerias() {
             ))}
           </div>
         )}
-      </header>
+      </div>
 
       {contagem === 0 ? (
         <div className="fluxo-vazio">
@@ -154,6 +152,6 @@ export function TelaGalerias() {
           aoFechar={() => setVisor(null)}
         />
       )}
-    </section>
+    </div>
   );
 }

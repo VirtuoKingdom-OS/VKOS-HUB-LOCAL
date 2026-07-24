@@ -91,6 +91,9 @@ interface ValorContexto {
     escopoPeca?: EscopoPecaSessao;
     // Geracao guiada de site: liga o laco de conformidade a peca alvo.
     pastaAlvo?: string;
+    // Geracao visual sem Cerebro: escolha explicita do usuario.
+    semCerebro?: boolean;
+    modelosUsados?: string[];
   }) => Promise<Sessao>;
   enviarMensagem: (id: string, texto: string) => Promise<void>;
   pararSessao: (id: string) => Promise<void>;
@@ -105,7 +108,7 @@ interface ValorContexto {
   criarContexto: (nome: string, tipo?: TipoContexto) => Promise<Contexto>;
   atualizarContexto: (
     id: string,
-    dados: { nome?: string; texto?: string }
+    dados: { nome?: string; texto?: string },
   ) => Promise<Contexto>;
   excluirContexto: (id: string) => Promise<void>;
   anexarArquivos: (id: string, arquivos: File[]) => Promise<Contexto>;
@@ -129,7 +132,7 @@ function limitarStream(texto: string): string {
 // Aplica um evento cru do claude no texto acumulado da sessao.
 function aplicarEvento(
   anterior: EstadoStream | undefined,
-  evento: EventoClaude
+  evento: EventoClaude,
 ): EstadoStream {
   const atual: EstadoStream = anterior ?? { texto: "", recebeuDelta: false };
   const tipo = evento.type;
@@ -155,7 +158,9 @@ function aplicarEvento(
     // Se ja veio por delta, o assistant so repete. Ignora pra nao duplicar.
     if (atual.recebeuDelta) return atual;
     const texto = evento.message.content
-      .filter((bloco) => bloco.type === "text" && typeof bloco.text === "string")
+      .filter(
+        (bloco) => bloco.type === "text" && typeof bloco.text === "string",
+      )
       .map((bloco) => bloco.text)
       .join("");
     if (texto) return { ...atual, texto: limitarStream(atual.texto + texto) };
@@ -190,7 +195,9 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const [contextos, setContextos] = useState<Contexto[]>([]);
   const [custos, setCustos] = useState<Custos | null>(null);
   const [modeloPadrao, setModeloPadrao] = useState<ModeloIA>("");
-  const [modelosCarrossel, setModelosCarrossel] = useState<ModeloCarrossel[]>([]);
+  const [modelosCarrossel, setModelosCarrossel] = useState<ModeloCarrossel[]>(
+    [],
+  );
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceAtivo, setWorkspaceAtivo] = useState<string | null>(null);
   const [trocandoWorkspace, setTrocandoWorkspace] = useState(false);
@@ -245,11 +252,13 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
         api.obterConfig(),
         api.obterProvedores(),
       ]);
-      const lista = provedores.provedores.find((p) => p.id === provedores.ativo)?.modelos ?? [];
+      const lista =
+        provedores.provedores.find((p) => p.id === provedores.ativo)?.modelos ??
+        [];
       const configurado =
         provedores.ativo === "codex"
           ? config.modeloPadraoCodex
-          : config.modeloPadraoClaude ?? config.modeloPadrao;
+          : (config.modeloPadraoClaude ?? config.modeloPadrao);
       const padrao = lista.some((m) => m.alias === configurado)
         ? configurado
         : lista[0]?.alias;
@@ -282,19 +291,20 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const recarregarInicial = useCallback(async () => {
     setCarregandoInicial(true);
     try {
-      const [amb, vkos, config] = await Promise.all([
+      const [amb, vkos, config, autenticacao] = await Promise.all([
         api.obterAmbiente(),
         api.obterVkos(),
         api.obterConfig(),
+        api.obterEstadoAutenticacao(),
       ]);
       setServidorOnline(true);
       setAmbiente(amb);
       setEstadoVkos(vkos);
       // O setup do motor acontece antes do workspace. Depois dele, um cliente
       // existente entra direto com o provedor escolhido, sem exigir Claude.
-      const motorPronto = config.provedorPadrao
-        ? amb[config.provedorPadrao].instalado
-        : false;
+      const motorPronto =
+        autenticacao.modo === "hub" ||
+        (config.provedorPadrao ? amb[config.provedorPadrao].instalado : false);
       if (motorPronto && vkos.valida) {
         // Carrega os clientes antes de liberar o cockpit pra a key do canvas
         // ja nascer com o workspace ativo (sem remonte extra no boot).
@@ -368,7 +378,12 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     void recarregarSessoes();
     void recarregarPecas();
     void recarregarContextos();
-  }, [recarregarWorkspaces, recarregarSessoes, recarregarPecas, recarregarContextos]);
+  }, [
+    recarregarWorkspaces,
+    recarregarSessoes,
+    recarregarPecas,
+    recarregarContextos,
+  ]);
 
   const criarSessao = useCallback(
     async (dados: {
@@ -379,6 +394,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       permissao?: "padrao" | "total";
       escopoPeca?: EscopoPecaSessao;
       pastaAlvo?: string;
+      semCerebro?: boolean;
+      modelosUsados?: string[];
     }) => {
       // permissao viaja no body por JSON.stringify: api.criarSessao repassa o
       // objeto inteiro, entao o campo novo chega ao backend sem tocar cliente.ts.
@@ -389,7 +406,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       });
       return sessao;
     },
-    []
+    [],
   );
 
   const enviarMensagem = useCallback(async (id: string, texto: string) => {
@@ -415,24 +432,27 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const criarContexto = useCallback(async (nome: string, tipo: TipoContexto = "texto") => {
-    const contexto = await api.criarContexto(nome, tipo);
-    setContextos((antes) => {
-      const semRepetir = antes.filter((c) => c.id !== contexto.id);
-      return [...semRepetir, contexto];
-    });
-    return contexto;
-  }, []);
+  const criarContexto = useCallback(
+    async (nome: string, tipo: TipoContexto = "texto") => {
+      const contexto = await api.criarContexto(nome, tipo);
+      setContextos((antes) => {
+        const semRepetir = antes.filter((c) => c.id !== contexto.id);
+        return [...semRepetir, contexto];
+      });
+      return contexto;
+    },
+    [],
+  );
 
   const atualizarContexto = useCallback(
     async (id: string, dados: { nome?: string; texto?: string }) => {
       const contexto = await api.atualizarContexto(id, dados);
       setContextos((antes) =>
-        antes.map((c) => (c.id === id ? { ...c, ...contexto } : c))
+        antes.map((c) => (c.id === id ? { ...c, ...contexto } : c)),
       );
       return contexto;
     },
-    []
+    [],
   );
 
   const excluirContexto = useCallback(async (id: string) => {
@@ -443,7 +463,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const anexarArquivos = useCallback(async (id: string, arquivos: File[]) => {
     const contexto = await api.anexarArquivos(id, arquivos);
     setContextos((antes) =>
-      antes.map((c) => (c.id === id ? { ...c, ...contexto } : c))
+      antes.map((c) => (c.id === id ? { ...c, ...contexto } : c)),
     );
     return contexto;
   }, []);
@@ -454,8 +474,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       antes.map((c) =>
         c.id === id
           ? { ...c, arquivos: c.arquivos.filter((a) => a.nome !== nome) }
-          : c
-      )
+          : c,
+      ),
     );
   }, []);
 
@@ -490,7 +510,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       // Segura o veu por um instante pra o fade nao piscar.
       window.setTimeout(() => setTrocandoWorkspace(false), 260);
     },
-    [recarregarTudo, recarregarWorkspaces]
+    [recarregarTudo, recarregarWorkspaces],
   );
 
   const trocarWorkspace = useCallback(
@@ -501,7 +521,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       // vem, senao cai no id pedido. aplicarTrocaLocal recarrega a lista.
       await aplicarTrocaLocal(r.workspace?.id ?? id);
     },
-    [aplicarTrocaLocal]
+    [aplicarTrocaLocal],
   );
 
   const adicionarCliente = useCallback(
@@ -513,7 +533,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       if (r.workspace) await aplicarTrocaLocal(r.workspace.id);
       else await recarregarWorkspaces();
     },
-    [aplicarTrocaLocal, recarregarWorkspaces]
+    [aplicarTrocaLocal, recarregarWorkspaces],
   );
 
   const criarCliente = useCallback(
@@ -523,7 +543,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       else await recarregarWorkspaces();
       return r.avisos;
     },
-    [aplicarTrocaLocal, recarregarWorkspaces]
+    [aplicarTrocaLocal, recarregarWorkspaces],
   );
 
   const renomearCliente = useCallback(
@@ -546,7 +566,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
         await recarregarWorkspaces();
       }
     },
-    [recarregarWorkspaces]
+    [recarregarWorkspaces],
   );
 
   const removerCliente = useCallback(async (id: string) => {
@@ -557,10 +577,17 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   // Distribui mensagens do websocket.
   const aoReceber = useCallback(
     (mensagem: MensagemWs) => {
+      const plataforma = mensagem as unknown as { tipo: string };
+      if (plataforma.tipo === "workspace:features-atualizadas") {
+        window.dispatchEvent(new Event("vkos:features-atualizadas"));
+        return;
+      }
+
       // Evento de sessao de outro cliente: ignora em silencio (a sessao dele
       // segue rodando por baixo, so nao aparece nesta tela).
       if (
-        (mensagem.tipo === "sessao:evento" || mensagem.tipo === "sessao:status") &&
+        (mensagem.tipo === "sessao:evento" ||
+          mensagem.tipo === "sessao:status") &&
         mensagem.workspaceId &&
         mensagem.workspaceId !== workspaceAtivoRef.current
       ) {
@@ -608,8 +635,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
             antes.map((s) =>
               s.id === mensagem.id && !s.sessionIdClaude
                 ? { ...s, sessionIdClaude: idClaude }
-                : s
-            )
+                : s,
+            ),
           );
         }
         return;
@@ -631,7 +658,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
                   erro: mensagem.detalhe ?? s.erro,
                   atualizadaEm: new Date().toISOString(),
                 }
-              : s
+              : s,
           );
         });
         // Sessao encerrada: busca modelo, tokens e custo finais do backend,
@@ -651,8 +678,10 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       if (mensagem.tipo === "sessao:conferencia") {
         setSessoes((antes) =>
           antes.map((s) =>
-            s.id === mensagem.id ? { ...s, conferenciaSite: mensagem.conferencia } : s
-          )
+            s.id === mensagem.id
+              ? { ...s, conferenciaSite: mensagem.conferencia }
+              : s,
+          ),
         );
         return;
       }
@@ -660,8 +689,16 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       if (mensagem.tipo === "pecas:atualizadas") {
         void recarregarPecas();
       }
+
+      // A entrevista, uma sessao de IA ou a tela de cards gravou o Cerebro:
+      // atualiza o estadoVkos (cerebroPreenchido) e avisa quem estiver na tela
+      // do Cerebro pelo mesmo padrao de evento DOM das features.
+      if (mensagem.tipo === "cerebro:atualizado") {
+        void api.obterVkos().then(setEstadoVkos).catch(() => undefined);
+        window.dispatchEvent(new Event("vkos:cerebro-atualizado"));
+      }
     },
-    [recarregarSessoes, recarregarPecas, recarregarCustos, aplicarTrocaLocal]
+    [recarregarSessoes, recarregarPecas, recarregarCustos, aplicarTrocaLocal],
   );
 
   // Reconexao do WebSocket: recarrega o estado (sessoes, pecas, contextos,

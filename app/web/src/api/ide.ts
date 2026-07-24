@@ -57,6 +57,19 @@ async function pedir<T>(url: string, opcoes?: RequestInit): Promise<T> {
   return (await resposta.json()) as T;
 }
 
+// Uma raiz da IDE geral do CORE: o sistema, um workspace do estudio ou um
+// cliente do banco. Selecionar uma raiz ativa o workspace correspondente.
+export interface RaizIde {
+  id: string;
+  nome: string;
+  tipo: "sistema" | "estudio" | "cliente";
+}
+
+// Raizes disponiveis pra IDE geral (so existe no CORE).
+export function obterRaizes(): Promise<{ raizes: RaizIde[]; ativo: string | null }> {
+  return pedir<{ raizes: RaizIde[]; ativo: string | null }>("/api/ide/raizes");
+}
+
 // Arvore inteira da pasta do workspace ativo.
 export function obterArvore(): Promise<RespostaArvore> {
   return pedir<RespostaArvore>("/api/ide/arvore");

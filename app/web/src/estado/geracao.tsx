@@ -103,6 +103,9 @@ export interface DadosIniciar {
   pastaAlvo: string;
   tema: string;
   tipo: TipoGeracao;
+  // Geracao visual sem Cerebro: repassado ao backend pra liberar a guarda.
+  semCerebro?: boolean;
+  modelosUsados?: string[];
 }
 
 interface ValorGeracao {
@@ -265,6 +268,8 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
           modelo: dados.modelo,
           // So o site guiado carrega pastaAlvo: liga o laco de conformidade.
           pastaAlvo: dados.tipo === "site" ? dados.pastaAlvo : undefined,
+          semCerebro: dados.semCerebro,
+          modelosUsados: dados.modelosUsados,
         });
         setAtiva((atual) =>
           atual ? { ...atual, sessaoId: nova.id } : atual

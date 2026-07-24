@@ -5,6 +5,7 @@ import { baseNome, ROTULO_TIPO } from "./fluxos";
 import { CartaoPeca } from "../pecas/CartaoPeca";
 import { Lightbox } from "../pecas/Lightbox";
 import { IconeGaleria } from "../comum/Icones";
+import { navegarParaCaminho } from "../layout/rotas";
 
 interface Props {
   tipo: TipoPeca;
@@ -56,10 +57,10 @@ export function TelaFluxo({ tipo }: Props) {
               peca={peca}
               aoAmpliar={(peca, indice) => setVisor({ peca, indice })}
               aoEditar={(pasta) => {
-                window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                navegarParaCaminho("/studio/" + encodeURIComponent(pasta));
               }}
               aoAbrirSite={(pasta) => {
-                window.location.hash = "#/site/" + encodeURIComponent(pasta);
+                navegarParaCaminho("/site/" + encodeURIComponent(pasta));
               }}
             />
           ))}
@@ -77,7 +78,7 @@ export function TelaFluxo({ tipo }: Props) {
               ? () => {
                   const pasta = visor.peca.pasta;
                   setVisor(null);
-                  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                  navegarParaCaminho("/studio/" + encodeURIComponent(pasta));
                 }
               : undefined
           }
