@@ -46,8 +46,8 @@ Backend, módulo novo server/src/meta/:
 - Eventos WS novos: meta:mensagem, meta:status, meta:post.
 
 Frontend:
-- Tela nova #/mensagens, "o WhatsApp dentro do hub": coluna de conversas (busca, filtro por canal WhatsApp/Instagram, não lidas), thread com balões no padrão do app (markdown não: mensagem de gente é texto), composer com anexo, indicador honesto da janela de 24h e, fora dela, o caminho do template. Ação "ver no CRM" em cada conversa; mensagem de número novo pode criar contato na coluna Novo contato.
-- Instagram: na galeria de carrosséis, ações "Publicar no Instagram" e "Agendar" (escolhe data, hora e legenda, com o Cérebro podendo sugerir legenda). Aba de fila dentro da tela Mensagens ou tela própria #/agenda (decidir no design): lista dos agendados com status agendado, publicado, falhou, e reenvio manual em falha.
+- Tela nova `/mensagens`, "o WhatsApp dentro do hub": coluna de conversas (busca, filtro por canal WhatsApp/Instagram, não lidas), thread com balões no padrão do app (markdown não: mensagem de gente é texto), composer com anexo, indicador honesto da janela de 24h e, fora dela, o caminho do template. Ação "ver no CRM" em cada conversa; mensagem de número novo pode criar contato na coluna Novo contato.
+- Instagram: na galeria de carrosséis, ações "Publicar no Instagram" e "Agendar" (escolhe data, hora e legenda, com o Cérebro podendo sugerir legenda). Aba de fila dentro da tela Mensagens ou tela própria `/agenda` (decidir no design): lista dos agendados com status agendado, publicado, falhou, e reenvio manual em falha.
 - Conexões: o card Meta sai de "em breve" e vira assistente de conexão passo a passo (onde pegar cada id e token no painel da Meta).
 
 ## Automação, em degraus

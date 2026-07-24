@@ -1,7 +1,7 @@
 # Resumo de contexto: Jessé Gomes, VirtuoKingdom e VKOS
 
 > Documento de repasse. Serve pra dar contexto rápido a uma IA que ainda não conhece
-> o negócio, a marca pessoal, os produtos e os objetivos. Atualizado em 18 de julho de 2026.
+> o negócio, a marca pessoal, os produtos e os objetivos. Atualizado em 22 de julho de 2026.
 > Material interno: nunca vai pro pacote de cliente nem pro repositório público.
 
 ## 1. Quem é e o que faz
@@ -49,7 +49,7 @@ Desde 16 de julho de 2026. O VKOS puro com as melhorias fundidas: Cérebro em br
 
 ### VKOS Hub (o app, foco atual do desenvolvimento)
 
-Um **workspace multi-IA vertical**: várias instâncias de IA trabalhando ao mesmo tempo, orquestradas, todas lendo o mesmo Cérebro. Server Fastify + web React/Vite, local-first, roda no computador do usuário.
+Uma plataforma com um CORE privado do Jesse e workspaces de clientes no navegador. Várias instâncias de IA trabalham com o mesmo Cérebro, mas a infraestrutura e as credenciais ficam invisíveis para o cliente.
 
 **A tese:** a oferta não é "junte suas IAs num canvas", é "seu negócio operando, com um monte de IA por baixo que você nunca precisa ver". A orquestração é infraestrutura escondida, nunca a promessa.
 
@@ -72,7 +72,7 @@ Um **workspace multi-IA vertical**: várias instâncias de IA trabalhando ao mes
 - **Camada de design anti-genérico**: 20 direções, 13 estilos concretos com tokens, e o teste final "alguém diria que foi IA?".
 - Três temas (Escuro padrão, Dark VKOS, Claro), 130 testes automatizados.
 
-**Distribuição:** pacote Windows com `Instalar VKOS Hub.cmd` e `Iniciar VKOS Hub.cmd`. O instalador cuida de Node, dependências e Chromium. A credencial de IA nunca passa pelo Hub: o login acontece pelo programa oficial do motor.
+**Distribuição:** VKOS 3.0 roda em VPS com CORE, hub, motor, PostgreSQL, TLS e backup cifrado. O Claude pessoal fica apenas no CORE. Clientes usam Gemini via Vertex ou Claude com credencial própria cifrada no cofre.
 
 ## 5. O que foi feito na rodada mais recente (16 a 18 de julho de 2026)
 

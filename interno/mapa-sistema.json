@@ -46,8 +46,8 @@
       "id": "cockpit",
       "grupo": "entrada",
       "nome": "Cockpit",
-      "resumo": "A mesa visual que acompanha conversas, fontes e resultados no mesmo espaço.",
-      "descricao": "É a sala de comando do trabalho. O Cérebro fica no centro, as conversas aparecem ao redor e as peças prontas chegam aos seus lugares, como uma equipe reunida diante do mesmo quadro.",
+      "resumo": "A feature única que reúne canvas, sessões, Cérebro e fontes no mesmo espaço.",
+      "descricao": "É a sala de comando e também a fronteira de acesso do núcleo. Um único interruptor libera o canvas, as conversas, a identidade do negócio e suas fontes, evitando combinações incompletas.",
       "conversaCom": [
         "cerebro",
         "sessoes",
@@ -86,7 +86,7 @@
       "grupo": "entrada",
       "nome": "VKOS-IDE",
       "resumo": "A oficina de arquivos e conversa com IA que acompanha qualquer tela.",
-      "descricao": "É uma bancada móvel que pode ser aberta por cima do trabalho atual. Nela, o operador lê e ajusta arquivos enquanto conversa com Claude ou Codex, sem perder o ponto em que estava.",
+      "descricao": "É uma bancada móvel que pode ser aberta por cima do trabalho atual. Nela, o operador lê e ajusta arquivos enquanto conversa com Claude ou Codex, sem perder o ponto em que estava. No CORE ela vira a IDE geral do sistema: um seletor de raiz alterna entre o repositorio do hub, os workspaces do estudio e os clientes materializados, com o Claude do CORE.",
       "conversaCom": [
         "workspaces",
         "sessoes"
@@ -121,15 +121,82 @@
       ]
     },
     {
-      "id": "setup",
+      "id": "core",
       "grupo": "ia",
-      "nome": "Setup e instalador",
-      "resumo": "A preparação inicial que deixa o computador pronto para usar o Hub.",
-      "descricao": "É a equipe que abre a loja antes do primeiro cliente. Confere o Node, instala o motor escolhido quando necessário, orienta o login oficial e liga o primeiro espaço de trabalho.",
+      "nome": "VKOS HUB CORE",
+      "resumo": "O painel de gestão do Jesse e a única casa do Claude pessoal.",
+      "descricao": "Painel de gestão da operação (ShellGestao), não um estúdio de criação. Reúne Painel, Workspace, Estúdio, Banco visual, VKOS-IDE e Sistema. A área Workspace unifica os antigos Clientes e Planos de cliente: os workspaces reais no centro e os planos como preset de criação numa gaveta secundária. O Banco visual administra modelos compartilhados de carrossel por HTML pronto ou por cópia de uma referência com IA e refino no Studio. Administra workspaces, acessos, features, motores, orçamento, consumo e auditoria. Todo cliente nasce com Gemini. Entrar num workspace abre a experiência completa sob /w/<id>, com o motor do workspace. Meu Claude mostra instalação, login, conta e teste real do Claude pessoal, cujo volume existe somente aqui.",
       "conversaCom": [
         "workspaces",
         "sessoes",
-        "conexoes"
+        "banco-modelos",
+        "conexoes",
+        "motor",
+        "postgres",
+        "cofre"
+      ]
+    },
+    {
+      "id": "banco-modelos",
+      "grupo": "dados",
+      "nome": "Banco central de modelos",
+      "resumo": "A biblioteca visual compartilhada que chega a todos os workspaces sem alterar a semente.",
+      "descricao": "Cada modelo guarda HTML e metadados no filesystem central. O wizard une essa biblioteca aos modelos locais e filtra capa, desenvolvimento e CTA pelo tipo. Quando uma geração usa um modelo presente no banco, o servidor grava o arquivo exato no workspace se estiver ausente ou diferente, antes de iniciar a sessão. Assim a IA continua trabalhando com um template local e o parque converge no uso. Os 14 originais da semente também vivem aqui por sobrescrita copy-on-write: editar um original cria a entrada com o mesmo id e o banco passa a mandar naquele modelo; restaurar regrava o conteúdo de fábrica mantendo a entrada, pra convergência de volta. A semente nunca é alterada.",
+      "conversaCom": [
+        "core",
+        "dashboard",
+        "sessoes",
+        "workspaces"
+      ]
+    },
+    {
+      "id": "hub-clientes",
+      "grupo": "entrada",
+      "nome": "Hub dos clientes",
+      "resumo": "O app no navegador com acesso limitado ao workspace da sessão.",
+      "descricao": "Não tem CLI, credencial do Jesse nem chave do cofre. O middleware resolve usuário, pasta e features antes de entregar dados ou executar uma rota. O gate de cada API nasce dos prefixos do catálogo. Administração, Mapa, Conexões e Automações não existem neste processo. A interface monta menu e rotas apenas com as features liberadas.",
+      "conversaCom": [
+        "workspaces",
+        "motor",
+        "postgres"
+      ]
+    },
+    {
+      "id": "motor",
+      "grupo": "ia",
+      "nome": "Broker de IA",
+      "resumo": "O serviço interno que executa Gemini ou Claude do cliente.",
+      "descricao": "Recebe do Hub o pedido já expandido com a skill real do workspace, resolve o motor no banco, confere orçamento, mapeia o alias econômico, padrão ou forte para um modelo permitido, transmite a resposta e registra tokens e custo da faixa. Gemini é o padrão e usa a conta Vertex central. Claude Team lê somente a credencial testada daquele workspace. O estado interno sem motor nunca é uma escolha do operador e aparece ao cliente como manutenção. Falha de autenticação vira manutenção sem expor o segredo. O broker também medeia a busca Apify sem devolver o token.",
+      "conversaCom": [
+        "hub-clientes",
+        "core",
+        "postgres",
+        "cofre",
+        "sessoes"
+      ]
+    },
+    {
+      "id": "postgres",
+      "grupo": "dados",
+      "nome": "PostgreSQL",
+      "resumo": "Identidade, configuração, auditoria e medição da plataforma.",
+      "descricao": "Guarda usuários, membros, modelos, flags, convites, sessões web, limites e consumo. Não substitui as pastas como fonte do trabalho.",
+      "conversaCom": [
+        "core",
+        "hub-clientes",
+        "motor",
+        "workspaces"
+      ]
+    },
+    {
+      "id": "cofre",
+      "grupo": "dados",
+      "nome": "Cofre cifrado",
+      "resumo": "Credenciais por workspace protegidas com AES-256-GCM.",
+      "descricao": "A chave mestra vem do Secret Manager e só é montada no CORE e no motor. O hub nunca consegue decifrar um valor.",
+      "conversaCom": [
+        "core",
+        "motor"
       ]
     },
     {
@@ -137,7 +204,7 @@
       "grupo": "dados",
       "nome": "Cérebro",
       "resumo": "A identidade do negócio que orienta toda IA antes de agir.",
-      "descricao": "É a certidão de identidade do negócio, com voz, público, oferta e direção reunidos num só lugar. Toda sessão consulta essa verdade para que as entregas pareçam feitas pela mesma marca, não por pessoas desconectadas.",
+      "descricao": "É a certidão de identidade do negócio, com voz, público, oferta e direção reunidos num só lugar. Faz parte da feature Cockpit e toda sessão consulta essa verdade para que as entregas pareçam feitas pela mesma marca, não por pessoas desconectadas. Ganhou uma tela propria no workspace (Cerebro do Negocio): um card editavel por secao do cerebro.md, com salvamento por secao que preserva o resto do arquivo byte a byte. A entrevista guiada continua o caminho recomendado do zero.",
       "conversaCom": [
         "workspaces",
         "sessoes",
@@ -165,7 +232,7 @@
       "grupo": "dados",
       "nome": "Fontes de dados",
       "resumo": "A biblioteca de textos, imagens e links que pode alimentar uma criação.",
-      "descricao": "É a estante de referências do negócio. O material fica organizado para ser escolhido quando fizer sentido, sem despejar a biblioteca inteira em toda conversa.",
+      "descricao": "É a estante de referências do negócio dentro da feature Cockpit. O material fica organizado para ser escolhido quando fizer sentido, sem despejar a biblioteca inteira em toda conversa.",
       "conversaCom": [
         "anexos",
         "sessoes",
@@ -195,7 +262,7 @@
         "calendario",
         "barramento",
         "automacoes",
-        "conexoes"
+        "motor"
       ]
     },
     {
@@ -203,7 +270,7 @@
       "grupo": "dados",
       "nome": "Custos",
       "resumo": "O placar que mostra quanto as sessões consumiram por cliente e no total.",
-      "descricao": "É o caixa ao lado da operação, registrando cada trabalho concluído. Quando o motor informa o valor real ele é guardado; quando só há uma estimativa, o Hub mostra isso sem fingir precisão.",
+      "descricao": "É o caixa ao lado da operação, registrando tokens e custo estimado por modelo em cada trabalho concluído. Cada workspace tem orçamento mensal e pode apenas avisar ou cortar novas sessões ao atingir o teto. Os testes administrativos também são medidos para que nenhum uso externo fique invisível.",
       "conversaCom": [
         "sessoes",
         "workspaces",
@@ -214,13 +281,13 @@
       "id": "conexoes",
       "grupo": "integracoes",
       "nome": "Conexões",
-      "resumo": "As pontes locais que dão acesso controlado a serviços externos por MCP ou API direta.",
-      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Elas permitem que sessões, publicações, agenda e busca de leads alcancem ferramentas externas, mantendo as credenciais guardadas apenas no computador.",
+      "resumo": "As pontes locais do CORE para serviços externos por MCP ou API direta.",
+      "descricao": "São exclusivas do CORE. Serviços de cliente só entram no Hub depois de ganhar uma operação mediada pelo motor ou outro serviço interno, sem tela de conexão nem token no navegador do cliente. Desde 2026-07-23 o estado e central do sistema (app/dados/conexoes.json), configurado na aba Conexoes do Sistema no painel de gestao; nenhum workspace guarda tokens proprios.",
       "conversaCom": [
         "sessoes",
         "calendario",
         "publicacao",
-        "setup",
+        "core",
         "crm"
       ]
     },
@@ -238,11 +305,23 @@
       ]
     },
     {
+      "id": "meta",
+      "grupo": "integracoes",
+      "nome": "Meta",
+      "resumo": "Métricas de Instagram, anúncios e Página por workspace.",
+      "descricao": "A credencial da agência fica no CORE e um coletor serial grava snapshots no espaço de cada cliente. A tela lê somente esses arquivos, sem token no navegador e sem consulta externa durante a visita.",
+      "conversaCom": [
+        "conexoes",
+        "workspaces",
+        "core"
+      ]
+    },
+    {
       "id": "automacoes",
       "grupo": "integracoes",
       "nome": "Automações",
       "resumo": "As regras simples que reagem a um acontecimento sem gastar uma sessão de IA.",
-      "descricao": "São como bilhetes do tipo quando isso acontecer, faça aquilo. Elas escutam o movimento do Hub e executam ações previsíveis, como criar um compromisso quando um negócio muda de etapa.",
+      "descricao": "São como bilhetes do tipo quando isso acontecer, faça aquilo. Nesta versão são exclusivas do CORE e não têm menu nem rota no Hub do cliente.",
       "conversaCom": [
         "barramento",
         "crm",
@@ -293,14 +372,29 @@
   ],
   "ligacoes": [
     {
-      "de": "setup",
+      "de": "core",
       "para": "workspaces",
       "rotulo": "prepara"
     },
     {
-      "de": "setup",
+      "de": "core",
       "para": "sessoes",
       "rotulo": "habilita"
+    },
+    {
+      "de": "core",
+      "para": "banco-modelos",
+      "rotulo": "administra"
+    },
+    {
+      "de": "banco-modelos",
+      "para": "dashboard",
+      "rotulo": "oferece modelos"
+    },
+    {
+      "de": "banco-modelos",
+      "para": "workspaces",
+      "rotulo": "copia no uso"
     },
     {
       "de": "workspaces",
@@ -403,9 +497,9 @@
       "rotulo": "autoriza"
     },
     {
-      "de": "conexoes",
+      "de": "motor",
       "para": "crm",
-      "rotulo": "fornece leads"
+      "rotulo": "medeia leads"
     },
     {
       "de": "crm",
@@ -436,6 +530,21 @@
       "de": "ide",
       "para": "sessoes",
       "rotulo": "conversa"
+    },
+    {
+      "de": "core",
+      "para": "ide",
+      "rotulo": "usa como IDE geral"
+    },
+    {
+      "de": "conexoes",
+      "para": "meta",
+      "rotulo": "autoriza coleta"
+    },
+    {
+      "de": "meta",
+      "para": "workspaces",
+      "rotulo": "grava snapshots"
     }
   ],
   "skills": [
@@ -444,49 +553,91 @@
       "nome": "/instalar",
       "resumo": "A cerimonia que entrevista o dono e preenche o Cerebro do zero.",
       "cor": "menta",
-      "percurso": ["cockpit", "sessoes", "skills", "cerebro"]
+      "percurso": [
+        "cockpit",
+        "sessoes",
+        "skills",
+        "cerebro"
+      ]
     },
     {
       "id": "carrossel",
       "nome": "/carrossel",
       "resumo": "Do tema escolhido no wizard ao carrossel pronto na galeria.",
       "cor": "amarelo",
-      "percurso": ["dashboard", "sessoes", "skills", "cerebro", "studio-carrossel", "pecas"]
+      "percurso": [
+        "dashboard",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "studio-carrossel",
+        "pecas"
+      ]
     },
     {
       "id": "stories",
       "nome": "/stories",
       "resumo": "Sequencia de stories montada com o mesmo motor do carrossel.",
       "cor": "amarelo",
-      "percurso": ["dashboard", "sessoes", "skills", "cerebro", "studio-carrossel", "pecas"]
+      "percurso": [
+        "dashboard",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "studio-carrossel",
+        "pecas"
+      ]
     },
     {
       "id": "site",
       "nome": "/site",
       "resumo": "Site guiado que nasce, passa pela conferencia e vai pra publicacao.",
       "cor": "menta",
-      "percurso": ["site-guiado", "sessoes", "skills", "cerebro", "pecas", "publicacao"]
+      "percurso": [
+        "site-guiado",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "pecas",
+        "publicacao"
+      ]
     },
     {
       "id": "revisar-design",
       "nome": "/revisar-design",
       "resumo": "Auditoria de design que revisa a peca pronta e corrige o que reprova.",
       "cor": "alerta",
-      "percurso": ["site-guiado", "sessoes", "skills", "pecas"]
+      "percurso": [
+        "site-guiado",
+        "sessoes",
+        "skills",
+        "pecas"
+      ]
     },
     {
       "id": "semana",
       "nome": "/semana",
       "resumo": "Planejamento do conteudo da semana a partir da identidade do negocio.",
       "cor": "suave",
-      "percurso": ["cockpit", "sessoes", "skills", "cerebro"]
+      "percurso": [
+        "cockpit",
+        "sessoes",
+        "skills",
+        "cerebro"
+      ]
     },
     {
       "id": "evoluir",
       "nome": "/evoluir",
       "resumo": "Evolucao do proprio produto conduzida pelo VKOS-IDE.",
       "cor": "fraco",
-      "percurso": ["ide", "sessoes", "skills", "cerebro"]
+      "percurso": [
+        "ide",
+        "sessoes",
+        "skills",
+        "cerebro"
+      ]
     }
-  ]
+  ],
+  "atualizadoEm": "2026-07-23"
 }

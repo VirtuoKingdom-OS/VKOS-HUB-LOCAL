@@ -1,87 +1,40 @@
-# VKOS Hub: visão do produto
-
-> Contexto de produto. Leia isto antes de decidir qualquer coisa de escopo,
-> feature ou interface. Cada linha aqui custa, então não tem enfeite.
+# VKOS Hub 3.0, visão do produto
 
 ## O que é
 
-Um workspace multi-IA vertical. Na tela, várias instâncias de IA
-trabalhando ao mesmo tempo, orquestradas. Por baixo, um monte de IA rodando.
-Por cima, uma coisa só: o negócio do usuário operando.
+Uma plataforma com dois lados que compartilham as mesmas features.
 
-A categoria já está nascendo no mercado. Duas referências que validaram a
-direção: o AIOX-CORE (várias IAs e terminais num canvas infinito que se
-conectam entre si) e o Maestri (themaestri.app, a mesma ideia, mas para
-desenvolvedor). Os dois provam que "workspace que orquestra várias IAs" é uma
-categoria de verdade. O VKOS Hub entra nessa categoria por um ângulo que
-nenhum dos dois ocupa.
+O VKOS HUB CORE é o painel privado do Jesse. Nele ficam os workspaces internos, o Claude pessoal e a administração de modelos, clientes, acessos, features, motores, consumo e auditoria.
+
+O hub é o ambiente do cliente no navegador. Cada pessoa vê somente os workspaces dos quais é membro e somente as features liberadas. O cliente não vê infraestrutura, credenciais ou configuração de IA.
 
 ## Por que existe
 
-Duas dores reais, não hipótese.
+O dono de negócio quer o negócio funcionando, não uma coleção de ferramentas de IA. O VKOS reúne Cérebro, conteúdo, site, CRM, agenda, automações e conexões num ambiente que conhece a identidade do negócio.
 
-A dor do mercado: o prestador de serviço e o dono de negócio não querem
-"unificar suas IAs". Querem o negócio funcionando. Hoje quem tenta usar IA no
-negócio junta ferramenta solta, cada uma começando do zero, e vira um trabalho
-a mais em vez de menos.
+O diferencial continua sendo o Cérebro. Todas as features e sessões bebem da mesma fonte de verdade, em vez de começarem do zero.
 
-A dor do próprio Jesse: ele opera a VirtuoKingdom com vários chats de Claude
-Code em paralelo e sente na mão a dor de orquestrar isso. Começou uma máquina
-de produção de conteúdo no Instagram e quer o app como cockpit próprio. O app
-serve à produtividade dele antes de servir a qualquer cliente. Se não resolve a
-dor de quem constrói, não resolve a de ninguém.
+## Modelo operacional
 
-## A tese
+- Feature é uma capacidade modular que pode ser ligada ou desligada por workspace.
+- Modelo de workspace é uma receita interna, sem login e sem dados reais.
+- Workspace é uma instância viva, com pasta, membros, motor, limites e dados próprios.
+- Liberar login é uma ação separada, auditada e revogável.
+- O motor do cliente é Gemini no projeto do Jesse, Claude com credencial própria do cliente, ou nenhum.
 
-A oferta não é "junte suas IAs num canvas". É "seu negócio operando, com um
-monte de IA por baixo que você nunca precisa ver". A unificação é o meio, nunca
-a promessa. O usuário não deveria ver a orquestração, deveria ver resultado.
+## Princípios
 
-Marketing é a porta, não o teto. O ponto de entrada é um cockpit de marketing,
-a dor que a VK já resolve e onde o Cérebro já roda hoje. Depois o app cresce
-para outras áreas da operação. Mas ele nasce fazendo bem uma coisa que a VK já
-sabe fazer, não prometendo tudo.
+- Dado de workspace é sagrado. Migração não descarta e arquivo corrompido vai para quarentena.
+- Dado pessoal de cliente nunca entra em peça publicável.
+- Geração é verificada antes de ser tratada como pronta.
+- Credencial do Jesse nunca atende uma requisição do hub.
+- O cliente A nunca alcança dados, eventos ou consumo do cliente B.
+- O produto fala português brasileiro e funciona nos temas Escuro e Claro off-white.
 
-## A cunha defensável
+## Público
 
-O Cérebro. É o que nem o AIOX nem o Maestri têm.
+Prestador de serviço e dono de negócio que quer operação pronta. Não é uma ferramenta feita para desenvolvedor admirar orquestração.
 
-O canvas deles é burro de contexto: cada IA começa do zero, sem saber que
-negócio é aquele. No VKOS Hub, toda instância do workspace lê o mesmo Cérebro.
-Sabe quem é o negócio, o tom, a oferta, o cliente. Não é um punhado de IAs no
-mesmo quadro. É um sistema com uma memória só alinhando várias IAs.
+## Critério de sucesso 3.0
 
-Essa cunha não é ideia nova para construir do zero. A VK já construiu o Cérebro
-no repo VKOS e ele já roda em produção. O app é a evolução dele para uma
-interface onde várias IAs bebem da mesma fonte ao mesmo tempo.
-
-## Quem é o público
-
-O prestador de serviço e o dono de negócio que quer o negócio funcionando, não
-uma nova ferramenta para dominar.
-
-Quem NÃO é o público: o desenvolvedor. O dev já sabe orquestrar ferramenta, é o
-que o Maestri atende. Vender para o dev é competir de frente com quem já está
-lá. A VK entra pela lateral, por quem o dev nunca vai atender: quem não quer
-saber de IA, quer saber de cliente e de agenda cheia.
-
-## O que NÃO é
-
-- Não é um canvas de IAs para o usuário admirar a orquestração. A orquestração
-  é infraestrutura escondida.
-- Não é ferramenta para dev. Se a decisão pende para agradar o dev, está errada.
-- Não é "só marketing". Marketing é a porta de entrada, o app é maior que isso.
-- Não é SaaS de assinatura obrigatória por padrão. A cultura da VK é
-  local-first e pagamento que não prende (ver ecossistema.md). Qualquer modelo
-  de cobrança respeita isso até haver motivo forte para mudar.
-- Não vende aspiração. Nada de "viralizar", "enriquecer", "escalar sem
-  esforço". A promessa é operacional e concreta: o negócio funcionando quando
-  você não está na frente dele.
-
-## Status
-
-Decisão do Jesse em julho de 2026: vender o que já está pronto e continuar
-iterando e construindo em cima disso, ao mesmo tempo. A base entregue (Dashboard,
-Studio, Site Guiado, CRM, IDE) já gera valor e vai pro mercado agora, e o app
-segue evoluindo com o feedback do uso real. O caminho pra isso é o build in
-public: mostrar a construção em público como marketing do negócio.
+O Jesse entra no CORE de outra rede com TOTP, cria um modelo, materializa um workspace, libera um convite e acompanha o consumo. O cliente entra em outra máquina, usa uma feature com Gemini e vê uma feature desaparecer quando ela é desligada no CORE, sem redeploy.

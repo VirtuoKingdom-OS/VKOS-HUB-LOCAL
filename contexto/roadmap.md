@@ -1,6 +1,22 @@
 # VKOS Hub, roadmap
 
-Reestruturado em 2026-07-13 (ver decisoes/2026-07-13-reestruturacao-vkos-hub.md). O VKOS Hub é local-first, pra prestador de serviço com Claude instalado. Critério de saída de cada fase: "o Jesse usa isso de verdade na operação da VK?". Se não usa, a fase não fechou.
+DECIDIDO 2026-07-22: o rumo 3.0 é a nuvem. O VKOS Hub vira plataforma na VPS com o CORE do Jesse e workspaces de clientes com login, features modulares e motor por workspace (Claude Team do cliente ou Gemini). Ver decisoes/2026-07-22-vkos-3-nuvem.md e o plano em planos/vkos-3-nuvem/. As fases abaixo descrevem o 2.x local, que segue funcionando e vira a base das features da nuvem. O instalável local (fase 8) sai do produto.
+
+Reestruturado em 2026-07-13 (ver decisoes/2026-07-13-reestruturacao-vkos-hub.md). Critério de saída de cada fase: "o Jesse usa isso de verdade na operação da VK?". Se não usa, a fase não fechou.
+
+## VKOS 3.0 na nuvem
+
+- Fase 0, implementada no repositório: setup e instalável removidos, `MODO=core|hub`, catálogo de features e scripts de qualidade na raiz de `app/`.
+- Fase 1, implementada no repositório: migração PostgreSQL, Argon2id, TOTP, convites, redefinição, sessões, middleware único e isolamento de caminhos e WebSocket.
+- Fase 2, implementada no repositório: modelos, materialização de workspaces, flags a quente, convites e tela de administração no CORE.
+- Fase 3, implementada no repositório: motor separado, Vertex AI, Claude por credencial testada do workspace, mapas de modelos, cofre AES-256-GCM, consumo por modelo, orçamento e estados de manutenção.
+- Pendência de segurança conhecida: as conexões externas do 2.x continuam disponíveis apenas no CORE. No Hub, leitura e escrita de `conexoes.json` estão bloqueadas até GitHub, Netlify, Apify e Google migrarem para operações mediadas pelo cofre, sem chave no container Hub.
+- Fase 4, artefatos prontos: Compose, Caddy, Terraform, hardening, backup, runbook e checklist. Deploy, TLS público, Claude do CORE e restauração em VM limpa aguardam acesso ao GCP, credenciais e domínio.
+- Fase 5, ensaio automatizado pronto em `infra/smoke-nuvem.mjs`. Execução real aguarda os serviços da fase 4 e credencial Vertex.
+- Motores fechados no repositório em 2026-07-23: Administração testa Gemini e Claude Team, bloqueia seleção incoerente, edita limite mensal e mostra Meu Claude. Permanecem externos o smoke real do Gemini na VM, a quota financeira e o teste de restauração descritos em `infra/RUNBOOK-VPS.md`.
+- Núcleo consolidado em 2026-07-23: Cockpit, Cérebro e Fontes de dados viraram a feature única `cockpit`; o gate de API passou a nascer do catálogo e os dados legados são migrados por união.
+- Cerimônia do Cérebro preparada para o Hub em 2026-07-23: skills são resolvidas dentro do workspace antes do motor, a conversa mantém contexto, a gravação do Cérebro é confinada e a ausência de IA ganha estado honesto.
+- Navegação limpa em 2026-07-23: rotas usam History API, F5 em caminho profundo recebe o shell da SPA e links antigos com `#` continuam abrindo no caminho novo.
 
 ## Entregue até aqui (fases 0 a 5 do roadmap antigo)
 
@@ -15,7 +31,7 @@ Fechou quando: o app rodou sem terminal e sem fluxos ocultos no menu, sem regres
 ## Fase 2: fundação visual nova (entregue em 2026-07-13, validar em uso real)
 
 - Design system com tokens entregue: toda cor passa por tokens semânticos com canais RGB pra alpha (global.css), zero cor de tema hardcoded nos componentes.
-- Três temas desde 2026-07-14 (ver decisoes/2026-07-14-tres-temas.md): Escuro (o padrão novo, grafite neutro com menta de destaque), Dark VKOS (a identidade original, intocada) e Claro. Seletor de três opções na sidebar, persistência em localStorage, aplicação antes do bundle carregar (sem flash).
+- O histórico de três temas entregue em 2026-07-14 foi substituído em 2026-07-22 pela decisão de dois temas: Escuro em grafite neutro e Claro off-white. O seletor tem duas opções, persiste no armazenamento local e aplica o tema antes do bundle carregar. O valor legado `vkos` migra para Escuro.
 - Passada de refinamento feita em 2026-07-14: foco visível por :focus-visible, scrollbar, hover e motion sutil nas telas. Mensagens da IA renderizam markdown de verdade (componente comum/Markdown) no nó de sessão, na cerimônia e no chat da IDE.
 Fecha quando: o Jesse alterna os temas no dia a dia sem achar nada quebrado.
 
@@ -27,7 +43,7 @@ Fecha quando: um cliente novo de verdade sai da cerimônia com o Cérebro preenc
 
 ## Fase 4: VKOS-IDE (entregue em 2026-07-13, validar em uso real)
 
-- Entregue: tela #/ide com árvore de arquivos do workspace (criar, renomear, excluir com confirmação padrão), editor com números de linha e Ctrl+S, e chat do Claude com ferramentas ao vivo (eventos tool_use no WS).
+- Entregue: camada `/ide` com árvore de arquivos do workspace (criar, renomear, excluir com confirmação padrão), editor com números de linha e Ctrl+S, e chat do Claude com ferramentas ao vivo (eventos tool_use no WS).
 - Permissão por sessão: "Seguro" (acceptEdits) ou "Poder total" (bypassPermissions), escolhida antes de criar a sessão.
 - Desde 2026-07-14: seletor de modelo (Opus, Sonnet, Haiku) antes de criar a sessão, e respostas do Claude renderizadas em markdown.
 - Desde 2026-07-15: virou camada universal sobre qualquer tela, sem desmontar a tela de trás. O controle único escolhe motor, modelo e permissão para a próxima conversa.
@@ -36,16 +52,16 @@ Fecha quando: o Jesse opera arquivos e conversa com o Claude sem abrir o VS Code
 
 ## Fase 5: conexões (MCP) (entregue em 2026-07-13, validar em uso real)
 
-- Entregue: tela #/conexoes por workspace. GitHub, Netlify, Notion, Google Calendar e Apify disponíveis. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config somente dos habilitados que montam MCP. Os tokens de GitHub e Netlify alimentam a publicação REST de sites; o token da Apify alimenta a busca REST de leads e fica fora das sessões.
+- Entregue: tela `/conexoes` por workspace. GitHub, Netlify, Notion, Google Calendar e Apify disponíveis. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config somente dos habilitados que montam MCP. Os tokens de GitHub e Netlify alimentam a publicação REST de sites; o token da Apify alimenta a busca REST de leads e fica fora das sessões.
 - Pendência anotada pelo QA: falta ação de "remover token" na tela (desabilitar mantém o segredo no arquivo local).
 Fecha quando: uma sessão usa um MCP conectado pela tela, sem editar JSON na mão.
 
 ## Fase 6: CRM (v2 entregue em 2026-07-16, validar em uso real)
 
 - Entregue: CRM v2 com contatos separados de negócios, migração idempotente dos cartões antigos, linha do tempo de interações, tarefas, próximo contato integrado ao Calendário, eventos compatíveis com Automações e entrada confirmada de leads do Google Maps pela Apify.
-- A tela #/crm tem Hoje, Quadro, Contatos e Buscar leads. O Quadro move negócios; a lista busca, filtra e ordena fichas; a ficha concentra negócios, interações, tarefas, tags e follow-up. Buscar leads salva toda mineração antes de responder, mantém listas de Minerados e Arquivados e oferece termo, localização, quantidade e enriquecimento de email. A importação confirmada cria Contatos com origem e tag rastreáveis.
+- A tela `/crm` tem Hoje, Quadro, Contatos e Buscar leads. O Quadro move negócios; a lista busca, filtra e ordena fichas; a ficha concentra negócios, interações, tarefas, tags e follow-up. Buscar leads salva toda mineração antes de responder, mantém listas de Minerados e Arquivados e oferece termo, localização, quantidade e enriquecimento de email. A importação confirmada cria Contatos com origem e tag rastreáveis.
 - Sessões cujo pedido cita CRM recebem um resumo agregado do funil e das vozes dos clientes, com telefone e email removidos e regra dura contra publicar dado pessoal.
-- O Mapa interno em #/mapa documenta os módulos como uma rede didática. Seus dados vivem em `interno/`, fora do pacote de cliente, e o item desaparece quando eles não existem.
+- O Mapa interno em `/mapa` documenta os módulos como uma rede didática. Seus dados vivem em `interno/`, fora do pacote de cliente, e o item desaparece quando eles não existem.
 Fecha quando: o Jesse gerencia os clientes da VK pelo CRM do hub.
 
 ## Fase 6.5: duas jornadas (entregue em 2026-07-14, validar em uso real)
@@ -58,7 +74,7 @@ Fecha quando: o Jesse cria um carrossel pelo Dashboard e edita no Studio sem toc
 ## Fase 6.6: Site Guiado (entregue em 2026-07-14, validar em uso real)
 
 - Segunda jornada do Dashboard: wizard em 4 etapas gera site HTML estático por prompt direto (metodologia da skill /site pro texto, principios-visuais.md pro visual), sem tocar nas skills. Ver decisoes/2026-07-14-site-guiado-html-first.md.
-- Tela #/site/<pasta>: viewport com presets Desktop e Mobile, seletor de páginas, abrir em nova aba, atualização ao vivo e ajuste com IA na própria tela.
+- Tela `/site/<pasta>`: viewport com presets Desktop e Mobile, seletor de páginas, abrir em nova aba, atualização ao vivo e ajuste com IA na própria tela.
 - Em 2026-07-15, a TelaSite ganhou publicação direta e independente no GitHub e na Netlify. O código vai completo para um repositório privado e o ZIP estático vai para a Netlify, sem sessão de IA.
 - Em 2026-07-16, a geração ganhou a camada de design v2 (principios-visuais.md reescrito com leitura de design, cartela de 13 direções e proibições anti-IA, destilado de impeccable, taste-skill, ui-ux-pro-max e astryx) e a TelaSite ganhou o atalho Revisão de design no painel de IA. As sessões utilitárias ganharam o Modo enxuto opcional (economia de tokens, toggle na sidebar, ver decisoes/2026-07-16-modo-enxuto.md). Parte 02 futura: levar a camada de design pro carrossel (entregue no VKOS 2 em 2026-07-16, ver decisoes/2026-07-16-vkos2.md; retrofit pro vkos v1 e cópias de cliente segue em aberto).
 - Em 2026-07-16, o fluxo ganhou um contrato estático único e barreira de deploy. MIME, cache, páginas aninhadas, recursos relativos e URLs limpas funcionam no preview. A geração só conclui com auditoria estrutural válida. GitHub e Netlify só recebem o site depois de conferir todas as páginas em 390 px e 1440 px no navegador local.
@@ -78,21 +94,14 @@ Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem
 ## Fase 6.7: barramento de eventos + Google Calendar (entregue em 2026-07-15, validar em uso real)
 
 - Barramento de eventos interno com log por workspace, conexão Google Calendar (OAuth pelo app, servidor MCP próprio pras sessões) e tela Automações com regras CRM > agenda, ensaio e histórico. Ver decisoes/2026-07-15-barramento-eventos-google-calendar.md.
-- Tela Calendário (#/calendario, item fixo na sidebar abaixo do CRM), local-first desde 2026-07-15: agenda própria do workspace que funciona sem Google, com visão de mês, criar/editar/excluir evento, e dois toggles: "Sincronizar com CRM" (sempre) e "Sincronizar com Google Calendar" (opcional, pede conexão). Backend em server/src/calendario/.
+- Tela Calendário (`/calendario`, item fixo na sidebar abaixo do CRM), local-first desde 2026-07-15: agenda própria do workspace que funciona sem Google, com visão de mês, criar/editar/excluir evento, e dois toggles: "Sincronizar com CRM" (sempre) e "Sincronizar com Google Calendar" (opcional, pede conexão). Backend em server/src/calendario/.
 - Sincronização CRM > agenda validada com a conta real do Jesse em 2026-07-15: cartão com próximo contato vira compromisso, mantido em dia pelo barramento, no modo local ou no Google. Desconectar o Google agora zera a conexão inteira.
 - QA de gesto real em 2026-07-15: pipeline validado de ponta a ponta sem conta Google; falta o gesto do Jesse (criar credenciais pelo planos/google-calendar/04-setup-google.md, conectar e ver o evento nascer na agenda).
 Fecha quando: um cartão real movido no CRM cria o compromisso na agenda do Google do Jesse.
 
-## Fase 8: fechamento do MVP local (implementação entregue em 2026-07-15)
+## Fase 8 local, encerrada pela decisão 3.0
 
-- Motor multi-IA entregue: Claude e Codex atrás do contrato de provedor, eventos compatíveis, sessões presas ao motor de origem, modelos dinâmicos, skills e AGENTS.md compatíveis, custo Codex estimado e MCP limitado ao Claude de forma visível.
-- Jornada de instalação entregue: `Instalar VKOS Hub.cmd`, `Iniciar VKOS Hub.cmd` e `#/setup` com detecção, login, teste real e atalho.
-- O pacote agora leva o VKOS junto. A pasta `VKOS/` interna nasce limpa e é registrada automaticamente como workspace, sem a pergunta de onde está o VKOS.
-- Portabilidade preparada: dados ignorados, pacote integrado documentado, contrato e LEIA-ME revisados. A remoção de 138 arquivos privados já rastreados ficou preparada, sem executar `git rm` sem aprovação do Jesse.
-- QA local em 2026-07-15: 14 testes, dois typechecks e build verdes; teste real mínimo aprovado nos dois motores; instalação limpa aprovada em caminho com espaços e acentos; bundle `assets/index-B16N0nmS.js` servido na porta isolada 46210. A porta 4600 de outra cópia ficou intacta.
-- Faltam três gestos fora da implementação: Jesse aprovar a limpeza do índice Git, testar o pacote numa segunda máquina Windows limpa e escolher o canal do ZIP.
-
-Fecha em uso real quando alguém que não é o Jesse instala numa máquina Windows limpa com dois cliques, escolhe o motor, loga e gera uma peça sem tocar em terminal.
+O trabalho do motor multi-IA foi preservado como base do CORE. A distribuição instalável foi retirada do produto em 2026-07-22. O canal de entrega agora é o navegador, conforme a seção VKOS 3.0 no topo.
 
 ## Fase 7: Meta e Google Ads
 

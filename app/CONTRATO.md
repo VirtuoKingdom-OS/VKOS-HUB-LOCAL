@@ -1,4 +1,39 @@
-# Contrato do MVP: módulos, endpoints e tipos
+# Contrato do VKOS Hub
+
+## Contrato 3.0, vigente desde 2026-07-22
+
+O Hub roda em `MODO=core|hub`. Identidade, autorização, modelos, workspaces, features, cofre e administração vivem em `server/src/plataforma/`. O catálogo das 10 features vive em `server/src/features/catalogo.ts`. Cockpit, Cérebro e Fontes de dados são a feature única `cockpit`. O broker de cliente é o workspace separado `motor/`.
+
+Toda requisição autenticada resolve usuário, workspace, pasta e features no servidor. O navegador nunca escolhe caminho no modo hub. Feature inativa responde 404. O mapa rota-feature é derivado de `CATALOGO_FEATURES[].rotasApi`, sem allow-list manual. O WebSocket filtra eventos por workspace. Administração, Mapa, Conexões e Automações são exclusivos do CORE e não têm rotas registradas no Hub.
+
+No CORE local, `PRODUCAO` ausente abre uma sessão virtual de operador sem tela de acesso. Com `PRODUCAO=1`, o primeiro acesso cria email e senha de no mínimo 12 caracteres. TOTP é opcional: `/api/auth/totp/iniciar`, `/api/auth/totp/confirmar` e `DELETE /api/auth/totp` são operados pela aba Segurança. O bootstrap não gera mais segredo TOTP.
+
+Endpoints novos:
+
+- `/api/auth/*`: bootstrap do operador, login, logout, convite e redefinição.
+- `/api/admin/modelos`: catálogo de receitas.
+- `GET /api/admin/banco-modelos`: devolve `{ originais, proprios }`. `originais` são os 14 da semente com `temSobrescrita` e `atualizado` (a sobrescrita difere da fábrica); `proprios` são os modelos `b-*` criados no banco. `POST` cria um modelo novo; `PUT /:id` atualiza um próprio ou cria a sobrescrita de um original (copy-on-write a partir da fábrica); `DELETE /:id` remove só os próprios (original responde 400 apontando o restaurar). A origem do HTML pode ser `{ modo: "colar", html }` ou `{ modo: "peca", workspaceId, pasta }`.
+- `POST /api/admin/banco-modelos/:id/restaurar`: regrava a sobrescrita de um original com o conteúdo de fábrica, mantendo a entrada pra o parque convergir no uso. `POST /api/admin/banco-modelos/:id/abrir-studio` materializa o HTML vigente como peça temporária (`conteudo/<data>-edicao-modelo-<id>/`) no workspace informado e devolve `{ pasta }` pro refino no Studio.
+- `/api/admin/workspaces`: provisionamento, motor, limite, status, features, credencial, convite e revogação de sessões. `GET` traz por workspace o campo `logo` (data URL ou null) e `membros_resumo` (`[{ email, papel }]`, os logins com acesso).
+- `PATCH /api/admin/workspaces/:id` aceita, além de motor, status, orçamento e ação, o campo `logo`: uma data URL de imagem (`data:image/png|jpeg|webp|gif;base64,...`, até 400 KB, rebaixada no cliente) grava a logo, `null` ou `""` remove. Data URL inválida ou grande demais responde 400.
+- `GET /api/admin/workspaces/:id/convites` lista convites e seus estados. `DELETE /api/admin/workspaces/:id/convites/:conviteId` revoga somente convite ainda não usado.
+- `GET /api/admin/workspaces/:id/membros` lista os logins e o último acesso. `DELETE /api/admin/workspaces/:id/membros/:usuarioId` remove o vínculo e suas sessões.
+- `POST /api/admin/workspaces/:id/derrubar-sessoes` encerra todas as sessões web do cliente.
+- `GET /api/admin/motores`: disponibilidade global e mapa permitido das faixas de Gemini e Claude Team.
+- `POST /api/admin/workspaces/:id/testar-motor`: executa um pedido mínimo, registra tokens e custo e atualiza o estado do motor. Aceita somente `gemini` ou `claude_team`.
+- `PUT /api/admin/workspaces/:id/credencial`: aceita `apify` ou `claude_team`. Claude Team exige `consentimento: true`, volta ao estado não testado e nunca retorna o segredo.
+- `GET /api/admin/meu-claude`: estado da CLI exclusiva do CORE. `?atualizar=1` limpa o cache. `POST /api/admin/meu-claude/testar` faz um teste mínimo do login.
+- `/api/features-ativas`: flags do workspace da sessão.
+- `/interno/sessao`: contrato NDJSON privado do motor.
+- `GET /interno/configuracao`: disponibilidade e catálogo de modelos do broker.
+- `POST /interno/testar-motor`: teste privado autenticado pelo token entre serviços.
+- `/interno/apify/disponivel` e `/interno/apify/buscar`: mediação privada da Apify; o Hub nunca recebe o token.
+
+Aliases de modelo aceitos no Hub são `economico`, `padrao` e `forte`. O broker resolve o alias para um id permitido pelo motor e ignora ids arbitrários. Preços são configurados em USD por milhão de tokens, por faixa, com fallback para o preço geral do motor.
+
+Todo modelo usa Gemini por padrão e todo workspace provisionado nasce com Gemini, mesmo quando a receita administrativa declara Claude Team. Gemini não exige credencial por cliente e sua seleção pode ser persistida antes de o Vertex responder; indisponibilidade global aparece como manutenção durante a execução. Claude Team só pode ser selecionado depois de guardar, testar e validar a credencial. `nenhum` é contingência interna do banco, não é aceito pelas rotas de seleção nem oferecido pela interface. Ação de orçamento `cortar` bloqueia novas sessões quando o consumo mensal alcança o limite.
+
+O container hub não tem CLI de IA, chave do cofre ou rota administrativa. As seções abaixo registram o contrato 2.x preservado dentro das features e só valem quando não contradizem esta seção.
 
 Fonte da verdade entre os módulos do app. Quem constrói um módulo segue este contrato à risca. Mudança de contrato precisa ser registrada aqui junto com o código. Dúvida ou conflito: anotar no resumo final e seguir o contrato vigente.
 
@@ -6,7 +41,11 @@ Fonte da verdade entre os módulos do app. Quem constrói um módulo segue este 
 
 Cockpit web local. Backend Node (Fastify) na porta **4600**. Frontend React + Vite (dev na 5173 com proxy pro 4600). O backend abre a pasta de um VKOS instalado, orquestra sessões Claude Code ou Codex em paralelo e serve as peças geradas. Uma cópia de referência do VKOS pode existir em `../vkos` (relativa à pasta `app/`) apenas para desenvolvimento e nunca entra no pacote do usuário.
 
-Identidade visual do app: minimalista, verde-menta como destaque (menta real dos temas #2fd4a7) e contraste confortável. A interface funciona nos temas Escuro, Dark VKOS e Claro. O tema vem de duas camadas: `web/src/estilos/global.css` é a base dos tokens e `web/src/estilos/visual-hub.css` carrega por último, camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens. UI inteira em português brasileiro.
+Identidade visual do app: minimalista, verde-menta como destaque e contraste confortável. A interface funciona nos temas Escuro e Claro off-white. O tema vem de duas camadas: `web/src/estilos/global.css` é a base dos tokens e `web/src/estilos/visual-hub.css` carrega por último, camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens. `web/src/componentes/comum/` concentra os elementos e estados compartilhados. UI inteira em português brasileiro.
+
+Toda tela nova cumpre quatro contratos na mesma tarefa: usa `tela-fluxo`, entra em `interno/mapa-telas.json`, faz ida e volta pela gramática de rotas e fica sob o limite de erro do Shell.
+
+As rotas do frontend são caminhos limpos, como `/crm`, `/cockpit` e `/site/<pasta>`, controlados pela History API. O Fastify e o Vite entregam o shell da SPA em GETs de rotas da aplicação. APIs, arquivos estáticos e previews existentes não entram no fallback. No boot, um link legado `#/...` é substituído pelo caminho limpo equivalente, preservando a query string.
 
 ## Pastas e propriedade (quem escreve onde)
 
@@ -31,21 +70,17 @@ Ninguém escreve fora da própria propriedade. Integração final resolve as cos
 
 ## API HTTP (prefixo /api)
 
-### Ambiente (onboarding)
+### Ambiente legado do CORE
 - `GET /api/ambiente` responde `Ambiente` (ver tipos.ts): plataforma, versão do Node e os campos `claude` e `codex`. Cada motor traz `{ instalado, versao, logado, binario }`. `logado` pode ser `null` quando o CLI não oferece uma confirmação segura. `?atualizar=1` limpa o cache de detecção antes da leitura.
 - `GET /api/ambiente/pastas?caminho=<abs>` navega o filesystem: responde `{ caminho, pai: string | null, pastas: [{ nome, caminho, ehVkos }] }`. `ehVkos` = a pasta tem `cerebro/cerebro.md`. Sem `caminho`, responde as raízes (drives no Windows, `/` no resto). Ignorar pastas ocultas e de sistema. Sanitizar o caminho.
-- `POST /api/ambiente/instalar` body `{ provedor: "claude" | "codex" }`: no Windows, instala o CLI ausente via WinGet e responde eventos NDJSON `{ tipo: "inicio" | "texto" | "erro" | "fim", ... }`. O cliente nunca fornece comando ou pacote. O servidor aceita somente `Anthropic.ClaudeCode` e `OpenAI.Codex`, sempre com correspondência exata e origem `winget`. Apenas uma instalação roda por vez. O log sanitizado fica em `app/dados/instalacao.log`.
-- `POST /api/ambiente/login` body `{ provedor }`: abre um terminal visível com o login oficial do CLI já detectado. O Hub não recebe credencial.
-- `POST /api/ambiente/teste` body `{ provedor }`: executa o teste isolado do setup e transmite NDJSON. Prompt, modelo econômico e argumentos são definidos pelo servidor.
-- `POST /api/ambiente/atalho`: cria o atalho do VKOS Hub na área de trabalho. Não aceita caminho do cliente.
-
-No pacote Windows, `Instalar VKOS Hub.cmd` exige Node.js 20 ou mais recente. Quando ausente ou antigo, instala automaticamente `OpenJS.NodeJS.LTS` via WinGet, atualiza o caminho do processo atual e continua sem exigir reinicialização. Se o WinGet faltar ou a instalação falhar, abre o site oficial do Node.js e orienta a tentativa manual.
 
 ### VKOS (ponte)
 - `GET /api/vkos` responde `EstadoVkos`: pasta ativa, se é válida, se o Cérebro está preenchido, total de skills. No pacote final, a pasta `VKOS/` ao lado de `app/` é registrada e ativada automaticamente no boot.
 - `POST /api/vkos` body `{ caminho }`: valida (tem `cerebro/cerebro.md` e `.claude/skills/`), persiste e responde `EstadoVkos`. Erro 400 se inválida.
 - `GET /api/vkos/cerebro` responde `{ texto, caminho, atualizadoEm, conteudo, preenchido }`. `texto` é o documento completo; `conteudo` é alias legado de `texto`; `atualizadoEm` é o mtime em ISO. 404 se o arquivo não existe. Heurística de preenchido: o conteúdo não tem campos em branco do tipo `✍️`.
 - `PUT /api/vkos/cerebro` body `{ texto }`: grava o cerebro.md (atômico, backup automático em `cerebro/.backup-cerebro-<carimbo>.md` antes da primeira gravação de cada boot). 413 acima de 512 KB. Responde o mesmo shape do GET e transmite `{ tipo: "cerebro:atualizado" }`.
+- `GET /api/vkos/cerebro/secoes` responde `{ preambulo, secoes: [{ indice, titulo, corpo, preenchida }], epilogo, atualizadoEm, preenchido }`: o cerebro.md dividido em seções `##` (a vista de cards da tela Cérebro). Arquivo sem seções responde tudo no `preambulo` com `secoes` vazio. 404 sem arquivo.
+- `PUT /api/vkos/cerebro/secoes/:indice` body `{ corpo }`: troca SÓ o corpo daquela seção, preservando o resto do arquivo byte a byte, e grava pelo mesmo caminho atômico com backup do PUT inteiro. Corpo vazio restaura o marcador `✍️`. Relê o arquivo do disco antes de aplicar. 404 pra índice fora da faixa. Responde o shape do GET de seções e transmite `{ tipo: "cerebro:atualizado" }`.
 - `POST /api/anexos` body `{ nome, conteudoBase64 }`: salva anexo do composer em `materiais/cockpit/anexos/<AAAA-MM-DD>/` na pasta do VKOS. Extensões: png, jpg, jpeg, webp, gif, svg, md, txt, pdf, csv, json. Limite 15 MB. Responde 201 `{ caminhoRelativo }` (relativo à pasta do VKOS, barras normais). Erros 400/413.
 - `POST /api/vkos/pecas/:pasta/anexo` body `{ nome, conteudoBase64 }`: salva material do Ajustar com IA em `conteudo/<peça>/anexos/`. Aceita as mesmas extensões do composer, limita a 15 MB e responde 201 `{ caminhoRelativo: "anexos/<nome>" }`. Nome inválido, extensão recusada e peça ausente retornam 400 ou 404; tamanho acima do limite retorna 413.
 - `GET /api/vkos/skills` responde `{ skills: SkillVkos[] }`. Lê o frontmatter (name, description) de cada `.claude/skills/*/SKILL.md`. Atenção: description costuma ser YAML multilinha com `>`.
@@ -67,10 +102,10 @@ No pacote Windows, `Instalar VKOS Hub.cmd` exige Node.js 20 ou mais recente. Qua
 
 ### Sessões (orquestrador)
 - `GET /api/sessoes` responde `{ sessoes: Sessao[] }`.
-- `POST /api/sessoes` body `{ titulo?, prompt, skill?, modelo?, permissao?, escopoPeca?, pastaAlvo? }`: cria e inicia uma sessão no provedor ativo. `modelo`, quando presente, precisa ser um alias publicado por esse provedor. Responde `{ sessao: Sessao }` (status `iniciando` ou `fila`). Sem `escopoPeca`, cwd = `obterPastaVkos()`. Erro 400 se não há pasta VKOS.
+- `POST /api/sessoes` body `{ titulo?, prompt, skill?, modelo?, permissao?, escopoPeca?, pastaAlvo?, semCerebro?, modelosUsados? }`: cria e inicia uma sessão no provedor ativo. `modelo`, quando presente, precisa ser um alias publicado por esse provedor. `modelosUsados` aceita até quatro ids e materializa os modelos centrais ausentes no workspace antes da sessão. Responde `{ sessao: Sessao }` (status `iniciando` ou `fila`). Sem `escopoPeca`, cwd = `obterPastaVkos()`. Erro 400 se não há pasta VKOS.
 - `pastaAlvo` é a subpasta de `conteudo/` que a geração guiada de site vai criar. Só vale para `skill: "site"` sem `escopoPeca`: em qualquer outro caso o servidor a ignora. É a chave do laço de conformidade de site (ver abaixo). Para tolerar uma aba antiga do Hub, o servidor também recupera o destino da linha contratual `Salve tudo em conteudo/...` do prompt assinado pelo Site Guiado. Se corpo e prompt divergem, ou se um prompt guiado não traz destino válido, a criação é recusada com 400 antes de abrir a sessão.
 - `escopoPeca` tem o formato `{ pasta, tipo: "carrossel" | "site", arquivo?, revisaoDesign? }` e é usado somente para ajustes de uma peça existente. O servidor valida a pasta dentro de `conteudo/`, exige `carrossel.html` para carrossel ou um `.html` existente e seguro para site, inclusive em subpasta, define o cwd como a pasta exata da peça e substitui a skill pelo tipo validado. O prompt recebe o Cérebro completo como contexto somente de leitura e uma fronteira repetida que proíbe editar fora dessa pasta. O pedido do usuário nunca amplia o escopo. `revisaoDesign: true` só é aceito para site, autoriza ler e corrigir todos os HTML e recursos compartilhados da peça e injeta o conteúdo completo de `templates/site/principios-visuais.md` no prompt.
-- `POST /api/sessoes` devolve 409 antes de criar a sessão quando `skill` é `carrossel` ou `site` e o Cérebro está em branco. O frontend direciona o usuário para montar o Cérebro.
+- `POST /api/sessoes` devolve 409 antes de criar a sessão quando `skill` é `carrossel` ou `site` e o Cérebro está em branco. O frontend direciona o usuário para montar o Cérebro. Exceção: `semCerebro: true` no body dispensa a guarda como escolha explícita do usuário (o prompt já carrega o bloco "MODO SEM CÉREBRO"). Com o Cérebro preenchido o flag é ignorado; a sessão registra `semCerebro` só quando a dispensa de fato valeu.
 - `POST /api/sessoes` também devolve 409 quando já existe uma sessão `carrossel` ou `site` em `fila`, `iniciando` ou `rodando`. A exclusão mútua é global no Hub, inclusive entre workspaces e abas. Sessões gerais e a skill interna `imagem` não ocupam essa trava.
 - `POST /api/sessoes/:id/mensagem` body `{ texto }`: continua a sessão com o provedor e o id nativo persistidos nela, mesmo que o provedor global tenha mudado. Responde `{ ok: true }`.
 - `POST /api/sessoes/:id/parar`: mata o processo. Responde `{ ok: true }`.
@@ -212,6 +247,9 @@ O backend NÃO interpreta o layout: persiste JSON opaco do frontend. Escopado po
 ## Sessões (API nova)
 
 - `DELETE /api/sessoes/:id`: para o processo se estiver rodando e remove a sessão do índice. 404 se não existe.
+- No Hub, `POST /api/sessoes` resolve `skill` somente em `.claude/skills/<skill>/SKILL.md` dentro da pasta autenticada do workspace. O motor recebe as instruções reais, nunca o comando de barra cru. Comando `/...` sem skill existente falha com 422 antes de consumir IA.
+- Os turnos seguintes recebem as instruções da skill, o Cérebro atual e a conversa anterior. Quando a skill precisa escrever texto, o motor devolve blocos `VKOS_ARQUIVO`; o Hub valida o caminho, bloqueia traversal e atalhos e grava atomicamente dentro do workspace.
+- Workspace no estado interno `nenhum` responde 409 com a mensagem neutra de IA em manutenção. A cerimônia apresenta esse estado e falhas do motor com nova tentativa, sem fingir que a entrevista começou.
 
 ## Montagem do prompt (convenção do frontend, a economia de tokens)
 
@@ -300,7 +338,7 @@ Decisão registrada em `decisoes/2026-07-11-cockpit-visao-viva-downloads-e-links
 
 ## Fontes de dados e downloads (frontend, shell)
 
-- Sidebar mostra um único botão "Fontes de dados" quando há contexto, com a soma total. `#/fontes` abre o hub com um card por tipo presente. `#/fonte/<tipo>` continua sendo a tela individual e volta para o hub.
+- Sidebar mostra um único botão "Fontes de dados" quando há contexto, com a soma total. `/fontes` abre o hub com um card por tipo presente. `/fonte/<tipo>` continua sendo a tela individual e volta para o hub.
 - Tela de fonte: grade de cards (nome, atualizada em, prévia do conteúdo: trecho do texto, miniaturas ou primeiros links). Ações: abrir (EditorContexto), excluir (confirmação própria). Botão "Nova fonte" cria via estado (`criarContexto(nome, tipo)`).
 - Telas de fluxo melhoradas: cards maiores e mais generosos (a seção de cada geração cresce), botão de download EM CADA imagem (anchor com download renomeado pela convenção `<base>NN.<ext>`), e botão "Baixar tudo" no card chamando o endpoint do zip. Os dois botões de download só em peças de imagem (carrossel, stories).
 
@@ -332,7 +370,11 @@ IMPORTANTE nesta rodada: NENHUM agente edita `app/server/src/index.ts`. Cada mó
 
 ## Modelos de carrossel (backend, módulo vkos)
 
-- `GET /api/vkos/modelos-carrossel` responde `{ modelos: ModeloCarrossel[] }` (tipos.ts). Fonte: os arquivos `templates/carrossel/modelo-*.html` da pasta VKOS cruzados com as descrições de `templates/carrossel/estilos.md`. `id` = miolo do nome do arquivo (ex: "vkos02", "dark"), `nome` legível, `descricao` curta tirada do estilos.md (parser tolerante; sem descrição, string vazia), `pedeImagem` conforme o estilos.md/SKILL (vkos 01, 03, 06, 07, 08, 09, editorial, declaracao e produto pedem imagem).
+- `GET /api/vkos/modelos-carrossel` responde `{ modelos: ModeloCarrossel[] }` (tipos.ts). A resposta une os arquivos locais de `templates/carrossel/modelo-*.html` com o banco central. Sombras locais `b-*` não entram na lista, pois os metadados do banco são a fonte da verdade.
+- O banco vive em `DADOS_MODELOS` ou `app/dados/modelos-carrossel/<id>/`, com `modelo.html` e `modelo.json`. Todo id central começa com `b-`. O JSON guarda `id`, `nome`, `descricao`, `tipo`, `pedeImagem`, `criadoEm` e `atualizadoEm`. O tipo é `capa`, `desenvolvimento`, `cta` ou `completo`.
+- O HTML aceita no máximo 512 KB e precisa conter um elemento com classe `slide`. URLs externas fora do Google Fonts geram aviso. O preview central usa `GET /modelos-html/:id/preview`.
+- No wizard, modelos `completo` aparecem em todos os grupos. Modelos especializados aparecem somente em Capa, Páginas ou Fecho. Um Fecho diferente das páginas entra no prompt como terceiro arquivo, sem alterar o prompt antigo quando essa escolha está vazia.
+- Na criação da sessão, `modelosUsados` faz a cópia sob demanda para `templates/carrossel/modelo-<id>.html`. A pasta central é compartilhada pelos containers CORE e Hub. Excluir do banco não apaga cópias já materializadas em clientes.
 
 ## Convenção do prompt (carrossel com estilo)
 
@@ -424,7 +466,7 @@ Convenção de resposta: as rotas que criam, ativam ou renomeiam um workspace re
 
 # Rodada 10 (2026-07-13): VKOS-IDE, Conexões MCP e CRM (fases 4, 5 e 6)
 
-Quatro agentes em paralelo. Cada um e dono EXCLUSIVO dos seus arquivos. Regras gerais: português brasileiro, NUNCA travessão nem o caractere de ponto centrado, frase curta, toda cor via tokens de tema de `web/src/estilos/global.css` (o app tem os temas Escuro, Dark VKOS e Claro, tudo precisa funcionar nos três), escrita de estado em disco sempre atômica via `server/src/util/gravarJson.ts`, caminhos de arquivo SEMPRE sanitizados (resolve + startsWith na base, nunca aceitar `..`). Ninguém toca em: vkos/.claude/skills/carrossel/SKILL.md, estado/contexto.tsx (exceto onde dito), api/cliente.ts, tipos/dominio.ts, index.ts do server (a integração final registra as rotas), Shell.tsx e Sidebar.tsx (integração final).
+Quatro agentes em paralelo. Cada um e dono EXCLUSIVO dos seus arquivos. Regras gerais: português brasileiro, NUNCA travessão nem o caractere de ponto centrado, frase curta, toda cor via tokens de tema de `web/src/estilos/global.css` nos temas Escuro e Claro, escrita de estado em disco sempre atômica via `server/src/util/gravarJson.ts`, caminhos de arquivo SEMPRE sanitizados (resolve + startsWith na base, nunca aceitar `..`). Ninguém toca em: vkos/.claude/skills/carrossel/SKILL.md, estado/contexto.tsx (exceto onde dito), api/cliente.ts, tipos/dominio.ts, index.ts do server (a integração final registra as rotas), Shell.tsx e Sidebar.tsx (integração final).
 
 ## Sessões: extensões (dono: agente IDE-backend)
 
@@ -450,9 +492,11 @@ Arquivos: `web/src/componentes/ide/` (novo), `web/src/estilos/ide.css` (novo), `
 - Editor: textarea com fonte mono, números de linha simples, Ctrl+S salva (PUT), indicador de sujo/salvo, aviso ao trocar de arquivo com mudança não salva. Sem dependência nova de editor pesado nesta fase.
 - Árvore: clique abre arquivo; botão direito com menu próprio (novo arquivo, nova pasta, renomear, excluir com confirmação em dois cliques no padrão do app: balão clicável, desarme por tempo, nunca por mouseleave).
 - Chat: cria sessão via estado (`criarSessao`) com título "Sessão da IDE", conversa igual ao padrão do app e mostra as ferramentas ao vivo. O controle no cabeçalho escolhe motor, modelo e permissão da próxima conversa. Com sessão aberta, "Aplicar numa conversa nova" preserva as novas regras e limpa a conversa local.
-- Depois que a árvore ou o chat alterarem arquivos, botão de recarregar árvore. Tudo nos três temas.
+- Depois que a árvore ou o chat alterarem arquivos, botão de recarregar árvore. Tudo nos dois temas.
 
 ## Conexões MCP (dono: agente Conexões, full-stack)
+
+Esta interface e suas rotas são exclusivas do CORE. No Hub, integrações de cliente precisam de operação interna mediada; a primeira é a Apify em `/interno/apify/*`.
 
 Arquivos: `server/src/conexoes/` (novo: rotas.ts, estado.ts, mcp.ts), `web/src/componentes/conexoes/` (novo), `web/src/estilos/conexoes.css` (novo), `web/src/api/conexoes.ts` (novo).
 
@@ -460,7 +504,7 @@ Arquivos: `server/src/conexoes/` (novo: rotas.ts, estado.ts, mcp.ts), `web/src/c
 - Catálogo fixo em `server/src/conexoes/catalogo.ts`: GitHub, Netlify, Notion, Google Calendar e Apify. Vercel, Meta e Google Ads não aparecem nesta versão. Cada entrada descreve campos e transporte. A montagem do servidor MCP é opcional: a Apify usa API REST direta e nunca entra na configuração MCP das sessões.
 - `GET /api/conexoes` devolve catálogo + estado do workspace ativo (segredos mascarados: só os 4 últimos caracteres). `PUT /api/conexoes/:id` body `{ habilitado, config? }`.
 - `montarConfigMcp(workspaceId): { caminho: string, servidores: string[] } | null` em mcp.ts: monta o JSON de mcp servers dos habilitados com config completa, grava atômico em `app/dados/workspaces/<id>/mcp-config.json` e devolve o caminho e os ids habilitados. Sem nenhum habilitado, null. Exporta também os tipos.
-- `TelaConexoes`: cards por serviço (nome, descrição, campo de token com olho de revelar, toggle habilitar, estado salvo com feedback), aviso local-first, cards indisponíveis com selo "em breve". Três temas.
+- `TelaConexoes`: cards por serviço (nome, descrição, campo de token com olho de revelar, toggle habilitar, estado salvo com feedback), aviso local-first, cards indisponíveis com selo "em breve". Dois temas.
 
 ## CRM (dono: agente CRM, full-stack)
 
@@ -473,7 +517,7 @@ Arquivos: `server/src/crm/` (novo), `web/src/componentes/crm/` (novo), `web/src/
 - `PATCH /negocios/:id/mover` recebe `{ colunaId, indice? }`. Com `indice`, o negócio é reposicionado dentro do bloco da coluna de destino: a ordem do array de negócios é a ordem visual do quadro, então soltar um cartão numa posição precisa gravar isso. Sem `indice`, só a coluna muda. A regra de inserção vive em `posicionarNegocio` e é espelhada no cliente por `moverNegocioLocal`; as duas precisam andar juntas.
 - Os eventos antigos continuam compatíveis. Criar, atualizar e excluir contato mantêm `{ contato }`. Mover negócio emite `crm:contato-movido` com `{ contato, negocio, colunaDe, colunaPara, nomeColunaDe, nomeColunaPara }`, e só quando a coluna muda de verdade: reordenar dentro da mesma coluna não pode disparar automação de mudança de estágio. Registrar interação emite `crm:interacao-registrada` com `{ contato, interacao }`. Automações leem o valor do negócio com fallback para eventos históricos.
 - Desde 2026-07-17: criar, atualizar e excluir negócio emitem `crm:negocio-criado`, `crm:negocio-atualizado` e `crm:negocio-excluido` com `{ contato, negocio }` (excluir sem contato encontrado emite só `{ negocio }`). Os eventos antigos não mudam.
-- `TelaCrm` tem Hoje, Quadro e Contatos sobre o mesmo estado. O Quadro move negócios, reordena colunas pelas setas do cabeçalho (usa `PATCH /crm/colunas/reordenar`) e mostra uma coluna tracejada de contatos sem negócio, com atalho pra criar o negócio e entrar no funil; a lista busca, filtra e ordena contatos; a ficha reúne negócios, linha do tempo, tarefas, tags e próximo contato. Hoje mostra follow-ups, esquecidos, valor por estágio e tarefas abertas. Novo contato abre um formulário e só cria a ficha quando o usuário confirma. Três temas, motion sutil e `prefers-reduced-motion`.
+- `TelaCrm` tem Hoje, Quadro e Contatos sobre o mesmo estado. O Quadro move negócios, reordena colunas pelas setas do cabeçalho (usa `PATCH /crm/colunas/reordenar`) e mostra uma coluna tracejada de contatos sem negócio, com atalho pra criar o negócio e entrar no funil; a lista busca, filtra e ordena contatos; a ficha reúne negócios, linha do tempo, tarefas, tags e próximo contato. Hoje mostra follow-ups, esquecidos, valor por estágio e tarefas abertas. Novo contato abre um formulário e só cria a ficha quando o usuário confirma. Dois temas, motion sutil e `prefers-reduced-motion`.
 - `TelaCrm` também tem Buscar leads, uma ferramenta persistente de mineração ligada ao CRM. Resultados entram primeiro em Minerados, podem ir para Arquivados e só viram Contatos quando o usuário importa.
 - `server/src/crm/resumo.ts` monta um resumo agregado de até 8 KB com funil, follow-ups, tags, esquecidos e vozes recentes. Telefone e email são removidos inclusive quando aparecem no texto da interação.
 - Se o prompt de uma sessão nova contém a palavra inteira `crm`, o servidor persiste o resumo em `contextoCrm` e o acrescenta a `instrucoesExtras`. Claude e Codex recebem também a regra dura que proíbe publicar nome completo, telefone, email ou qualquer dado identificável. A retomada repete o mesmo contexto; sem menção ao CRM, nada é injetado.
@@ -482,7 +526,7 @@ Arquivos: `server/src/crm/` (novo), `web/src/componentes/crm/` (novo), `web/src/
 
 - O backend vive em `server/src/leads/`. Ele usa o Actor `compass/crawler-google-places` pela API REST v2 da Apify, com idioma `pt-BR`, timeout local de 3 minutos e limite explícito de 40 resultados por execução.
 - A mineração vive em `app/dados/workspaces/<id>/leads.json`, separada do `crm.json`, com escrita atômica. Cada item guarda os dados encontrados, status `minerado` ou `arquivado`, termo, localização, `capturadoEm` e `atualizadoEm`. A resposta da Apify é persistida antes de a rota de busca responder.
-- `GET /api/leads` responde `{ minerados, arquivados }`, com `jaExisteNoCrm` calculado na leitura. `POST /api/leads/buscar` recebe `{ termo, localizacao?, limite?, buscarEmails? }` e responde as duas listas mais `{ resumo: { encontrados, novos, atualizados } }`. O termo é o único campo obrigatório; o limite padrão é 20 e o teto continua 40.
+- `GET /api/leads` responde `{ minerados, arquivados }`, com `jaExisteNoCrm` calculado na leitura. `GET /api/leads/disponivel` responde se a credencial Apify existe e controla a presença da aba Buscar leads. `POST /api/leads/buscar` recebe `{ termo, localizacao?, limite?, buscarEmails? }` e responde as duas listas mais `{ resumo: { encontrados, novos, atualizados } }`. No CORE usa a conexão local; no Hub chama o motor interno, sem materializar o token. O termo é o único campo obrigatório; o limite padrão é 20 e o teto continua 40.
 - `PATCH /api/leads/:id` recebe `{ status: "minerado" | "arquivado" }`. `DELETE /api/leads/:id` remove o item apenas da mineração. Excluir um Contato continua sendo responsabilidade da aba Contatos.
 - `POST /api/leads/importar` recebe `{ ids: string[] }` e responde `{ importados, duplicados, contatos, listas }`. O servidor busca os dados no estado persistido, sem confiar em um payload de contato vindo da tela. O teto por lote é 500: a mineração acumula várias buscas, então o limite de importação não é o limite de uma busca. A tela também importa um lead avulso pelo botão do próprio cartão, com o mesmo endpoint.
 - A comparação remove tudo que não é dígito do telefone e também confere `origem: "google-maps:<placeId>"`. Assim, um lead sem telefone não é importado duas vezes. Contato novo recebe essa origem, tag `google-maps` e a data normal de criação do CRM.
@@ -491,13 +535,13 @@ Arquivos: `server/src/crm/` (novo), `web/src/componentes/crm/` (novo), `web/src/
 ## Mapa do sistema interno
 
 - `GET /api/mapa` lê `interno/mapa-sistema.json` a cada chamada. Arquivo válido responde `{ disponivel: true, mapa }`; ausente ou inválido responde `{ disponivel: false }`.
-- `#/mapa` é um visualizador React Flow de leitura, com layout determinístico, painel didático e ligações direcionais entre nós. Títulos e descrições podem ser ocultados separadamente. O Modo discreto esconde também rótulos das conexões, legenda textual e painel detalhado. O item Mapa só aparece na Sidebar quando a API confirma disponibilidade.
+- `/mapa` é um visualizador React Flow de leitura, com layout determinístico, painel didático e ligações direcionais entre nós. Títulos e descrições podem ser ocultados separadamente. O Modo discreto esconde também rótulos das conexões, legenda textual e painel detalhado. O item Mapa só aparece na Sidebar quando a API confirma disponibilidade.
 - Nós, conexões e pontos de entrada ou saída nunca mostram cursor ou gesto de edição. Clique apenas seleciona e destaca o circuito que recebe ou envia informação.
 - Os dados da arquitetura ficam em `interno/`, fora de `app/` e fora do pacote de cliente por construção. O código distribuível contém somente o visualizador genérico vazio. Nenhum módulo depende do Mapa para funcionar.
 
 ## Integração final (fora dos agentes)
 
-Registra rotas novas no index.ts, adiciona as três telas no Shell/Sidebar com rotas hash (#/ide, #/conexoes, #/crm) e React.lazy, roda build e QA.
+Registra rotas novas no index.ts, adiciona as três telas no Shell/Sidebar com caminhos `/ide`, `/conexoes` e `/crm` e React.lazy, roda build e QA.
 
 # Rodada 11 (2026-07-14): temas, mensagens, modelo na IDE
 
@@ -506,7 +550,7 @@ Feito pelo orquestrador: fix das posicoes dos containers no reload (Cockpit.tsx,
 ## Temas e polimento (dono: agente Temas)
 
 Arquivos: global.css, index.html, Sidebar.tsx, ide.css, conexoes.css, crm.css, workspaces.css.
-Tres temas (decisoes/2026-07-14-tres-temas.md): :root segue sendo o Dark VKOS (base), :root[data-theme="escuro"] e o padrao novo (grafite neutro #16181d, menta de destaque), :root[data-theme="claro"] mantido. localStorage "vkos-tema": claro | escuro | vkos, padrao "escuro". Popover de tres opcoes na sidebar (.tema-menu). Polimento: :focus-visible global, scrollbar, hover e motion sutil.
+Contrato atual, decidido em 2026-07-22: dois temas. `:root` e `:root[data-theme="escuro"]` usam grafite neutro com menta `#2fd4a7`. `:root[data-theme="claro"]` usa fundo off-white e menta escurecida. `localStorage["vkos-tema"]` aceita `claro | escuro`; o valor antigo `vkos` migra para `escuro`. O seletor tem duas opções. Foco visível, scrollbar, hover e motion sutil continuam obrigatórios.
 
 ## Mensagens apresentaveis (dono: agente Mensagens)
 
@@ -520,9 +564,9 @@ QA (3o Opus): todos os itens passaram, zero erros de console. Rolagem de bloco d
 ## Shell e marca
 
 - A marca usa `/logo.png` em `web/public/`, tanto na sidebar quanto no splash. O mesmo arquivo é o favicon.
-- WhatsApp e Instagram saíram do Shell. Hashes antigos caem no Dashboard. Formatos de peça do Instagram e links `wa.me` do editor não mudaram.
-- A IDE não é mais uma rota de tela. `camada-ide` fica montada como painel contido acima do conteúdo, oculta por `visibility` ao fechar. A Sidebar só alterna a camada e qualquer navegação normal a fecha. Em telas compactas, a navegação local alterna Arquivos, Editor e Conversa. O hash legado `#/ide` abre a camada e volta o hash para a tela real.
-- Toda criação guiada tem rota própria: `#/criar/carrossel`, `#/criar/post`, `#/criar/story` ou `#/criar/site`. O Shell é o dono do assistente e do histórico. Abrir cria uma entrada com retorno interno seguro; cancelar ou minimizar substitui a entrada pelo retorno; concluir substitui pela rota `#/studio/<pasta>` ou `#/site/<pasta>`. Atualizar uma rota de criação remonta o assistente correto, e tipo desconhecido cai no Dashboard.
+- WhatsApp e Instagram saíram do Shell. Caminhos antigos não reconhecidos caem no Dashboard. Formatos de peça do Instagram e links `wa.me` do editor não mudaram.
+- A IDE não é mais uma rota de tela. `camada-ide` fica montada como painel contido acima do conteúdo, oculta por `visibility` ao fechar. A Sidebar só alterna a camada e qualquer navegação normal a fecha. Em telas compactas, a navegação local alterna Arquivos, Editor e Conversa. A entrada direta `/ide`, inclusive quando convertida de `#/ide`, abre a camada e volta a URL para a tela real.
+- Toda criação guiada tem rota própria: `/criar/carrossel`, `/criar/post`, `/criar/story` ou `/criar/site`. O Shell é o dono do assistente e do histórico. Abrir cria uma entrada com retorno interno seguro; cancelar ou minimizar substitui a entrada pelo retorno; concluir substitui pela rota `/studio/<pasta>` ou `/site/<pasta>`. Atualizar uma rota de criação remonta o assistente correto, e tipo desconhecido cai no Dashboard.
 
 ## Site Guiado v2
 
@@ -544,7 +588,7 @@ QA (3o Opus): todos os itens passaram, zero erros de console. Rolagem de bloco d
 - A árvore publicável exclui `anexos/`, `.git/`, `node_modules/`, Markdown, backups e temporários do editor. A presença de `site.md`, outro `.md` ou `carrossel.html` dentro da peça invalida o site antes do deploy.
 - As duas rotas ignoram `*.bak` e a pasta raiz `anexos/`, recusam traversal e exigem peça existente. Tokens vêm de `conexoes.json` e nunca entram no log ou na resposta.
 - Publicação confirmada emite `peca:publicada` com pasta, destino e URL.
-- A TelaSite mostra o botão somente em Visualizar. O painel permite publicar cada destino sozinho, bloqueia duplo disparo, mostra erro local, link e data do último envio. Destino desconectado leva para `#/conexoes`.
+- A TelaSite mostra o botão somente em Visualizar. O painel permite publicar cada destino sozinho, bloqueia duplo disparo, mostra erro local, link e data do último envio. Destino desconectado leva para `/conexoes`.
 
 ## Publicação em dois modos: projeto Astro (2026-07-17)
 
@@ -682,8 +726,8 @@ Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 - `app/server/src/mapa.ts` ganhou `MapaTelasSchema` (Zod) com superRefine (zona existe, pontas de ligação existem, passos de jornada existem, ids únicos), `lerMapaTelas`, `validarMapaTelas` e a rota `GET /api/mapa/telas` no plugin `rotasMapa` (`{ disponivel, mapa }`, mesmo contrato do `/mapa`). `mapa.test.ts` valida o JSON real e recusa ponta/passo órfão.
 - `TelaMapaTelas.tsx` (componentes/mapa/) é a visão nova, com seu próprio `ReactFlowProvider`. `TelaMapa.tsx` virou o chapéu com o seletor "Sistema | Telas" (só aparece quando `/api/mapa/telas` está disponível; sem ela o Mapa é idêntico ao de antes). Os controles do Sistema (Títulos, Descrições, Discreto, Percurso das skills, Mapa completo) ficam escondidos na visão Telas.
 - Nós posicionados por zona (coluna) e ordem (linha). `NoTela` mostra tag da zona, mini-esqueleto CSS (`EsqueletoTela`, chave `esqueleto`, nunca screenshot, só tokens), nome, rota, resumo, estados (até 4, "+n") e o botão Abrir. Aresta `LigacaoGesto` estática com o rótulo do gesto. `onlyRenderVisibleElements` ligado, sem animação contínua.
-- Botão Abrir navega por hash (`window.location.hash`), o mesmo caminho do Voltar do navegador, sem tocar no Shell. `resolverDestino` trata os especiais (`setup`, `ide`) e os parametrizados (`studio:@peca-imagem`, `site:@peca-site`, `fonte:@fonte`) resolvendo pela peça ou fonte mais recente do cliente ativo; sem candidato, o botão desabilita com o motivo. Destino `null` não mostra botão. `mapa-telas.test.ts` (web) trava o round-trip de cada destino contra `telaParaHash`/`hashParaTela`.
-- Jornadas: chips no canvas (padrão do Percurso das skills). Selecionar acende os passos com número, atenua o resto, destaca as arestas do caminho e lista os passos clicáveis no painel. Classes `mapa-no-tela-*`, `mapa-esq*`, `mapa-gesto-*`, `mapa-abrir-*` em mapa.css, só tokens, três temas, `prefers-reduced-motion` respeitado. Puramente visual: nenhum comportamento do app muda.
+- Botão Abrir navega pelo History API, o mesmo histórico do Voltar do navegador. `resolverDestino` trata a IDE e os destinos parametrizados (`studio:@peca-imagem`, `site:@peca-site`, `fonte:@fonte`) resolvendo pela peça ou fonte mais recente do cliente ativo; sem candidato, o botão desabilita com o motivo. Destino `null` não mostra botão. `mapa-telas.test.ts` (web) trava o round-trip de cada destino contra `telaParaCaminho`/`caminhoParaTela`.
+- Jornadas: chips no canvas (padrão do Percurso das skills). Selecionar acende os passos com número, atenua o resto, destaca as arestas do caminho e lista os passos clicáveis no painel. Classes `mapa-no-tela-*`, `mapa-esq*`, `mapa-gesto-*`, `mapa-abrir-*` em mapa.css, só tokens, dois temas, `prefers-reduced-motion` respeitado. Puramente visual: nenhum comportamento do app muda.
 
 ## CRM v3: o contato é o cartão do funil (2026-07-21)
 
@@ -692,3 +736,13 @@ Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 - `moverContato(id, {colunaId, indice})` novo: move a ficha de estágio, reposiciona via `posicionarNoFunil` (genérica sobre `{id, colunaId}`, ex-`posicionarNegocio`) e emite `crm:contato-movido` (mesmo payload de antes: colunaDe/colunaPara/nomes). `moverNegocio` saiu. `criarContato` aceita `colunaId` (default primeira) e `lead`. `removerColuna` remaneja os CONTATOS da coluna (não os negócios). `criarNegocio`/`atualizarNegocio` não tocam mais em coluna. Rota nova `PATCH /api/crm/contatos/:id/mover`; `PATCH /api/crm/negocios/:id/mover` removida.
 - `resumo.ts` (contexto pra IA) conta contatos por coluna e soma o valor dos negócios daqueles contatos. As automações escutam o mesmo evento `crm:contato-movido` (o rótulo "Cartão movido de coluna" agora é literalmente o contato), sem mudança de contrato.
 - Import de leads (`importarLeadsNoCrm`) leva o retrato completo pra `contato.lead` via `retratoDoLead`. Web: `TelaCrm` monta o quadro por `contato.colunaId` (fim da coluna virtual "Contatos sem negócio"), arrasta contatos, `CartaoContato` mostra a pessoa + soma de valor + tags, `ColunaCrm` recebe contatos. `PainelContato` ganhou seletor de estágio no topo e seção "Dados do lead"; a linha de negócio virou só título + valor. Classes `crm-painel-estagio`, `crm-lead-ficha`, `crm-cartao-tags` em crm.css, só tokens.
+
+## Feature Meta (2026-07-23)
+
+- `meta` é uma feature de cliente sem IA e sem dependências. A tela fixa `/meta` e as rotas `/api/meta/*` obedecem ao gate do catálogo.
+- `GET /api/meta/estado` devolve vínculo, última coleta e produtos ativos. `GET /api/meta/instagram`, `/api/meta/anuncios` e `/api/meta/facebook` leem somente snapshots do workspace. Esses handlers nunca consultam a Graph API.
+- O vínculo fica em `<dados-do-workspace>/meta/vinculo.json`. Os arquivos diários são `instagram-perfil.jsonl`, `anuncios.jsonl` e `facebook.jsonl`. Publicações correntes ficam em `instagram-publicacoes.json` e `facebook-publicacoes.json`.
+- A credencial central tem `appId`, `appSecret`, `businessId` e `tokenSistema`. Localmente usa `app/dados/conexoes.json`. Na nuvem usa `credenciais_sistema` com AES-256-GCM. App Secret e token nunca saem sem a máscara de `plataforma/cofre.ts`.
+- As rotas exclusivas do operador são `GET|PUT /api/admin/meta/credencial`, `POST /api/admin/meta/testar`, `GET /api/admin/meta/ativos`, `GET|PUT /api/admin/meta/vinculo/:workspaceId` e `POST /api/admin/meta/coletar/:workspaceId`.
+- O cliente Graph fixa v25.0, centraliza os nomes de métricas, classifica token, permissão, ativo e limite e repete uma vez quando recebe limite. Endpoints alternativos só são aceitos em teste.
+- O coletor roda em série no CORE, às 6h, e mantém marcador diário central. A atualização manual exige 15 minutos entre execuções. Cada série retém até 400 pontos por ativo.
