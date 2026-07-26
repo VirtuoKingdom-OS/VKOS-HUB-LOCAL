@@ -72,7 +72,7 @@
       "grupo": "entrada",
       "nome": "Site Guiado e TelaSite",
       "resumo": "O caminho que transforma uma intenção em site e depois permite revisar cada página.",
-      "descricao": "É a dupla arquiteto e sala de visita. Primeiro, o guia reúne objetivo, estrutura, imagens e direção visual; o servidor confirma o destino e submete a entrega à mesma auditoria do deploy; depois, a TelaSite deixa conferir, editar e preparar a publicação sem esconder pendências. A conferência automática cobre os dois momentos em que a IA escreve o site: a geração e cada ajuste pedido na TelaSite. Nos dois casos o Hub roda a mesma inspeção da publicação e manda a própria sessão corrigir o que reprovar, até duas voltas, antes de dar a peça como pronta. Enquanto essa conferência roda, a tela diz que ainda está conferindo ou corrigindo, e nunca anuncia o ajuste como concluído. No modo de edição, um painel de camadas mostra o que compõe cada seção, deixa reordenar e aceita imagens próprias; no guia, o interruptor Aprimorar com IA permite trocar a criação caprichada por uma montagem econômica com estilo fixo, e a conferência roda igual nos dois casos.",
+      "descricao": "É a dupla arquiteto e sala de visita. Primeiro, o guia reúne objetivo, estrutura, imagens e direção visual; o servidor confirma o destino e submete a entrega à mesma auditoria da exportação; depois, a TelaSite deixa conferir, editar e preparar a saída do site sem esconder pendências. A conferência automática cobre os dois momentos em que a IA escreve o site: a geração e cada ajuste pedido na TelaSite. Nos dois casos o Hub roda a mesma inspeção da exportação e manda a própria sessão corrigir o que reprovar, até duas voltas, antes de dar a peça como pronta. Enquanto essa conferência roda, a tela diz que ainda está conferindo ou corrigindo, e nunca anuncia o ajuste como concluído. No modo de edição, um painel de camadas mostra o que compõe cada seção, deixa reordenar e aceita imagens próprias; no guia, o interruptor Aprimorar com IA permite trocar a criação caprichada por uma montagem econômica com estilo fixo, e a conferência roda igual nos dois casos.",
       "conversaCom": [
         "cerebro",
         "anexos",
@@ -211,11 +211,10 @@
       "id": "conexoes",
       "grupo": "integracoes",
       "nome": "Conexões",
-      "resumo": "As pontes locais que dão acesso controlado a serviços externos por MCP ou API direta.",
-      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Elas permitem que sessões, publicações e busca de leads alcancem ferramentas externas, mantendo as credenciais guardadas apenas no computador.",
+      "resumo": "As pontes locais que dão acesso controlado a serviços externos por API direta.",
+      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Hoje a única é a Apify, que abastece a busca de leads do CRM, com a credencial guardada apenas no computador.",
       "conversaCom": [
         "sessoes",
-        "publicacao",
         "setup",
         "crm"
       ]
@@ -250,12 +249,11 @@
     {
       "id": "publicacao",
       "grupo": "saida",
-      "nome": "Publicação no GitHub e Netlify",
-      "resumo": "A última inspeção e a entrega do site para a internet.",
-      "descricao": "É a expedição com controle de qualidade na porta. Antes de enviar, o Hub confere páginas, recursos, leitura no celular e no computador; só um site aprovado segue para GitHub ou Netlify. Site com várias páginas ainda ganha um upgrade na saída: vira um projeto Astro de verdade (com sitemap e robots), montado por um conversor automático sem IA; se não der, sai como HTML puro mesmo, com aviso.",
+      "nome": "Exportação local do site",
+      "resumo": "A última inspeção e a entrega do site pronto para o computador do dono.",
+      "descricao": "É a expedição com controle de qualidade na porta. Antes de liberar, o Hub confere páginas, recursos, leitura no celular e no computador; só um site aprovado pode sair. Aprovado, ele sai de dois jeitos: abrindo a pasta da peça no explorador de arquivos ou baixando um ZIP pronto pra subir em qualquer hospedagem. Site com várias páginas ainda ganha um upgrade na saída: vira um projeto Astro de verdade, compilado por um conversor automático sem IA; se não der, sai como HTML puro mesmo, com aviso. Nada é enviado pra internet e nenhuma credencial é pedida.",
       "conversaCom": [
         "pecas",
-        "conexoes",
         "site-guiado"
       ]
     }
@@ -368,11 +366,6 @@
     },
     {
       "de": "conexoes",
-      "para": "publicacao",
-      "rotulo": "autoriza"
-    },
-    {
-      "de": "conexoes",
       "para": "crm",
       "rotulo": "fornece leads"
     },
@@ -417,7 +410,7 @@
     {
       "id": "site",
       "nome": "/site",
-      "resumo": "Site guiado que nasce, passa pela conferencia e vai pra publicacao.",
+      "resumo": "Site guiado que nasce, passa pela conferencia e vai pra exportacao.",
       "cor": "menta",
       "percurso": ["site-guiado", "sessoes", "skills", "cerebro", "pecas", "publicacao"]
     },

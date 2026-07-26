@@ -4,14 +4,14 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Fase aberta:** Fase 1, Amputação.
+**Próxima fase:** Fase 2, Verdade do gasto.
 
 ## Quadro
 
 | Fase | Estado | Versão | Fechou em |
 |---|---|---|---|
 | 0. Fundação do repositório | fechada | 1.0.0 | 2026-07-26 |
-| 1. Amputação | aberta | 1.1.0 | |
+| 1. Amputação | fechada | 1.1.0 | 2026-07-26 |
 | 2. Verdade do gasto | pendente | 1.2.0 | |
 | 3. HUB CORE | pendente | 1.3.0 | |
 | 4. Nova pele | pendente | 2.0.0 | |
@@ -25,6 +25,18 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 - `CONTRIBUTING.md`, `SECURITY.md`, `README.md` e `CHANGELOG.md` reescritos.
 - `.gitattributes` normalizando fim de linha, o que consertou 4 testes que quebravam por CRLF.
 - Tag `v1.0.0`.
+
+## Fase 1, o que ficou pronto
+
+- Modo enxuto removido do produto inteiro: módulo, config, campo na sessão, toggle e CSS.
+- Instruções extras da sessão passaram a viajar pelo stdin nos dois provedores. `montarArgsClaude` virou função exportada e ganhou o primeiro teste do provedor Claude.
+- Automações, Calendário e a camada Google apagadas por inteiro, server e web.
+- Conectores GitHub, Netlify, Notion e Google Calendar removidos. Sobrou só a Apify no catálogo.
+- Publicação integrada virou exportação local: `POST /publicacao/:pasta/abrir-pasta` e `GET /publicacao/:pasta/exportar`. O conversor Astro, o motor de build e a auditoria ficaram intactos, e a barreira de qualidade continua bloqueando a exportação de site reprovado.
+- `interno/mapa-sistema.json`, `interno/mapa-telas.json` e `app/CONTRATO.md` atualizados na mesma rodada.
+- Fecha verde: 146 testes no server, 29 na web, dois typechecks e build.
+
+Nota: o conversor Astro continua gerando `netlify.toml` dentro do projeto exportado, de propósito. Ele deixa o site pronto para o Jesse publicar à mão, com conta própria, sem nenhuma credencial passar pelo Hub.
 
 ## Achados que já valem para as próximas fases
 

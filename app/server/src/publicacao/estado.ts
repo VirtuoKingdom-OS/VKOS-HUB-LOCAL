@@ -7,28 +7,22 @@ import {
   pastaDadosWorkspace,
 } from "../workspaces/estado.js";
 
+// Registro local do que ja saiu de cada peca. Desde 2026-07-26 guarda somente a
+// exportacao: a publicacao integrada no GitHub e na Netlify saiu do produto (ver
+// decisoes/2026-07-26-fim-da-publicacao-integrada.md). O arquivo mantem o nome
+// antigo de proposito: entradas velhas com github e netlify sao simplesmente
+// ignoradas na leitura, sem migracao.
 const NOME_ARQUIVO = "publicacoes.json";
 
 export type ModoPublicacaoRegistro = "astro" | "html";
 
-export interface RegistroGithub {
-  repo: string;
-  url: string;
-  branch: string;
+export interface RegistroExportacao {
   em: string;
-  modo?: ModoPublicacaoRegistro;
-}
-
-export interface RegistroNetlify {
-  siteId: string;
-  url: string;
-  em: string;
-  modo?: ModoPublicacaoRegistro;
+  modo: ModoPublicacaoRegistro;
 }
 
 export interface RegistroPublicacaoPeca {
-  github?: RegistroGithub;
-  netlify?: RegistroNetlify;
+  exportacao?: RegistroExportacao;
 }
 
 export interface EstadoPublicacoes {
@@ -47,7 +41,14 @@ export function lerPublicacoes(workspaceId: string): EstadoPublicacoes {
     if (!bruto || typeof bruto !== "object") return { pecas: {} };
     const pecas = (bruto as { pecas?: unknown }).pecas;
     if (!pecas || typeof pecas !== "object") return { pecas: {} };
-    return { pecas: pecas as Record<string, RegistroPublicacaoPeca> };
+    // Arquivo antigo pode trazer github e netlify. Sao descartados aqui, pra
+    // resposta e disco so falarem do que o produto ainda faz.
+    const limpo: Record<string, RegistroPublicacaoPeca> = {};
+    for (const [pasta, registro] of Object.entries(pecas as Record<string, unknown>)) {
+      const exportacao = (registro as RegistroPublicacaoPeca | null)?.exportacao;
+      if (exportacao) limpo[pasta] = { exportacao };
+    }
+    return { pecas: limpo };
   } catch {
     return { pecas: {} };
   }

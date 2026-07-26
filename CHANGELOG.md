@@ -3,6 +3,33 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] 2026-07-26
+
+Amputação. O produto perde a superfície que existia, custava manutenção e não era usada na operação real. Cada coisa removida era um caminho a mais para quebrar.
+
+### Removido
+
+- **Modo enxuto.** O toggle prometia economia de token e podia não entregar nada. Módulo, campo de config, campo na sessão, toggle da sidebar e CSS, tudo fora.
+- **Automações.** Regras que nunca foram escritas na operação real.
+- **Calendário** e toda a camada Google, incluindo o servidor MCP próprio e o fluxo OAuth.
+- **Conectores GitHub, Netlify, Notion e Google Calendar.** O catálogo de conexões ficou só com a Apify, que alimenta a busca de leads.
+- **Publicação integrada de sites.** Ver `decisoes/2026-07-26-fim-da-publicacao-integrada.md`.
+
+### Adicionado
+
+- **Exportação local de site**, no lugar da publicação. `POST /publicacao/:pasta/abrir-pasta` abre a pasta da peça no explorador do sistema, e `GET /publicacao/:pasta/exportar` baixa o site pronto em ZIP. Quando o build Astro é viável, sai o projeto compilado; quando não, sai HTML puro, com o mesmo aviso honesto de antes.
+- Primeiro teste do provedor Claude. `montarArgsClaude` virou função exportada, e sete testes garantem que nenhum argumento carrega quebra de linha.
+
+### Corrigido
+
+- **Instrução extra de sessão chegava truncada, em silêncio.** O contexto agregado do CRM e a regra de sessão iam como argumento `--append-system-prompt`. Em máquina onde o Claude é disparado por shell, o caso da instalação por npm ou do fallback pelo PATH, o `cmd.exe` cortava na primeira quebra de linha: dos 2078 caracteres chegavam 13, e `--mcp-config` e `--allowedTools` sumiam junto, sem erro e com código de saída 0. Agora as instruções vão pelo stdin nos dois provedores. Ver `decisoes/2026-07-26-instrucoes-extras-por-stdin.md`.
+- **Teste que passaria com o código apagado.** O teste do contexto do CRM afirmava só os marcadores em volta, nunca o conteúdo injetado. Agora afirma o conteúdo.
+
+### Mantido de propósito
+
+- O barramento de eventos fica, mesmo perdendo Automações e Calendário como consumidores. Ele vira a fonte do feed de atividade do Dashboard.
+- O conversor Astro segue gerando `netlify.toml` no projeto exportado, para o site sair pronto para publicação manual, sem credencial nenhuma passar pelo Hub.
+
 ## [1.0.0] 2026-07-26
 
 Marco zero do VKOS Hub Local como produto próprio, em repositório privado com licença, contrato de contribuição e política de segurança. A base de código vem do VKOS Hub 2.0.0 mais a rodada de 21 de julho, o último estado local-first antes da tentativa de nuvem, que foi arquivada.

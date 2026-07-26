@@ -94,7 +94,7 @@
       "rota": "#/conexoes",
       "destino": "conexoes",
       "resumo": "Catálogo de integrações externas.",
-      "descricao": "Onde entram os tokens das integrações (Netlify, GitHub, Notion, Apify). Cada conexão faz um teste real na API antes de ficar ativa.",
+      "descricao": "Onde entra o token da Apify, a integração que abastece a busca de leads do CRM. A conexão faz um teste real na API antes de ficar ativa.",
       "estados": ["catálogo de integrações", "token", "teste real"],
       "esqueleto": "grade"
     },
@@ -138,7 +138,7 @@
       "rota": "#/fluxo/site",
       "destino": "fluxo:site",
       "resumo": "Lista dos sites do cliente.",
-      "descricao": "As peças de site do cliente. Clicar num site abre a Tela do Site, com preview, conformidade e publicação.",
+      "descricao": "As peças de site do cliente. Clicar num site abre a Tela do Site, com preview, conformidade e exportação.",
       "estados": ["lista de sites"],
       "esqueleto": "lista"
     },
@@ -236,9 +236,9 @@
       "nome": "Site",
       "rota": "#/site/:pasta",
       "destino": "site:@peca-site",
-      "resumo": "Preview, conformidade e publicação do site.",
-      "descricao": "A tela do site de uma peça: preview ao vivo, auditoria de conformidade e a publicação por Netlify ou GitHub. O botão Abrir leva ao site mais recente do cliente ativo.",
-      "estados": ["preview", "conformidade", "publicação Netlify", "publicação GitHub"],
+      "resumo": "Preview, conformidade e exportação do site.",
+      "descricao": "A tela do site de uma peça: preview ao vivo, auditoria de conformidade e a exportação local, que abre a pasta da peça ou baixa o site pronto num ZIP. O botão Abrir leva ao site mais recente do cliente ativo.",
+      "estados": ["preview", "conformidade", "abrir pasta", "baixar site"],
       "esqueleto": "split"
     }
   ],
@@ -285,8 +285,8 @@
     },
     {
       "id": "criar-site",
-      "nome": "Criar e publicar um site",
-      "resumo": "Do Dashboard ao site no ar.",
+      "nome": "Criar e exportar um site",
+      "resumo": "Do Dashboard ao site pronto pra baixar.",
       "cor": "menta",
       "passos": ["dashboard", "criar-site", "site"]
     },

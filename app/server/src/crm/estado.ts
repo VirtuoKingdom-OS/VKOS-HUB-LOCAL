@@ -706,7 +706,7 @@ export function posicionarNoFunil<T extends { id: string; colunaId: string }>(
 
 // Move um CONTATO de estagio (e, quando pedido, reposiciona na coluna). Emite o
 // mesmo evento crm:contato-movido de antes, agora disparado pela ficha e nao
-// pelo negocio, o que mantem as automacoes de mudanca de estagio funcionando.
+// pelo negocio, o que mantem os eventos de mudanca de estagio no barramento.
 export function moverContato(id: string, corpo: Record<string, unknown>): Contato {
   const estado = lerEstadoMutavel();
   const contato = acharContato(estado, id);

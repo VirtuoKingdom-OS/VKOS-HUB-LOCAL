@@ -2,19 +2,23 @@ import { existsSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 
-import { lerConexoes } from "../conexoes/estado.js";
 import { emitir } from "../eventos/barramento.js";
 import { obterPastaVkos } from "../vkos/estado.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
-import { publicarNoGithub } from "./github.js";
-import { publicarNaNetlify } from "./netlify.js";
-import { registroDaPeca } from "./estado.js";
-import { ErroPublicacao } from "./http.js";
+import { atualizarRegistroPeca, registroDaPeca } from "./estado.js";
+import { ErroPublicacao } from "./erros.js";
 import { pastaDaPeca } from "./arquivos.js";
 import {
   auditarSitePublicavel,
   type AlvoPublicacao,
 } from "./auditoria.js";
+import {
+  abrirPastaNoSistema,
+  conferirBarreiraQualidade,
+  criarZipExportacao,
+  nomeArquivoExportacao,
+  prepararConteudoExportacao,
+} from "./exportacao.js";
 import { ConversaoInviavel } from "./astro/conversor.js";
 import { BuildFalhou, MotorIndisponivel } from "./astro/motor.js";
 import {
@@ -75,12 +79,6 @@ function alvoOuResposta(
     .send({ erro: pareceInvalida ? "Nome de peça inválido." : "Peça não encontrada." });
 }
 
-// URL publica conhecida da peca, usada pelo conversor pra gerar o sitemap.
-// Vem do ultimo deploy Netlify registrado. Sem ela, o conversor pula o sitemap.
-function urlPublicaConhecida(alvo: AlvoPublicacao): string | undefined {
-  return registroDaPeca(alvo.workspaceId, alvo.pasta).netlify?.url;
-}
-
 function ehFalhaAstro(erro: unknown): erro is Error {
   return (
     erro instanceof ConversaoInviavel ||
@@ -89,51 +87,20 @@ function ehFalhaAstro(erro: unknown): erro is Error {
   );
 }
 
-// Tenta preparar o projeto Astro. Em qualquer falha esperada (conversao, motor,
-// build, dist), registra o aviso e devolve null pra o chamador cair no HTML.
-async function prepararAstroOuFallback(
-  pastaPeca: string,
-  urlPublica: string | undefined,
-  avisos: string[],
-): Promise<ArtefatosAstro | null> {
-  try {
-    return await prepararAstro(pastaPeca, urlPublica);
-  } catch (erro) {
-    if (ehFalhaAstro(erro)) {
-      avisos.push(erro.message);
-      return null;
-    }
-    throw erro;
-  }
-}
-
 function tratarErro(erro: unknown, resposta: FastifyReply): FastifyReply {
   if (erro instanceof ErroPublicacao) {
     return resposta.status(erro.statusHttp).send({ erro: erro.message });
   }
-  const mensagem = erro instanceof Error ? erro.message : "Não foi possível publicar o site.";
+  const mensagem = erro instanceof Error ? erro.message : "Não foi possível exportar o site.";
   return resposta.status(500).send({ erro: mensagem });
 }
 
-async function exigirSitePublicavel(
-  alvo: AlvoPublicacao,
-): Promise<void> {
-  // Host resolvido no server (mesmo do laco), nao a partir do header. Assim a
-  // barreira do deploy e o laco conferem exatamente a mesma URL.
-  const auditoria = await auditarSitePublicavel(alvo);
-  if (!auditoria.valido) {
-    throw new ErroPublicacao(
-      `O site ainda não está pronto para publicar. ${auditoria.erros.join(" ")}`,
-      400,
-    );
-  }
-}
-
 export const rotasPublicacao: FastifyPluginAsync = async (app) => {
+  // Estado da exportacao: o veredicto da auditoria, o modo previsto do pacote e
+  // a ultima exportacao registrada. Nao fala mais de destino remoto.
   app.get<{ Params: { pasta: string } }>("/publicacao/:pasta", async (req, resposta) => {
     const alvo = alvoOuResposta(req.params.pasta, resposta);
     if (!("workspaceId" in alvo)) return alvo;
-    const servidores = lerConexoes(alvo.workspaceId).servidores;
     const auditoria = await auditarSitePublicavel(alvo);
     let modoPrevisto: ModoPublicacao = "html";
     try {
@@ -142,95 +109,77 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
       modoPrevisto = "html";
     }
     return {
-      github: {
-        conectado: servidores.github?.habilitado === true && !!servidores.github.config.token?.trim(),
-      },
-      netlify: {
-        conectado: servidores.netlify?.habilitado === true && !!servidores.netlify.config.token?.trim(),
-      },
       registro: registroDaPeca(alvo.workspaceId, alvo.pasta),
       auditoria,
       modoPrevisto,
+      nomeArquivo: nomeArquivoExportacao(alvo.pasta),
     };
   });
 
-  app.post<{ Params: { pasta: string } }>("/publicacao/:pasta/github", async (req, resposta) => {
-    const alvo = alvoOuResposta(req.params.pasta, resposta);
-    if (!("workspaceId" in alvo)) return alvo;
-    try {
-      await exigirSitePublicavel(alvo);
-      const pastaPeca = pastaDaPeca(alvo.workspaceId, alvo.pasta);
-      const avisos: string[] = [];
-      let modo: ModoPublicacao = "html";
-      let arquivos: ArtefatosAstro["fonte"] | undefined;
-      if (resolverModoPublicacao(pastaPeca) === "astro") {
-        const artefatos = await prepararAstroOuFallback(
-          pastaPeca,
-          urlPublicaConhecida(alvo),
-          avisos,
-        );
-        if (artefatos) {
-          modo = "astro";
-          arquivos = artefatos.fonte;
-          avisos.push(...artefatos.projeto.avisos);
-        }
+  // Abre a pasta da peca no explorador de arquivos do sistema.
+  app.post<{ Params: { pasta: string } }>(
+    "/publicacao/:pasta/abrir-pasta",
+    async (req, resposta) => {
+      const alvo = alvoOuResposta(req.params.pasta, resposta);
+      if (!("workspaceId" in alvo)) return alvo;
+      try {
+        await abrirPastaNoSistema(pastaDaPeca(alvo.workspaceId, alvo.pasta));
+        return { ok: true };
+      } catch (erro) {
+        return tratarErro(erro, resposta);
       }
-      const resultado = await publicarNoGithub(alvo.workspaceId, alvo.pasta, {
-        arquivos,
-        modo,
-      });
-      emitir({
-        tipo: "peca:publicada",
-        workspaceId: alvo.workspaceId,
-        em: resultado.em,
-        dados: { pasta: alvo.pasta, destino: "github", url: resultado.url },
-      });
-      return { ...resultado, modo, avisos };
-    } catch (erro) {
-      return tratarErro(erro, resposta);
-    }
-  });
+    },
+  );
 
-  app.post<{ Params: { pasta: string } }>("/publicacao/:pasta/netlify", async (req, resposta) => {
-    const alvo = alvoOuResposta(req.params.pasta, resposta);
-    if (!("workspaceId" in alvo)) return alvo;
-    try {
-      await exigirSitePublicavel(alvo);
-      const pastaPeca = pastaDaPeca(alvo.workspaceId, alvo.pasta);
-      const avisos: string[] = [];
-      let modo: ModoPublicacao = "html";
-      let arquivos: ArtefatosAstro["dist"] | undefined;
-      if (resolverModoPublicacao(pastaPeca) === "astro") {
-        const artefatos = await prepararAstroOuFallback(
-          pastaPeca,
-          urlPublicaConhecida(alvo),
-          avisos,
+  // Baixa o site pronto num ZIP. Passa pela mesma barreira de qualidade que
+  // barrava o deploy: site reprovado na auditoria nao vira arquivo.
+  app.get<{ Params: { pasta: string } }>(
+    "/publicacao/:pasta/exportar",
+    async (req, resposta) => {
+      const alvo = alvoOuResposta(req.params.pasta, resposta);
+      if (!("workspaceId" in alvo)) return alvo;
+      try {
+        conferirBarreiraQualidade(await auditarSitePublicavel(alvo));
+        const conteudo = await prepararConteudoExportacao(
+          alvo.workspaceId,
+          alvo.pasta,
+          pastaDaPeca(alvo.workspaceId, alvo.pasta),
         );
-        if (artefatos) {
-          modo = "astro";
-          arquivos = artefatos.dist;
-          avisos.push(...artefatos.projeto.avisos);
-        }
-      }
-      const resultado = await publicarNaNetlify(alvo.workspaceId, alvo.pasta, {
-        arquivos,
-        modo,
-      });
-      if (!resultado.pendente) {
-        emitir({
-          tipo: "peca:publicada",
-          workspaceId: alvo.workspaceId,
-          em: resultado.em,
-          dados: { pasta: alvo.pasta, destino: "netlify", url: resultado.url },
+        const zip = criarZipExportacao(conteudo.arquivos);
+        zip.on("error", (erro) => {
+          req.log?.error?.(erro);
+          resposta.raw.destroy(erro);
         });
-      }
-      return { ...resultado, modo, avisos };
-    } catch (erro) {
-      return tratarErro(erro, resposta);
-    }
-  });
 
-  // Diagnostico interno do QA e do suporte: converte e builda SEM publicar.
+        const em = new Date().toISOString();
+        atualizarRegistroPeca(alvo.workspaceId, alvo.pasta, {
+          exportacao: { em, modo: conteudo.modo },
+        });
+        emitir({
+          tipo: "peca:exportada",
+          workspaceId: alvo.workspaceId,
+          em,
+          dados: { pasta: alvo.pasta, modo: conteudo.modo, avisos: conteudo.avisos },
+        });
+
+        resposta.header("Content-Type", "application/zip");
+        resposta.header(
+          "Content-Disposition",
+          `attachment; filename="${nomeArquivoExportacao(alvo.pasta)}"`,
+        );
+        // O modo real e os avisos viajam em header: o corpo e o ZIP, e a tela
+        // precisa saber se saiu Astro ou HTML puro.
+        resposta.header("X-VKOS-Modo-Exportacao", conteudo.modo);
+        resposta.send(zip);
+        void zip.finalize();
+        return resposta;
+      } catch (erro) {
+        return tratarErro(erro, resposta);
+      }
+    },
+  );
+
+  // Diagnostico interno do QA e do suporte: converte e builda SEM exportar.
   // Nao aparece na UI.
   app.post<{ Params: { pasta: string } }>(
     "/publicacao/:pasta/ensaiar-astro",
@@ -243,11 +192,13 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
         // conversao pra devolver o motivo REAL (elemento fora dos marcadores,
         // head divergente, motor indisponivel), nao um aviso generico.
         const avisos: string[] = [];
-        const artefatos = await prepararAstroOuFallback(
-          pastaPeca,
-          urlPublicaConhecida(alvo),
-          avisos,
-        );
+        let artefatos: ArtefatosAstro | null = null;
+        try {
+          artefatos = await prepararAstro(pastaPeca);
+        } catch (falha) {
+          if (!ehFalhaAstro(falha)) throw falha;
+          avisos.push(falha.message);
+        }
         if (!artefatos) {
           return { ok: false, modo: "html" as ModoPublicacao, paginas: [], avisos };
         }

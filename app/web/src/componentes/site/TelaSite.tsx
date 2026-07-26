@@ -26,9 +26,9 @@ import {
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
 import {
+  abrirPastaDaPeca,
+  baixarSite,
   obterPublicacao,
-  publicarGithub,
-  publicarNetlify,
   type ModeloIA,
   type RespostaPublicacao,
 } from "../../api/cliente";
@@ -131,12 +131,20 @@ function comCacheBust(url: string, ts: number): string {
   return `${url}${sep}vk=${ts}`;
 }
 
-function IconePublicar() {
+function IconeExportar() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3c3.8 1.8 6.4 5.6 6.4 10v2.2l-3.1-1.3-3.3 4.6-3.3-4.6-3.1 1.3V13C5.6 8.6 8.2 4.8 12 3Z" />
-      <circle cx="12" cy="10" r="2" />
-      <path d="M9.4 18.3 8.5 21M14.6 18.3l.9 2.7" />
+      <path d="M12 3.5v10.5" />
+      <path d="m8 10.5 4 4 4-4" />
+      <path d="M4.5 16.5v2.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8v-2.2" />
+    </svg>
+  );
+}
+
+function IconePasta() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 6.8A1.8 1.8 0 0 1 5.3 5h3.4l1.9 2.3h8.1a1.8 1.8 0 0 1 1.8 1.8v8.1A1.8 1.8 0 0 1 18.7 19H5.3a1.8 1.8 0 0 1-1.8-1.8Z" />
     </svg>
   );
 }
@@ -362,75 +370,80 @@ export default function TelaSite({ pasta }: Props) {
 
   const refViewport = useRef<HTMLDivElement>(null);
 
-  // ===== Publicação determinística, independente da sessão de IA.
-  const [publicarAberto, setPublicarAberto] = useState(false);
-  const [publicacao, setPublicacao] = useState<RespostaPublicacao | null>(null);
-  const [carregandoPublicacao, setCarregandoPublicacao] = useState(false);
-  const [publicando, setPublicando] = useState<"github" | "netlify" | null>(null);
-  const [erroPublicacao, setErroPublicacao] = useState<string | null>(null);
-  const [sucessoPublicacao, setSucessoPublicacao] = useState<string | null>(null);
-  // Avisos que o servidor devolve no POST (ex: fallback pro modo HTML puro).
-  const [avisosPublicacao, setAvisosPublicacao] = useState<string[]>([]);
+  // ===== Exportação local, determinística e independente da sessão de IA.
+  // Dois gestos: abrir a pasta da peça e baixar o site pronto.
+  const [exportarAberto, setExportarAberto] = useState(false);
+  const [exportacao, setExportacao] = useState<RespostaPublicacao | null>(null);
+  const [carregandoExportacao, setCarregandoExportacao] = useState(false);
+  const [exportando, setExportando] = useState<"pasta" | "zip" | null>(null);
+  const [erroExportacao, setErroExportacao] = useState<string | null>(null);
+  const [sucessoExportacao, setSucessoExportacao] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!publicarAberto) return;
+    if (!exportarAberto) return;
     const aoTeclar = (evento: KeyboardEvent) => {
-      if (evento.key === "Escape" && !publicando) setPublicarAberto(false);
+      if (evento.key === "Escape" && !exportando) setExportarAberto(false);
     };
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
-  }, [publicarAberto, publicando]);
+  }, [exportarAberto, exportando]);
 
-  const carregarPublicacao = useCallback(async () => {
-    setCarregandoPublicacao(true);
-    setErroPublicacao(null);
+  const carregarExportacao = useCallback(async () => {
+    setCarregandoExportacao(true);
+    setErroExportacao(null);
     try {
-      setPublicacao(await obterPublicacao(pasta));
+      setExportacao(await obterPublicacao(pasta));
     } catch (erro) {
-      setErroPublicacao(
-        erro instanceof Error ? erro.message : "Não foi possível consultar a publicação.",
+      setErroExportacao(
+        erro instanceof Error ? erro.message : "Não foi possível conferir o site.",
       );
     } finally {
-      setCarregandoPublicacao(false);
+      setCarregandoExportacao(false);
     }
   }, [pasta]);
 
   useEffect(() => {
-    if (publicarAberto) void carregarPublicacao();
-  }, [publicarAberto, carregarPublicacao]);
+    if (exportarAberto) void carregarExportacao();
+  }, [exportarAberto, carregarExportacao]);
 
-  async function executarPublicacao(destino: "github" | "netlify") {
-    if (publicando) return;
-    setPublicando(destino);
-    setErroPublicacao(null);
-    setSucessoPublicacao(null);
-    setAvisosPublicacao([]);
+  async function executarAbrirPasta() {
+    if (exportando) return;
+    setExportando("pasta");
+    setErroExportacao(null);
+    setSucessoExportacao(null);
     try {
-      if (destino === "github") {
-        const resultado = await publicarGithub(pasta);
-        setPublicacao(await obterPublicacao(pasta));
-        setAvisosPublicacao(resultado.avisos ?? []);
-        setSucessoPublicacao("Código enviado e confirmado no GitHub.");
-      } else {
-        const resultado = await publicarNetlify(pasta);
-        const atual = await obterPublicacao(pasta);
-        setPublicacao({
-          ...atual,
-          registro: { ...atual.registro, netlify: resultado },
-        });
-        setAvisosPublicacao(resultado.avisos ?? []);
-        setSucessoPublicacao(
-          resultado.pendente
-            ? "Deploy enviado. A Netlify ainda está preparando a URL."
-            : "Site publicado e URL pública verificada com sucesso.",
-        );
-      }
+      await abrirPastaDaPeca(pasta);
+      setSucessoExportacao("A pasta da peça abriu no explorador de arquivos.");
     } catch (erro) {
-      setErroPublicacao(
-        erro instanceof Error ? erro.message : "Não foi possível publicar o site.",
+      setErroExportacao(
+        erro instanceof Error ? erro.message : "Não foi possível abrir a pasta.",
       );
     } finally {
-      setPublicando(null);
+      setExportando(null);
+    }
+  }
+
+  // A barreira de qualidade mora no servidor: site reprovado volta com as
+  // pendências e nada é baixado. Aqui o aviso vira a mensagem do painel.
+  async function executarBaixarSite() {
+    if (exportando) return;
+    setExportando("zip");
+    setErroExportacao(null);
+    setSucessoExportacao(null);
+    try {
+      const { modo } = await baixarSite(pasta);
+      setExportacao(await obterPublicacao(pasta));
+      setSucessoExportacao(
+        modo === "astro"
+          ? "Site baixado como projeto Astro compilado."
+          : "Site baixado em HTML puro, pronto pra subir em qualquer hospedagem.",
+      );
+    } catch (erro) {
+      setErroExportacao(
+        erro instanceof Error ? erro.message : "Não foi possível baixar o site.",
+      );
+    } finally {
+      setExportando(null);
     }
   }
 
@@ -886,16 +899,16 @@ export default function TelaSite({ pasta }: Props) {
 
           {!editando && (
             <button
-              className={`botao botao-neutro${publicarAberto ? " ativo" : ""}`}
+              className={`botao botao-neutro${exportarAberto ? " ativo" : ""}`}
               onClick={() => {
                 setPainelAberto(false);
-                setPublicarAberto((aberto) => !aberto);
+                setExportarAberto((aberto) => !aberto);
               }}
-              title="Publicar o site"
-              aria-expanded={publicarAberto}
+              title="Abrir a pasta ou baixar o site"
+              aria-expanded={exportarAberto}
             >
-              <IconePublicar />
-              Publicar
+              <IconeExportar />
+              Exportar
             </button>
           )}
 
@@ -924,8 +937,8 @@ export default function TelaSite({ pasta }: Props) {
       </header>
 
       {peca?.site?.valido === false && (
-        <div className="site-publicar-auditoria site-pendencias" role="alert">
-          <strong>O site está de pé. A conferência achou pendências que bloqueiam a publicação:</strong>
+        <div className="site-exportar-auditoria site-pendencias" role="alert">
+          <strong>O site está de pé. A conferência achou pendências que bloqueiam a exportação:</strong>
           <ul>
             {peca.site.erros.slice(0, 4).map((item) => <li key={item}>{item}</li>)}
           </ul>
@@ -936,17 +949,17 @@ export default function TelaSite({ pasta }: Props) {
         </div>
       )}
 
-      {publicarAberto && (
-        <PainelPublicacao
-          estado={publicacao}
-          carregando={carregandoPublicacao}
-          publicando={publicando}
-          erro={erroPublicacao}
-          sucesso={sucessoPublicacao}
-          avisos={avisosPublicacao}
-          aoPublicar={(destino) => void executarPublicacao(destino)}
+      {exportarAberto && (
+        <PainelExportacao
+          estado={exportacao}
+          carregando={carregandoExportacao}
+          exportando={exportando}
+          erro={erroExportacao}
+          sucesso={sucessoExportacao}
+          aoAbrirPasta={() => void executarAbrirPasta()}
+          aoBaixar={() => void executarBaixarSite()}
           aoFechar={() => {
-            if (!publicando) setPublicarAberto(false);
+            if (!exportando) setExportarAberto(false);
           }}
         />
       )}
@@ -1132,7 +1145,7 @@ export default function TelaSite({ pasta }: Props) {
                 ajusteComPendencias ? (
                   <p className="site-ajuste-erro">
                     O site foi atualizado, mas a conferência ainda achou pendências.
-                    Veja a lista no topo da tela antes de publicar.
+                    Veja a lista no topo da tela antes de exportar.
                   </p>
                 ) : (
                   <p className="site-ajuste-ok">
@@ -1229,183 +1242,132 @@ export default function TelaSite({ pasta }: Props) {
   );
 }
 
-function PainelPublicacao({
+// Painel de exportação local. Dois gestos, nenhuma credencial: abrir a pasta da
+// peça no explorador e baixar o site pronto. A barreira de qualidade continua
+// valendo, agora bloqueando o download em vez do deploy.
+function PainelExportacao({
   estado,
   carregando,
-  publicando,
+  exportando,
   erro,
   sucesso,
-  avisos,
-  aoPublicar,
+  aoAbrirPasta,
+  aoBaixar,
   aoFechar,
 }: {
   estado: RespostaPublicacao | null;
   carregando: boolean;
-  publicando: "github" | "netlify" | null;
+  exportando: "pasta" | "zip" | null;
   erro: string | null;
   sucesso: string | null;
-  avisos: string[];
-  aoPublicar: (destino: "github" | "netlify") => void;
+  aoAbrirPasta: () => void;
+  aoBaixar: () => void;
   aoFechar: () => void;
 }) {
-  const nenhumConectado =
-    !!estado && !estado.github.conectado && !estado.netlify.conectado;
-  const publicavel = estado?.auditoria.valido ?? false;
+  const aprovado = estado?.auditoria.valido ?? false;
   const modoAstro = estado?.modoPrevisto === "astro";
+  const ultima = estado?.registro.exportacao;
 
   return (
-    <aside className="site-publicar" aria-label="Publicar site">
-      <header className="site-publicar-topo">
+    <aside className="site-exportar" aria-label="Exportar site">
+      <header className="site-exportar-topo">
         <div>
-          <span className="site-publicar-selo"><IconePublicar /></span>
+          <span className="site-exportar-selo"><IconeExportar /></span>
           <div>
-            <h2>Publicar site</h2>
-            <p>Código versionado e site no ar, sem usar créditos de IA.</p>
-            {modoAstro && (
-              <span
-                className="site-publicar-badge"
-                title="A navegação e o rodapé viram um layout único, com sitemap e robots."
-              >
-                Publica como projeto Astro
-              </span>
-            )}
+            <h2>Exportar site</h2>
+            <p>O site pronto sai daqui pro seu computador, sem conta e sem créditos de IA.</p>
+            <span
+              className="site-exportar-badge"
+              title={
+                modoAstro
+                  ? "A navegação e o rodapé viram um layout único, com sitemap e robots."
+                  : "As páginas saem como estão na pasta, prontas pra qualquer hospedagem."
+              }
+            >
+              {modoAstro ? "Sai como projeto Astro compilado" : "Sai em HTML puro"}
+            </span>
           </div>
         </div>
-        <button className="site-publicar-fechar" onClick={aoFechar} aria-label="Fechar publicação">
+        <button className="site-exportar-fechar" onClick={aoFechar} aria-label="Fechar exportação">
           <IconeX className="" />
         </button>
       </header>
 
       {carregando && !estado ? (
-        <div className="site-publicar-carregando">Conferindo todas as páginas em desktop e celular...</div>
+        <div className="site-exportar-carregando">Conferindo todas as páginas em desktop e celular...</div>
       ) : (
-        <div className="site-publicar-corpo">
-          {estado && !publicavel && (
-            <div className="site-publicar-auditoria" role="alert">
-              <strong>O site precisa de correção antes do deploy.</strong>
+        <div className="site-exportar-corpo">
+          {estado && !aprovado && (
+            <div className="site-exportar-auditoria" role="alert">
+              <strong>O site precisa de correção antes de sair daqui.</strong>
               <ul>
                 {estado.auditoria.erros.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </div>
           )}
           {estado && estado.auditoria.avisos.length > 0 && (
-            <div className="site-publicar-avisos">
+            <div className="site-exportar-avisos">
               <strong>Avisos da conferência:</strong>
               <ul>
                 {estado.auditoria.avisos.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </div>
           )}
-          {nenhumConectado && (
-            <div className="site-publicar-vazio">
-              <p>Conecte o GitHub ou a Netlify para publicar este site.</p>
-              <a className="botao botao-principal" href="#/conexoes">Conectar em Conexões</a>
-            </div>
-          )}
 
-          {!nenhumConectado && estado && (
-            <>
-              <DestinoPublicacao
-                nome="GitHub"
-                descricao="Versiona e guarda todo o código do site."
-                conectado={estado.github.conectado}
-                executando={publicando === "github"}
-                bloqueado={publicando !== null || !publicavel}
-                rotuloAcao={estado.registro.github ? "Enviar atualização" : "Enviar pro GitHub"}
-                registro={estado.registro.github}
-                aoPublicar={() => aoPublicar("github")}
-              />
-              <DestinoPublicacao
-                nome="Netlify"
-                descricao="Coloca o site no ar com uma URL pública."
-                conectado={estado.netlify.conectado}
-                executando={publicando === "netlify"}
-                bloqueado={publicando !== null || !publicavel}
-                rotuloAcao={estado.registro.netlify ? "Publicar atualização" : "Publicar na Netlify"}
-                registro={estado.registro.netlify}
-                aoPublicar={() => aoPublicar("netlify")}
-              />
-            </>
-          )}
-
-          {avisos.length > 0 && (
-            <div className="site-publicar-avisos" role="status">
-              <strong>Avisos da publicação:</strong>
-              <ul>
-                {avisos.map((item) => <li key={item}>{item}</li>)}
-              </ul>
+          <section className="site-exportar-gesto">
+            <div>
+              <h3>Abrir pasta</h3>
+              <p>Mostra os arquivos da peça no explorador deste computador.</p>
             </div>
-          )}
-          {erro && <p className="site-publicar-erro" role="alert">{erro}</p>}
-          {sucesso && <p className="site-publicar-sucesso" role="status">{sucesso}</p>}
+            <button
+              className="botao botao-neutro site-exportar-acao"
+              onClick={aoAbrirPasta}
+              disabled={exportando !== null}
+            >
+              <IconePasta />
+              {exportando === "pasta" ? "Abrindo..." : "Abrir pasta"}
+            </button>
+          </section>
+
+          <section className="site-exportar-gesto">
+            <div>
+              <h3>Baixar site</h3>
+              <p>Um ZIP com o site pronto pra subir em qualquer hospedagem.</p>
+            </div>
+            {ultima && (
+              <span className="site-exportar-ultima">
+                Última exportação em {formatarDataExportacao(ultima.em)}
+              </span>
+            )}
+            <button
+              className="botao botao-principal site-exportar-acao"
+              onClick={aoBaixar}
+              disabled={exportando !== null || !aprovado}
+              title={
+                aprovado
+                  ? "Baixar o ZIP do site"
+                  : "Resolva as pendências da conferência antes de baixar"
+              }
+            >
+              <IconeExportar />
+              {exportando === "zip" ? "Preparando o ZIP..." : "Baixar site"}
+            </button>
+            {!aprovado && estado && (
+              <span className="site-exportar-travado">
+                Baixar fica travado enquanto a conferência apontar pendências.
+              </span>
+            )}
+          </section>
+
+          {erro && <p className="site-exportar-erro" role="alert">{erro}</p>}
+          {sucesso && <p className="site-exportar-sucesso" role="status">{sucesso}</p>}
         </div>
       )}
     </aside>
   );
 }
 
-function DestinoPublicacao({
-  nome,
-  descricao,
-  conectado,
-  executando,
-  bloqueado,
-  rotuloAcao,
-  registro,
-  aoPublicar,
-}: {
-  nome: string;
-  descricao: string;
-  conectado: boolean;
-  executando: boolean;
-  bloqueado: boolean;
-  rotuloAcao: string;
-  registro?: { url: string; em: string; pendente?: boolean };
-  aoPublicar: () => void;
-}) {
-  return (
-    <section className={`site-publicar-destino${conectado ? "" : " desconectado"}`}>
-      <div className="site-publicar-destino-topo">
-        <div>
-          <h3>{nome}</h3>
-          <p>{descricao}</p>
-        </div>
-        <span className={`site-publicar-status${conectado ? " conectado" : ""}`}>
-          {conectado ? "Conectado" : "Desconectado"}
-        </span>
-      </div>
-
-      {registro && (
-        <div className="site-publicar-resultado">
-          <a href={registro.url} target="_blank" rel="noreferrer">{registro.url}</a>
-          <span>
-            {registro.pendente
-              ? "Publicação enviada. Confirmação pendente."
-              : `Último envio em ${formatarDataPublicacao(registro.em)}`}
-          </span>
-        </div>
-      )}
-
-      {conectado ? (
-        <button
-          className="botao botao-neutro site-publicar-acao"
-          onClick={aoPublicar}
-          disabled={bloqueado}
-        >
-          {executando
-            ? nome === "Netlify"
-              ? "Publicando e verificando..."
-              : "Enviando..."
-            : rotuloAcao}
-        </button>
-      ) : (
-        <a className="site-publicar-conectar" href="#/conexoes">Conectar em Conexões</a>
-      )}
-    </section>
-  );
-}
-
-function formatarDataPublicacao(iso: string): string {
+function formatarDataExportacao(iso: string): string {
   const data = new Date(iso);
   if (Number.isNaN(data.getTime())) return iso;
   return data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });

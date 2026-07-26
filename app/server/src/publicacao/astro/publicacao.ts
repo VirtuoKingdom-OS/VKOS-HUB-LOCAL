@@ -1,7 +1,8 @@
-// Orquestra o modo Astro da publicacao. Decide o modo, converte a peca, garante
-// o motor, builda, confere o dist e coleta os artefatos: a FONTE do projeto
-// (src/, public/, configs) pro GitHub e o DIST pronto pra Netlify. Qualquer
-// falha e lancada pra o chamador cair no modo HTML na mesma requisicao.
+// Orquestra o modo Astro. Decide o modo, converte a peca, garante o motor,
+// builda, confere o dist e coleta os artefatos: a FONTE do projeto (src/,
+// public/, configs) e o DIST compilado, que e o que a exportacao baixa.
+// Qualquer falha e lancada pra o chamador cair no modo HTML na mesma
+// requisicao.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -16,9 +17,8 @@ import { buildarProjeto, conferirDist, garantirMotor, motorViavel } from "./moto
 
 export type ModoPublicacao = "astro" | "html";
 
-// Nunca sobem pro GitHub como fonte, nem entram no ZIP da Netlify pela fonte.
-// .astro e cache/tipos gerados pelo build; dist e o resultado; node_modules e
-// o motor via junction. Nada disso pertence a arvore fonte do projeto.
+// Nunca entram na arvore fonte do projeto. .astro e cache/tipos gerados pelo
+// build; dist e o resultado; node_modules e o motor via junction.
 const EXCLUIR_DA_FONTE = new Set(["node_modules", "dist", ".astro"]);
 
 // Decisao pura do modo: so promete Astro com marcadores validos E motor viavel.
@@ -60,9 +60,9 @@ function coletar(
 
 export interface ArtefatosAstro {
   projeto: ProjetoAstro;
-  // Arvore fonte do projeto (sem dist/ nem node_modules), pro GitHub.
+  // Arvore fonte do projeto (sem dist/ nem node_modules).
   fonte: ArquivoPublicavel[];
-  // Conteudo de dist/ pronto pro deploy, pro ZIP da Netlify.
+  // Conteudo de dist/, o site compilado que vai no ZIP da exportacao.
   dist: ArquivoPublicavel[];
 }
 

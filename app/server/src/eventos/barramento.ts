@@ -39,7 +39,7 @@ const assinantes = new Map<string, Set<Assinante>>();
 const NOME_LOG = "eventos.jsonl";
 
 // Rotacao preguicosa do log de eventos, compartilhada com o historico das
-// automacoes. Contador proprio por chamador.
+// consumidores do barramento. Contador proprio por chamador.
 const talvezRotacionar = criarRotacaoLog("eventos");
 
 // Assina um tipo de evento (ou "*" pra todos). Devolve uma funcao pra cancelar.
