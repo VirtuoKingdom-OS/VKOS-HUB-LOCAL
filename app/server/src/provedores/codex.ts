@@ -17,7 +17,7 @@ import type {
   ProvedorIA,
   RemoverOuvinte,
 } from "./contrato.js";
-import { citarArg } from "./util.js";
+import { citarArg, montarPromptComInstrucoes } from "./util.js";
 
 const TIMEOUT_INATIVIDADE_MS = 30 * 60 * 1000;
 const LIMITE_STDERR = 20000;
@@ -410,11 +410,10 @@ export function montarArgsCodex(opcoes: OpcoesSessaoProvedor): string[] {
   return args;
 }
 
-// O codex exec nao tem flag de system prompt extra. Quando ha instrucoes
-// extras, elas entram como bloco marcado antes do prompt real, via stdin.
+// Instrucoes extras entram como bloco marcado antes do prompt real, via stdin.
+// A montagem e a mesma dos dois provedores, entao mora em util.
 export function montarPromptCodex(opcoes: OpcoesSessaoProvedor): string {
-  if (!opcoes.instrucoesExtras) return opcoes.prompt;
-  return `<regras-da-sessao>\n${opcoes.instrucoesExtras}\n</regras-da-sessao>\n\n${opcoes.prompt}`;
+  return montarPromptComInstrucoes(opcoes);
 }
 
 class ProcessoCodex implements ProcessoSessao {

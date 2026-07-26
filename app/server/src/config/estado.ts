@@ -20,8 +20,6 @@ export interface ConfigApp {
   provedorPadrao?: ProvedorApp;
   modeloPadraoClaude: ModeloApp;
   modeloPadraoCodex: string;
-  // Modo enxuto: sessoes novas recebem a regra de economia. Nasce desligado.
-  modoEnxuto: boolean;
 }
 
 const MODELOS_CLAUDE_VALIDOS: ModeloApp[] = ["opus", "sonnet", "haiku"];
@@ -55,7 +53,6 @@ function configInicial(): ConfigApp {
   return {
     modeloPadraoClaude: MODELO_CLAUDE_INICIAL,
     modeloPadraoCodex: MODELO_CODEX_INICIAL,
-    modoEnxuto: false,
   };
 }
 
@@ -88,8 +85,6 @@ function carregar(): ConfigApp {
       modeloPadraoCodex: ehModeloCodexValido(dados.modeloPadraoCodex)
         ? dados.modeloPadraoCodex.trim()
         : inicial.modeloPadraoCodex,
-      // Config antiga sem o campo continua com o modo desligado.
-      modoEnxuto: dados.modoEnxuto === true,
     };
   } catch {
     cache = inicial;
@@ -142,8 +137,4 @@ export function definirModeloPadraoClaude(modelo: ModeloApp): void {
 
 export function definirModeloPadraoCodex(modelo: string): void {
   salvar({ ...carregar(), modeloPadraoCodex: modelo.trim() });
-}
-
-export function definirModoEnxuto(valor: boolean): void {
-  salvar({ ...carregar(), modoEnxuto: valor });
 }

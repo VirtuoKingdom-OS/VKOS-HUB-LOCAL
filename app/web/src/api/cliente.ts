@@ -75,9 +75,6 @@ export interface ConfigApp {
   provedorPadrao?: ProvedorIA;
   modeloPadraoClaude?: ModeloIA;
   modeloPadraoCodex?: string;
-  // Modo enxuto: sessoes novas recebem a regra de economia. Opcional: backend
-  // antigo pode nao mandar.
-  modoEnxuto?: boolean;
 }
 
 // Erro de rede: servidor fora do ar ou inalcancavel.
@@ -450,7 +447,6 @@ export function atualizarConfig(dados: {
   provedorPadrao?: ProvedorIA;
   modeloPadraoClaude?: ModeloIA;
   modeloPadraoCodex?: string;
-  modoEnxuto?: boolean;
 }): Promise<ConfigApp> {
   return pedir<ConfigApp>("/api/config", {
     method: "PUT",

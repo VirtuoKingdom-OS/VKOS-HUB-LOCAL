@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { atualizarConfig, obterConfig } from "../../api/cliente";
 import { usarEstado } from "../../estado/contexto";
 import { INFO_STATUS } from "../../config/status";
 import { ROTULO_TIPO } from "../telas/fluxos";
@@ -248,7 +247,6 @@ export function Sidebar({
             {ativas} / {LIMITE_SESSOES}
           </span>
         </div>
-        <LinhaModoEnxuto />
         <div
           className="rodape-custo"
           title={
@@ -285,58 +283,6 @@ export function Sidebar({
         </div>
       </div>
     </aside>
-  );
-}
-
-const TITLE_MODO_ENXUTO =
-  "Sessões novas recebem a regra de economia: respostas mais diretas, " +
-  "menos tokens. Pode mudar o estilo dos resultados. Não afeta a geração " +
-  "guiada de site e carrossel.";
-
-// Toggle do Modo enxuto, vizinho do gasto do cliente. Estado vem do GET
-// /api/config; a gravacao e otimista no PUT, com rollback em erro.
-function LinhaModoEnxuto() {
-  const [ligado, setLigado] = useState(false);
-  const [pronto, setPronto] = useState(false);
-
-  useEffect(() => {
-    let vivo = true;
-    obterConfig()
-      .then((config) => {
-        if (!vivo) return;
-        setLigado(config.modoEnxuto === true);
-        setPronto(true);
-      })
-      .catch(() => {
-        // Servidor fora: o toggle fica desabilitado ate a proxima montagem.
-      });
-    return () => {
-      vivo = false;
-    };
-  }, []);
-
-  const alternar = (valor: boolean) => {
-    const anterior = ligado;
-    setLigado(valor);
-    atualizarConfig({ modoEnxuto: valor }).catch(() => setLigado(anterior));
-  };
-
-  return (
-    <div className="rodape-enxuto" title={TITLE_MODO_ENXUTO}>
-      <span className="rodape-enxuto-rotulo">Modo enxuto</span>
-      <label className="enxuto-switch">
-        <input
-          type="checkbox"
-          checked={ligado}
-          disabled={!pronto}
-          onChange={(e) => alternar(e.target.checked)}
-          aria-label="Modo enxuto"
-        />
-        <span className="enxuto-switch-trilho">
-          <span className="enxuto-switch-bola" />
-        </span>
-      </label>
-    </div>
   );
 }
 

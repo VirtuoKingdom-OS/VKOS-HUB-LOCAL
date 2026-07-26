@@ -15,13 +15,55 @@ import type {
   ProvedorIA,
   RemoverOuvinte,
 } from "./contrato.js";
-import { citarArg } from "./util.js";
+import { citarArg, montarPromptComInstrucoes } from "./util.js";
 
 const MODELOS: OpcaoModelo[] = [
   { alias: "opus", rotulo: "Opus", observacaoCusto: "mais capaz, mais caro" },
   { alias: "sonnet", rotulo: "Sonnet", observacaoCusto: "equilíbrio" },
   { alias: "haiku", rotulo: "Haiku", observacaoCusto: "rápido e barato", economico: true },
 ];
+
+// Monta os argumentos do claude CLI. Exportada pra ter teste: nenhum valor
+// multilinha pode entrar aqui, senao quebra sob shell no Windows.
+export function montarArgsClaude(opcoes: OpcoesSessaoProvedor): string[] {
+  const modoPermissao =
+    opcoes.permissao === "total" ? "bypassPermissions" : "acceptEdits";
+  const args = [
+    "-p",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--include-partial-messages",
+    "--permission-mode",
+    modoPermissao,
+  ];
+
+  if (opcoes.modelo) {
+    args.push("--model", opcoes.modelo);
+  }
+  if (opcoes.retomada) {
+    args.push("--resume", opcoes.retomada);
+  }
+  // As instrucoes extras da sessao vao pelo stdin, em montarPromptComInstrucoes,
+  // nunca por argumento.
+
+  const ferramentasMcp: string[] = [];
+  if (opcoes.mcp) {
+    args.push("--mcp-config", opcoes.mcp.caminho);
+    for (const idServidor of opcoes.mcp.servidores) {
+      ferramentasMcp.push(`mcp__${idServidor}`);
+    }
+  }
+
+  args.push(
+    "--allowedTools",
+    "Bash(node:*)",
+    "Bash(npm:*)",
+    "Bash(npx:*)",
+    ...ferramentasMcp,
+  );
+  return args;
+}
 
 class ProcessoClaude implements ProcessoSessao {
   private processo: ChildProcess;
@@ -38,7 +80,7 @@ class ProcessoClaude implements ProcessoSessao {
 
   constructor(opcoes: OpcoesSessaoProvedor) {
     const { binario, usarShell } = localizarClaude();
-    const args = this.montarArgs(opcoes);
+    const args = montarArgsClaude(opcoes);
 
     if (usarShell) {
       const linha = [binario, ...args].map(citarArg).join(" ");
@@ -56,7 +98,7 @@ class ProcessoClaude implements ProcessoSessao {
     }
 
     try {
-      this.processo.stdin?.write(opcoes.prompt);
+      this.processo.stdin?.write(montarPromptComInstrucoes(opcoes));
       this.processo.stdin?.end();
     } catch {
       // stdin ja fechado, sem drama.
@@ -136,47 +178,6 @@ class ProcessoClaude implements ProcessoSessao {
         // ja morto.
       }
     }
-  }
-
-  private montarArgs(opcoes: OpcoesSessaoProvedor): string[] {
-    const modoPermissao =
-      opcoes.permissao === "total" ? "bypassPermissions" : "acceptEdits";
-    const args = [
-      "-p",
-      "--output-format",
-      "stream-json",
-      "--verbose",
-      "--include-partial-messages",
-      "--permission-mode",
-      modoPermissao,
-    ];
-
-    if (opcoes.modelo) {
-      args.push("--model", opcoes.modelo);
-    }
-    if (opcoes.retomada) {
-      args.push("--resume", opcoes.retomada);
-    }
-    if (opcoes.instrucoesExtras) {
-      args.push("--append-system-prompt", opcoes.instrucoesExtras);
-    }
-
-    const ferramentasMcp: string[] = [];
-    if (opcoes.mcp) {
-      args.push("--mcp-config", opcoes.mcp.caminho);
-      for (const idServidor of opcoes.mcp.servidores) {
-        ferramentasMcp.push(`mcp__${idServidor}`);
-      }
-    }
-
-    args.push(
-      "--allowedTools",
-      "Bash(node:*)",
-      "Bash(npm:*)",
-      "Bash(npx:*)",
-      ...ferramentasMcp,
-    );
-    return args;
   }
 
   private consumirStdout(pedaco: string): void {

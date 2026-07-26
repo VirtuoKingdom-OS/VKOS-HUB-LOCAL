@@ -26,7 +26,6 @@ import { prepararPromptEWorkspace } from "../provedores/skills.js";
 import { transmitir } from "../ws.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { obterConfigApp, obterModeloPadraoDoProvedor } from "../config/estado.js";
-import { REGRA_MODO_ENXUTO } from "./modo-enxuto.js";
 import { anexarTurno, apagarTranscricao } from "./transcricao.js";
 import { registrarResult } from "./custos.js";
 import {
@@ -164,10 +163,9 @@ export function custoDoResult(evento: Record<string, unknown>): {
 }
 
 export function montarInstrucoesExtrasSessao(
-  sessao: Pick<Sessao, "modoEnxuto" | "contextoCrm">,
+  sessao: Pick<Sessao, "contextoCrm">,
 ): string | undefined {
   const blocos: string[] = [];
-  if (sessao.modoEnxuto) blocos.push(REGRA_MODO_ENXUTO);
   if (sessao.contextoCrm) {
     blocos.push(
       `<contexto-crm>\nResumo do CRM do usuario (agregado, gerado agora):\n${sessao.contextoCrm}\n</contexto-crm>\n${REGRA_CONTEXTO_CRM}`,
@@ -240,12 +238,6 @@ export class GerenciadorSessoes {
       ? modeloConfigurado
       : modelosDisponiveis[0] ?? modeloConfigurado;
     const modeloAlias = entrada.modelo ?? modeloPadrao;
-    // Modo enxuto decidido UMA vez, na criacao, e travado na sessao como
-    // permissao e modelo. A geracao guiada (carrossel, site) nunca recebe.
-    const enxuto =
-      obterConfigApp().modoEnxuto &&
-      entrada.skill !== "carrossel" &&
-      entrada.skill !== "site";
     const sessao: Sessao = {
       id: this.gerarId(),
       provedor: provedor.id,
@@ -260,7 +252,6 @@ export class GerenciadorSessoes {
       // Modo de permissao do spawn. Sem escolha, o padrao seguro (acceptEdits).
       // Persiste na sessao, entao vale tambem nas continuacoes via --resume.
       permissao: entrada.permissao ?? "padrao",
-      modoEnxuto: enxuto,
       contextoCrm: entrada.contextoCrm,
       // Chave do laco de conformidade. Geracao guiada de site e ajuste de site
       // preenchem; qualquer outra skill nunca carrega pastaAlvo.
