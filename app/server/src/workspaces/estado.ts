@@ -197,7 +197,7 @@ export function renomearWorkspace(id: string, nome: string): Workspace | null {
 }
 
 // Apaga a pasta de dados do hub de um workspace (app/dados/workspaces/<id>/):
-// conexoes.json com segredos, crm.json com PII, calendario, transcricoes. A pasta
+// conexoes.json com segredos, crm.json com PII, transcricoes. A pasta
 // VKOS do cliente (workspace.pasta) NUNCA e tocada aqui: e o conteudo dele.
 // Tolerante: pasta ausente nao e erro.
 export function apagarPastaDadosWorkspace(id: string): void {

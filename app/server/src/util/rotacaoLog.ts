@@ -1,7 +1,6 @@
-// Rotacao preguicosa compartilhada pros logs jsonl por workspace (eventos e
-// historico de automacoes). Cada chamador cria a sua com um rotulo proprio pro
-// log de erro; o contador de gravacoes vive dentro do fechamento, isolado por
-// chamador.
+// Rotacao preguicosa compartilhada pros logs jsonl por workspace. Cada chamador
+// cria a sua com um rotulo proprio pro log de erro; o contador de gravacoes vive
+// dentro do fechamento, isolado por chamador.
 
 import { readFileSync } from "node:fs";
 

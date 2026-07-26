@@ -5,9 +5,7 @@ export const TELAS_FIXAS = new Set([
   "galerias",
   "fontes",
   "crm",
-  "calendario",
   "conexoes",
-  "automacoes",
   "mapa",
 ]);
 

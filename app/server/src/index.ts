@@ -24,10 +24,6 @@ import { rotasWorkspaces } from "./workspaces/rotas.js";
 import { rotasIde } from "./ide/rotas.js";
 import { rotasConexoes } from "./conexoes/rotas.js";
 import { rotasCrm } from "./crm/rotas.js";
-import { rotasAutomacoes } from "./automacoes/rotas.js";
-import { rotasCalendario } from "./calendario/rotas.js";
-import { iniciarSincronizacaoCalendario } from "./calendario/sincronizacao.js";
-import { iniciarExecutor } from "./automacoes/executor.js";
 import { migrarSeNecessario } from "./workspaces/migracao.js";
 import { garantirWorkspaceIntegrado } from "./workspaces/integrado.js";
 import { rotasProvedores } from "./provedores/rotas.js";
@@ -137,15 +133,8 @@ async function subir(): Promise<void> {
   await app.register(rotasConexoes, { prefix: "/api" });
   await app.register(rotasCrm, { prefix: "/api" });
   await app.register(rotasLeads, { prefix: "/api" });
-  await app.register(rotasAutomacoes, { prefix: "/api" });
-  await app.register(rotasCalendario, { prefix: "/api" });
   await app.register(rotasPublicacao, { prefix: "/api" });
   await app.register(rotasMapa, { prefix: "/api" });
-
-  // Executor de automacoes: assina o barramento e reage aos eventos do hub.
-  iniciarExecutor();
-  // Sincronizacao CRM > Google Calendar: tambem assina o barramento.
-  iniciarSincronizacaoCalendario();
 
   // Arquivos das pecas na raiz, sem /api: o frontend faz proxy de /pecas separado.
   await app.register(rotasPecas);

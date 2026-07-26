@@ -522,57 +522,6 @@
   font-size: 13px;
 }
 
-/* Bloco de conexao OAuth do Google Calendar (dentro do card). */
-.conx-google {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-top: 1px solid var(--borda);
-  padding-top: 14px;
-}
-.conx-google-acao {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.conx-google-conectar {
-  padding: 9px 18px;
-  font-size: 13px;
-}
-.conx-google-giro {
-  flex-shrink: 0;
-}
-.conx-google-conectado {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.conx-google-ponto {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--menta);
-  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.2);
-  flex-shrink: 0;
-}
-.conx-google-conta {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--texto);
-  word-break: break-all;
-}
-.conx-google-desconectar {
-  margin-left: auto;
-  padding: 7px 14px;
-  font-size: 12px;
-}
-.conx-google-desconectar.armado {
-  color: var(--alerta-suave);
-  border-color: rgba(var(--alerta-rgb), 0.5);
-  background: rgba(var(--alerta-rgb), 0.1);
-}
-
 @media (max-width: 640px) {
   .conx-corpo {
     padding: 18px 18px 40px;
