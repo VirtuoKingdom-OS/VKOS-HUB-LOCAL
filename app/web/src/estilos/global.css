@@ -946,63 +946,6 @@ textarea {
   color: var(--menta-clara);
   font-variant-numeric: tabular-nums;
 }
-/* Modo enxuto: linha com rotulo e switch pequeno, vizinha do gasto do
-   cliente. Tudo por tokens, entao funciona nos tres temas. */
-.rodape-enxuto {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.rodape-enxuto-rotulo {
-  color: var(--texto-suave);
-}
-.enxuto-switch {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.enxuto-switch input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.enxuto-switch input:disabled + .enxuto-switch-trilho {
-  opacity: 0.55;
-  cursor: default;
-}
-.enxuto-switch-trilho {
-  width: 32px;
-  height: 18px;
-  border-radius: 100px;
-  background: var(--fundo-3);
-  border: 1px solid var(--borda-forte);
-  transition: background var(--transicao), border-color var(--transicao);
-  display: inline-flex;
-  align-items: center;
-  padding: 0 2px;
-}
-.enxuto-switch-bola {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--texto-fraco);
-  transition: transform var(--transicao), background var(--transicao);
-}
-.enxuto-switch input:checked + .enxuto-switch-trilho {
-  background: rgba(var(--menta-rgb), 0.22);
-  border-color: var(--menta);
-}
-.enxuto-switch input:checked + .enxuto-switch-trilho .enxuto-switch-bola {
-  transform: translateX(14px);
-  background: var(--menta);
-}
-.enxuto-switch input:focus-visible + .enxuto-switch-trilho {
-  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.18);
-}
-
 .rodape-pasta {
   font-family: var(--mono);
   font-size: 11px;

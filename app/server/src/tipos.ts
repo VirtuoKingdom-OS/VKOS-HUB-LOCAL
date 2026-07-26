@@ -61,10 +61,6 @@ export interface Sessao {
   // total = --permission-mode bypassPermissions (poder total, sem confirmacao).
   // Persiste na sessao e vale nas continuacoes (resume).
   permissao?: "padrao" | "total";
-  // Extensao rodada otimizacoes de IA: Modo enxuto travado na criacao.
-  // Decidido uma vez (config ligada e skill fora da geracao guiada) e
-  // repetido em toda retomada, pra sessao nao mudar de personalidade.
-  modoEnxuto?: boolean;
   // Resumo agregado e sem telefone/email, capturado quando o pedido cita CRM.
   // Persiste para a mesma protecao e o mesmo contexto voltarem no resume.
   contextoCrm?: string;

@@ -11,7 +11,6 @@ import { listarProvedoresRegistrados } from "../provedores/index.js";
 import {
   definirModeloPadraoClaude,
   definirModeloPadraoCodex,
-  definirModoEnxuto,
   definirProvedorPadrao,
   ehProvedorValido,
   obterConfigApp,
@@ -24,7 +23,6 @@ interface CorpoConfig {
   provedorPadrao?: unknown;
   modeloPadraoClaude?: unknown;
   modeloPadraoCodex?: unknown;
-  modoEnxuto?: unknown;
 }
 
 function modelosDoProvedor(id: "claude" | "codex"): string[] {
@@ -99,12 +97,6 @@ async function atualizar(
       .code(400)
       .send({ erro: `modelo Codex invalido. Use: ${modelosCodex.join(", ")}.` });
   }
-  if (corpo.modoEnxuto !== undefined && typeof corpo.modoEnxuto !== "boolean") {
-    return resposta
-      .code(400)
-      .send({ erro: "modoEnxuto invalido. Use true ou false." });
-  }
-
   if (corpo.provedorPadrao !== undefined) {
     definirProvedorPadrao(corpo.provedorPadrao);
   }
@@ -114,10 +106,6 @@ async function atualizar(
   if (corpo.modeloPadraoCodex !== undefined) {
     definirModeloPadraoCodex(corpo.modeloPadraoCodex);
   }
-  if (typeof corpo.modoEnxuto === "boolean") {
-    definirModoEnxuto(corpo.modoEnxuto);
-  }
-
   return respostaConfig();
 }
 

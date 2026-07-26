@@ -34,7 +34,8 @@ export interface OpcoesSessaoProvedor {
   permissao: "padrao" | "total";
   retomada?: string;
   mcp?: ConfigMcpProvedor | null;
-  // Instrucoes de sistema extras da sessao (ex: regra do Modo enxuto).
+  // Instrucoes extras da sessao (ex: contexto agregado do CRM). Entregues pelo
+  // stdin, junto do prompt, nunca por argumento de linha de comando.
   // No Claude vira --append-system-prompt; no Codex prefixa o prompt do stdin.
   instrucoesExtras?: string;
 }

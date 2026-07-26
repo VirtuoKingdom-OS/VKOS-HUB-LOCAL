@@ -41,14 +41,14 @@ test("resume Claude preserva a heranca nativa do CLI", () => {
   );
 });
 
-test("combina modo enxuto e CRM com a regra dura de privacidade", () => {
-  const instrucoes = montarInstrucoesExtrasSessao({
-    modoEnxuto: true,
-    contextoCrm: "## Funil\n- Novo: 2",
-  });
+test("contexto do CRM entra com a regra dura de privacidade", () => {
+  const contexto = "## Funil\n- Novo: 2";
+  const instrucoes = montarInstrucoesExtrasSessao({ contextoCrm: contexto });
   assert.ok(instrucoes);
+  // O contexto precisa chegar literal, nao so o entorno dele. Um teste que
+  // afirma apenas os marcadores passaria com a injecao apagada.
+  assert.ok(instrucoes.includes(contexto));
   assert.match(instrucoes, /<contexto-crm>/);
-  assert.match(instrucoes, /Novo: 2/);
   assert.match(instrucoes, /REGRA DURA/);
   assert.match(instrucoes, /dado pessoal nunca/);
 });
