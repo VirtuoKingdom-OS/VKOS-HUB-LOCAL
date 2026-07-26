@@ -1,0 +1,39 @@
+VKOS Hub Local
+Copyright (c) 2026 Jesse Gomes, VirtuoKingdom (VKOS).
+Todos os direitos reservados.
+
+Este produto e seu codigo fonte sao licenciados sob a Business Source License
+1.1. O texto completo esta em LICENSE, na raiz deste repositorio.
+
+ATRIBUICAO OBRIGATORIA
+
+Qualquer copia, derivado, fork ou trecho substancial deste codigo deve
+preservar, de forma visivel e nao removivel:
+
+1. Este arquivo NOTICE, integro.
+2. O arquivo LICENSE, integro.
+3. Um credito legivel ao autor original em qualquer interface, documentacao
+   ou material distribuido, no formato:
+
+       Baseado no VKOS Hub Local, de Jesse Gomes (VirtuoKingdom).
+       https://github.com/OJESSEGOMES-VKOS/VKOS-HUB-LOCAL
+
+Remover, ocultar ou alterar essa atribuicao encerra automaticamente os
+direitos concedidos pela licenca.
+
+USO EM PRODUCAO
+
+A Business Source License 1.1 deste repositorio nao concede nenhum uso em
+producao. Uso comercial, hospedado, embarcado ou oferecido a terceiros exige
+licenca comercial escrita do Licensor.
+
+Contato para licenciamento: jesseconta017@gmail.com
+
+COMPONENTES DE TERCEIROS
+
+Este trabalho incorpora software de terceiros sob suas proprias licencas,
+declaradas nos respectivos pacotes em app/package.json, app/server/package.json
+e app/web/package.json.
+
+A regra de economia de sessao distribuida em versoes anteriores foi destilada
+do projeto ponytail (MIT). O credito e mantido no historico do repositorio.

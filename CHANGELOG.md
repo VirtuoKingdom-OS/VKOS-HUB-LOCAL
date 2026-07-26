@@ -1,7 +1,31 @@
 # Histórico de versões
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
-O VKOS Hub segue [versionamento semântico](https://semver.org/lang/pt-BR/).
+O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
+
+## [1.0.0] 2026-07-26
+
+Marco zero do VKOS Hub Local como produto próprio, em repositório privado com licença, contrato de contribuição e política de segurança. A base de código vem do VKOS Hub 2.0.0 mais a rodada de 21 de julho, o último estado local-first antes da tentativa de nuvem, que foi arquivada.
+
+### Adicionado
+
+- Business Source License 1.1 com atribuição obrigatória em `NOTICE`. Uso em produção exige licença comercial. Cada versão vira AGPL-3.0-or-later quatro anos após publicada.
+- `CONTRIBUTING.md` com o fluxo de rodada, o portão de qualidade e as regras de escrita e de código.
+- `SECURITY.md` com modelo de ameaça local-first, garantias do produto e o que fica fora da proteção.
+- `.gitattributes` normalizando fim de linha em LF. Sem ele, o Git for Windows clonava em CRLF e quebrava testes que comparam texto multilinha.
+
+### Alterado
+
+- Repositório renomeado para VKOS Hub Local, com versionamento reiniciado em 1.0.0.
+- README reescrito em torno das duas camadas do produto, CORE e Workspace.
+
+### Removido
+
+- A linha de trabalho de nuvem (Docker, Compose, Caddy, scripts de VPS e broker de IA via Vertex) saiu da linha principal. Ela fica preservada no branch `arquivo/vkos-3-nuvem`.
+
+## Histórico anterior, VKOS Hub
+
+O que vem abaixo é o histórico do repositório de origem, mantido como registro.
 
 ## [2.0.0] 2026-07-18
 
