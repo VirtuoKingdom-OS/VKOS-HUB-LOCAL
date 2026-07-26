@@ -1,0 +1,26 @@
+# Normaliza fim de linha. Sem isso, o Git for Windows clona tudo em CRLF e
+# quebra testes que comparam texto multilinha. Todo texto vive em LF no repo.
+* text=auto eol=lf
+
+# Scripts do Windows precisam de CRLF pra rodar direto no cmd.exe.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios: nunca normalizar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp4 binary
+
+# Arquivos gerados nao poluem o diff da revisao.
+package-lock.json linguist-generated=true diff=none

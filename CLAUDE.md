@@ -55,4 +55,13 @@ Motion e UI caprichados importam muito para ele. A identidade da VK é minimalis
 
 ## Código
 
-O código do app vive em `app/` (server Fastify + web React/Vite). O contrato técnico das rodadas fica em `app/CONTRATO.md`.
+O código do app vive em `app/` (server Fastify + web React/Vite). O contrato técnico das rodadas fica em `app/CONTRATO.md`. O fluxo completo de trabalho, o portão de qualidade e as regras de código estão em `CONTRIBUTING.md`.
+
+Regras que já custaram caro e não se repetem:
+
+- **Nenhum valor multilinha em argumento de processo filho.** No Windows, sob shell, o `cmd.exe` corta na primeira quebra de linha e leva junto o resto da linha de comando, em silêncio. Use stdin ou arquivo. Ver `decisoes/2026-07-26-instrucoes-extras-por-stdin.md`.
+- **Teste de injeção afirma o conteúdo injetado**, não só o entorno. Teste que passaria com a injeção apagada não é teste.
+
+## Licença e repositório
+
+Repositório privado `OJESSEGOMES-VKOS/VKOS-HUB-LOCAL`, sob Business Source License 1.1 com atribuição obrigatória. Ver `LICENSE` e `NOTICE`. Arquivo novo de código nasce dentro dessa licença, sem cabeçalho por arquivo.
