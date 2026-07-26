@@ -1,6 +1,6 @@
 {
   "fonte": "curado a mao a partir de app/web/src/componentes/layout/rotas.ts, Shell.tsx e App.tsx",
-  "atualizadoEm": "2026-07-21",
+  "atualizadoEm": "2026-07-26",
   "versao": 1,
   "zonas": [
     { "id": "entrada", "nome": "Entrada e boot", "cor": "suave" },
@@ -88,35 +88,13 @@
       "esqueleto": "kanban"
     },
     {
-      "id": "calendario",
-      "zona": "hub",
-      "nome": "Calendário",
-      "rota": "#/calendario",
-      "destino": "calendario",
-      "resumo": "Eventos locais e do Google Calendar.",
-      "descricao": "Agenda do cliente com eventos locais do Hub e os do Google Calendar quando a conexão está ligada.",
-      "estados": ["eventos locais", "Google Calendar"],
-      "esqueleto": "calendario"
-    },
-    {
-      "id": "automacoes",
-      "zona": "hub",
-      "nome": "Automações",
-      "rota": "#/automacoes",
-      "destino": "automacoes",
-      "resumo": "Regras que reagem a eventos do Hub.",
-      "descricao": "Lista de regras de automação com um assistente para criar cada uma e um ensaio que mostra o que a regra faria sem efeito real.",
-      "estados": ["lista de regras", "assistente de regra", "ensaio"],
-      "esqueleto": "lista"
-    },
-    {
       "id": "conexoes",
       "zona": "hub",
       "nome": "Conexões",
       "rota": "#/conexoes",
       "destino": "conexoes",
       "resumo": "Catálogo de integrações externas.",
-      "descricao": "Onde entram os tokens das integrações (Netlify, GitHub, Google). Cada conexão faz um teste real na API antes de ficar ativa.",
+      "descricao": "Onde entram os tokens das integrações (Netlify, GitHub, Notion, Apify). Cada conexão faz um teste real na API antes de ficar ativa.",
       "estados": ["catálogo de integrações", "token", "teste real"],
       "esqueleto": "grade"
     },
@@ -275,8 +253,6 @@
     { "de": "dashboard", "para": "criar-story", "gesto": "clica em criar story" },
     { "de": "dashboard", "para": "criar-site", "gesto": "clica em criar site" },
     { "de": "dashboard", "para": "crm", "gesto": "abre o CRM" },
-    { "de": "dashboard", "para": "calendario", "gesto": "abre o Calendário" },
-    { "de": "dashboard", "para": "automacoes", "gesto": "abre as Automações" },
     { "de": "dashboard", "para": "conexoes", "gesto": "abre as Conexões" },
     { "de": "dashboard", "para": "mapa", "gesto": "abre o Mapa" },
     { "de": "dashboard", "para": "galerias", "gesto": "abre as Galerias" },

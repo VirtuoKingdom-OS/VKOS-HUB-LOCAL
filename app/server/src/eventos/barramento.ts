@@ -1,6 +1,6 @@
-// Barramento de eventos interno do hub. Fundacao pra integracoes: o hub anuncia
-// o que acontece nele (cartao do CRM criado, movido, peca criada, sessao
-// concluida) e quem quiser age. Emissor tipado em memoria, sem dependencia nova.
+// Barramento de eventos interno do hub. Anuncia o que acontece nele (cartao do
+// CRM criado, movido, peca criada, sessao concluida) e quem quiser age. Emissor
+// tipado em memoria, sem dependencia nova.
 //
 // Regras de robustez: assinante que lanca erro nao derruba os outros nem o
 // emissor (try/catch por assinante, log honesto). Cada evento tambem vira uma
@@ -99,8 +99,7 @@ function registrarNoLog(evento: EventoDominio): void {
 }
 
 // Le as ultimas linhas do log de um workspace, da mais nova pra mais antiga.
-// Usado pelo modo ensaio das automacoes (ultimo evento compativel). Arquivo
-// ausente ou ilegivel devolve lista vazia, sem quebrar.
+// Arquivo ausente ou ilegivel devolve lista vazia, sem quebrar.
 export function lerEventosRecentes(workspaceId: string, limite = 200): EventoDominio[] {
   try {
     const caminho = join(pastaDadosWorkspace(workspaceId), NOME_LOG);

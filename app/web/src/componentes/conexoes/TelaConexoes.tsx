@@ -9,8 +9,6 @@ import {
 } from "../../api/cliente";
 import type { Ambiente, DeteccaoMotorIA, ProvedorIA } from "../../tipos/dominio";
 import {
-  conectarGoogleCalendar,
-  desconectarGoogleCalendar,
   obterConexoes,
   salvarConexao,
   testarConexao,
@@ -26,8 +24,6 @@ import {
   IconeRaio,
 } from "../comum/Icones";
 
-// Id da conexao do Google Calendar no catalogo (o card ganha o fluxo Conectar).
-const ID_GOOGLE_CALENDAR = "googlecalendar";
 const IDS_CONEXAO_GUIADA = new Set(["github", "netlify"]);
 
 interface GuiaToken {
@@ -241,7 +237,6 @@ export function TelaConexoes() {
                 entrada={entrada}
                 estado={servidores[entrada.id]}
                 aoSalvar={aoSalvar}
-                recarregar={carregar}
                 mcpBloqueado={provedorAtivo === "codex"}
               />
             ))}
@@ -420,7 +415,6 @@ function CartaoConexao({
   entrada,
   estado,
   aoSalvar,
-  recarregar,
   mcpBloqueado,
 }: {
   entrada: EntradaConexao;
@@ -429,7 +423,6 @@ function CartaoConexao({
     id: string,
     dados: { habilitado: boolean; config?: Record<string, string> }
   ) => Promise<void>;
-  recarregar: () => Promise<void>;
   mcpBloqueado: boolean;
 }) {
   const [habilitado, setHabilitado] = useState(estado?.habilitado ?? false);
@@ -454,13 +447,7 @@ function CartaoConexao({
   const mascarado = (campo: CampoConexao): string => estado?.config?.[campo.chave] ?? "";
   const temTokenSalvo = entrada.campos.some((c) => c.segredo && mascarado(c));
 
-  // So o Google Calendar tem o fluxo Conectar. Credenciais salvas = Client ID e
-  // Client Secret ja no disco (o backend le do conexoes.json pra abrir o OAuth).
-  const ehGoogle = entrada.id === ID_GOOGLE_CALENDAR;
   const temGuia = IDS_CONEXAO_GUIADA.has(entrada.id);
-  const credenciaisSalvas =
-    (estado?.config?.clientId ?? "").trim() !== "" &&
-    (estado?.config?.clientSecret ?? "").trim() !== "";
 
   if (!entrada.disponivel) {
     return (
@@ -616,23 +603,6 @@ function CartaoConexao({
         })}
       </div>
 
-      {ehGoogle && (
-        <BlocoConexaoGoogle
-          conectado={estado?.conectado === true}
-          contaEmail={estado?.contaEmail}
-          credenciaisSalvas={credenciaisSalvas}
-          recarregar={recarregar}
-          aoDesconectado={() => {
-            // Backend limpou clientId/clientSecret/refreshToken/contaEmail. Aqui
-            // zera o que o usuario tinha digitado pra o card voltar ao inicio.
-            setValores({});
-            setRevelar({});
-            setSalvo(false);
-            setErro(null);
-          }}
-        />
-      )}
-
       {erro && <p className="conx-erro">{erro}</p>}
       {testeOk && (
         <p className="conx-teste-ok">
@@ -728,138 +698,5 @@ function TrilhaConexaoToken({
         </button>
       </div>
     </section>
-  );
-}
-
-// Bloco de conexao OAuth do Google Calendar. Sem refresh token, mostra o botao
-// Conectar (desabilitado com dica enquanto as credenciais nao estao salvas).
-// Conectado, mostra a conta e o Desconectar com confirmacao em dois cliques.
-function BlocoConexaoGoogle({
-  conectado,
-  contaEmail,
-  credenciaisSalvas,
-  recarregar,
-  aoDesconectado,
-}: {
-  conectado: boolean;
-  contaEmail?: string;
-  credenciaisSalvas: boolean;
-  recarregar: () => Promise<void>;
-  aoDesconectado?: () => void;
-}) {
-  const [conectando, setConectando] = useState(false);
-  const [desconectando, setDesconectando] = useState(false);
-  const [armado, setArmado] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-
-  // Confirmacao armada desarma sozinha em 4s, no padrao do app (nunca por sair
-  // com o mouse: sair nao cancela a intencao).
-  useEffect(() => {
-    if (!armado) return;
-    const t = window.setTimeout(() => setArmado(false), 4000);
-    return () => window.clearTimeout(t);
-  }, [armado]);
-
-  async function conectar() {
-    if (conectando) return;
-    setConectando(true);
-    setErro(null);
-    try {
-      // A chamada segura ate a autorizacao no navegador (pode levar minutos): quem
-      // corta o tempo e o backend, com mensagem honesta.
-      await conectarGoogleCalendar();
-      await recarregar();
-    } catch (e) {
-      setErro(
-        e instanceof Error
-          ? e.message
-          : "Nao deu pra conectar. Tente de novo."
-      );
-    } finally {
-      setConectando(false);
-    }
-  }
-
-  async function desconectar() {
-    if (desconectando) return;
-    if (!armado) {
-      setArmado(true);
-      return;
-    }
-    setArmado(false);
-    setDesconectando(true);
-    setErro(null);
-    try {
-      await desconectarGoogleCalendar();
-      // Recarrega o estado do GET (o backend zerou tudo) antes de confiar so no
-      // local, e limpa o que o usuario tinha digitado no card.
-      await recarregar();
-      aoDesconectado?.();
-    } catch (e) {
-      setErro(
-        e instanceof Error ? e.message : "Nao deu pra desconectar. Tente de novo."
-      );
-    } finally {
-      setDesconectando(false);
-    }
-  }
-
-  if (conectado) {
-    return (
-      <div className="conx-google">
-        <div className="conx-google-conectado">
-          <span className="conx-google-ponto" aria-hidden="true" />
-          <span className="conx-google-conta">
-            Conectado{contaEmail ? ` como ${contaEmail}` : ""}
-          </span>
-          <button
-            type="button"
-            className={`botao botao-neutro conx-google-desconectar${armado ? " armado" : ""}`}
-            onClick={() => void desconectar()}
-            disabled={desconectando}
-            title={armado ? "Clique de novo pra confirmar" : "Desconectar do Google"}
-          >
-            {desconectando
-              ? "Desconectando..."
-              : armado
-              ? "Confirmar?"
-              : "Desconectar"}
-          </button>
-        </div>
-        {erro && <p className="conx-erro">{erro}</p>}
-      </div>
-    );
-  }
-
-  return (
-    <div className="conx-google">
-      <div className="conx-google-acao">
-        <button
-          type="button"
-          className="botao botao-principal conx-google-conectar"
-          onClick={() => void conectar()}
-          disabled={conectando || !credenciaisSalvas}
-          title={
-            credenciaisSalvas
-              ? "Abre o navegador na autorizacao do Google"
-              : "Salve o Client ID e o Client Secret antes de conectar"
-          }
-        >
-          {conectando ? "Aguardando autorizacao no navegador..." : "Conectar"}
-        </button>
-        {conectando && <span className="giro conx-google-giro" />}
-      </div>
-      {!credenciaisSalvas && (
-        <p className="conx-dica">
-          Salve o Client ID e o Client Secret acima antes de conectar.
-        </p>
-      )}
-      {conectando && (
-        <p className="conx-dica">
-          Autorize a conta na janela do navegador. Isso pode levar alguns minutos.
-        </p>
-      )}
-      {erro && <p className="conx-erro">{erro}</p>}
-    </div>
   );
 }

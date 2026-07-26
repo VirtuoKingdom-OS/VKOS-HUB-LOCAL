@@ -977,7 +977,7 @@
   color: var(--texto);
 }
 
-/* Switch no padrao visual da casa (mesmo desenho das conexoes/automacoes). */
+/* Switch no padrao visual da casa (mesmo desenho das conexoes). */
 .criacao-switch {
   position: relative;
   display: inline-flex;

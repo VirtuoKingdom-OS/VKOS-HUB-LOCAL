@@ -150,11 +150,10 @@
       "grupo": "dados",
       "nome": "Espaços de clientes",
       "resumo": "As gavetas separadas que guardam a identidade e o trabalho de cada cliente.",
-      "descricao": "É um armário com uma gaveta por negócio. Trocar de cliente muda Cérebro, peças, agenda, CRM e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu.",
+      "descricao": "É um armário com uma gaveta por negócio. Trocar de cliente muda Cérebro, peças, CRM e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu.",
       "conversaCom": [
         "cerebro",
         "crm",
-        "calendario",
         "pecas",
         "fontes",
         "custos"
@@ -192,9 +191,7 @@
       "descricao": "É a caderneta viva do relacionamento comercial: cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. A entrada no CRM bloqueia telefone ou origem já existente e mantém origem e tag rastreáveis. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
       "conversaCom": [
         "sessoes",
-        "calendario",
         "barramento",
-        "automacoes",
         "conexoes"
       ]
     },
@@ -215,38 +212,12 @@
       "grupo": "integracoes",
       "nome": "Conexões",
       "resumo": "As pontes locais que dão acesso controlado a serviços externos por MCP ou API direta.",
-      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Elas permitem que sessões, publicações, agenda e busca de leads alcancem ferramentas externas, mantendo as credenciais guardadas apenas no computador.",
+      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Elas permitem que sessões, publicações e busca de leads alcancem ferramentas externas, mantendo as credenciais guardadas apenas no computador.",
       "conversaCom": [
         "sessoes",
-        "calendario",
         "publicacao",
         "setup",
         "crm"
-      ]
-    },
-    {
-      "id": "calendario",
-      "grupo": "integracoes",
-      "nome": "Calendário",
-      "resumo": "A agenda local do cliente, com ponte opcional para o Google Calendar.",
-      "descricao": "É a agenda de balcão que funciona mesmo sem internet ou conta conectada. Próximos contatos do CRM e ações automáticas podem criar compromissos nela, e a ponte com o Google fica a critério do usuário.",
-      "conversaCom": [
-        "crm",
-        "automacoes",
-        "conexoes",
-        "barramento"
-      ]
-    },
-    {
-      "id": "automacoes",
-      "grupo": "integracoes",
-      "nome": "Automações",
-      "resumo": "As regras simples que reagem a um acontecimento sem gastar uma sessão de IA.",
-      "descricao": "São como bilhetes do tipo quando isso acontecer, faça aquilo. Elas escutam o movimento do Hub e executam ações previsíveis, como criar um compromisso quando um negócio muda de etapa.",
-      "conversaCom": [
-        "barramento",
-        "crm",
-        "calendario"
       ]
     },
     {
@@ -254,11 +225,9 @@
       "grupo": "integracoes",
       "nome": "Barramento de eventos",
       "resumo": "O sistema nervoso que anuncia cada acontecimento para quem precisa reagir.",
-      "descricao": "É o sistema nervoso do Hub: quando algo importante acontece, ele leva o aviso sem obrigar uma área a conhecer a outra por dentro. Calendário e automações podem escutar o mesmo sinal e reagir cada um do seu jeito.",
+      "descricao": "É o sistema nervoso do Hub: quando algo importante acontece, ele leva o aviso sem obrigar uma área a conhecer a outra por dentro. Hoje o CRM anuncia por ele; qualquer novo módulo pode escutar o mesmo sinal sem acoplamento direto.",
       "conversaCom": [
         "crm",
-        "calendario",
-        "automacoes",
         "pecas",
         "sessoes"
       ]
@@ -409,23 +378,8 @@
     },
     {
       "de": "crm",
-      "para": "calendario",
-      "rotulo": "agenda"
-    },
-    {
-      "de": "crm",
       "para": "barramento",
       "rotulo": "anuncia"
-    },
-    {
-      "de": "barramento",
-      "para": "automacoes",
-      "rotulo": "dispara"
-    },
-    {
-      "de": "automacoes",
-      "para": "calendario",
-      "rotulo": "cria"
     },
     {
       "de": "pecas",

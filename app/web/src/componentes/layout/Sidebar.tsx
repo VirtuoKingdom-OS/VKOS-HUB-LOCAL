@@ -26,7 +26,7 @@ interface Props {
   itensFluxo: ItemFluxo[];
   itensFonte: ItemFonte[];
   // "dashboard", "cockpit", "galerias", "fontes", "crm", "conexoes",
-  // "automacoes", "fluxo:<tipo>", "fonte:<tipo>" ou
+  // "fluxo:<tipo>", "fonte:<tipo>" ou
   // "studio:<pasta>".
   telaAtiva: string;
   aoNavegar: (tela: string) => void;
@@ -129,28 +129,12 @@ export function Sidebar({
           <span className="item-nav-rotulo">CRM</span>
         </button>
         <button
-          className={`item-nav${telaAtiva === "calendario" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "calendario" ? "page" : undefined}
-          onClick={() => aoNavegar("calendario")}
-        >
-          <IconeCalendario />
-          <span className="item-nav-rotulo">Calendário</span>
-        </button>
-        <button
           className={`item-nav${telaAtiva === "conexoes" ? " ativo" : ""}`}
           aria-current={telaAtiva === "conexoes" ? "page" : undefined}
           onClick={() => aoNavegar("conexoes")}
         >
           <IconeConexoes />
           <span className="item-nav-rotulo">Conexões</span>
-        </button>
-        <button
-          className={`item-nav${telaAtiva === "automacoes" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "automacoes" ? "page" : undefined}
-          onClick={() => aoNavegar("automacoes")}
-        >
-          <IconeAutomacoes />
-          <span className="item-nav-rotulo">Automações</span>
         </button>
         {mapaDisponivel && (
           <button
@@ -433,29 +417,10 @@ function IconeCrm() {
   );
 }
 
-// Calendario: folha de agenda com a barra do topo e os furos.
-function IconeCalendario() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3.5" y="5" width="17" height="15" rx="2" />
-      <path d="M3.5 9.5h17M8 3v4M16 3v4" />
-    </svg>
-  );
-}
-
 function IconeConexoes() {
   return (
     <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 7v4M15 7v4M7 11h10v2a5 5 0 0 1-10 0v-2ZM12 18v3" />
-    </svg>
-  );
-}
-
-// Automacoes: um raio, a regra que dispara sozinha.
-function IconeAutomacoes() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13 3 4 14h6l-1 7 9-11h-6l1-7Z" />
     </svg>
   );
 }

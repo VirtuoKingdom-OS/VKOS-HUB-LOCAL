@@ -30,18 +30,8 @@ const TelaIde = lazy(() =>
 const TelaConexoes = lazy(() =>
   import("../conexoes").then((m) => ({ default: m.TelaConexoes }))
 );
-const TelaAutomacoes = lazy(() =>
-  import("../automacoes/TelaAutomacoes").then((m) => ({
-    default: m.TelaAutomacoes,
-  }))
-);
 const TelaCrm = lazy(() =>
   import("../crm").then((m) => ({ default: m.TelaCrm }))
-);
-const TelaCalendario = lazy(() =>
-  import("../calendario/TelaCalendario").then((m) => ({
-    default: m.TelaCalendario,
-  }))
 );
 const TelaMapa = lazy(() =>
   import("../mapa").then((m) => ({ default: m.TelaMapa }))
@@ -319,8 +309,6 @@ export function Shell() {
         )}
         {/* Telas fixas pesadas, por import dinamico. */}
         {(telaFixa === "conexoes" ||
-          telaFixa === "automacoes" ||
-          telaFixa === "calendario" ||
           telaFixa === "mapa" ||
           telaFixa === "crm") && (
           <Suspense
@@ -328,12 +316,6 @@ export function Shell() {
           >
             {telaFixa === "conexoes" && (
               <TelaConexoes key={`cx-${workspaceAtivo}`} />
-            )}
-            {telaFixa === "automacoes" && (
-              <TelaAutomacoes key={`aut-${workspaceAtivo}`} />
-            )}
-            {telaFixa === "calendario" && (
-              <TelaCalendario key={`cal-${workspaceAtivo}`} />
             )}
             {telaFixa === "crm" && <TelaCrm key={`crm-${workspaceAtivo}`} />}
             {telaFixa === "mapa" && <TelaMapa />}
