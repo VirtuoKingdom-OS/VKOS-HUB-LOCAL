@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "../../estilos/conexoes.css";
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
@@ -24,76 +24,9 @@ import {
   IconeRaio,
 } from "../comum/Icones";
 
-const IDS_CONEXAO_GUIADA = new Set(["github", "netlify"]);
-
-interface GuiaToken {
-  linkCriacao: string;
-  linkDocumentacao: string;
-  passos: Array<{ titulo: string; texto: string; observacao?: string }>;
-}
-
-const GUIAS_TOKEN: Record<string, GuiaToken> = {
-  github: {
-    linkCriacao:
-      "https://github.com/settings/personal-access-tokens/new?name=VKOS%20Hub&description=Publicacao%20de%20sites%20pelo%20VKOS%20Hub&expires_in=90&administration=write&contents=write",
-    linkDocumentacao:
-      "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
-    passos: [
-      {
-        titulo: "Abra o gerador seguro",
-        texto:
-          "Entre na sua conta do GitHub e abra o formulário pelo botão abaixo. O VKOS já preenche nome, validade e permissões compatíveis.",
-      },
-      {
-        titulo: "Escolha quem será o dono",
-        texto:
-          "Em Resource owner, escolha a conta que deve receber os repositórios. Em Repository access, marque All repositories para incluir também os próximos sites criados.",
-        observacao:
-          "Se escolher uma organização, ela pode exigir aprovação de um administrador antes de o token funcionar.",
-      },
-      {
-        titulo: "Confira as permissões",
-        texto:
-          "Em Repository permissions, confirme Administration: Read and write e Contents: Read and write. Metadata permanece somente leitura automaticamente.",
-      },
-      {
-        titulo: "Gere e copie o token",
-        texto:
-          "Clique em Generate token e copie o valor completo. Volte ao VKOS sem fechar esta trilha, cole no campo abaixo, ative a conexão e salve.",
-        observacao: "O GitHub mostra o valor completo apenas nesse momento.",
-      },
-    ],
-  },
-  netlify: {
-    linkCriacao: "https://app.netlify.com/user/applications#personal-access-tokens",
-    linkDocumentacao:
-      "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/#authentication",
-    passos: [
-      {
-        titulo: "Abra seus tokens pessoais",
-        texto:
-          "Entre na Netlify e abra Applications, Personal access tokens pelo botão abaixo. Depois escolha New access token.",
-      },
-      {
-        titulo: "Identifique e proteja o token",
-        texto:
-          "Use o nome VKOS Hub e escolha uma data de expiração. Se sua equipe usa SAML SSO, marque a autorização de acesso à equipe.",
-      },
-      {
-        titulo: "Gere e copie uma única vez",
-        texto:
-          "Clique em Generate token e copie o valor completo antes de sair da página. A Netlify não volta a mostrar esse valor.",
-      },
-      {
-        titulo: "Cole e valide no VKOS",
-        texto:
-          "Volte ao VKOS, cole o token no campo abaixo, ative a conexão e clique em Salvar. O Hub fará um teste real na API da Netlify.",
-        observacao:
-          "O time principal é detectado automaticamente. Use o campo opcional de time somente se quiser publicar em outra equipe. Se redefinir a senha da Netlify, será necessário gerar outro token.",
-      },
-    ],
-  },
-};
+// Conexões que o Hub confirma na API oficial ao salvar. Hoje só a Apify, que
+// alimenta a busca de leads do CRM.
+const IDS_COM_TESTE = new Set(["apify"]);
 
 // Mapa de estado por id de servidor.
 type MapaServidores = Record<string, EstadoServidor>;
@@ -211,8 +144,7 @@ export function TelaConexoes() {
           <p className="conx-aviso-mcp">
             <IconeAlerta className="conx-aviso-icone" />
             As ferramentas MCP estão disponíveis só com Claude nesta versão. As
-            conexões continuam configuráveis com Codex e a publicação direta por
-            GitHub e Netlify funciona normalmente.
+            conexões continuam configuráveis com Codex.
           </p>
         )}
 
@@ -237,7 +169,6 @@ export function TelaConexoes() {
                 entrada={entrada}
                 estado={servidores[entrada.id]}
                 aoSalvar={aoSalvar}
-                mcpBloqueado={provedorAtivo === "codex"}
               />
             ))}
           </div>
@@ -415,7 +346,6 @@ function CartaoConexao({
   entrada,
   estado,
   aoSalvar,
-  mcpBloqueado,
 }: {
   entrada: EntradaConexao;
   estado: EstadoServidor | undefined;
@@ -423,18 +353,15 @@ function CartaoConexao({
     id: string,
     dados: { habilitado: boolean; config?: Record<string, string> }
   ) => Promise<void>;
-  mcpBloqueado: boolean;
 }) {
   const [habilitado, setHabilitado] = useState(estado?.habilitado ?? false);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [revelar, setRevelar] = useState<Record<string, boolean>>({});
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
-  const [guiaAberta, setGuiaAberta] = useState(false);
   const [validando, setValidando] = useState(false);
   const [testeOk, setTesteOk] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const tokenRef = useRef<HTMLInputElement>(null);
 
   // Sincroniza o toggle com o valor persistido quando ele muda no servidor (ex:
   // o fluxo Conectar liga a conexao no backend). So dispara quando o disco muda,
@@ -447,7 +374,7 @@ function CartaoConexao({
   const mascarado = (campo: CampoConexao): string => estado?.config?.[campo.chave] ?? "";
   const temTokenSalvo = entrada.campos.some((c) => c.segredo && mascarado(c));
 
-  const temGuia = IDS_CONEXAO_GUIADA.has(entrada.id);
+  const temTeste = IDS_COM_TESTE.has(entrada.id);
 
   if (!entrada.disponivel) {
     return (
@@ -479,7 +406,7 @@ function CartaoConexao({
       // Limpa os campos digitados: o placeholder ja mostra o novo mascarado.
       setValores({});
       setRevelar({});
-      if (temGuia && habilitado) {
+      if (temTeste && habilitado) {
         setValidando(true);
         try {
           const teste = await testarConexao(entrada.id);
@@ -529,35 +456,6 @@ function CartaoConexao({
 
       <p className="conx-descricao">{entrada.descricao}</p>
 
-      {temGuia && (
-        <>
-          <button
-            type="button"
-            className="conx-guia-abrir"
-            aria-expanded={guiaAberta}
-            onClick={() => setGuiaAberta((aberta) => !aberta)}
-          >
-            {guiaAberta ? "Fechar conexão guiada" : "Iniciar conexão guiada"}
-          </button>
-          {guiaAberta && (
-            <TrilhaConexaoToken
-              servico={entrada.id}
-              aoIrAoToken={() => {
-                tokenRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                tokenRef.current?.focus({ preventScroll: true });
-              }}
-            />
-          )}
-        </>
-      )}
-
-      {mcpBloqueado && temGuia && (
-        <p className="conx-dica">
-          Com Codex, esta credencial habilita a publicação direta. O MCP permanece
-          disponível apenas quando o motor ativo for Claude.
-        </p>
-      )}
-
       <div className="conx-campos">
         {entrada.campos.map((campo) => {
           const vendo = revelar[campo.chave] ?? false;
@@ -566,7 +464,6 @@ function CartaoConexao({
               <label className="conx-rotulo">{campo.rotulo}</label>
               <div className="conx-entrada">
                 <input
-                  ref={campo.chave === "token" ? tokenRef : undefined}
                   type={campo.segredo && !vendo ? "password" : "text"}
                   value={valores[campo.chave] ?? ""}
                   onChange={(e) => {
@@ -631,72 +528,12 @@ function CartaoConexao({
               ? "Validando..."
               : salvando
               ? "Salvando..."
-              : temGuia && habilitado
+              : temTeste && habilitado
               ? "Salvar e testar"
               : "Salvar"}
           </button>
         </div>
       </div>
     </article>
-  );
-}
-
-function TrilhaConexaoToken({
-  servico,
-  aoIrAoToken,
-}: {
-  servico: string;
-  aoIrAoToken: () => void;
-}) {
-  const [passo, setPasso] = useState(0);
-  const guia = GUIAS_TOKEN[servico];
-  if (!guia) return null;
-
-  const atual = guia.passos[passo];
-  const ultimo = passo === guia.passos.length - 1;
-  return (
-    <section className="conx-guia" aria-label="Conexão guiada">
-      <header className="conx-guia-topo">
-        <div>
-          <span>Passo {passo + 1} de {guia.passos.length}</span>
-          <strong>{atual.titulo}</strong>
-        </div>
-        <a href={guia.linkDocumentacao} target="_blank" rel="noreferrer">
-          Documentação oficial
-        </a>
-      </header>
-      <div className="conx-guia-progresso" aria-hidden="true">
-        <span style={{ width: `${((passo + 1) / guia.passos.length) * 100}%` }} />
-      </div>
-      <p>{atual.texto}</p>
-      {atual.observacao && <p className="conx-guia-nota">{atual.observacao}</p>}
-      <div className="conx-guia-acoes">
-        {passo > 0 && (
-          <button type="button" className="botao botao-neutro" onClick={() => setPasso((p) => p - 1)}>
-            Voltar
-          </button>
-        )}
-        {passo === 0 && (
-          <a
-            className="botao botao-neutro conx-guia-externo"
-            href={guia.linkCriacao}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Abrir {servico === "github" ? "GitHub" : "Netlify"}
-          </a>
-        )}
-        <button
-          type="button"
-          className="botao botao-principal"
-          onClick={() => {
-            if (ultimo) aoIrAoToken();
-            else setPasso((p) => p + 1);
-          }}
-        >
-          {ultimo ? "Ir para o campo do token" : "Concluí este passo"}
-        </button>
-      </div>
-    </section>
   );
 }

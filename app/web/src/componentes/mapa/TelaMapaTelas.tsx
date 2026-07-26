@@ -211,9 +211,6 @@ function EsqueletoTela({ tipo }: { tipo: string }) {
     case "galeria":
       conteudo = <div className="esq-grade3">{bloco("tile")}{bloco("tile")}{bloco("tile")}{bloco("tile")}{bloco("tile")}{bloco("tile")}</div>;
       break;
-    case "calendario":
-      conteudo = <div className="esq-mes">{Array.from({ length: 14 }).map((_, i) => <span key={i} className="esq-dia" />)}</div>;
-      break;
     case "mapa":
       conteudo = (
         <div className="esq-mapa">

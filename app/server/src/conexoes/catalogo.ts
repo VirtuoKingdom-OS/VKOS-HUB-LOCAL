@@ -43,110 +43,14 @@ export interface EntradaPublica {
   campos: CampoConexao[];
 }
 
-// Le com seguranca o token de um campo, ja aparado.
-function token(config: Record<string, string>, chave = "token"): string {
-  return (config[chave] ?? "").trim();
-}
-
 // O catalogo. Ordem fixa dos servicos que funcionam nesta versao.
+//
+// GitHub, Netlify e Notion sairam em 2026-07-26. GitHub e Netlify eram o
+// transporte da publicacao integrada de site, que virou exportacao local (ver
+// decisoes/2026-07-26-fim-da-publicacao-integrada.md). Notion saiu junto por
+// nao alimentar nenhum fluxo do Hub. Vercel ja tinha saido em 2026-07-14: o
+// servidor oficial so entra por OAuth de navegador, sem token fixo.
 const CATALOGO: EntradaCatalogo[] = [
-  {
-    id: "github",
-    nome: "GitHub",
-    descricao:
-      "Publica os arquivos do site em um repositorio privado e, com Claude, tambem libera as ferramentas MCP do GitHub.",
-    disponivel: true,
-    transporte: "http",
-    campos: [
-      {
-        chave: "token",
-        rotulo: "Token de acesso pessoal",
-        chaveEnv: "Authorization: Bearer",
-        segredo: true,
-        dica: "Use a conexao guiada para criar um token fine-grained com as permissoes corretas.",
-      },
-    ],
-    // O pacote npm @modelcontextprotocol/server-github foi arquivado em maio de
-    // 2025. O sucessor oficial (github/github-mcp-server) so roda por Docker ou
-    // binario Go, mas expoe o endpoint remoto abaixo, que aceita token pessoal
-    // no header Authorization e funciona no nosso spawn headless.
-    fonte: "github/github-mcp-server, endpoint remoto https://api.githubcopilot.com/mcp/",
-    montarServidor: (config) => {
-      const t = token(config);
-      if (!t) return null;
-      return {
-        type: "http",
-        url: "https://api.githubcopilot.com/mcp/",
-        headers: { Authorization: `Bearer ${t}` },
-      };
-    },
-  },
-  {
-    id: "netlify",
-    nome: "Netlify",
-    descricao:
-      "Publica o site na Netlify pela API e, com Claude, tambem libera as ferramentas MCP da plataforma.",
-    disponivel: true,
-    transporte: "stdio",
-    campos: [
-      {
-        chave: "token",
-        rotulo: "Token de acesso pessoal",
-        chaveEnv: "NETLIFY_PERSONAL_ACCESS_TOKEN",
-        segredo: true,
-        dica: "Use a conexao guiada para gerar, copiar e validar o token pessoal da Netlify.",
-      },
-      {
-        chave: "accountSlug",
-        rotulo: "Time da Netlify, opcional",
-        chaveEnv: "NETLIFY_ACCOUNT_SLUG",
-        segredo: false,
-        dica: "Deixe vazio para usar seu time principal. Preencha somente se quiser publicar em outro time.",
-      },
-    ],
-    fonte: "@netlify/mcp (npm), netlify/netlify-mcp",
-    montarServidor: (config) => {
-      const t = token(config);
-      if (!t) return null;
-      return {
-        command: "npx",
-        args: ["-y", "@netlify/mcp"],
-        env: { NETLIFY_PERSONAL_ACCESS_TOKEN: t },
-      };
-    },
-  },
-  // Vercel saiu do catalogo em 2026-07-14: o servidor oficial
-  // (mcp.vercel.com) so entra por OAuth de navegador, sem token fixo, entao nao
-  // tem como ligar no nosso spawn headless. Se um dia aceitarem token, volta.
-  {
-    id: "notion",
-    nome: "Notion",
-    descricao:
-      "Le e escreve paginas e bancos do Notion. Servidor @notionhq/notion-mcp-server, rodado por npx com um token de integracao interna.",
-    disponivel: true,
-    transporte: "stdio",
-    campos: [
-      {
-        chave: "token",
-        rotulo: "Token de integracao interna",
-        chaveEnv: "NOTION_TOKEN",
-        segredo: true,
-        dica: "Crie uma integracao em notion.so/my-integrations e compartilhe suas paginas com ela.",
-      },
-    ],
-    // A Notion recomenda a versao remota por OAuth, mas o pacote local ainda
-    // funciona com token de integracao, que serve ao nosso spawn headless.
-    fonte: "@notionhq/notion-mcp-server (npm), makenotion/notion-mcp-server",
-    montarServidor: (config) => {
-      const t = token(config);
-      if (!t) return null;
-      return {
-        command: "npx",
-        args: ["-y", "@notionhq/notion-mcp-server"],
-        env: { NOTION_TOKEN: t },
-      };
-    },
-  },
   {
     id: "apify",
     nome: "Apify (busca de leads)",

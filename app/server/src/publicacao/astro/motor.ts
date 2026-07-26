@@ -1,7 +1,7 @@
 // Motor de build Astro compartilhado. Uma unica instalacao de Astro em
 // app/dados/motor-sites/ serve todas as pecas. Nada e instalado dentro da peca:
 // no build, um junction node_modules aponta pro motor e some no fim, entao a
-// fonte que sobe pro GitHub nunca leva node_modules.
+// arvore fonte do projeto nunca leva node_modules.
 
 import { spawn } from "node:child_process";
 import {

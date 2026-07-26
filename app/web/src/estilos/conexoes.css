@@ -367,97 +367,6 @@
   color: var(--texto-fraco);
 }
 
-/* Trilha de conexao para tokens de publicacao. */
-.conx-guia-abrir {
-  align-self: flex-start;
-  color: var(--menta-clara);
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.conx-guia-abrir:hover {
-  color: var(--menta);
-}
-.conx-guia {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  background: rgba(var(--menta-rgb), 0.06);
-  border: 1px solid rgba(var(--menta-rgb), 0.3);
-  border-radius: var(--raio);
-}
-.conx-guia-topo {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.conx-guia-topo > div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.conx-guia-topo span {
-  color: var(--menta);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-.conx-guia-topo strong {
-  color: var(--texto);
-  font-size: 14px;
-}
-.conx-guia-topo a {
-  flex-shrink: 0;
-  color: var(--texto-suave);
-  font-size: 11px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.conx-guia-progresso {
-  height: 4px;
-  overflow: hidden;
-  background: var(--superficie-2);
-  border-radius: 99px;
-}
-.conx-guia-progresso span {
-  display: block;
-  height: 100%;
-  background: var(--menta);
-  border-radius: inherit;
-}
-.conx-guia > p {
-  color: var(--texto-suave);
-  font-size: 12px;
-  line-height: 1.55;
-}
-.conx-guia > p.conx-guia-nota {
-  padding: 9px 10px;
-  color: var(--texto);
-  background: var(--superficie);
-  border: 1px solid rgba(var(--menta-rgb), 0.24);
-  border-radius: var(--raio-p);
-}
-.conx-guia-acoes {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.conx-guia-acoes .botao {
-  min-height: 36px;
-  padding: 8px 12px;
-  font-size: 12px;
-}
-.conx-guia-externo {
-  margin-right: auto;
-  text-decoration: none;
-}
 .conx-teste-ok {
   display: flex;
   align-items: center;
@@ -544,17 +453,6 @@
   }
   .conx-motor-status {
     text-align: left;
-  }
-  .conx-guia-topo {
-    flex-direction: column;
-  }
-  .conx-guia-acoes,
-  .conx-guia-acoes .botao,
-  .conx-guia-externo {
-    width: 100%;
-  }
-  .conx-guia-acoes .botao {
-    justify-content: center;
   }
   .conx-cartao-rodape {
     align-items: flex-start;

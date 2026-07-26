@@ -107,12 +107,11 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     return { servidor: estadoMascarado(id, estado.servidores[id]) };
   });
 
-  // Valida as credenciais de publicacao sem expor o token ao frontend. O teste
-  // confirma autenticacao e acesso basico; as permissoes de escrita continuam
-  // descritas na trilha guiada antes do token ser criado.
+  // Valida a credencial sem expor o token ao frontend. O teste confirma
+  // autenticacao e acesso basico na API oficial do servico.
   app.post("/conexoes/:id/testar", async (requisicao, resposta) => {
     const { id } = requisicao.params as { id: string };
-    if (id !== "github" && id !== "netlify" && id !== "apify") {
+    if (id !== "apify") {
       return resposta.status(400).send({ erro: "esta conexao nao tem teste remoto" });
     }
 
@@ -129,33 +128,20 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
         .send({ erro: "ative a conexao e salve um token antes de testar" });
     }
 
-    const url = id === "github"
-      ? "https://api.github.com/user"
-      : id === "netlify"
-        ? "https://api.netlify.com/api/v1/accounts"
-        : "https://api.apify.com/v2/users/me";
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
       "User-Agent": "VKOS-Hub",
     };
-    if (id === "github") {
-      headers.Accept = "application/vnd.github+json";
-      headers["X-GitHub-Api-Version"] = "2022-11-28";
-    }
 
     let remota: Response;
     try {
-      remota = await fetch(url, {
+      remota = await fetch("https://api.apify.com/v2/users/me", {
         headers,
         signal: AbortSignal.timeout(15_000),
       });
     } catch {
-      return resposta
-        .status(502)
-        .send({
-          erro: `não foi possível falar com ${id === "github" ? "o GitHub" : id === "netlify" ? "a Netlify" : "a Apify"}`,
-        });
+      return resposta.status(502).send({ erro: "não foi possível falar com a Apify" });
     }
 
     if (!remota.ok) {
@@ -169,17 +155,8 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
       });
     }
 
-    if (id === "github") {
-      const dados = (await remota.json()) as { login?: string };
-      return { ok: true, ...(dados.login ? { conta: dados.login } : {}) };
-    }
-    if (id === "apify") {
-      const dados = (await remota.json()) as { data?: { username?: string } };
-      const conta = dados.data?.username?.trim();
-      return { ok: true, ...(conta ? { conta } : {}) };
-    }
-    const contas = (await remota.json()) as Array<{ slug?: string }>;
-    const slug = contas.find((conta) => conta.slug?.trim())?.slug?.trim();
-    return { ok: true, ...(slug ? { conta: slug } : {}) };
+    const dados = (await remota.json()) as { data?: { username?: string } };
+    const conta = dados.data?.username?.trim();
+    return { ok: true, ...(conta ? { conta } : {}) };
   });
 };

@@ -454,68 +454,79 @@ export function atualizarConfig(dados: {
   });
 }
 
-export interface RegistroPublicacaoGithub {
-  repo: string;
-  url: string;
-  branch: string;
-  em: string;
-}
+// ===== Exportação local do site. Substituiu a publicação integrada no GitHub
+// e na Netlify em 2026-07-26. Dois gestos: abrir a pasta da peça no explorador
+// do sistema e baixar o site pronto num ZIP.
 
-export interface RegistroPublicacaoNetlify {
-  siteId: string;
-  url: string;
-  em: string;
-  pendente?: boolean;
-}
-
-// Modo de publicacao: astro converte o multipagina marcado em projeto Astro;
-// html sobe a pasta crua. Contrato da peca 4 da rodada Sites Astro e Design.
+// Modo do pacote: astro converte o multipagina marcado em projeto Astro e
+// exporta o site compilado; html exporta a pasta crua.
 export type ModoPublicacao = "astro" | "html";
 
+export interface RegistroExportacao {
+  em: string;
+  modo: ModoPublicacao;
+}
+
 export interface RespostaPublicacao {
-  github: { conectado: boolean };
-  netlify: { conectado: boolean };
-  registro: {
-    github?: RegistroPublicacaoGithub;
-    netlify?: RegistroPublicacaoNetlify;
-  };
+  registro: { exportacao?: RegistroExportacao };
   auditoria: {
     valido: boolean;
     paginas: string[];
     erros: string[];
     avisos: string[];
   };
-  // Como esta peca sera publicada se nada mudar. Opcional: servidores antigos
-  // ainda nao enviam o campo.
+  // Como esta peca sai se nada mudar. Opcional: servidores antigos ainda nao
+  // enviam o campo.
   modoPrevisto?: ModoPublicacao;
+  nomeArquivo?: string;
 }
-
-// A resposta dos POSTs ganha modo e avisos (peca 4). O registro continua na raiz.
-export type RespostaPublicarGithub = RegistroPublicacaoGithub & {
-  modo?: ModoPublicacao;
-  avisos?: string[];
-};
-export type RespostaPublicarNetlify = RegistroPublicacaoNetlify & {
-  modo?: ModoPublicacao;
-  avisos?: string[];
-};
 
 export function obterPublicacao(pasta: string): Promise<RespostaPublicacao> {
   return pedir<RespostaPublicacao>(`/api/publicacao/${encodeURIComponent(pasta)}`);
 }
 
-export function publicarGithub(pasta: string): Promise<RespostaPublicarGithub> {
-  return pedir<RespostaPublicarGithub>(
-    `/api/publicacao/${encodeURIComponent(pasta)}/github`,
+export function abrirPastaDaPeca(pasta: string): Promise<{ ok: boolean }> {
+  return pedir<{ ok: boolean }>(
+    `/api/publicacao/${encodeURIComponent(pasta)}/abrir-pasta`,
     { method: "POST" },
   );
 }
 
-export function publicarNetlify(pasta: string): Promise<RespostaPublicarNetlify> {
-  return pedir<RespostaPublicarNetlify>(
-    `/api/publicacao/${encodeURIComponent(pasta)}/netlify`,
-    { method: "POST" },
+// Baixa o ZIP do site. A barreira de qualidade vive no servidor: reprovado, a
+// resposta vem em JSON com as pendências e nada é baixado. O modo real do
+// pacote volta no header, pra tela não prometer Astro quando saiu HTML puro.
+export async function baixarSite(pasta: string): Promise<{ modo: ModoPublicacao }> {
+  const resposta = await fetch(
+    `/api/publicacao/${encodeURIComponent(pasta)}/exportar`,
   );
+  if (!resposta.ok) {
+    let mensagem = `Erro ${resposta.status}`;
+    try {
+      const corpo = (await resposta.json()) as { erro?: string };
+      if (corpo?.erro) mensagem = corpo.erro;
+    } catch {
+      // corpo sem json: mantem a mensagem padrao
+    }
+    throw new Error(mensagem);
+  }
+
+  const nome =
+    resposta.headers
+      .get("Content-Disposition")
+      ?.match(/filename="?([^"]+)"?/)?.[1] ?? `${pasta}.zip`;
+  const modo: ModoPublicacao =
+    resposta.headers.get("X-VKOS-Modo-Exportacao") === "astro" ? "astro" : "html";
+
+  const blob = await resposta.blob();
+  const url = URL.createObjectURL(blob);
+  const ancora = document.createElement("a");
+  ancora.href = url;
+  ancora.download = nome;
+  document.body.appendChild(ancora);
+  ancora.click();
+  ancora.remove();
+  URL.revokeObjectURL(url);
+  return { modo };
 }
 
 // Modelos de carrossel do VKOS (templates/carrossel/).
