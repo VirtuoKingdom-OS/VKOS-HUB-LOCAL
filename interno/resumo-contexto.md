@@ -62,13 +62,11 @@ Um **workspace multi-IA vertical**: várias instâncias de IA trabalhando ao mes
 - **Dashboard** com duas jornadas: Criar Conteúdo Visual e Site Guiado.
 - **Cockpit**: canvas React Flow com sessões de IA em paralelo (Claude Code ou Codex), streaming, custo honesto por sessão e por cliente.
 - **Site Guiado**: wizard que gera site completo (página única ou multipágina) com objetivo e seções em texto livre.
-- **Laço de conformidade** (novidade recente): terminada a geração, o servidor roda a mesma auditoria do deploy e devolve os erros literais pra própria sessão corrigir, até duas voltas, antes de entregar. O site só fica "pronto" com conferência terminal.
-- **Publicação profissional**: site multipágina vira projeto **Astro** de verdade (layout único, sitemap, robots.txt) por conversão determinística sem IA. GitHub recebe o fonte, Netlify recebe o build. Auditoria de contraste, responsividade, semântica e reduced motion bloqueia deploy de site quebrado.
+- **Laço de conformidade** (novidade recente): terminada a geração, o servidor roda a mesma auditoria da exportação e devolve os erros literais pra própria sessão corrigir, até duas voltas, antes de entregar. O site só fica "pronto" com conferência terminal.
+- **Exportação profissional**: site multipágina vira projeto **Astro** de verdade (layout único, sitemap, robots.txt) por conversão determinística sem IA. Desde 26 de julho de 2026 a publicação integrada no GitHub e na Netlify saiu do produto: a exportação local (abrir a pasta da peça ou baixar o site pronto em ZIP) ocupa o lugar. Auditoria de contraste, responsividade, semântica e reduced motion bloqueia exportação de site quebrado.
 - **Studio**: edição visual das peças (texto, cor, imagem) direto no preview, sem código.
 - **CRM v2**: ficha de contato, negócios separados no funil, linha do tempo de interações, tarefas, aba Hoje (follow-ups, clientes esquecidos, valor em aberto). A IA usa o CRM como insight agregado, com regra dura: dado pessoal de cliente nunca entra em peça publicável.
-- **Calendário** local sincronizado com o CRM, com Google Calendar opcional.
-- **Automações** reagindo aos eventos do sistema.
-- **Fontes de dados**, anexos, VKOS-IDE flutuante, Mapa do sistema (interno).
+- **Fontes de dados**, anexos, VKOS-IDE flutuante, Mapa do sistema (interno). Calendário, Automações e a camada Google foram removidos na versão 1.1.0 (26 de julho de 2026).
 - **Camada de design anti-genérico**: 20 direções, 13 estilos concretos com tokens, e o teste final "alguém diria que foi IA?".
 - Três temas (Escuro padrão, Dark VKOS, Claro), 130 testes automatizados.
 

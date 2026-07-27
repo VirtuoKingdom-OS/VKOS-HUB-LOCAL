@@ -3,6 +3,35 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] 2026-07-26
+
+Checkup de ponta a ponta logo depois da amputação: seis auditorias em paralelo mais teste de fumaça com o servidor no ar. Esta versão é o conserto do que elas acharam. Nada de funcionalidade nova.
+
+### Segurança
+
+- **O WebSocket aceitava conexão de qualquer origem.** Provado ao vivo: um cliente se passando por `https://site-malicioso.com` conectou. A guarda de Host não alcança esse caso, porque o navegador manda Host local e WebSocket é isento de CORS. O broadcast carrega o stream das sessões de IA, ou seja, Cérebro, resumo do CRM e trechos de arquivo lidos: qualquer site aberto numa aba recebia tudo. O upgrade agora é recusado com 403 antes de virar WebSocket. Origem ausente continua aceita, porque cliente fora do navegador não manda o header e site malicioso não consegue forjá-lo.
+- **Exportar virou POST.** A rota levanta navegador, roda auditoria em duas viewports e pode disparar `npm install` e `astro build`. Em GET, uma tag `<img src>` em qualquer página aberta disparava tudo isso na máquina do usuário.
+
+### Corrigido
+
+- **Quarentena de arquivo corrompido em nove módulos.** A proteção existia só no CRM, onde nasceu de uma perda total. Registro de clientes, token da Apify, transcrições, custos, canvas, índice de contextos, publicações, config, pasta ativa e a lista de sessões repetiam o mesmo padrão: liam, engoliam o erro, devolviam vazio, e a próxima gravação persistia o vazio por cima do original. Agora o original vai para `<nome>.corrompido-<data>` e nunca é sobrescrito. Onde perder o dado é pior que a tela não abrir, a leitura falha fechado com 409.
+- **Exportação virava beco sem saída em máquina sem Chrome nem Edge.** A conferência visual não roda e devolve reprovado com zero erros. O campo `verificavel` era descartado, então a tela dizia "o site precisa de correção", não listava correção nenhuma e travava o botão. Conferência que não rodou agora libera a exportação.
+- **A tela prometia o que o ZIP não entregava.** O selo anunciava sitemap, mas `prepararAstro` é chamado sem URL pública, então ele nunca é gerado. Texto corrigido.
+- **Os avisos do fallback Astro apareciam para ninguém.** Saíam só num evento que nenhum código do frontend assinava. Agora viajam em header e chegam na tela, com o motivo real da queda para HTML puro.
+- O registro da exportação só grava depois do ZIP sair inteiro. Antes marcava a peça como exportada mesmo quando o download morria no meio.
+- `finalize` com `catch`, senão a Promise rejeitada derruba o processo no Node 24.
+- `revokeObjectURL` fora do tick do clique, que cancelava o download em alguns navegadores.
+
+### Documentação
+
+- `contexto/arquitetura.md`, `contexto/roadmap.md`, `app/CONTRATO.md` e `interno/resumo-contexto.md` reconciliados com o código real. Eles são lidos no início de toda sessão e ainda descreviam Automações, Calendário, camada Google, os quatro conectores e a publicação integrada como recursos ativos. Seção removida agora leva marcador explícito em vez de sumir, para quem lê entender que foi de propósito.
+- Checkup completo registrado em `planos/vkos-hub-local-v1/03-checkup-2026-07-26.md`, com evidência de arquivo e linha.
+
+### Qualidade
+
+- 207 testes no servidor, contra 139 no início da rodada. 29 na interface.
+- Verificado ao vivo com o servidor no ar: 20 de 20 rotas GET em 200, rotas removidas em 404, 8 tentativas de travessia de caminho bloqueadas, barreira de qualidade da exportação segurando site reprovado, e quarentena provada corrompendo um arquivo real e restaurando o backup depois.
+
 ## [1.1.0] 2026-07-26
 
 Amputação. O produto perde a superfície que existia, custava manutenção e não era usada na operação real. Cada coisa removida era um caminho a mais para quebrar.
