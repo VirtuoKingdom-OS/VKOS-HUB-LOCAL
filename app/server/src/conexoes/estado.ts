@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarComErro } from "../util/quarentena.js";
 import { garantirPastaDadosWorkspace, pastaDadosWorkspace } from "../workspaces/estado.js";
 
 const NOME_ARQUIVO = "conexoes.json";
@@ -39,30 +40,50 @@ function normalizarConfig(v: unknown): Record<string, string> {
   return saida;
 }
 
-// Le o estado das conexoes de um workspace. Arquivo ausente ou corrompido vira
-// estado vazio, sem quebrar.
-export function lerConexoes(workspaceId: string): EstadoConexoes {
+// Le o estado das conexoes de um caminho. Arquivo ausente vira estado vazio, em
+// silencio (primeira execucao, ninguem ligou servidor ainda). Arquivo que EXISTE
+// mas nao parseia, ou que parseia sem o mapa de servidores, vai pra quarentena e
+// lanca.
+//
+// Falha fechado de proposito. Aqui moram os segredos: o token da Apify e as
+// configs dos servidores MCP, digitados na mao e sem copia em lugar nenhum.
+// Comecar vazio faria o primeiro toggle da tela de conexoes gravar um arquivo
+// sem token por cima do arquivo com token.
+//
+// Exportada pra provar o comportamento com fixture temporaria.
+export function lerConexoesDeArquivo(caminho: string): EstadoConexoes {
+  if (!existsSync(caminho)) return { servidores: {} };
+  let bruto: unknown;
   try {
-    const arquivo = caminhoArquivo(workspaceId);
-    if (existsSync(arquivo)) {
-      const dados = JSON.parse(readFileSync(arquivo, "utf8"));
-      if (dados && typeof dados === "object" && dados.servidores && typeof dados.servidores === "object") {
-        const servidores: Record<string, EstadoServidor> = {};
-        for (const [id, bruto] of Object.entries(dados.servidores as Record<string, unknown>)) {
-          if (!bruto || typeof bruto !== "object") continue;
-          const s = bruto as Record<string, unknown>;
-          servidores[id] = {
-            habilitado: s.habilitado === true,
-            config: normalizarConfig(s.config),
-          };
-        }
-        return { servidores };
-      }
-    }
+    bruto = JSON.parse(readFileSync(caminho, "utf8"));
   } catch {
-    // Arquivo ilegivel: comeca vazio.
+    throw quarentenarComErro(caminho, "O arquivo de conexoes");
   }
-  return { servidores: {} };
+  const dados = bruto as { servidores?: unknown } | null;
+  if (
+    !dados ||
+    typeof dados !== "object" ||
+    !dados.servidores ||
+    typeof dados.servidores !== "object" ||
+    Array.isArray(dados.servidores)
+  ) {
+    throw quarentenarComErro(caminho, "O arquivo de conexoes");
+  }
+  const servidores: Record<string, EstadoServidor> = {};
+  for (const [id, servidor] of Object.entries(dados.servidores as Record<string, unknown>)) {
+    if (!servidor || typeof servidor !== "object") continue;
+    const s = servidor as Record<string, unknown>;
+    servidores[id] = {
+      habilitado: s.habilitado === true,
+      config: normalizarConfig(s.config),
+    };
+  }
+  return { servidores };
+}
+
+// Le o estado das conexoes de um workspace.
+export function lerConexoes(workspaceId: string): EstadoConexoes {
+  return lerConexoesDeArquivo(caminhoArquivo(workspaceId));
 }
 
 // Grava o estado das conexoes de um workspace, de forma atomica.

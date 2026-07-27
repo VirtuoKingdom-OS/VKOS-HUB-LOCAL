@@ -11,6 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarComErro } from "../util/quarentena.js";
 
 // Este modulo mora em src/workspaces (dev) ou dist/workspaces (build). Subir tres
 // niveis chega na pasta app nos dois casos.
@@ -59,25 +60,40 @@ export function registroExiste(): boolean {
   return existsSync(caminhoRegistro);
 }
 
-// Le o registro do disco uma vez. Arquivo ausente ou corrompido vira registro
-// vazio, sem quebrar o boot.
+// Le o registro de um caminho. Arquivo ausente devolve null (primeira execucao,
+// quem chamou comeca vazio em silencio). Arquivo que EXISTE mas nao parseia, ou
+// que parseia numa forma que nao e um registro, vai pra quarentena e lanca.
+//
+// Falha fechado de proposito. Este arquivo e a lista de clientes do prestador:
+// comecar vazio nao e comeco, e perda total. E qualquer gravacao seguinte
+// (ativar cliente, criar sessao, renomear) persistiria esse vazio por cima do
+// original. Melhor a tela nao abrir e o usuario restaurar um backup.
+//
+// Exportada pra provar o comportamento com fixture temporaria, sem apontar
+// teste pro registro real do app.
+export function lerRegistroDeArquivo(caminho: string): RegistroWorkspaces | null {
+  if (!existsSync(caminho)) return null;
+  let bruto: unknown;
+  try {
+    bruto = JSON.parse(readFileSync(caminho, "utf8"));
+  } catch {
+    throw quarentenarComErro(caminho, "O registro de clientes");
+  }
+  const dados = bruto as { workspaces?: unknown; ativo?: unknown } | null;
+  if (!dados || typeof dados !== "object" || !Array.isArray(dados.workspaces)) {
+    throw quarentenarComErro(caminho, "O registro de clientes");
+  }
+  return {
+    workspaces: dados.workspaces.filter(ehWorkspace),
+    ativo: typeof dados.ativo === "string" ? dados.ativo : null,
+  };
+}
+
+// Le o registro do disco uma vez. Arquivo ausente vira registro vazio.
+// Corrompido lanca: ver lerRegistroDeArquivo.
 export function lerRegistro(): RegistroWorkspaces {
   if (cache) return cache;
-  try {
-    if (existsSync(caminhoRegistro)) {
-      const dados = JSON.parse(readFileSync(caminhoRegistro, "utf8"));
-      if (dados && Array.isArray(dados.workspaces)) {
-        cache = {
-          workspaces: dados.workspaces.filter(ehWorkspace),
-          ativo: typeof dados.ativo === "string" ? dados.ativo : null,
-        };
-        return cache;
-      }
-    }
-  } catch {
-    // registro ilegivel: comeca vazio.
-  }
-  cache = { workspaces: [], ativo: null };
+  cache = lerRegistroDeArquivo(caminhoRegistro) ?? { workspaces: [], ativo: null };
   return cache;
 }
 

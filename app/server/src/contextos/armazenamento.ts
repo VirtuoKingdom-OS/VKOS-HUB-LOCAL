@@ -18,6 +18,7 @@ import {
 
 import type { Contexto, ArquivoContexto, TipoContexto } from "../tipos.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarOuFalhar } from "../util/quarentena.js";
 import { obterPastaVkos } from "../vkos/estado.js";
 import {
   garantirPastaDadosWorkspace,
@@ -109,6 +110,34 @@ export class ErroContexto extends Error {
 // troca em runtime, entao o cache e chaveado pelo id ativo.
 const cachePorWorkspace = new Map<string, EntradaIndice[]>();
 
+// Le a lista crua do indice de um caminho. Arquivo ausente vira lista vazia, em
+// silencio. Arquivo que EXISTE mas nao parseia, ou que parseia sem ser lista,
+// vai pra quarentena e vira lista vazia.
+//
+// Quarentena e segue com vazio: o indice e a unica parte reconstituivel deste
+// modulo. O conteudo dos nos mora no disco do VKOS, em materiais/cockpit/, e o
+// adotarPastasOrfas remonta uma entrada pra cada pasta que encontra. Perde-se o
+// nome de exibicao e a data, nao o material. Ja o salvarIndice grava a lista
+// inteira: se a quarentena falhar, isso aqui lanca antes que ele apague o
+// indice bom.
+//
+// Exportada pra provar o comportamento com fixture temporaria.
+export function lerIndiceBrutoDeArquivo(caminho: string): unknown[] {
+  if (!existsSync(caminho)) return [];
+  let dados: unknown;
+  try {
+    dados = JSON.parse(readFileSync(caminho, "utf8"));
+  } catch {
+    quarentenarOuFalhar(caminho, "O indice de contextos");
+    return [];
+  }
+  if (!Array.isArray(dados)) {
+    quarentenarOuFalhar(caminho, "O indice de contextos");
+    return [];
+  }
+  return dados;
+}
+
 // Le o indice do workspace ativo do disco uma vez e guarda em memoria. Sem
 // workspace ativo, devolve lista vazia.
 function carregarIndice(): EntradaIndice[] {
@@ -120,28 +149,17 @@ function carregarIndice(): EntradaIndice[] {
   const carregado: EntradaIndice[] = [];
   // Marca se alguma entrada antiga (sem tipo) foi normalizada, pra persistir.
   let normalizou = false;
-  const caminho = join(pastaDadosWorkspace(id), "contextos.json");
-  try {
-    if (existsSync(caminho)) {
-      const bruto = readFileSync(caminho, "utf8");
-      const dados = JSON.parse(bruto);
-      if (Array.isArray(dados)) {
-        for (const e of dados) {
-          if (!e || typeof e.id !== "string" || typeof e.slug !== "string") continue;
-          if (e.tipo === "texto" || e.tipo === "imagens" || e.tipo === "links") {
-            carregado.push(e as EntradaIndice);
-          } else {
-            // Indice antigo sem tipo: infere do disco e marca pra persistir.
-            carregado.push({ ...e, tipo: inferirTipoDoDisco(e.slug) });
-            normalizou = true;
-          }
-        }
-      }
+  const bruto = lerIndiceBrutoDeArquivo(join(pastaDadosWorkspace(id), "contextos.json"));
+  for (const item of bruto) {
+    const e = item as EntradaIndice | null;
+    if (!e || typeof e.id !== "string" || typeof e.slug !== "string") continue;
+    if (e.tipo === "texto" || e.tipo === "imagens" || e.tipo === "links") {
+      carregado.push(e);
+    } else {
+      // Indice antigo sem tipo: infere do disco e marca pra persistir.
+      carregado.push({ ...e, tipo: inferirTipoDoDisco(e.slug) });
+      normalizou = true;
     }
-  } catch {
-    // Indice corrompido: comeca limpo, sem quebrar.
-    cachePorWorkspace.set(id, []);
-    return cachePorWorkspace.get(id) as EntradaIndice[];
   }
   cachePorWorkspace.set(id, carregado);
   if (normalizou) salvarIndice();
