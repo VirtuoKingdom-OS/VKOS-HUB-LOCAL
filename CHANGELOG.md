@@ -23,6 +23,28 @@ O HUB CORE. O Hub deixou de ter um nível só: agora existe o CORE, onde o dono 
 - **A tela de trabalho do projeto virou `#/inicio`.** Ela era o Dashboard: saudação, criação guiada e criações recentes. Criar peça é trabalho de projeto, então mora dentro do workspace, e cancelar uma criação volta para lá em vez de jogar a pessoa no nível de cima.
 - `SECURITY.md` corrigido: a garantia de que excluir um workspace apaga os segredos dele parou de descrever o produto quando o token subiu para o CORE. Agora estão separadas as duas coisas, o que é do projeto e o que é do dono.
 
+### Studio: manipulação direta
+
+O editor de conteúdo visual ganhou o que faltava para editar sem medo. As melhorias saíram de um inventário de atrito medido usando o Studio de verdade, com uma peça real, não de uma lista de recursos.
+
+- **Refazer.** Existia Desfazer, não existia Refazer: um Ctrl+Z a mais e a edição sumia para sempre.
+- **Delete apaga o elemento selecionado**, e Esc solta a seleção mesmo com o foco dentro da página editada, que é onde ele fica depois de um clique.
+- **Zoom de 100% era armadilha.** A roda só andava na horizontal, então o topo e o pé da página ficavam inalcançáveis. A causa não era o alinhamento: eram duas rolagens em sequência sob rolagem suave, e a segunda cancelava a primeira.
+- **Guias de alinhamento contra os outros elementos**, não só contra o centro do slide.
+- **O painel do que foi clicado subiu para o topo.** Ele ficava abaixo da dobra, depois de Camadas e Cores.
+- **Uma sequência de setas vira um passo só de desfazer**, com agrupamento por tempo. Antes, vinte setas eram vinte passos.
+- **Confirmação visível de salvo**, e uma folha de atalhos, porque nada na tela contava que arrastar, duplicar e desfazer existiam.
+- **O contorno de seleção estava no menta errado**, o histórico `#00c896`, e não no `#2fd4a7` do app. Agora ele lê o token do tema e reinjeta quando o tema muda.
+
+Os números vieram de fonte, não de gosto: encaixe de 8 px, agrupamento de 500 ms, pilha de 50 passos, alvo de clique de 24 px. Figma e Canva não publicam essas medidas; as bibliotecas de código aberto publicam.
+
+Fica registrado o que não foi feito: camadas ainda mostram nomes genéricos, elemento em fluxo não redimensiona por alça e nada explica por quê, e não há multi-seleção nem copiar e colar entre páginas.
+
+### Interno
+
+- **Teste sujava o registro de clientes do usuário.** O caminho do registro era calculado uma vez, na carga do módulo, então ignorava a variável que isola os dados de teste. Os testes de rota gravavam no registro real, salvavam antes e restauravam no fim, mas o runner roda os arquivos em paralelo e duas restaurações concorrentes se atropelam. O resultado eram cinco clientes fantasma no Dashboard, apontando para pastas temporárias que já tinham sumido. Nenhum portão viu, porque portão nenhum olha o dado do usuário.
+- **Conferência visual** em `ferramentas/olhar-telas.mjs`: abre a interface num navegador de verdade, percorre as telas, coleta erro de console e guarda uma foto de cada uma, nos três temas. Existe porque os cinco portões não veem um pixel e não há teste de DOM aqui. Foi ela que achou os clientes fantasma.
+
 ## [1.3.0] 2026-07-27
 
 O CRM reconstruído por inteiro, o chat de conversas, e o gasto de IA medido em vez de suposto. A base estava vazia, então reestruturar o dado custou zero agora e custaria migração de risco depois.

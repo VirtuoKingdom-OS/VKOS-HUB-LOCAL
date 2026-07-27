@@ -4,7 +4,7 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Próxima fase:** Fase 5, o design system e a nova pele. A pesquisa e a Etapa 1 (a ordem da cascata) já fecharam; falta a implementação.
+**Próxima fase:** Fase 5, a nova pele. É a última. A pesquisa e a Etapa 1 (a ordem da cascata) já fecharam, e todas as telas já existem na forma final, que era a condição para redesenhar sem pintar tela que ia mudar.
 
 A Fase 4, o HUB CORE, fechou em 2026-07-27 na versão 1.4.0. O Hub passou a ter dois níveis de verdade: o CORE, do dono, e o workspace, do projeto aberto.
 
@@ -30,7 +30,7 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 5, etapa 1. Ordem da cascata | fechada | 1.3.0 | 2026-07-27 |
 | 4. HUB CORE completo | fechada | 1.4.0 | 2026-07-27 |
 | 5. Design system e nova pele | pesquisa fechada, implementação pendente | | |
-| 6. Studio | pendente | | |
+| 6. Studio, manipulação direta | fechada | 1.4.0 | 2026-07-27 |
 
 ## O que ainda não foi visto por olho humano
 
@@ -38,7 +38,8 @@ Isto não é ressalva de rodapé, é a maior dívida aberta da rodada. Os cinco 
 
 1. **A ordem da cascata** mudou o valor final de 98 seletores, todos previstos pela medição, nos três temas. Vale a passada em CRM, Site, Studio, Conexões, IDE e no painel do editor.
 2. **O chat de três painéis e a ficha de contato.** A ficha teve 257 linhas extraídas para o `EditorNegocio` compartilhado. O typecheck cobre a costura, nada cobre o layout. Não existe teste de DOM neste projeto.
-3. **A Sidebar em dois níveis e as duas telas novas do CORE.** A navegação inteira foi reorganizada: as seções Core e Workspace, o seletor de workspace mudando de lugar, o Dashboard do CORE e a tela de Workspaces, ambas com CSS novo. A lógica de formato e de leitura está coberta por 18 testes sem DOM; o layout, o espaçamento e o comportamento nos três temas não estão cobertos por nada. A série de barras de gasto e o cartão de workspace são os dois pontos que mais pedem olho.
+3. **O Studio.** A manipulação direta foi conferida com o navegador dirigido, 27 verificações no app real, mas o layout do painel reordenado e a folha de atalhos pedem olho.
+4. **A Sidebar em dois níveis e as duas telas novas do CORE.** A navegação inteira foi reorganizada: as seções Core e Workspace, o seletor de workspace mudando de lugar, o Dashboard do CORE e a tela de Workspaces, ambas com CSS novo. A lógica de formato e de leitura está coberta por 18 testes sem DOM; o layout, o espaçamento e o comportamento nos três temas não estão cobertos por nada. A série de barras de gasto e o cartão de workspace são os dois pontos que mais pedem olho.
 
 ## Fase 2 e 3, o que ficou pronto
 

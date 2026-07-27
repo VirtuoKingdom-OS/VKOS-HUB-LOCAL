@@ -41,6 +41,8 @@ const TEMA = argumento("tema", "");
 // Studio de uma peca, o editor de um site) precisa de dado e fica de fora.
 const TELAS = [
   { id: "dashboard", rota: "#/dashboard", nome: "Dashboard" },
+  { id: "workspaces", rota: "#/workspaces", nome: "Workspaces" },
+  { id: "inicio", rota: "#/inicio", nome: "Inicio do workspace" },
   { id: "cockpit", rota: "#/cockpit", nome: "Cockpit" },
   { id: "crm", rota: "#/crm", nome: "CRM" },
   { id: "conexoes", rota: "#/conexoes", nome: "Conexoes" },
