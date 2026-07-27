@@ -116,7 +116,7 @@ async function subir(): Promise<void> {
   });
 
   // WebSocket primeiro: os modulos de rotas usam transmitir no boot e em runtime.
-  await configurarWs(app);
+  await configurarWs(app, PORTA, ORIGEM_DEV);
 
   // Modulos dos outros agentes, montados sob /api conforme o contrato.
   await app.register(rotasAmbiente, { prefix: "/api" });
