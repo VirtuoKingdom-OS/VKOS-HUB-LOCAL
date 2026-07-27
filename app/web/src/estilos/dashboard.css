@@ -27,7 +27,7 @@
 
 .dashboard-cabecalho h1 {
   font-size: 27px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 .dashboard-cabecalho .dash-nome {
@@ -55,17 +55,13 @@
   padding: 22px 24px;
   border-radius: var(--raio);
   border: 1px solid rgba(var(--menta-rgb), 0.35);
-  background:
-    radial-gradient(120% 160% at 0% 0%, rgba(var(--menta-rgb), 0.14), transparent 60%),
-    var(--superficie);
-  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.04), var(--glow);
+  background: var(--superficie);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.04);
   transition: transform var(--transicao), box-shadow var(--transicao),
     border-color var(--transicao);
 }
 .dash-hero:hover {
-  transform: translateY(-2px);
   border-color: var(--menta);
-  box-shadow: var(--glow-forte);
 }
 .dash-hero-icone {
   display: inline-flex;
@@ -74,10 +70,12 @@
   width: 52px;
   height: 52px;
   flex-shrink: 0;
-  border-radius: 14px;
+  border-radius: var(--raio-g);
   background: var(--menta);
   color: var(--menta-escura);
-  box-shadow: var(--glow);
+  /* O unico glow do Dashboard. A regra e uma acao principal por tela, e a
+     acao principal daqui e comecar uma criacao. */
+  box-shadow: var(--glow-acao);
 }
 .dash-hero-icone svg {
   width: 26px;
@@ -140,9 +138,7 @@
   cursor: pointer;
 }
 .dash-hero-secundario.dash-hero-ativo:hover {
-  transform: translateY(-2px);
   border-color: var(--menta);
-  box-shadow: var(--glow);
 }
 .dash-hero-secundario.dash-hero-ativo:hover .dash-hero-seta {
   transform: translateX(3px);
@@ -150,7 +146,7 @@
 
 /* Selo "Em breve": pequeno, discreto, com token de cor. */
 .dash-card-selo {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -229,7 +225,6 @@
 .recente-item:hover .recente-thumb {
   border-color: var(--menta);
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(var(--scrim-rgb), 0.3);
 }
 .recente-thumb img {
   width: 100%;
@@ -367,7 +362,7 @@
   border-radius: var(--raio);
   border: 1px solid var(--borda);
   background: var(--superficie);
-  box-shadow: 0 24px 70px rgba(var(--scrim-rgb), 0.45);
+  box-shadow: var(--sombra-modal);
   animation: entrada-suave 180ms ease both;
 }
 .dash-seletor-titulo {
@@ -394,9 +389,7 @@
     box-shadow var(--transicao);
 }
 .dash-seletor-card:hover {
-  transform: translateY(-2px);
   border-color: var(--menta);
-  box-shadow: var(--glow);
 }
 .dash-seletor-card-icone {
   display: inline-flex;
@@ -414,7 +407,7 @@
   color: var(--texto);
 }
 .dash-seletor-card-descricao {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--texto-suave);
   line-height: 1.4;
 }

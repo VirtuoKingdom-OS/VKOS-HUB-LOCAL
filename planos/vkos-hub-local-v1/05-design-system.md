@@ -12,6 +12,28 @@ horas por dia, com muita informação na tela. Minimalismo aqui é tirar ruído,
 informação. A régua da Apple para aplicação de desktop é justamente essa: o corpo de texto do
 macOS é 13pt e a escala inteira mora entre 10 e 26pt. Denso e calmo ao mesmo tempo.
 
+## Onde a implementação está, em 2026-07-27
+
+| Etapa | Estado |
+|---|---|
+| 1. Ordem da cascata com `@layer` | feita |
+| 2. As escalas entram | feita |
+| 3. As cores novas, com apelido | feita |
+| 3A. A forma (sombra, glow, gradiente, peso) | feita |
+| 3B. Borda de controle, foco e movimento reduzido | feita |
+| 3C. A fonte embarcada | feita |
+| 4. Os primitivos numa tela pequena | parcial, só o `Botao` |
+| 5. As camadas (`Modal`, `Popover`, `PainelLateral`, `Confirmacao`) | não começou |
+| 6. Os estados (`EstadoVazio`, `Carregando`, `Faixa`) | não começou |
+| 7. Tela a tela | não começou |
+| 8. Acessibilidade, o que sobrou | não começou |
+| 9. Apagar os apelidos e travar a escala | não começou |
+
+Três decisões desta rodada estão registradas e não se rediscutem:
+`decisoes/2026-07-27-o-glow-so-marca-estado.md`,
+`decisoes/2026-07-27-a-fonte-embarcada.md` e
+`decisoes/2026-07-27-duas-linhas-e-a-escada-de-superficie.md`.
+
 ---
 
 ## 1. O diagnóstico
@@ -382,13 +404,14 @@ Regras que acompanham a escala:
   arredondamento diferente por tamanho.
 - **Tracking negativo cresce com o tamanho, e o menor abre um pouco.** É a regra combinada de
   Linear (aperta quando cresce) e Raycast (abre quando é miúdo). O Radix faz as duas.
-- **Quatro pesos e só quatro: 400, 500, 600, 700.** Os oito pesos intermediários de hoje (590,
-  620, 650, 660, 680, 720, 730, 760) dependem de fonte variável que o app não embarca. Quatro
-  pesos funcionam em qualquer máquina. Se um dia o Inter Variable for embarcado localmente, os
-  intermediários voltam sem quebrar nada.
-- **Tamanho óptico pelo nome da fonte, de graça no Windows.** O Segoe UI Variable tem três
-  cortes reais: Small até 12px, Text de 13 a 20px, Display acima de 20px. Três variáveis de
-  família, uma por faixa, entregam o efeito de optical size da Apple sem embarcar nada:
+- **Quatro pesos e só quatro: 400, 500, 600, 700.** Os oito pesos intermediários de antes (590,
+  620, 650, 660, 680, 720, 730, 760) dependiam de fonte variável que o app não embarcava.
+  Desde 2026-07-27 o Inter Variable É embarcado, então os quatro são reais em qualquer máquina.
+  Continuam sendo quatro por escolha: peso intermediário não cria hierarquia, cria dúvida.
+- **Tamanho óptico pelo eixo `opsz` do Inter, com `font-optical-sizing: auto` no `body`.**
+  ~~O Segoe UI Variable tem três cortes reais e três variáveis de família entregariam o mesmo~~:
+  a ideia caiu na Etapa 3C, porque ela dependia da fonte que a máquina pode não ter, que é o
+  problema que a etapa resolve. Fica aqui o que foi descartado:
   ```css
   --fonte-mini:    "Segoe UI Variable Small Semibold", "Segoe UI Variable Small", var(--fonte);
   --fonte:         "Segoe UI Variable Text", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -842,34 +865,160 @@ outro seletor da mesma árvore. Nenhuma mudança ficou sem explicação.
 **Por que primeiro:** enquanto essa ordem for acidental, qualquer token novo entra numa base que
 o bundler pode inverter. Toda etapa seguinte depende desta.
 
-### Etapa 2: as escalas entram, sem consumidor
+### Etapa 2: as escalas entram. FEITA em 2026-07-27
 
-Adiciona ao `@layer base` os tokens de tipografia, espaçamento, raio, elevação, movimento e
-z-index das seções 3.1 a 3.6. Ninguém consome ainda.
+As escalas de espaçamento, tipografia, peso, raio, movimento, elevação e empilhamento entraram
+no `@layer base` do `global.css`, num bloco único. A trava é `estilos/escalas.test.ts`: ela
+afirma que os tokens existem, que todo espaçamento deriva de `calc()` sobre `--base`, que a
+entrelinha é px absoluto e par, que são quatro pesos, e que o `visual-hub.css` não redeclara
+escala nenhuma, porque escala não muda por tema.
 
-**Entrega:** zero mudança visual. O app fica idêntico.
-**Trava:** um teste que afirma que os tokens existem e que a base é `calc()` sobre `--base`.
+Uma correção em relação ao que esta seção previa. A etapa não ficou com zero mudança visual, e
+não tinha como: `--raio`, `--raio-p`, `--raio-g` e `--transicao` já eram consumidos e estavam
+declarados nas duas camadas. Ou a escala entrava e valia, ou entrava e ficava morta embaixo do
+valor antigo da camada de tema. Ela entrou e passou a valer: o raio caiu de 16px para 8px em
+botão e campo, de 22px para 12px em cartão e modal, e o `--transicao` passou a apontar para
+`var(--mov-rapido) var(--curva)`.
 
-### Etapa 3: as cores novas entram como apelido
+**Medido na conferência visual, 39 fotos nos três temas:** 0,87% de pixel mudado, 0,04% com
+mudança forte. A concentração está nas telas com modal aberto (Criar site 5,12% no Claro), e a
+causa é o raio do modal encolher, o que desloca a mancha inteira da sombra dele. Zero erro de
+console.
 
-Os tokens de cor da seção 4.4 entram com os valores novos. Os nomes antigos viram apelido do
-novo: `--borda: var(--linha)`, `--superficie-2: var(--superficie-alta)` e assim por diante.
+### Etapa 3: as cores novas, com apelido. FEITA em 2026-07-27
 
-**Entrega:** o app inteiro continua funcionando sem tocar em componente. Muda a cor, não a
-estrutura. As seis falhas de contraste do tema Claro somem.
-**Trava:** um teste que calcula a razão de contraste dos 16 pares críticos nos três temas e falha
-se algum descer do mínimo. É o mesmo script que gerou a tabela da seção 4.4.
-**Cuidado:** as 8 cores hardcoded de `Cockpit.tsx`, `motor.ts` e `motorSite.ts` precisam ler o
-token nesta etapa, senão o canvas e o contorno de seleção ficam num verde diferente do resto.
+A paleta da seção 4.4 entrou inteira no `visual-hub.css`. Os nomes antigos viraram apelido do
+novo, dentro de cada tema, e saem na etapa de limpeza.
 
-### Etapa 4: os primitivos, provados numa tela pequena
+Duas coisas foram além do previsto, e as duas reduzem repetição:
 
-Constrói `Botao`, `Campo`, `Chip`, `Selo`, `Rotulo` e `Superficie` em `comum/`. Aplica só na tela
-de Conexões, que é a menor do app com 539 linhas de componente e 465 de CSS.
+1. **Os blocos de tema do `global.css` foram apagados.** Cada token de cor era declarado 6
+   vezes, três temas vezes duas camadas. Agora o `:root` do `global.css` é o contrato de nome,
+   com o valor do Dark VKOS, e o valor final de cada tema vem de um lugar só. Os quatro tokens
+   que só existiam lá (`--overlay-imagem-*` e os dois glows) passaram a derivar de
+   `--scrim-rgb` e `--menta-rgb`, então acompanham o tema sozinhos.
+2. **Os canais `-rgb` continuam com a sintaxe de vírgula.** A prova em `tokens.css` usava
+   `rgb(var(--menta-rgb) / 0.18)`, que é a sintaxe de barra. Trocar quebraria as 565 chamadas de
+   `rgba(var(--X-rgb), a)` que existem hoje. A redução de nove canais para dois fica na etapa de
+   limpeza, junto com os apelidos.
 
-**Entrega:** Conexões inteira no sistema novo. O resto do app intocado.
+**As cores no TypeScript.** Os dois casos que sobravam em `Cockpit.tsx` foram resolvidos por
+caminhos diferentes, e a diferença vale registrar porque só apareceu no navegador.
+
+O ponto do fundo do canvas passou a mandar `var(--pontos-canvas)` direto: o padrão vive no
+documento do próprio Hub, enxerga o `:root` e acompanha os três temas sem JavaScript nenhum.
+Conferido, o `fill` computado resolve.
+
+A seta da aresta **não** aceita `var()`, e a tentativa foi desfeita. O React Flow monta o id do
+`<marker>` concatenando o valor da cor, então o id vira `color=var(--menta)&type=arrowclosed`, e
+o parêntese fechado corta o `url(#...)` que aponta pra ele. Medido no Edge: o `marker-end`
+computa `none` e a seta some em silêncio. Ela lê o token por `comum/useCorDoTema.ts`, um hook
+novo que devolve o literal e reobserva `data-theme`, mais um efeito que reescreve o `markerEnd`
+das arestas já desenhadas na troca de tema. Os de `motor.ts` e
+`motorSite.ts` já liam o token por `editor/tema.ts` desde a rodada anterior. Os de
+`EtapasCriacao` e `EtapasSite` são cor da peça do cliente e ficam.
+
+**Trava:** `estilos/contraste.test.ts`, que calcula a razão dos 16 pares críticos nos três temas
+pela fórmula do WCAG 2.2. São 48 verificações, e ele também falha se `--linha` e `--linha-forte`
+ficarem com o mesmo valor.
+
+**Medido:** 77,08% de pixel mudado, 5,37% com mudança forte. É a paleta inteira trocando, então
+o número alto era o esperado. A maior mudança forte é o Mapa no Claro, 54,53%, e a causa é o
+apelido `--fundo-2 -> --superficie`: o canvas do Mapa usava `--fundo-2` e subiu do cinza claro
+para o quase branco do cartão. Isso é hierarquia errada, e foi corrigido na hora: `.mapa-rede`
+passou a usar `--fundo`, que é o nível 0 da escada. Zero erro de console.
+
+### Etapa 3A: a forma. FEITA em 2026-07-27
+
+Etapa que este documento não previa como passo separado, e que era o que faltava para a
+interface parecer outra. As seções 2.1, 2.3 e 5.2 pediam tudo isso, mas espalhado pelas etapas
+seguintes, o que adiava a mudança visual até a Etapa 7. Ela foi feita de uma vez, com uma
+varredura sobre as 20 folhas, e cada regra reporta o próprio número:
+
+| Regra | Vezes que bateu |
+|---|---|
+| Camada de gradiente ambiente de menta removida | 23 |
+| Sombra removida, porque o elemento não flutua | 83 |
+| Sombra trocada por `--sombra-modal` | 24 |
+| Sombra trocada por `--sombra-popover` | 7 |
+| Sombra trocada por `--sombra-arrasto` | 2 |
+| Sombra mantida (anel puro, `inset`, ou anel de foco) | 84 |
+| Glow removido de hover e de item selecionado | 22 |
+| Glow mantido, porque marca estado | 7 |
+| `transform: translateY(-1px|-2px)` de hover de cartão removido | 30 |
+| Peso de fonte encaixado nos quatro degraus | 66 |
+| Meio pixel de `font-size` arredondado | 98 |
+| Regra que ficou vazia depois da varredura, apagada | 4 |
+
+A regra de decisão da sombra está no script e vale registrar, porque ela é o que impede que a
+limpeza vire perda de sinal: sombra que é anel puro (`0 0 0 Npx`), sombra interna ou sombra em
+`:focus` fica sempre, porque nenhuma delas é elevação, todas são indicador. O resto é
+classificado pelo seletor: menu e popover ganham `--sombra-popover`, modal e painel flutuante
+ganham `--sombra-modal`, arrasto ganha `--sombra-arrasto`, e o que não é nada disso perde a
+sombra e fica com a escada de superfície mais o fio de `--linha`.
+
+Uma exceção reposta à mão: `.dash-hero-icone` recuperou `--glow-acao`. Ele é a ação principal
+do Dashboard, e a regra do glow prevê uma por tela.
+
+**Medido:** 14,23% de pixel mudado, 1,98% com mudança forte. Zero erro de console.
+
+### Etapa 3B: a borda de controle e o movimento reduzido. FEITA em 2026-07-27
+
+Duas coisas que fecham a promessa de acessibilidade da seção 2.2 e da 3.5.
+
+**A borda de controle.** 27 regras de campo, seleção, interruptor e botão que ainda apontavam
+para `var(--borda)` passaram a apontar para `var(--linha-forte)`. Somadas aos 98 usos de
+`--borda-forte`, que já viraram `--linha-forte` pelo apelido, é o que tira o campo de 1,55:1.
+
+**O foco de teclado.** O anel era `rgba(var(--menta-rgb), 0.55)`, menta lavado. Virou o token
+`--foco`, que é menta cheio a 2px. Campo de texto marca o foco no próprio contorno, com
+`--menta-linha` e `--glow-foco`, para não empilhar dois anéis concêntricos.
+
+**O movimento reduzido.** O bloco antigo zerava a duração de tudo com `0.01ms !important`, e com
+isso apagava as 17 animações infinitas do CSS, inclusive o pulso de "a IA está trabalhando". O
+bloco novo faz o que a MDN pede: o movimento de posição some (a lista de `transition-property`
+fica só com cor, opacidade e sombra), o feedback de cor fica, e o que pulsa vira `fade-suave`.
+
+**Medido:** 0,12% de pixel mudado. É pouco porque a borda de controle só aparece nas telas com
+campo, e as fotos são de telas em repouso. Zero erro de console.
+
+### Etapa 3C: a fonte embarcada. FEITA em 2026-07-27
+
+Ver `decisoes/2026-07-27-a-fonte-embarcada.md`.
+
+O Inter variável entrou no repositório, 344 KB de woff2 sob SIL Open Font License 1.1, com a
+licença ao lado. O `@font-face` vive no `global.css`, na camada base.
+
+Uma correção em relação à seção 3.1. O truque de três famílias por faixa de tamanho
+(`Segoe UI Variable Small`, `Text` e `Display`) não é mais necessário e nem seria confiável:
+ele dependia da fonte que a máquina pode não ter, que é exatamente o problema que a etapa
+resolve. O eixo `opsz` do Inter entrega o tamanho óptico de verdade, com
+`font-optical-sizing: auto` no `body`.
+
+O `body` também passou a ler a escala: `--txt-leitura`, `--lh-leitura`, `--tr-leitura` e
+`--peso-normal`. O corpo de 13px da seção 3.1 **ainda não vale**: ele só entra tela a tela, na
+Etapa 7, porque encolher o texto herdado quebra medida fixa em volta.
+
+**Medido:** 8,16% de pixel mudado, 5,45% com mudança forte. É a fonte inteira trocando de
+desenho. Zero erro de console.
+
+### Etapa 4: os primitivos, provados numa tela pequena. PARCIAL em 2026-07-27
+
+**Feito:** `comum/Botao.tsx`, com `variante` (`principal`, `neutro`, `fantasma`, `perigo`),
+`tamanho` (`p` e `m`) e `soIcone`. Ele não inventa CSS: monta o nome de classe da base que já
+vive no `global.css`, e essa base foi reescrita inteira na escala de token, com altura mínima de
+32px para atender o critério 2.5.8. Aplicado nos 6 botões da tela de Conexões.
+
+O `type` padrão dele é `"button"`, não `"submit"`. O padrão do HTML dentro de `<form>` é
+`submit`, e isso já mandou formulário sem querer mais de uma vez.
+
+**Falta:** `Campo`, `Chip`, `Selo`, `Rotulo` e `Superficie`, e o resto da tela de Conexões.
+
 **Por que Conexões:** é pequena, tem botão, campo, cartão, interruptor, chip e faixa de erro,
 então exercita quase todos os primitivos. Se o sistema não serve para ela, serve para nada.
+
+**Medido, só do `Botao`:** 0,26% de pixel mudado no total das 39 fotos, concentrado em Conexões
+(1,57% no Claro). Zero erro de console.
 
 ### Etapa 5: as camadas
 
@@ -964,9 +1113,9 @@ exatamente isso, e cada um deles empurra o contraste do texto para baixo.
 que encolhe é o espaço morto entre blocos, não a legibilidade. Densidade que obriga a apertar os
 olhos não é densidade, é economia mal feita.
 
-**Não usar peso de fonte intermediário enquanto não houver fonte embarcada.** Os oito pesos de
-hoje entre 560 e 760 só funcionam com Segoe UI Variable presente. Em qualquer outra máquina a
-hierarquia inteira achata e ninguém percebe, porque o navegador não avisa.
+**Não usar peso de fonte intermediário.** Resolvido na Etapa 3C: a fonte é embarcada e os quatro
+pesos são reais em qualquer máquina. A regra continua valendo por outro motivo: peso
+intermediário não cria hierarquia, cria dúvida. São quatro, e só quatro.
 
 **Não medir contraste no olho.** Todos os 48 pares da seção 4.4 foram medidos por script. A
 Etapa 3 leva esse script como teste. Cor aprovada no olho foi como o tema Claro chegou a um

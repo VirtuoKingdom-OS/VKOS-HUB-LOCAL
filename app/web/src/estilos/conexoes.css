@@ -35,7 +35,6 @@
   background: var(--superficie);
   border: 1px solid var(--borda);
   border-radius: var(--raio);
-  box-shadow: 0 12px 32px rgba(var(--scrim-rgb), 0.16);
   animation: entrada-suave 220ms ease both;
 }
 .conx-motor-topo {
@@ -91,13 +90,12 @@
   min-width: 0;
   padding: 14px;
   background: var(--superficie-2);
-  border: 1px solid var(--borda);
+  border: 1px solid var(--linha-forte);
   border-radius: var(--raio-p);
   transition: border-color var(--transicao), transform var(--transicao),
     box-shadow var(--transicao);
 }
 .conx-motor-opcao:hover {
-  transform: translateY(-1px);
   border-color: var(--borda-forte);
 }
 .conx-motor-opcao.ativa {
@@ -230,11 +228,6 @@
 }
 .conx-cartao:hover {
   border-color: var(--borda-forte);
-  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.26);
-  transform: translateY(-2px);
-}
-.conx-cartao.ligado:hover {
-  transform: translateY(-2px);
 }
 .conx-cartao.ligado {
   border-color: rgba(var(--menta-rgb), 0.5);

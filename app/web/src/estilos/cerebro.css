@@ -35,7 +35,7 @@
 }
 
 .leitura-cerebro {
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.75;
   color: var(--texto-suave);
 }
@@ -111,12 +111,10 @@
   height: min(88vh, 900px);
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgba(var(--menta-rgb), 0.06), transparent 55%),
-    var(--fundo-2);
+  background: var(--fundo-2);
   border: 1px solid var(--borda-forte);
   border-radius: 20px;
-  box-shadow: 0 40px 100px rgba(var(--scrim-rgb), 0.6), var(--glow);
+  box-shadow: var(--sombra-modal);
   overflow: hidden;
 }
 .topo-modal-cerebro {
@@ -150,7 +148,7 @@
   border: none;
   padding: 0;
   font-family: var(--mono);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.75;
   color: var(--texto);
 }

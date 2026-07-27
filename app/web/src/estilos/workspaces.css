@@ -36,7 +36,7 @@
 }
 .sw-trigger.aberto {
   border-color: rgba(var(--menta-rgb), 0.4);
-  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.2), var(--glow);
+  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.2);
 }
 .sw-trigger:disabled {
   opacity: 0.6;
@@ -47,7 +47,6 @@
   height: 9px;
   border-radius: 50%;
   background: var(--menta);
-  box-shadow: 0 0 8px var(--menta);
   flex-shrink: 0;
   animation: ponto-pulsa 2.4s ease-in-out infinite;
 }
@@ -97,7 +96,7 @@
   background: rgba(var(--painel-rgb), 0.98);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio);
-  box-shadow: 0 24px 60px rgba(var(--scrim-rgb), 0.55), 0 0 0 1px rgba(var(--menta-rgb), 0.05);
+  box-shadow: var(--sombra-modal);
   backdrop-filter: blur(10px);
   overflow: hidden;
   animation: sw-surge 180ms cubic-bezier(0.4, 0, 0.2, 1) both;
@@ -171,7 +170,6 @@
 }
 .sw-item-ponto.on {
   background: var(--menta);
-  box-shadow: 0 0 7px var(--menta);
 }
 .sw-item-info {
   flex: 1;
@@ -271,7 +269,7 @@
   color: var(--confirmar-perigo-texto);
   background: var(--confirmar-perigo-fundo);
   border: 1px solid var(--confirmar-perigo-borda);
-  box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
+  box-shadow: var(--sombra-modal);
   pointer-events: auto;
   cursor: pointer;
   z-index: 30;
@@ -446,7 +444,6 @@
   background: rgba(var(--painel-rgb), 0.98);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio);
-  box-shadow: 0 20px 50px rgba(var(--scrim-rgb), 0.5);
   padding: 14px;
   animation: entrada-suave 240ms ease both;
 }

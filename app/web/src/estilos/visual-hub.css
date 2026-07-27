@@ -12,19 +12,17 @@
 @layer base, externo, tela, tema;
 
 @layer tema {
+/* Escala nao mora aqui. Raio, tipografia, espacamento, movimento e
+   empilhamento nao mudam por tema, entao vivem so no global.css, na camada
+   base. O que este arquivo declara e cor, e so cor. O teste em escalas.test.ts
+   trava isso. */
 :root {
-  --raio: 16px;
-  --raio-p: 10px;
-  --raio-g: 22px;
   --sombra-suave: 0 1px 2px rgba(var(--scrim-rgb), 0.16),
     0 10px 30px rgba(var(--scrim-rgb), 0.12);
   --sombra-media: 0 18px 48px rgba(var(--scrim-rgb), 0.24);
   --sombra-forte: 0 30px 90px rgba(var(--scrim-rgb), 0.48),
     0 0 0 1px rgba(var(--realce-rgb), 0.04);
   --sombra-flutuante: 0 20px 60px rgba(var(--scrim-rgb), 0.34);
-  --transicao: 180ms cubic-bezier(0.22, 1, 0.36, 1);
-  --fonte: "Segoe UI Variable Text", "Segoe UI Variable", "Inter", system-ui,
-    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --z-dropdown: 60;
   --z-sticky: 70;
   --z-overlay: 90;
@@ -32,96 +30,222 @@
   --z-toast: 120;
 }
 
+/* ==========================================================================
+   A PALETA.
+
+   Cada tema declara os tokens novos primeiro e, logo abaixo, os nomes antigos
+   como apelido do novo. O apelido existe pra o app inteiro continuar de pe
+   enquanto as 20 folhas migram uma a uma. Ele sai na etapa de limpeza.
+
+   Todos os valores foram medidos por script contra a formula do WCAG 2.2. Sao
+   16 pares criticos vezes 3 temas, 48 verificacoes. A paleta antiga falhava em
+   13. Esta falha em zero. A trava esta em contraste.test.ts.
+
+   Duas mudancas que valem explicacao:
+
+   1. A borda tem dois trabalhos e eles nao cabem na mesma cor. O criterio
+      1.4.11 do WCAG exige 3:1 so onde a borda E o unico indicador de um
+      controle. Onde ela e decoracao, pode ser sutil. O app usava --borda pras
+      duas coisas, escolheu ser sutil em tudo, e o campo de texto ficou em
+      1,55:1 nos tres temas. Agora sao --linha (decorativa, sutil de proposito)
+      e --linha-forte (controle, 3:1 obrigatorio).
+
+   2. O menta do tema Claro escureceu de #078f70 pra #03795e. Era a unica forma
+      do rotulo do botao principal passar em 4,5:1. Estava em 3,69:1.
+   ========================================================================== */
+
+/* Escuro, o padrao. Grafite neutro, menta de destaque. */
 :root[data-theme="escuro"] {
-  --fundo: #111419;
-  --fundo-2: #15191f;
-  --fundo-3: #1a2028;
-  --superficie: #1c222a;
-  --superficie-2: #232a34;
-  --borda: #2b333e;
-  --borda-forte: #3a4552;
+  color-scheme: dark;
+
+  /* A escada de superficie e a hierarquia principal. Cada degrau e uma cor
+     solida do tema, nao uma transparencia empilhada. O degrau entre elas fica
+     perto de 1,1:1, que e separacao percebida e nao contraste medido, e por
+     isso o fio de --linha vem junto, sempre. */
+  --fundo: #101318;
+  --superficie: #171b21;
+  --superficie-alta: #1e232b;
+  --superficie-flutuante: #262d37;
+  --papel: #ffffff;
+
+  --linha: #2b323c;
+  --linha-forte: #59677c;
+
+  --texto: #f0f3f7;
+  --texto-suave: #b3bcc9;
+  --texto-fraco: #8a94a3;
+
   --menta: #2fd4a7;
-  --menta-clara: #67e0bd;
-  --menta-escura: #06241c;
-  --texto: #f1f4f7;
-  --texto-suave: #b1bac6;
-  --texto-fraco: #7e8997;
-  --fundo-rgb: 17, 20, 25;
-  --painel-rgb: 28, 34, 42;
-  --scrim-rgb: 4, 7, 10;
+  --menta-tenue: #1a3131;
+  --menta-linha: #2fd4a7;
+  --sobre-menta: #04231b;
+
+  --alerta: #ff7b7b;
+  --alerta-tenue: #33272c;
+  --alerta-linha: #ff7b7b;
+
+  --aviso: #e8bd6d;
+  --aviso-tenue: #302e2a;
+  --aviso-linha: #e8bd6d;
+
+  --neutro-tenue: #1c2129;
+  --pontos-canvas: #252c35;
+
   --menta-rgb: 47, 212, 167;
-  --suave-rgb: 177, 186, 198;
-  --fraco-rgb: 126, 137, 151;
-  --pontos-canvas: #29313b;
-  --confirmar-perigo-fundo: rgba(60, 16, 16, 0.97);
-  --confirmar-perigo-botao: rgba(90, 22, 22, 0.98);
-  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.55);
-  --confirmar-perigo-texto: #ffd7d7;
-  --grad-cerebro: radial-gradient(
-    120% 130% at 50% 0%,
-    #1d453a 0%,
-    #182a26 48%,
-    #171d22 100%
-  );
+  --scrim-rgb: 4, 7, 10;
+  --alerta-rgb: 255, 123, 123;
+  --amarelo-rgb: 232, 189, 109;
+  --realce-rgb: 255, 255, 255;
+  --suave-rgb: 179, 188, 201;
+  --fraco-rgb: 138, 148, 163;
+  --fundo-rgb: 16, 19, 24;
+  --painel-rgb: 23, 27, 33;
+  --veu: rgba(var(--scrim-rgb), 0.55);
+
+  --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #1d453a 0%, #182a26 48%, #171d22 100%);
+
+  /* Apelidos do nome antigo. Saem na etapa de limpeza. */
+  --fundo-2: var(--superficie);
+  --fundo-3: var(--superficie-alta);
+  --superficie-2: var(--superficie-alta);
+  --borda: var(--linha);
+  --borda-forte: var(--linha-forte);
+  --menta-clara: var(--menta);
+  --menta-escura: var(--sobre-menta);
+  --alerta-suave: var(--alerta);
+  --amarelo: var(--aviso);
+  --confirmar-perigo-fundo: var(--alerta-tenue);
+  --confirmar-perigo-botao: var(--superficie-flutuante);
+  --confirmar-perigo-borda: var(--alerta-linha);
+  --confirmar-perigo-texto: var(--alerta);
 }
 
+/* Dark VKOS, o escuro original da identidade. */
 :root[data-theme="vkos"] {
+  color-scheme: dark;
+
   --fundo: #08100e;
-  --fundo-2: #0b1512;
-  --fundo-3: #101d19;
-  --superficie: #13211d;
-  --superficie-2: #192923;
-  --borda: #22362f;
-  --borda-forte: #315044;
+  --superficie: #101b17;
+  --superficie-alta: #17251f;
+  --superficie-flutuante: #1e2f28;
+  --papel: #ffffff;
+
+  --linha: #22362f;
+  --linha-forte: #446d5f;
+
+  --texto: #f0f7f4;
+  --texto-suave: #adbfb8;
+  --texto-fraco: #83968f;
+
   --menta: #21d6a4;
-  --menta-clara: #69e6c2;
-  --texto: #f2f7f5;
-  --texto-suave: #a8bbb4;
-  --texto-fraco: #748b83;
-  --fundo-rgb: 8, 16, 14;
-  --painel-rgb: 19, 33, 29;
-  --scrim-rgb: 2, 8, 6;
-  --menta-rgb: 33, 214, 164;
-  --suave-rgb: 168, 187, 180;
-  --fraco-rgb: 116, 139, 131;
+  --menta-tenue: #123128;
+  --menta-linha: #21d6a4;
+  --sobre-menta: #03211a;
+
+  --alerta: #ff7b7b;
+  --alerta-tenue: #2d2723;
+  --alerta-linha: #ff7b7b;
+
+  --aviso: #f0c674;
+  --aviso-tenue: #2b3022;
+  --aviso-linha: #f0c674;
+
+  --neutro-tenue: #152019;
   --pontos-canvas: #183128;
-  --confirmar-perigo-fundo: rgba(60, 16, 16, 0.97);
-  --confirmar-perigo-botao: rgba(90, 22, 22, 0.98);
-  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.55);
-  --confirmar-perigo-texto: #ffd7d7;
+
+  --menta-rgb: 33, 214, 164;
+  --scrim-rgb: 2, 8, 6;
+  --alerta-rgb: 255, 123, 123;
+  --amarelo-rgb: 240, 198, 116;
+  --realce-rgb: 255, 255, 255;
+  --suave-rgb: 173, 191, 184;
+  --fraco-rgb: 131, 150, 143;
+  --fundo-rgb: 8, 16, 14;
+  --painel-rgb: 16, 27, 23;
+  --veu: rgba(var(--scrim-rgb), 0.55);
+
+  /* Antes este gradiente nao tinha valor no Dark VKOS e caia no do global.css,
+     calibrado pra uma paleta que nao existe mais. O no do Cerebro ficava fora
+     de sintonia com o resto do tema. */
+  --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #12362a 0%, #10241d 48%, #0d1a16 100%);
+
+  --fundo-2: var(--superficie);
+  --fundo-3: var(--superficie-alta);
+  --superficie-2: var(--superficie-alta);
+  --borda: var(--linha);
+  --borda-forte: var(--linha-forte);
+  --menta-clara: var(--menta);
+  --menta-escura: var(--sobre-menta);
+  --alerta-suave: var(--alerta);
+  --amarelo: var(--aviso);
+  --confirmar-perigo-fundo: var(--alerta-tenue);
+  --confirmar-perigo-botao: var(--superficie-flutuante);
+  --confirmar-perigo-borda: var(--alerta-linha);
+  --confirmar-perigo-texto: var(--alerta);
 }
 
+/* Claro. Superficie quase branca, nunca #fff estourado na pagina. O flutuante
+   e igual a superficie de proposito: um popover branco sobre fundo cinza ja se
+   separa, e quem completa e a sombra. */
 :root[data-theme="claro"] {
-  --fundo: #f3f6f5;
-  --fundo-2: #edf2f0;
-  --fundo-3: #e5ece9;
-  --superficie: #fbfdfc;
-  --superficie-2: #f1f5f3;
-  --borda: #d6e0dc;
-  --borda-forte: #b9c9c3;
-  --menta: #078f70;
-  --menta-clara: #08765f;
-  --menta-escura: #e7f8f2;
-  --texto: #17241f;
-  --texto-suave: #52645d;
-  --texto-fraco: #60736b;
-  --fundo-rgb: 243, 246, 245;
-  --painel-rgb: 251, 253, 252;
+  color-scheme: light;
+
+  --fundo: #f2f5f4;
+  --superficie: #fcfdfd;
+  --superficie-alta: #eaefed;
+  --superficie-flutuante: #fcfdfd;
+  --papel: #ffffff;
+
+  --linha: #dce4e1;
+  --linha-forte: #748f84;
+
+  --texto: #141f1b;
+  --texto-suave: #4c5c56;
+  --texto-fraco: #5d6d66;
+
+  --menta: #03795e;
+  --menta-tenue: #e1eeec;
+  --menta-linha: #03795e;
+  --sobre-menta: #ffffff;
+
+  --alerta: #cf3b3b;
+  --alerta-tenue: #f7e8e8;
+  --alerta-linha: #cf3b3b;
+
+  --aviso: #8e6a19;
+  --aviso-tenue: #f0ede4;
+  --aviso-linha: #8e6a19;
+
+  --neutro-tenue: #e9eeec;
+  --pontos-canvas: #d3ddd8;
+
+  --menta-rgb: 3, 121, 94;
   --scrim-rgb: 18, 29, 25;
-  --menta-rgb: 7, 143, 112;
-  --suave-rgb: 82, 100, 93;
-  --fraco-rgb: 96, 115, 107;
-  --pontos-canvas: #cfdbd6;
-  --confirmar-perigo-fundo: rgba(190, 45, 45, 0.97);
-  --confirmar-perigo-botao: rgba(158, 34, 34, 0.98);
-  --confirmar-perigo-borda: rgba(var(--alerta-rgb), 0.6);
-  --confirmar-perigo-texto: #fff;
-  --grad-cerebro: radial-gradient(
-    120% 130% at 50% 0%,
-    #d8f3e9 0%,
-    #edf7f3 55%,
-    #f8fbfa 100%
-  );
+  --alerta-rgb: 207, 59, 59;
+  --amarelo-rgb: 142, 106, 25;
+  --realce-rgb: 20, 31, 27;
+  --suave-rgb: 76, 92, 86;
+  --fraco-rgb: 93, 109, 102;
+  --fundo-rgb: 242, 245, 244;
+  --painel-rgb: 252, 253, 253;
+  --veu: rgba(var(--scrim-rgb), 0.35);
+
+  --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #d8f3e9 0%, #edf7f3 55%, #f8fbfa 100%);
+
+  --fundo-2: var(--superficie);
+  --fundo-3: var(--superficie-alta);
+  --superficie-2: var(--superficie-alta);
+  --borda: var(--linha);
+  --borda-forte: var(--linha-forte);
+  --menta-clara: var(--menta);
+  --menta-escura: var(--sobre-menta);
+  --alerta-suave: var(--alerta);
+  --amarelo: var(--aviso);
+  --confirmar-perigo-fundo: var(--alerta-tenue);
+  --confirmar-perigo-botao: var(--superficie-alta);
+  --confirmar-perigo-borda: var(--alerta-linha);
+  --confirmar-perigo-texto: var(--alerta);
+
   --sombra-suave: 0 1px 2px rgba(var(--scrim-rgb), 0.05),
     0 12px 32px rgba(var(--scrim-rgb), 0.07);
   --sombra-media: 0 20px 50px rgba(var(--scrim-rgb), 0.12);
@@ -134,15 +258,7 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(
-      900px 560px at 72% -12%,
-      rgba(var(--menta-rgb), 0.075),
-      transparent 62%
-    ),
-    var(--fundo);
-  font-weight: 450;
-  letter-spacing: -0.006em;
+  background: var(--fundo);
 }
 
 /* A quebra padrao de h1, h2, h3 e p vive em global.css, na camada base. Nao e
@@ -162,7 +278,7 @@ select {
   min-height: 40px;
   color: var(--texto);
   background: var(--fundo-2);
-  border-color: var(--borda);
+  border-color: var(--linha-forte);
   border-radius: 10px;
   box-shadow: inset 0 1px 0 rgba(var(--realce-rgb), 0.025);
 }
@@ -195,7 +311,7 @@ select:focus {
   min-height: 38px;
   padding: 9px 16px;
   border-radius: 10px;
-  font-weight: 650;
+  font-weight: 700;
   box-shadow: none;
 }
 
@@ -203,19 +319,16 @@ select:focus {
   color: var(--menta-escura);
   background: var(--menta);
   border: 1px solid rgba(var(--realce-rgb), 0.12);
-  box-shadow: 0 6px 18px rgba(var(--menta-rgb), 0.17);
 }
 
 .botao-principal:hover:not(:disabled) {
   color: var(--menta-escura);
   background: var(--menta-clara);
-  box-shadow: 0 9px 24px rgba(var(--menta-rgb), 0.22);
-  transform: translateY(-1px);
 }
 
 .botao-neutro {
   background: var(--superficie);
-  border-color: var(--borda);
+  border-color: var(--linha-forte);
 }
 
 .botao-neutro:hover:not(:disabled) {
@@ -256,7 +369,7 @@ select:focus {
 
 .marca-logo {
   font-size: 19px;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.025em;
 }
 
@@ -264,7 +377,6 @@ select:focus {
   width: 21px;
   height: 21px;
   border-radius: 6px;
-  box-shadow: 0 6px 16px rgba(var(--scrim-rgb), 0.22);
 }
 
 .botao-tema {
@@ -276,7 +388,7 @@ select:focus {
 
 .botao-tema:hover {
   color: var(--texto);
-  border-color: var(--borda);
+  border-color: var(--linha-forte);
   background: var(--superficie);
 }
 
@@ -290,7 +402,6 @@ select:focus {
   padding: 9px 11px;
   background: var(--superficie);
   border-color: var(--borda);
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.03);
 }
 
 .sw-trigger:hover:not(:disabled),
@@ -313,7 +424,7 @@ select:focus {
 
 .sw-trigger-nome {
   font-size: 13px;
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .sidebar-nav {
@@ -327,7 +438,7 @@ select:focus {
 
 .rotulo-secao {
   color: var(--texto-fraco);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.095em;
 }
@@ -349,8 +460,8 @@ select:focus {
   padding: 9px 10px;
   border-radius: 10px;
   color: var(--texto-suave);
-  font-size: 13.5px;
-  font-weight: 590;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .item-nav:hover {
@@ -394,7 +505,7 @@ select:focus {
   margin-top: 6px;
   padding: 11px 2px 0;
   color: var(--texto-suave);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .rodape-custo {
@@ -409,11 +520,11 @@ select:focus {
 
 .rodape-custo-valor {
   font-size: 14px;
-  font-weight: 720;
+  font-weight: 700;
 }
 
 .rodape-custo-detalhe {
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -426,13 +537,7 @@ select:focus {
 }
 
 .shell-conteudo {
-  background:
-    radial-gradient(
-      760px 460px at 52% -14%,
-      rgba(var(--menta-rgb), 0.045),
-      transparent 64%
-    ),
-    var(--fundo);
+  background: var(--fundo);
 }
 
 /* Cabecalhos e superfícies comuns */
@@ -441,13 +546,7 @@ select:focus {
 .tela-dashboard,
 .tela-studio,
 .tela-site {
-  background:
-    radial-gradient(
-      840px 460px at 52% -18%,
-      rgba(var(--menta-rgb), 0.045),
-      transparent 65%
-    ),
-    var(--fundo);
+  background: var(--fundo);
 }
 
 .tela-fluxo-topo {
@@ -462,7 +561,7 @@ select:focus {
 .tela-fluxo-topo h1 {
   color: var(--texto);
   font-size: 24px;
-  font-weight: 720;
+  font-weight: 700;
   letter-spacing: -0.028em;
 }
 
@@ -483,7 +582,6 @@ select:focus {
 .fontes-hub-card {
   background: var(--superficie);
   border-color: var(--borda);
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.025);
 }
 
 .cartao-peca:hover,
@@ -511,7 +609,7 @@ select:focus {
 
 .fluxo-vazio h2 {
   color: var(--texto);
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .fontes-hub-grade {
@@ -527,7 +625,6 @@ select:focus {
 }
 
 .fontes-hub-card:hover {
-  transform: translateY(-1px);
   background: var(--superficie);
 }
 
@@ -553,7 +650,7 @@ select:focus {
 .dashboard-cabecalho h1 {
   color: var(--texto);
   font-size: 32px;
-  font-weight: 730;
+  font-weight: 700;
   line-height: 1.13;
   letter-spacing: -0.037em;
 }
@@ -579,23 +676,15 @@ select:focus {
   border-color: var(--borda);
   border-radius: 17px;
   background: var(--superficie);
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.03);
 }
 
 .dash-hero:first-child {
   border-color: rgba(var(--menta-rgb), 0.38);
-  background:
-    linear-gradient(
-      135deg,
-      rgba(var(--menta-rgb), 0.105),
-      transparent 58%
-    ),
-    var(--superficie);
+  background: var(--superficie);
 }
 
 .dash-hero:hover,
 .dash-hero-secundario.dash-hero-ativo:hover {
-  transform: translateY(-2px);
   border-color: rgba(var(--menta-rgb), 0.55);
   box-shadow: var(--sombra-media);
 }
@@ -605,7 +694,6 @@ select:focus {
   height: 50px;
   border-radius: 14px;
   color: var(--menta-escura);
-  box-shadow: 0 10px 26px rgba(var(--menta-rgb), 0.16);
 }
 
 .dash-hero-secundario .dash-hero-icone {
@@ -617,24 +705,24 @@ select:focus {
 
 .dash-hero-titulo {
   font-size: 17px;
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .dash-hero-sub {
   max-width: 38ch;
   color: var(--texto-suave);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
 .recentes-topo h2 {
   font-size: 17px;
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .recentes-vertodas {
   color: var(--texto-suave);
-  font-weight: 620;
+  font-weight: 600;
 }
 
 .recentes-tira {
@@ -651,7 +739,6 @@ select:focus {
   width: 158px;
   height: 198px;
   border-radius: 14px;
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.03);
 }
 
 .recente-thumb-site {
@@ -661,13 +748,12 @@ select:focus {
 .recente-item:hover .recente-thumb {
   border-color: rgba(var(--menta-rgb), 0.55);
   box-shadow: var(--sombra-media);
-  transform: translateY(-2px);
 }
 
 .recente-titulo {
   color: var(--texto-suave);
-  font-size: 12.5px;
-  font-weight: 560;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .dashboard-atalhos {
@@ -718,7 +804,6 @@ select:focus {
   padding: 21px 23px;
   background: var(--superficie);
   border-color: var(--borda);
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.025);
 }
 
 .crm-hero-titulo,
@@ -734,7 +819,7 @@ select:focus {
 }
 
 .crm-hero-titulo {
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .crm-quadro {
@@ -756,19 +841,17 @@ select:focus {
 }
 
 .crm-coluna-nome {
-  font-weight: 660;
+  font-weight: 700;
 }
 
 .crm-cartao {
   padding: 12px;
   background: var(--superficie);
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.025);
 }
 
 .crm-cartao:hover {
   border-color: var(--borda-forte);
   box-shadow: var(--sombra-suave);
-  transform: translateY(-1px);
 }
 
 .crm-avatar {
@@ -800,7 +883,7 @@ select:focus {
 
 .conx-motor-topo h2 {
   font-size: 19px;
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .conx-motor-opcao {
@@ -826,30 +909,22 @@ select:focus {
 .conx-cartao {
   padding: 20px;
   border-radius: 16px;
-  box-shadow: 0 1px 0 rgba(var(--realce-rgb), 0.025);
 }
 
 .conx-cartao:hover,
 .conx-cartao.ligado:hover {
   border-color: var(--borda-forte);
   box-shadow: var(--sombra-suave);
-  transform: translateY(-1px);
 }
 
 .conx-cartao.ligado {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(var(--menta-rgb), 0.055),
-      transparent 42%
-    ),
-    var(--superficie);
+  background: var(--superficie);
   border-color: rgba(var(--menta-rgb), 0.42);
   box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.055);
 }
 
 .conx-cartao-topo h3 {
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .conx-guia {
@@ -869,13 +944,7 @@ select:focus {
 /* Cockpit e canvas */
 
 .area-canvas {
-  background:
-    radial-gradient(
-      720px 480px at 46% 42%,
-      rgba(var(--menta-rgb), 0.035),
-      transparent 68%
-    ),
-    var(--fundo);
+  background: var(--fundo);
 }
 
 .react-flow__controls {
@@ -901,7 +970,6 @@ select:focus {
 
 .no-cerebro .miolo::after {
   border-radius: 22px;
-  box-shadow: 0 0 36px rgba(var(--menta-rgb), 0.26);
 }
 
 .no-sessao,
@@ -964,28 +1032,19 @@ select:focus {
 .studio-titulo h1,
 .site-titulo h1,
 .editor-titulo h2 {
-  font-weight: 660;
+  font-weight: 700;
 }
 
 .studio-canvas,
 .site-viewport,
 .editor-canvas {
-  background:
-    radial-gradient(circle at center, var(--pontos-canvas) 1px, transparent 1px)
-      0 0 / 24px 24px,
-    radial-gradient(
-      620px 420px at 50% 45%,
-      rgba(var(--menta-rgb), 0.035),
-      transparent 70%
-    ),
-    var(--fundo);
+  background: radial-gradient(circle at center, var(--pontos-canvas) 1px, transparent 1px) 0 0 / 24px 24px, var(--fundo);
 }
 
 .studio-palco,
 .site-moldura,
 .editor-palco {
-  box-shadow: 0 24px 64px rgba(var(--scrim-rgb), 0.42),
-    0 0 0 1px rgba(var(--realce-rgb), 0.055);
+  box-shadow: 0 0 0 1px rgba(var(--realce-rgb), 0.055);
 }
 
 .editor-painel,
@@ -1089,7 +1148,7 @@ select:focus {
 .badge,
 .chip-filtro,
 .crm-tag {
-  font-weight: 620;
+  font-weight: 600;
 }
 
 .chip-filtro {
@@ -1198,14 +1257,49 @@ select:focus {
   }
 }
 
+/* Movimento reduzido: substituir, nao apagar.
+ *
+ * A MDN e explicita, "reduce" significa remover, reduzir OU SUBSTITUIR, e o
+ * exemplo canonico troca uma animacao de transform por uma de opacidade. O
+ * bloco antigo daqui zerava a duracao de tudo com 0.01ms !important, e com
+ * isso apagava o pulso de "a IA esta trabalhando" justamente pra quem mais
+ * precisa dele: sao 17 animacoes infinitas no CSS, e todas viravam nada.
+ *
+ * A regra nova: o movimento de posicao some, o feedback de cor e de opacidade
+ * fica, e o que pulsa vira um fade.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    /* Some o que desloca, gira ou escala. Fica o que so muda de cor ou de
+       opacidade, que e feedback e nao movimento. */
+    transition-property: opacity, background-color, background, border-color,
+      color, fill, stroke, box-shadow !important;
+    transition-duration: var(--mov-rapido) !important;
+    animation-duration: var(--mov-padrao) !important;
+  }
+
+  /* O sinal de sessao viva continua vivo, so que como fade. */
+  .no-sessao.rodando,
+  .status-rodando,
+  .status-iniciando,
+  .ponto-vivo,
+  [data-mov="pulso"] {
+    animation-name: fade-suave !important;
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+@keyframes fade-suave {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 } /* fim de @layer tema */

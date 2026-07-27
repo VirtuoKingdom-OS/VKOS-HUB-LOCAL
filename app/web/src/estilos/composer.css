@@ -43,7 +43,7 @@
 .chip-imagem.ativo {
   background: rgba(var(--menta-rgb), 0.12);
   border-color: var(--menta);
-  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25), 0 0 18px rgba(var(--menta-rgb), 0.12);
+  box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.25);
 }
 
 .chip-imagem .nome-op {

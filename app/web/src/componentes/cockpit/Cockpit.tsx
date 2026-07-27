@@ -26,6 +26,7 @@ import { NoContexto } from "./NoContexto";
 import { NoContainer } from "./NoContainer";
 import { PainelCerebro } from "./PainelCerebro";
 import { MenuContexto, type ItemMenu } from "../comum/MenuContexto";
+import { useCorDoTema } from "../comum/useCorDoTema";
 import { Confirmacao, type DadosConfirmacao } from "../comum/Confirmacao";
 import { CanvasContexto, type ApiCanvas } from "./canvasContexto";
 import { IconeRecarregar } from "./iconesCockpit";
@@ -191,14 +192,20 @@ const CAMPOS_SESSAO = [
   "etapas",
 ] as const;
 
-function arestaCerebro(idSessao: string): Edge {
+function arestaCerebro(idSessao: string, corMenta: string): Edge {
   return {
     id: `aresta-${idSessao}`,
     source: "cerebro",
     target: idSessao,
     animated: true,
     className: "aresta-viva",
-    markerEnd: { type: MarkerType.ArrowClosed, color: "#00c896" },
+    // Aqui morava "#00c896", o menta historico, que nao e o menta do app
+    // desde 2026-07-17. Nao da pra mandar var(--menta) direto: o React Flow
+    // monta o id do <marker> concatenando o valor da cor, e um id com
+    // parenteses corta o url(#...) que aponta pra ele, entao a seta some em
+    // silencio. Conferido no navegador. O literal vem do token, por
+    // useCorDoTema, que reage a troca de tema.
+    markerEnd: { type: MarkerType.ArrowClosed, color: corMenta },
   };
 }
 
@@ -367,6 +374,23 @@ function CanvasCockpit() {
   ]);
   const [edges, setEdges, aoMudarArestas] = useEdgesState<Edge>([]);
 
+  // O menta do tema, como literal. Ele so existe aqui porque o marcador de
+  // seta do React Flow nao aceita var(). Ver comum/useCorDoTema.ts.
+  const corMenta = useCorDoTema("--menta");
+
+  // A troca de tema muda o menta. As arestas ja no canvas guardam o literal
+  // antigo no markerEnd, entao elas precisam ser reescritas, senao a seta fica
+  // no verde do tema anterior ate a proxima sessao nascer.
+  useEffect(() => {
+    setEdges((atuais) =>
+      atuais.map((a) =>
+        a.className === "aresta-viva"
+          ? { ...a, markerEnd: { type: MarkerType.ArrowClosed, color: corMenta } }
+          : a
+      )
+    );
+  }, [corMenta, setEdges]);
+
   const contador = useRef(0);
   const prontoParaSalvar = useRef(false);
   // Enquadramento de boot: roda o fitView UMA vez, depois do primeiro sync.
@@ -488,7 +512,7 @@ function CanvasCockpit() {
         ) {
           return null;
         }
-        return arestaCerebro(a.target);
+        return arestaCerebro(a.target, corMenta);
       })
       .filter((e): e is Edge => e !== null);
     setEdges(arestas);
@@ -811,7 +835,7 @@ function CanvasCockpit() {
         ...atuais,
         { id, type: "sessao", position: pos, data: { idFluxo } },
       ]);
-      setEdges((atuais) => [...atuais, arestaCerebro(id)]);
+      setEdges((atuais) => [...atuais, arestaCerebro(id, corMenta)]);
     },
     [setNodes, setEdges, getNodes]
   );
@@ -885,7 +909,7 @@ function CanvasCockpit() {
         ...atuais,
         { id, type: "sessao", position: pos, data: dadosLimpos },
       ]);
-      setEdges((atuais) => [...atuais, arestaCerebro(id)]);
+      setEdges((atuais) => [...atuais, arestaCerebro(id, corMenta)]);
     },
     [setNodes, setEdges]
   );
@@ -1247,7 +1271,15 @@ function CanvasCockpit() {
           proOptions={{ hideAttribution: true }}
           deleteKeyCode={null}
         >
-          <Background variant={BackgroundVariant.Dots} gap={26} size={1} color="#1a2621" />
+          {/* O ponto do fundo tinha "#1a2621" fixo e ignorava o token
+              --pontos-canvas, entao o canvas ficava esverdeado nos tres
+              temas. Como var(), ele acompanha o tema. */}
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={26}
+            size={1}
+            color="var(--pontos-canvas)"
+          />
           <Controls showInteractive={false} />
         </ReactFlow>
 

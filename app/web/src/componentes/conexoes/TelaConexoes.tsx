@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "../../estilos/conexoes.css";
+import { Botao } from "../comum/Botao";
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
 import {
@@ -156,9 +157,7 @@ export function TelaConexoes() {
         {erro && (
           <div className="conx-erro-topo">
             {erro}
-            <button className="botao botao-neutro" onClick={() => void carregar()}>
-              Tentar de novo
-            </button>
+            <Botao onClick={() => void carregar()}>Tentar de novo</Botao>
           </div>
         )}
 
@@ -274,15 +273,16 @@ function BlocoMotorIA({
           <span className="conx-motor-ativo">
             {ativo === "codex" ? "Codex" : "Claude"}
           </span>
-          <button
-            type="button"
+          <Botao
+            variante="fantasma"
+            tamanho="p"
             className="conx-motor-guia"
             onClick={() => {
               window.location.hash = "#/setup";
             }}
           >
             Abrir configuração guiada
-          </button>
+          </Botao>
         </div>
       </header>
 
@@ -301,9 +301,10 @@ function BlocoMotorIA({
               {opcao.deteccao?.versao && (
                 <span className="conx-motor-versao">{opcao.deteccao.versao}</span>
               )}
-              <button
-                type="button"
-                className={`botao ${selecionado ? "botao-neutro" : "botao-fantasma"} conx-motor-trocar`}
+              <Botao
+                variante={selecionado ? "neutro" : "fantasma"}
+                tamanho="p"
+                className="conx-motor-trocar"
                 disabled={selecionado || !opcao.disponivel || salvando}
                 onClick={() => void trocar(opcao.id)}
               >
@@ -312,13 +313,15 @@ function BlocoMotorIA({
                   : armada
                   ? `Confirmar ${opcao.nome}`
                   : `Usar ${opcao.nome}`}
-              </button>
+              </Botao>
               {armada && (
                 <p className="conx-motor-confirmacao">
                   {opcao.id === "codex"
                     ? "O custo passa a ser estimado por tokens e o MCP fica indisponível."
                     : "As novas sessões usam Claude e recuperam as conexões MCP."}
-                  <button type="button" onClick={() => setConfirmar(null)}>Cancelar</button>
+                  <Botao variante="fantasma" tamanho="p" onClick={() => setConfirmar(null)}>
+                    Cancelar
+                  </Botao>
                 </p>
               )}
             </div>
@@ -482,8 +485,10 @@ function CartaoConexao({
                   spellCheck={false}
                 />
                 {campo.segredo && (
-                  <button
-                    type="button"
+                  <Botao
+                    variante="fantasma"
+                    tamanho="p"
+                    soIcone
                     className="conx-olho"
                     onClick={() =>
                       setRevelar((antes) => ({ ...antes, [campo.chave]: !vendo }))
@@ -496,7 +501,7 @@ function CartaoConexao({
                     ) : (
                       <IconeOlho className="" />
                     )}
-                  </button>
+                  </Botao>
                 )}
               </div>
               {campo.dica && <p className="conx-dica">{campo.dica}</p>}
@@ -524,8 +529,9 @@ function CartaoConexao({
               salvo
             </span>
           )}
-          <button
-            className="botao botao-principal conx-salvar"
+          <Botao
+            variante="principal"
+            className="conx-salvar"
             onClick={() => void salvar()}
             disabled={salvando}
           >
@@ -536,7 +542,7 @@ function CartaoConexao({
               : temTeste && habilitado
               ? "Salvar e testar"
               : "Salvar"}
-          </button>
+          </Botao>
         </div>
       </div>
     </article>

@@ -21,131 +21,244 @@
 @layer base, externo, tela, tema;
 
 @layer base {
+/* A fonte e embarcada, nao vem de CDN nem do sistema.
+ *
+ * O Hub e local-first: ele roda sem internet, e o dono pode nem ter. Depender
+ * de CDN e depender de rede. Depender de fonte do sistema e pior, porque falha
+ * em silencio: os pesos intermediarios so existem se a maquina tiver Segoe UI
+ * Variable, e onde ela nao esta, a hierarquia inteira achata sem ninguem
+ * perceber. O navegador nao avisa.
+ *
+ * O arquivo e o Inter variavel, 344 KB de woff2, sob SIL Open Font License
+ * 1.1, que permite embarcar. A licenca vive ao lado, em
+ * src/fontes/LICENSE-Inter.txt. Um arquivo so cobre 400, 500, 600 e 700 de
+ * verdade, e o eixo opsz entrega o tamanho optico que a Apple usa, sem
+ * precisar de tres familias.
+ *
+ * Ver decisoes/2026-07-27-a-fonte-embarcada.md.
+ */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fontes/InterVariable.woff2") format("woff2-variations");
+}
+
 :root {
-  /* Tema Dark VKOS (a identidade original). Serve de base: quando data-theme
-     e "vkos" ou ausente, estes valores valem. Nao mexer nos valores daqui. */
-  --fundo: #0a0f0e;
-  --fundo-2: #0d1412;
-  --fundo-3: #111a18;
-  --superficie: #131d1b;
-  --superficie-2: #17211f;
-  --borda: #1f2b28;
-  --borda-forte: #2a3a32;
-  --menta: #00c896;
-  --menta-clara: #4de0b8;
-  --menta-escura: #04241b;
-  --texto: #f2f5f4;
-  --texto-suave: #9fb0ab;
-  --texto-fraco: #6b7d78;
-  --alerta: #ff6b6b;
-  --alerta-suave: #ff8f8f;
-  --amarelo: #f0c674;
+  /* O contrato de nome. Todo token de cor do Hub nasce aqui, com o valor do
+     Dark VKOS, que e a identidade original e serve de base quando data-theme
+     ainda nao foi escolhido. O valor final de cada tema vem do visual-hub.css,
+     na camada tema, que sempre vence esta. */
+
+  /* A escada de superficie. Quatro degraus solidos, nunca transparencia
+     empilhada. E dela que sai a profundidade, nao de sombra. */
+  --fundo: #08100e;
+  --superficie: #101b17;
+  --superficie-alta: #17251f;
+  --superficie-flutuante: #1e2f28;
+  /* O branco que representa papel de site, nao superficie do app. Ele nao
+     acompanha o tema de proposito: e a folha do cliente. */
+  --papel: #ffffff;
+
+  /* Duas bordas, dois trabalhos. --linha e decoracao e pode ser sutil.
+     --linha-forte e o unico indicador de um controle, entao o criterio 1.4.11
+     do WCAG exige 3:1 contra a superficie em que ela se apoia. */
+  --linha: #22362f;
+  --linha-forte: #446d5f;
+
+  --texto: #f0f7f4;
+  --texto-suave: #adbfb8;
+  --texto-fraco: #83968f;
+
+  /* O menta e sinal, nunca decoracao. Ele vive em cinco lugares: botao
+     principal, anel de foco, item de navegacao ativo, indicador de estado e a
+     palavra HUB da marca. Fundo de area nao entra na lista. */
+  --menta: #21d6a4;
+  --menta-tenue: #123128;
+  --menta-linha: #21d6a4;
+  --sobre-menta: #03211a;
+
+  --alerta: #ff7b7b;
+  --alerta-tenue: #2d2723;
+  --alerta-linha: #ff7b7b;
+
+  --aviso: #f0c674;
+  --aviso-tenue: #2b3022;
+  --aviso-linha: #f0c674;
+
+  --neutro-tenue: #152019;
+  --pontos-canvas: #183128;
 
   /* Canais pra alpha. */
-  --menta-rgb: 0, 200, 150;
-  --alerta-rgb: 255, 107, 107;
+  --menta-rgb: 33, 214, 164;
+  --scrim-rgb: 2, 8, 6;
+  --alerta-rgb: 255, 123, 123;
   --amarelo-rgb: 240, 198, 116;
-  --fundo-rgb: 13, 20, 18;
-  --painel-rgb: 19, 29, 27;
-  --scrim-rgb: 4, 8, 7;
+  --fundo-rgb: 8, 16, 14;
+  --painel-rgb: 16, 27, 23;
   --realce-rgb: 255, 255, 255;
-  --suave-rgb: 159, 176, 171;
-  --fraco-rgb: 107, 125, 120;
-  --overlay-imagem-leve: rgba(7, 16, 13, 0.28);
-  --overlay-imagem-forte: rgba(7, 16, 13, 0.58);
+  --suave-rgb: 173, 191, 184;
+  --fraco-rgb: 131, 150, 143;
+  --veu: rgba(var(--scrim-rgb), 0.55);
+  --overlay-imagem-leve: rgba(var(--scrim-rgb), 0.28);
+  --overlay-imagem-forte: rgba(var(--scrim-rgb), 0.58);
+
+  /* O glow, com disciplina. A identidade da VK tem glow sutil e ele fica. O
+     que muda e onde ele entra. Glow que marca estado vale, glow que so decora
+     nao. Sao tres, e so tres:
+
+       --glow-vivo   o que esta acontecendo agora: sessao rodando, conexao
+                     ligada, passo em andamento. E o unico que pulsa.
+       --glow-foco   o anel de foco de teclado, o realce mais importante da
+                     interface pra quem navega sem mouse.
+       --glow-acao   a acao principal da tela, uma por tela.
+
+     Onde ele nunca entra: superficie grande, texto corrido, borda decorativa,
+     hover de cartao e item selecionado. Ver
+     decisoes/2026-07-27-o-glow-so-marca-estado.md. */
+  --glow-vivo: 0 0 14px rgba(var(--menta-rgb), 0.4);
+  --glow-foco: 0 0 0 3px rgba(var(--menta-rgb), 0.22);
+  --glow-acao: 0 0 20px rgba(var(--menta-rgb), 0.22);
 
   /* Compostos. */
-  --glow: 0 0 24px rgba(var(--menta-rgb), 0.28);
-  --glow-forte: 0 0 40px rgba(var(--menta-rgb), 0.45);
-  --grad-cerebro: radial-gradient(120% 120% at 50% 0%, #123027, #0c1714);
-  --pontos-canvas: #1a2621;
-  --raio: 14px;
-  --raio-p: 10px;
-  --transicao: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --fonte: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #12362a 0%, #10241d 48%, #0d1a16 100%);
+  /* O Inter embarcado vem primeiro. O resto da pilha e so rede de seguranca:
+     se o arquivo nao carregar, a interface ainda abre com uma sem serifa
+     parecida em vez de cair no Times. */
+  --fonte: "Inter", "Segoe UI Variable Text", system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "Consolas", monospace;
   color-scheme: dark;
+
+  /* Apelidos do nome antigo, pro app inteiro seguir de pe enquanto as folhas
+     migram. Saem na etapa de limpeza. */
+  --fundo-2: var(--superficie);
+  --fundo-3: var(--superficie-alta);
+  --superficie-2: var(--superficie-alta);
+  --borda: var(--linha);
+  --borda-forte: var(--linha-forte);
+  --menta-clara: var(--menta);
+  --menta-escura: var(--sobre-menta);
+  --alerta-suave: var(--alerta);
+  --amarelo: var(--aviso);
+  --glow: var(--glow-acao);
+  --glow-forte: var(--glow-vivo);
+  --confirmar-perigo-fundo: var(--alerta-tenue);
+  --confirmar-perigo-botao: var(--superficie-flutuante);
+  --confirmar-perigo-borda: var(--alerta-linha);
+  --confirmar-perigo-texto: var(--alerta);
 }
 
-/* Tema claro: superficies quase brancas (nunca #fff estourado), tinta
-   esverdeada escura (nunca preto puro), menta mais funda pra ter contraste
-   sobre fundo claro, glow bem mais discreto. */
-:root[data-theme="claro"] {
-  --fundo: #eef1f0;
-  --fundo-2: #e9edec;
-  --fundo-3: #e3e8e6;
-  --superficie: #f8faf9;
-  --superficie-2: #eff3f2;
-  --borda: #d7dedb;
-  --borda-forte: #bcc9c4;
-  --menta: #00a87e;
-  --menta-clara: #00795a;
-  --menta-escura: #d8f1e7;
-  --texto: #22312c;
-  --texto-suave: #576962;
-  --texto-fraco: #84948e;
-  --alerta: #d84f4f;
-  --alerta-suave: #b64040;
-  --amarelo: #a97e1f;
+/* Os tres temas vivem so no visual-hub.css, na camada tema. Antes cada token
+   de cor era declarado 6 vezes, tres temas vezes duas camadas, e ninguem
+   sabia de cor qual valor valia. Agora o :root acima e o contrato de nome com
+   o valor do Dark VKOS, e o valor final de cada tema vem de um lugar so. */
 
-  --menta-rgb: 0, 168, 126;
-  --alerta-rgb: 216, 79, 79;
-  --amarelo-rgb: 169, 126, 31;
-  --fundo-rgb: 238, 241, 240;
-  --painel-rgb: 251, 253, 252;
-  --scrim-rgb: 17, 26, 23;
-  --realce-rgb: 18, 31, 26;
-  --suave-rgb: 87, 105, 98;
-  --fraco-rgb: 132, 148, 142;
-  --overlay-imagem-leve: rgba(17, 26, 23, 0.24);
-  --overlay-imagem-forte: rgba(17, 26, 23, 0.54);
+/* ==========================================================================
+   AS ESCALAS. Nao mudam por tema, entao vivem so aqui, na camada base.
 
-  --glow: 0 0 20px rgba(var(--menta-rgb), 0.14);
-  --glow-forte: 0 0 30px rgba(var(--menta-rgb), 0.22);
-  --grad-cerebro: radial-gradient(120% 120% at 50% 0%, #ddf2e9, #f2f8f5);
-  --pontos-canvas: #ccd7d2;
-  color-scheme: light;
-}
+   Antes disto o app tinha 24 tamanhos de fonte, 16 pesos, 42 espacamentos,
+   31 raios, 117 sombras e 41 duracoes. Nao eram escalas, eram decisoes
+   independentes que ninguem consegue manter coerentes a mao.
 
-/* Tema escuro (o novo padrao do app): grafite NEUTRO, sem tinta verde no
-   fundo, no espirito de um dark moderno de uso diario. Nada de preto puro nem
-   branco puro: contraste confortavel. O verde-menta segue sendo so o destaque.
-   Sobrescreve TODOS os tokens de cor do :root pra nao vazar o esverdeado. */
-:root[data-theme="escuro"] {
-  --fundo: #16181d;
-  --fundo-2: #1a1d23;
-  --fundo-3: #20242b;
-  --superficie: #21252c;
-  --superficie-2: #272c34;
-  --borda: #2d333b;
-  --borda-forte: #3a414b;
-  --menta: #00c896;
-  --menta-clara: #4de0b8;
-  --menta-escura: #04241b;
-  --texto: #e6e9ee;
-  --texto-suave: #a8b0bd;
-  --texto-fraco: #6e7681;
-  --alerta: #ff6b6b;
-  --alerta-suave: #ff8f8f;
-  --amarelo: #e5b567;
+   Ver planos/vkos-hub-local-v1/05-design-system.md, secao 3.
+   ========================================================================== */
+:root {
+  /* Regua unica. Trocar --base muda a densidade da interface inteira, sem
+     tocar em nenhum componente. E o mecanismo de scaling do Radix, e e o que
+     abre um controle de densidade depois sem refazer nada. */
+  --base: 4px;
 
-  --menta-rgb: 0, 200, 150;
-  --alerta-rgb: 255, 107, 107;
-  --amarelo-rgb: 229, 181, 103;
-  --fundo-rgb: 26, 29, 35;
-  --painel-rgb: 33, 37, 44;
-  --scrim-rgb: 8, 9, 12;
-  --realce-rgb: 255, 255, 255;
-  --suave-rgb: 168, 176, 189;
-  --fraco-rgb: 110, 118, 129;
-  --overlay-imagem-leve: rgba(8, 9, 12, 0.28);
-  --overlay-imagem-forte: rgba(8, 9, 12, 0.58);
+  /* Espacamento, 8 degraus. O 6px sai: ele aparecia 125 vezes e sempre podia
+     ser 4 ou 8. Manter o 6 e manter a porta aberta pro 5, o 7 e o 9. */
+  --esp-2: calc(var(--base) * 0.5);
+  --esp-4: var(--base);
+  --esp-8: calc(var(--base) * 2);
+  --esp-12: calc(var(--base) * 3);
+  --esp-16: calc(var(--base) * 4);
+  --esp-24: calc(var(--base) * 6);
+  --esp-32: calc(var(--base) * 8);
+  --esp-48: calc(var(--base) * 12);
 
-  --glow: 0 0 24px rgba(var(--menta-rgb), 0.2);
-  --glow-forte: 0 0 40px rgba(var(--menta-rgb), 0.36);
-  --grad-cerebro: radial-gradient(120% 120% at 50% 0%, #262c34, #191c21);
-  --pontos-canvas: #2b313a;
-  color-scheme: dark;
+  /* Tipografia, 7 degraus. A escala e apertada de proposito, no espirito do
+     macOS, onde o corpo e 13pt e tudo cabe entre 10 e 26. Entrelinha em px
+     absoluto e sempre par, no padrao do Radix: numero relativo arredonda
+     diferente em cada tamanho. Tracking negativo cresce com o tamanho, e o
+     menor abre um pouco. */
+  --txt-micro: 11px;
+  --lh-micro: 14px;
+  --tr-micro: 0.01em;
+  --txt-legenda: 12px;
+  --lh-legenda: 16px;
+  --tr-legenda: 0em;
+  --txt-corpo: 13px;
+  --lh-corpo: 18px;
+  --tr-corpo: -0.005em;
+  --txt-leitura: 15px;
+  --lh-leitura: 22px;
+  --tr-leitura: -0.01em;
+  --txt-titulo-p: 17px;
+  --lh-titulo-p: 22px;
+  --tr-titulo-p: -0.015em;
+  --txt-titulo: 22px;
+  --lh-titulo: 28px;
+  --tr-titulo: -0.02em;
+  --txt-display: 28px;
+  --lh-display: 34px;
+  --tr-display: -0.025em;
+
+  /* Quatro pesos e so quatro. Ver decisoes/2026-07-27-a-fonte-embarcada.md:
+     a fonte agora e embarcada, e o Inter estatico entrega estes quatro cortes
+     de verdade. Peso intermediario (590, 620, 650, 680, 720, 760) nao existe
+     mais, porque colapsa em silencio em quem nao tiver a fonte variavel. */
+  --peso-normal: 400;
+  --peso-medio: 500;
+  --peso-forte: 600;
+  --peso-pesado: 700;
+
+  /* Raio, 5 degraus. O 8px em botao e campo e convergencia entre Linear,
+     Raycast e Notion. O 50% de ponto e avatar e forma, nao raio, e continua
+     literal. */
+  --raio-p: 6px;
+  --raio: 8px;
+  --raio-g: 12px;
+  --raio-gg: 16px;
+  --raio-pilula: 999px;
+
+  /* Movimento, 3 duracoes e 2 curvas. */
+  --mov-rapido: 120ms;
+  --mov-padrao: 200ms;
+  --mov-lento: 320ms;
+  --curva: cubic-bezier(0.32, 0.72, 0, 1);
+  --curva-simetrica: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Apelido de compatibilidade. O --transicao aparece em 365 lugares e quase
+     todos sao feedback de cor, fundo, borda ou sombra, que e exatamente o que
+     pede a duracao curta. Enquanto os 365 nao virarem --mov-rapido no lugar,
+     ele aponta pra ca. */
+  --transicao: var(--mov-rapido) var(--curva);
+
+  /* Empilhamento, 7 niveis. Nenhum z-index literal fora deste conjunto. */
+  --z-base: 0;
+  --z-fixo: 10;
+  --z-popover: 100;
+  --z-camada: 200;
+  --z-veu: 300;
+  --z-modal: 310;
+  --z-aviso: 400;
+
+  /* Elevacao. A profundidade vem da escada de superficie mais o fio de
+     --linha, nunca de sombra. Sombra so onde o elemento FLUTUA de verdade
+     sobre outro conteudo: popover, modal e o que esta sendo arrastado. */
+  --sombra-popover: 0 4px 12px rgba(var(--scrim-rgb), 0.18);
+  --sombra-modal: 0 16px 48px rgba(var(--scrim-rgb), 0.28);
+  --sombra-arrasto: 0 8px 24px rgba(var(--scrim-rgb), 0.32);
+
+  /* Foco de teclado. 2px atende o criterio 2.4.13 do WCAG 2.2, que pede area
+     equivalente a um perimetro de 2px e 3:1 entre focado e nao focado. */
+  --foco: 2px solid var(--menta);
+  --foco-recuo: 2px;
 }
 
 * {
@@ -161,13 +274,19 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(120% 90% at 80% -10%, rgba(var(--menta-rgb), 0.06), transparent 60%),
-    var(--fundo);
+  background: var(--fundo);
   color: var(--texto);
   font-family: var(--fonte);
-  font-size: 15px;
-  line-height: 1.5;
+  /* O degrau de leitura da escala. O corpo de 13px so vale depois que cada
+     tela migrar pra escala, senao ele encolhe texto que hoje se apoia em
+     medida fixa em volta. Ver a Etapa 7 do 05-design-system.md. */
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  font-weight: var(--peso-normal);
+  /* O Inter tem eixo optico de verdade. Com isto, texto miudo abre e texto
+     grande aperta sozinho, que e o efeito de optical size da Apple. */
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -227,18 +346,23 @@ button {
    dispara, entao nao polui o clique). Usa outline pra nao brigar com os
    box-shadow de glow que varios componentes ja tem no estado ativo. */
 :focus-visible {
-  outline: 2px solid rgba(var(--menta-rgb), 0.55);
-  outline-offset: 2px;
+  /* O anel e menta cheio, nao menta a 55% de opacidade. O criterio 2.4.13 do
+     WCAG 2.2 pede area equivalente a um perimetro de 2px e 3:1 entre o estado
+     focado e o nao focado, e menta lavado nao entrega nem um nem outro. */
+  outline: var(--foco);
+  outline-offset: var(--foco-recuo);
 }
 :focus:not(:focus-visible) {
   outline: none;
 }
-/* Campos de texto ja marcam o foco com borda menta e halo proprio: nao
-   empilhar o outline generico por cima. */
+/* Campo de texto marca o foco no proprio contorno, com a linha de menta e o
+   halo. Empilhar o outline generico por cima daria dois aneis concentricos. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: none;
+  border-color: var(--menta-linha);
+  box-shadow: var(--glow-foco);
 }
 
 input,
@@ -247,7 +371,7 @@ textarea {
   font-size: inherit;
   color: var(--texto);
   background: var(--fundo);
-  border: 1px solid var(--borda);
+  border: 1px solid var(--linha-forte);
   border-radius: var(--raio-p);
   padding: 10px 12px;
   outline: none;
@@ -269,27 +393,55 @@ textarea {
 }
 
 /* Botoes base. */
+/* O botao, inteiro na escala de token.
+ *
+ * Existem 352 elementos <button> nos componentes e so 143 usam esta base: 209
+ * botoes, ou 59%, tem estilo proprio. O componente comum/Botao.tsx e a porta
+ * de entrada pra essa conta cair. Quem escreve tela nova usa ele, nunca uma
+ * classe nova de botao.
+ *
+ * A altura minima de 32px atende o criterio 2.5.8 do WCAG 2.2, que pede alvo
+ * de 24x24px.
+ */
 .botao {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: var(--raio-p);
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.01em;
+  gap: var(--esp-8);
+  min-height: 32px;
+  padding: var(--esp-8) var(--esp-16);
+  border-radius: var(--raio);
+  font-weight: var(--peso-forte);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
   transition: transform var(--transicao), box-shadow var(--transicao),
     background var(--transicao), border-color var(--transicao),
     color var(--transicao);
   white-space: nowrap;
 }
-.botao:active {
+.botao:active:not(:disabled) {
   transform: translateY(1px);
 }
 .botao:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+/* Tamanho pequeno: barra de ferramenta, acao dentro de linha de lista. */
+.botao-p {
+  min-height: 26px;
+  padding: var(--esp-4) var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  letter-spacing: var(--tr-legenda);
+}
+/* So icone: quadrado, e o rotulo vive no aria-label. */
+.botao-icone {
+  width: 32px;
+  padding: 0;
+}
+.botao-icone.botao-p {
+  width: 26px;
 }
 .botao-principal {
   background: var(--menta);
@@ -297,14 +449,12 @@ textarea {
   box-shadow: var(--glow);
 }
 .botao-principal:hover:not(:disabled) {
-  box-shadow: var(--glow-forte);
   background: var(--menta-clara);
-  transform: translateY(-1px);
 }
 .botao-neutro {
   background: var(--superficie-2);
   color: var(--texto);
-  border: 1px solid var(--borda);
+  border: 1px solid var(--linha-forte);
 }
 .botao-neutro:hover:not(:disabled) {
   border-color: var(--menta);
@@ -370,7 +520,7 @@ textarea {
   border: 1px solid var(--borda);
   border-radius: 12px;
   background: var(--superficie);
-  box-shadow: 0 12px 28px rgba(var(--scrim-rgb), 0.34);
+  box-shadow: var(--sombra-popover);
 }
 
 .editor-imagem-menu button {
@@ -407,14 +557,14 @@ textarea {
   display: grid;
   gap: 2px;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .editor-imagem-menu small,
 .editor-imagem-erro {
   color: var(--texto-suave);
   font-size: 10px;
-  font-weight: 450;
+  font-weight: 500;
 }
 
 .editor-imagem-erro {
@@ -530,7 +680,6 @@ textarea {
     background var(--transicao);
 }
 .galeria-fontes-grade button:hover:not(:disabled) {
-  transform: translateY(-2px);
   border-color: var(--menta);
   background: var(--superficie-2);
 }
@@ -670,7 +819,7 @@ textarea {
 }
 
 .marca-logo {
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
   font-size: 20px;
   display: inline-flex;
@@ -817,7 +966,7 @@ textarea {
 }
 .botao-tema:hover {
   color: var(--menta-clara);
-  border-color: var(--borda);
+  border-color: var(--linha-forte);
   background: var(--superficie);
 }
 
@@ -840,8 +989,7 @@ textarea {
   background: var(--superficie);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio-p);
-  box-shadow: 0 16px 40px rgba(var(--scrim-rgb), 0.5),
-    0 0 0 1px rgba(var(--menta-rgb), 0.05);
+  box-shadow: var(--sombra-popover);
   animation: entrada-no 160ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 .tema-menu-item {
@@ -961,7 +1109,6 @@ textarea {
   color: var(--menta-clara);
 }
 
-
 /* A VKOS-IDE fica ancorada no fim da navegacao: margin-top:auto empurra o bloco
    pro fundo da area de nav, e a borda superior separa visualmente do resto. */
 .sidebar-nav-fim {
@@ -995,11 +1142,9 @@ textarea {
 }
 .ponto-luz.on {
   background: var(--menta);
-  box-shadow: 0 0 8px var(--menta);
 }
 .ponto-luz.off {
   background: var(--alerta);
-  box-shadow: 0 0 8px rgba(var(--alerta-rgb), 0.6);
 }
 .rodape-sessoes {
   margin-left: auto;
@@ -1090,9 +1235,7 @@ textarea {
     box-shadow var(--transicao), background var(--transicao);
 }
 .fontes-hub-card:hover {
-  transform: translateY(-2px);
   border-color: rgba(var(--menta-rgb), 0.48);
-  box-shadow: var(--glow);
   background: var(--superficie-2);
 }
 .fontes-hub-icone {
@@ -1139,7 +1282,7 @@ textarea {
   margin: 0 0 8px;
   color: var(--texto-suave);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 700;
   transition: color var(--transicao);
 }
 .botao-voltar-fontes:hover {
@@ -1167,7 +1310,7 @@ textarea {
 }
 .tela-fluxo-topo h1 {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .tela-fluxo-topo .subtitulo {
   color: var(--texto-suave);
@@ -1221,8 +1364,6 @@ textarea {
 }
 .cartao-peca:hover {
   border-color: var(--borda-forte);
-  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.28);
-  transform: translateY(-2px);
 }
 .cartao-peca-topo {
   display: flex;
@@ -1289,7 +1430,6 @@ textarea {
 }
 .miniatura:hover {
   border-color: var(--menta);
-  transform: translateY(-2px);
 }
 .miniatura img {
   width: 100%;
@@ -1343,7 +1483,7 @@ textarea {
   max-width: 86vw;
   max-height: 86vh;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.6);
+  box-shadow: var(--sombra-modal);
 }
 .visor-fechar,
 .visor-nav {
@@ -1413,7 +1553,6 @@ textarea {
 .visor-baixar:hover {
   border-color: var(--menta);
   color: var(--menta-clara);
-  box-shadow: var(--glow);
 }
 
 /* ===== Fluxos de imagem: cards empilhados e generosos ===== */
@@ -1503,7 +1642,7 @@ textarea {
   color: var(--confirmar-perigo-texto);
   background: var(--confirmar-perigo-fundo);
   border: 1px solid var(--confirmar-perigo-borda);
-  box-shadow: 0 6px 18px rgba(var(--scrim-rgb), 0.45);
+  box-shadow: var(--sombra-modal);
   pointer-events: auto;
   cursor: pointer;
   z-index: 30;
@@ -1605,7 +1744,7 @@ textarea {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(var(--scrim-rgb), 0.6);
+  box-shadow: var(--sombra-modal);
   background: var(--fundo);
 }
 .visor-pagina-html.carregando {
@@ -1665,8 +1804,6 @@ textarea {
 }
 .cartao-fonte:hover {
   border-color: var(--borda-forte);
-  box-shadow: 0 10px 30px rgba(var(--scrim-rgb), 0.28);
-  transform: translateY(-2px);
 }
 .cartao-fonte-topo {
   display: flex;
@@ -1807,7 +1944,6 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 24px 64px rgba(var(--scrim-rgb), 0.5);
   animation: entrada-no 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 .cartao-prompt-topo {
