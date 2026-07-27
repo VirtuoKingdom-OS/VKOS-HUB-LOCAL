@@ -55,12 +55,6 @@ function primeiroEmail(item: Record<string, unknown>): string | undefined {
   return item.emails.map(texto).find((email): email is string => Boolean(email));
 }
 
-// Regra única da rodada para comparação de telefone. Não tenta interpretar DDI
-// ou DDD: apenas remove toda formatação, inclusive o sinal de +.
-export function normalizarTelefone(telefone: unknown): string {
-  return typeof telefone === "string" ? telefone.replace(/\D/g, "") : "";
-}
-
 // Normaliza somente itens com identidade mínima. O formato abaixo segue o JSON
 // documentado pelo Actor: title, address, phone, website, categoryName,
 // totalScore, reviewsCount, placeId e emails quando scrapeContacts esta ativo.

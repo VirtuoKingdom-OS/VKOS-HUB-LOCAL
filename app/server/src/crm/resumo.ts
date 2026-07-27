@@ -1,7 +1,14 @@
 // Resumo seguro do CRM para contexto de IA. So agrega o que orienta decisoes e
 // remove emails e telefones inclusive quando foram escritos dentro de uma nota.
 
-import { lerEstado, type Contato, type EstadoCrm, type Interacao } from "./estado.js";
+import { agruparInteracoesPorContato } from "./historico.js";
+import {
+  lerEstado,
+  lerInteracoes,
+  type Contato,
+  type EstadoCrm,
+  type Interacao,
+} from "./estado.js";
 
 const LIMITE_BYTES = 8 * 1024;
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -43,9 +50,9 @@ function formatarValor(valor: number): string {
   return valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function ultimaInteracao(contato: Contato): number {
-  if (contato.interacoes.length === 0) return Date.parse(contato.criadoEm);
-  return contato.interacoes.reduce((maisRecente, item) => {
+function ultimaInteracao(contato: Contato, interacoes: readonly Interacao[]): number {
+  if (interacoes.length === 0) return Date.parse(contato.criadoEm);
+  return interacoes.reduce((maisRecente, item) => {
     const instante = Date.parse(item.em);
     return Number.isNaN(instante) ? maisRecente : Math.max(maisRecente, instante);
   }, 0);
@@ -69,8 +76,14 @@ function cortarUtf8(texto: string): string {
   return `${texto.slice(0, inicio).trimEnd()}...`;
 }
 
-export function montarResumoCrm(estado: EstadoCrm = lerEstado()): string | null {
+// As interacoes chegam de fora porque nao moram mais dentro do contato: elas
+// vem do interacoes.jsonl (ver historico.ts).
+export function montarResumoCrm(
+  estado: EstadoCrm = lerEstado(),
+  interacoes: readonly Interacao[] = lerInteracoes(),
+): string | null {
   if (estado.contatos.length === 0 && estado.negocios.length === 0) return null;
+  const interacoesPorContato = agruparInteracoesPorContato(interacoes);
 
   const agora = Date.now();
   const emSeteDias = agora + 7 * DIA_MS;
@@ -84,7 +97,7 @@ export function montarResumoCrm(estado: EstadoCrm = lerEstado()): string | null 
   }).length;
 
   const esquecidos = estado.contatos.filter((contato) => {
-    const instante = ultimaInteracao(contato);
+    const instante = ultimaInteracao(contato, interacoesPorContato.get(contato.id) ?? []);
     return !Number.isNaN(instante) && instante < agora - 30 * DIA_MS;
   }).length;
 
@@ -101,7 +114,7 @@ export function montarResumoCrm(estado: EstadoCrm = lerEstado()): string | null 
     .slice(0, 8);
 
   const vozes: Voz[] = estado.contatos.flatMap((contato) =>
-    contato.interacoes.map((interacao) => ({
+    (interacoesPorContato.get(contato.id) ?? []).map((interacao) => ({
       contato,
       interacao,
       instante: Number.isNaN(Date.parse(interacao.em)) ? 0 : Date.parse(interacao.em),

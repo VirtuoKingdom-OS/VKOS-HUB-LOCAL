@@ -187,8 +187,8 @@
       "id": "crm",
       "grupo": "dados",
       "nome": "CRM",
-      "resumo": "A memória de contatos, negócios, conversas, tarefas, próximos passos e leads confirmados.",
-      "descricao": "É a caderneta viva do relacionamento comercial: cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. A entrada no CRM bloqueia telefone ou origem já existente e mantém origem e tag rastreáveis. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
+      "resumo": "A memória de contatos, organizações, negócios, orçamentos, tarefas, histórico e leads confirmados.",
+      "descricao": "É a caderneta viva do relacionamento comercial: cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. Cada estágio do funil declara se é aberto, ganho ou perdido, então o número do funil para de misturar as três coisas. A empresa do contato é uma Organização de verdade, o negócio guarda status, próxima ação, escopo e recorrência, e o orçamento existe como registro próprio, com validade. O que cresce sem teto saiu do arquivo de todo mundo: interações e histórico de estágio vivem em arquivos que só recebem linha nova, nunca reescrita. Telefone é guardado em formato único, então o mesmo cliente não entra duas vezes, e a chave técnica da origem é separada do rótulo que o usuário edita. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
       "conversaCom": [
         "sessoes",
         "barramento",

@@ -12,7 +12,6 @@ import {
   ErroLeads,
   LIMITE_RESULTADOS,
   normalizarRespostaApify,
-  normalizarTelefone,
 } from "./apify.js";
 
 const fixtureApifyDocumentado = [{
@@ -29,14 +28,8 @@ const fixtureApifyDocumentado = [{
   emails: ["contato@kimsislandsi.com"],
 }];
 
-test("normaliza telefones brasileiros removendo apenas a formatação", () => {
-  assert.equal(normalizarTelefone("(31) 3333-4444"), "3133334444");
-  assert.equal(normalizarTelefone("31 3333 4444"), "3133334444");
-  assert.equal(normalizarTelefone("31-3333-4444"), "3133334444");
-  assert.equal(normalizarTelefone("+55 (31) 99999-8888"), "5531999998888");
-  assert.equal(normalizarTelefone("(11) 98765-4321"), "11987654321");
-  assert.equal(normalizarTelefone(undefined), "");
-});
+// A normalização de telefone virou regra única do Hub, em util/telefone.ts.
+// Os casos dela estão em util/telefone.test.ts.
 
 test("normaliza o JSON documentado do Actor para o contrato de leads", () => {
   assert.deepEqual(normalizarRespostaApify(fixtureApifyDocumentado), [{

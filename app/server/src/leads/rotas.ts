@@ -5,12 +5,12 @@ import {
   lerEstado,
   type Contato,
 } from "../crm/estado.js";
+import { chaveTelefone } from "../util/telefone.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import {
   buscarLeads,
   ErroLeads,
   LIMITE_RESULTADOS,
-  normalizarTelefone,
   type LeadEncontrado,
 } from "./apify.js";
 import {
@@ -48,37 +48,48 @@ function responderErro(erro: unknown, resposta: FastifyReply): FastifyReply {
   throw erro;
 }
 
-function telefonesDosContatos(
-  contatos: Array<Pick<Contato, "telefone">>,
-): Set<string> {
+// Contato que a deduplicação precisa enxergar. O telefone comparado é o E.164
+// já persistido; quando ele não existe, normaliza o digitado na hora.
+type ContatoParaDedupe = Pick<
+  Contato,
+  "telefone" | "telefoneNormalizado" | "chaveExterna"
+>;
+
+// Rótulo humano que aparece na ficha do lead importado. A chave técnica NÃO
+// mora mais aqui: ela vive em chaveExterna, que o usuário não edita.
+const ROTULO_ORIGEM_LEAD = "Google Maps";
+
+function chaveExternaDoLead(placeId: string): string {
+  return `google-maps:${placeId}`;
+}
+
+function telefonesDosContatos(contatos: ContatoParaDedupe[]): Set<string> {
   return new Set(
     contatos
-      .map((contato) => normalizarTelefone(contato.telefone))
+      .map((contato) => contato.telefoneNormalizado ?? chaveTelefone(contato.telefone))
       .filter(Boolean),
   );
 }
 
-function origensDosContatos(
-  contatos: Array<Pick<Contato, "origem">>,
-): Set<string> {
+function chavesExternasDosContatos(contatos: ContatoParaDedupe[]): Set<string> {
   return new Set(
     contatos
-      .map((contato) => contato.origem)
-      .filter((origem): origem is string => Boolean(origem)),
+      .map((contato) => contato.chaveExterna)
+      .filter((chave): chave is string => Boolean(chave)),
   );
 }
 
 export function marcarLeadsJaExistentes<T extends LeadEncontrado>(
   leads: T[],
-  contatos: Array<Pick<Contato, "telefone" | "origem">>,
+  contatos: ContatoParaDedupe[],
 ): Array<T & { jaExisteNoCrm: boolean }> {
   const telefones = telefonesDosContatos(contatos);
-  const origens = origensDosContatos(contatos);
+  const chaves = chavesExternasDosContatos(contatos);
   return leads.map((lead) => {
-    const telefone = normalizarTelefone(lead.telefone);
+    const telefone = chaveTelefone(lead.telefone);
     const porTelefone = Boolean(telefone && telefones.has(telefone));
-    const porOrigem = origens.has(`google-maps:${lead.placeId}`);
-    return { ...lead, jaExisteNoCrm: porTelefone || porOrigem };
+    const porChave = chaves.has(chaveExternaDoLead(lead.placeId));
+    return { ...lead, jaExisteNoCrm: porTelefone || porChave };
   });
 }
 
@@ -108,34 +119,36 @@ function retratoDoLead(lead: LeadImportavel): Record<string, unknown> {
 
 export function importarLeadsNoCrm(
   leads: LeadImportavel[],
-  contatosExistentes: Array<Pick<Contato, "telefone" | "origem">>,
+  contatosExistentes: ContatoParaDedupe[],
   criar: (corpo: Record<string, unknown>) => Contato = criarContato,
 ): ResultadoImportacao {
   const telefones = telefonesDosContatos(contatosExistentes);
-  const origens = origensDosContatos(contatosExistentes);
+  const chaves = chavesExternasDosContatos(contatosExistentes);
   const contatos: Contato[] = [];
   let duplicados = 0;
 
   for (const lead of leads) {
-    const telefone = normalizarTelefone(lead.telefone);
-    const origem = `google-maps:${lead.placeId}`;
-    if ((telefone && telefones.has(telefone)) || origens.has(origem)) {
+    const telefone = chaveTelefone(lead.telefone);
+    const chaveExterna = chaveExternaDoLead(lead.placeId);
+    if ((telefone && telefones.has(telefone)) || chaves.has(chaveExterna)) {
       duplicados++;
       continue;
     }
 
     const contato = criar({
       nome: lead.nome,
+      // O nome do lugar é a organização: vira uma Organizacao no CRM.
       empresa: lead.nome,
       ...(lead.telefone ? { telefone: lead.telefone } : {}),
       ...(lead.email ? { email: lead.email } : {}),
-      origem,
+      origem: ROTULO_ORIGEM_LEAD,
+      chaveExterna,
       tags: ["google-maps"],
       lead: retratoDoLead(lead),
     });
     contatos.push(contato);
     if (telefone) telefones.add(telefone);
-    origens.add(origem);
+    chaves.add(chaveExterna);
   }
 
   return { importados: contatos.length, duplicados, contatos };

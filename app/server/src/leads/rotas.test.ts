@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { Contato } from "../crm/estado.js";
+import { normalizarTelefone } from "../util/telefone.js";
 import type { LeadEncontrado } from "./apify.js";
 import {
   importarLeadsNoCrm,
@@ -14,10 +15,9 @@ function contato(id: string, telefone?: string): Contato {
     id,
     nome: `Contato ${id}`,
     colunaId: "k1",
-    ...(telefone ? { telefone } : {}),
+    ...(telefone ? { telefone, telefoneNormalizado: normalizarTelefone(telefone) ?? undefined } : {}),
     tags: [],
-    interacoes: [],
-    tarefas: [],
+    workspaceOrigemId: "ws-1",
     criadoEm: agora,
     atualizadoEm: agora,
   };
@@ -46,28 +46,45 @@ test("busca marca duplicata por telefone normalizado", () => {
   assert.equal(marcados[1].jaExisteNoCrm, false);
 });
 
-test("importação pula duplicatas e cria contato com origem e tag", () => {
+// Bug vivo consertado: a regra antiga só removia não-dígitos, então o contato
+// salvo sem DDI e o lead com DDI viravam chaves diferentes e o mesmo cliente
+// entrava duas vezes.
+test("contato sem DDI e lead com DDI são a mesma pessoa", () => {
+  const marcados = marcarLeadsJaExistentes(leads, [contato("c1", "(31) 99999-8888")]);
+  assert.equal(marcados[0].jaExisteNoCrm, true);
+  const resultado = importarLeadsNoCrm(
+    leads,
+    [contato("c1", "(31) 99999-8888")],
+    (corpo) => ({ ...contato("c2"), nome: corpo.nome as string }),
+  );
+  assert.equal(resultado.duplicados, 1);
+  assert.equal(resultado.importados, 1);
+});
+
+// A chave técnica saiu de "origem" para "chaveExterna": "origem" voltou a ser
+// só rótulo humano, e editá-la não pode mais quebrar a deduplicação.
+test("importação pula duplicatas e separa rótulo humano de chave técnica", () => {
   const existentes = [contato("c1", "+55 31 99999 8888")];
-  const criados: Contato[] = [];
+  const recebidos: Record<string, unknown>[] = [];
   const criar = (corpo: Record<string, unknown>): Contato => {
-    const novo = {
-      ...contato(`c${criados.length + 2}`, corpo.telefone as string | undefined),
+    recebidos.push(corpo);
+    return {
+      ...contato(`c${recebidos.length + 1}`, corpo.telefone as string | undefined),
       nome: corpo.nome as string,
-      empresa: corpo.empresa as string,
-      email: corpo.email as string | undefined,
       origem: corpo.origem as string,
+      chaveExterna: corpo.chaveExterna as string,
       tags: corpo.tags as string[],
     };
-    criados.push(novo);
-    return novo;
   };
 
   const resultado = importarLeadsNoCrm(leads, existentes, criar);
   assert.equal(resultado.importados, 1);
   assert.equal(resultado.duplicados, 1);
   assert.equal(resultado.contatos[0].nome, "Padaria Nova");
-  assert.equal(resultado.contatos[0].empresa, "Padaria Nova");
-  assert.equal(resultado.contatos[0].origem, "google-maps:place-novo");
+  // O nome do lugar vai como empresa e vira Organizacao no CRM.
+  assert.equal(recebidos[0].empresa, "Padaria Nova");
+  assert.equal(resultado.contatos[0].origem, "Google Maps");
+  assert.equal(resultado.contatos[0].chaveExterna, "google-maps:place-novo");
   assert.deepEqual(resultado.contatos[0].tags, ["google-maps"]);
 });
 
@@ -111,6 +128,7 @@ test("importar a mesma lista duas vezes não cria contato duplicado", () => {
       ...contato(`c${contatos.length + 1}`, corpo.telefone as string | undefined),
       nome: corpo.nome as string,
       origem: corpo.origem as string,
+      chaveExterna: corpo.chaveExterna as string,
       tags: corpo.tags as string[],
     };
     contatos.push(novo);
@@ -127,14 +145,16 @@ test("importar a mesma lista duas vezes não cria contato duplicado", () => {
   assert.equal(contatos.length, 2);
 });
 
-test("origem impede duplicata mesmo quando o lead não tem telefone", () => {
+test("chave externa impede duplicata mesmo quando o lead não tem telefone", () => {
   const semTelefone: LeadEncontrado = {
     nome: "Empresa sem telefone",
     placeId: "place-sem-telefone",
   };
   const existente = {
     ...contato("c-origem"),
-    origem: "google-maps:place-sem-telefone",
+    // O rótulo é editável e não conta; a chave técnica é que decide.
+    origem: "Google Maps",
+    chaveExterna: "google-maps:place-sem-telefone",
   };
   const marcados = marcarLeadsJaExistentes([semTelefone], [existente]);
   assert.equal(marcados[0].jaExisteNoCrm, true);

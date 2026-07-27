@@ -1,505 +1,118 @@
-// Estado do CRM v3, escopado por workspace. Agora o CONTATO e o cartao do funil:
-// cada contato tem um estagio (colunaId) e caminha pelo quadro sozinho. Negocio
-// virou valor/oportunidade opcional preso a um contato, sem estagio proprio. O
-// caminho e resolvido por chamada porque o workspace ativo pode mudar em runtime.
+// Estado do CRM v4, escopado por workspace.
+//
+// O CONTATO e o cartao do funil: cada contato tem um estagio (colunaId) e
+// caminha pelo quadro sozinho. Negocio e valor/oportunidade preso a um contato,
+// sem estagio proprio. O caminho e resolvido por chamada porque o workspace
+// ativo pode mudar em runtime.
+//
+// O que fica no crm.json: coisa em pouca quantidade e que muda pouco (colunas,
+// organizacoes, contatos, negocios, orcamentos, tarefas). Continua sendo lido e
+// gravado inteiro, o que e aceitavel nessa escala.
+//
+// O que saiu pra append-only, ao lado do crm.json: interacoes.jsonl e
+// estagios.jsonl (ver historico.ts). Antes, registrar uma interacao reescrevia
+// a base de contatos inteira, e isso travava o event loop junto com as sessoes
+// de IA e o WebSocket.
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import { emitir } from "../eventos/barramento.js";
+import { anexarJsonl } from "../util/jsonl.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { quarentenarOuFalhar } from "../util/quarentena.js";
+import { normalizarTelefone } from "../util/telefone.js";
 import {
   garantirPastaDadosWorkspace,
   idWorkspaceAtivo,
   pastaDadosWorkspace,
 } from "../workspaces/estado.js";
+import {
+  anexarEstagios,
+  anexarEstagiosSemRepetir,
+  anexarInteracoes,
+  anexarInteracoesSemRepetir,
+  lerEstagiosDaPasta,
+  lerInteracoesDaPasta,
+} from "./historico.js";
+import { normalizarEstadoCrm } from "./migracao.js";
+import {
+  ErroCrm,
+  STATUS_NEGOCIO,
+  STATUS_ORCAMENTO,
+  TIPOS_COLUNA,
+  TIPOS_INTERACAO,
+  chaveOrganizacao,
+  colunasPadrao,
+  gerarId,
+  ordenarColunas,
+  type Coluna,
+  type Contato,
+  type DadosLead,
+  type EstadoCrm,
+  type Interacao,
+  type Negocio,
+  type Orcamento,
+  type Organizacao,
+  type ParticipanteNegocio,
+  type RegistroEstagio,
+  type StatusNegocio,
+  type StatusOrcamento,
+  type Tarefa,
+  type TipoColuna,
+  type TipoInteracao,
+} from "./modelo.js";
 
-export class ErroCrm extends Error {
-  status: number;
+export { ErroCrm, VERSAO_CRM_ATUAL } from "./modelo.js";
+export type {
+  Coluna,
+  Contato,
+  DadosLead,
+  EstadoCrm,
+  Interacao,
+  Negocio,
+  Orcamento,
+  Organizacao,
+  ParticipanteNegocio,
+  RegistroEstagio,
+  StatusNegocio,
+  StatusOrcamento,
+  Tarefa,
+  TipoColuna,
+  TipoInteracao,
+} from "./modelo.js";
+export { normalizarEstadoCrm } from "./migracao.js";
+export type { ResultadoNormalizacaoCrm } from "./migracao.js";
 
-  constructor(mensagem: string, status = 400) {
-    super(mensagem);
-    this.name = "ErroCrm";
-    this.status = status;
-  }
-}
+const NOME_ARQUIVO = "crm.json";
+// Rastro do que a migracao recuperou em vez de descartar. Fica ao lado do
+// crm.json pra o usuario ter onde olhar quando algo aparecer fora do lugar.
+const NOME_RECUPERACOES = "recuperacoes.jsonl";
 
-export type TipoInteracao = "nota" | "ligacao" | "mensagem" | "reuniao" | "outro";
-
-export interface Interacao {
-  id: string;
-  em: string;
-  tipo: TipoInteracao;
-  texto: string;
-}
-
-export interface Tarefa {
-  id: string;
-  texto: string;
-  prazo?: string;
-  feita: boolean;
-  criadaEm: string;
-}
-
-// Retrato do lead de origem (mineracao no Google Maps). So leitura: preserva o
-// que a lista de busca mostrava, pra ficha nao nascer pobre depois de importar.
-export interface DadosLead {
-  placeId?: string;
-  categoria?: string;
-  endereco?: string;
-  site?: string;
-  nota?: number;
-  totalAvaliacoes?: number;
-  termoBusca?: string;
-  localizacao?: string;
-  capturadoEm?: string;
-}
-
-export interface Contato {
-  id: string;
-  nome: string;
-  // Estagio do contato no funil. Todo contato mora numa coluna desde que nasce.
-  colunaId: string;
-  empresa?: string;
-  telefone?: string;
-  email?: string;
-  origem?: string;
-  tags: string[];
-  interacoes: Interacao[];
-  tarefas: Tarefa[];
-  proximoContato?: string;
-  // Retrato do lead que originou a ficha, quando veio da mineracao.
-  lead?: DadosLead;
-  criadoEm: string;
-  atualizadoEm: string;
-}
-
-// Valor/oportunidade preso a um contato. Nao tem estagio: quem caminha no funil
-// e o contato. Um contato pode ter zero, um ou varios negocios (soma de valor).
-export interface Negocio {
-  id: string;
-  titulo: string;
-  contatoId: string;
-  valorEstimado?: number;
-  criadoEm: string;
-  atualizadoEm: string;
-}
-
-export interface Coluna {
-  id: string;
-  nome: string;
-  ordem: number;
-}
-
-export interface EstadoCrm {
-  versao: 3;
-  colunas: Coluna[];
-  contatos: Contato[];
-  negocios: Negocio[];
-}
-
-export interface ResultadoNormalizacaoCrm {
-  estado: EstadoCrm;
-  precisaSalvar: boolean;
-}
-
-const COLUNAS_PADRAO = [
-  "Não iniciados",
-  "Conversando",
-  "Proposta enviada",
-  "Fechado",
-  "Perdido",
-];
-
-const TIPOS_INTERACAO = new Set<TipoInteracao>([
-  "nota",
-  "ligacao",
-  "mensagem",
-  "reuniao",
-  "outro",
-]);
-
-function gerarId(prefixo: string): string {
-  return `${prefixo}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function colunasPadrao(): Coluna[] {
-  return COLUNAS_PADRAO.map((nome, ordem) => ({ id: gerarId("k"), nome, ordem }));
+function pastaAtiva(): string | null {
+  const id = idWorkspaceAtivo();
+  return id ? pastaDadosWorkspace(id) : null;
 }
 
 function caminhoAtivo(): string | null {
-  const id = idWorkspaceAtivo();
-  return id ? join(pastaDadosWorkspace(id), "crm.json") : null;
+  const pasta = pastaAtiva();
+  return pasta ? join(pasta, NOME_ARQUIVO) : null;
 }
 
-function dataValida(v: unknown, fallback: string): string {
-  return typeof v === "string" && !Number.isNaN(Date.parse(v)) ? v : fallback;
-}
-
-function textoPreservado(v: unknown): string | undefined {
-  return typeof v === "string" ? v : undefined;
-}
-
-function numeroPreservado(v: unknown): number | undefined {
-  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined;
-}
-
-function ordenarColunas(colunas: Coluna[]): Coluna[] {
-  return [...colunas].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
-}
-
-function saneiaColuna(v: unknown, indice: number): Coluna | null {
-  if (!v || typeof v !== "object") return null;
-  const coluna = v as Record<string, unknown>;
-  if (typeof coluna.id !== "string" || typeof coluna.nome !== "string") return null;
+function estadoInicial(): EstadoCrm {
   return {
-    id: coluna.id,
-    nome: coluna.nome,
-    ordem: typeof coluna.ordem === "number" && Number.isFinite(coluna.ordem)
-      ? coluna.ordem
-      : indice,
-  };
-}
-
-function saneiaLead(v: unknown): DadosLead | undefined {
-  if (!v || typeof v !== "object") return undefined;
-  const l = v as Record<string, unknown>;
-  const txt = (x: unknown) => (typeof x === "string" && x.trim() ? x.trim() : undefined);
-  const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
-  const saida: DadosLead = {};
-  if (txt(l.placeId)) saida.placeId = txt(l.placeId);
-  if (txt(l.categoria)) saida.categoria = txt(l.categoria);
-  if (txt(l.endereco)) saida.endereco = txt(l.endereco);
-  if (txt(l.site)) saida.site = txt(l.site);
-  if (num(l.nota) !== undefined) saida.nota = num(l.nota);
-  if (num(l.totalAvaliacoes) !== undefined) saida.totalAvaliacoes = num(l.totalAvaliacoes);
-  if (txt(l.termoBusca)) saida.termoBusca = txt(l.termoBusca);
-  if (txt(l.localizacao)) saida.localizacao = txt(l.localizacao);
-  if (txt(l.capturadoEm)) saida.capturadoEm = txt(l.capturadoEm);
-  return Object.keys(saida).length > 0 ? saida : undefined;
-}
-
-function saneiaInteracao(v: unknown, contatoId: string, indice: number): Interacao | null {
-  if (!v || typeof v !== "object") return null;
-  const interacao = v as Record<string, unknown>;
-  if (typeof interacao.texto !== "string") return null;
-  const tipo = TIPOS_INTERACAO.has(interacao.tipo as TipoInteracao)
-    ? interacao.tipo as TipoInteracao
-    : "outro";
-  return {
-    id: typeof interacao.id === "string" ? interacao.id : `i-${contatoId}-${indice}`,
-    em: dataValida(interacao.em, new Date().toISOString()),
-    tipo,
-    texto: interacao.texto,
-  };
-}
-
-function saneiaTarefa(v: unknown, contatoId: string, indice: number): Tarefa | null {
-  if (!v || typeof v !== "object") return null;
-  const tarefa = v as Record<string, unknown>;
-  if (typeof tarefa.texto !== "string") return null;
-  const criadaEm = dataValida(tarefa.criadaEm, new Date().toISOString());
-  const saida: Tarefa = {
-    id: typeof tarefa.id === "string" ? tarefa.id : `t-${contatoId}-${indice}`,
-    texto: tarefa.texto,
-    feita: tarefa.feita === true,
-    criadaEm,
-  };
-  if (typeof tarefa.prazo === "string" && !Number.isNaN(Date.parse(tarefa.prazo))) {
-    saida.prazo = tarefa.prazo;
-  }
-  return saida;
-}
-
-function copiarCamposContato(
-  destino: Contato,
-  origem: Record<string, unknown>,
-): void {
-  const campos = ["empresa", "telefone", "email", "origem"] as const;
-  for (const campo of campos) {
-    const valor = textoPreservado(origem[campo]);
-    if (valor !== undefined) destino[campo] = valor;
-  }
-  if (
-    typeof origem.proximoContato === "string" &&
-    !Number.isNaN(Date.parse(origem.proximoContato))
-  ) {
-    destino.proximoContato = origem.proximoContato;
-  }
-  const lead = saneiaLead(origem.lead);
-  if (lead) destino.lead = lead;
-}
-
-// Fallback em vez de descarte: id ausente ganha um id novo, nome ausente vira
-// "Sem nome", colunaId ausente ou invalido cai na primeira coluna do funil (e
-// marca pra salvar). So um valor que nao e nem objeto se perde de fato.
-function saneiaContato(
-  v: unknown,
-  colunasValidas: Set<string>,
-  primeira: string,
-  marcar: () => void,
-): Contato | null {
-  if (!v || typeof v !== "object") return null;
-  const contato = v as Record<string, unknown>;
-  const id =
-    typeof contato.id === "string" && contato.id ? contato.id : gerarId("c");
-  const nome =
-    typeof contato.nome === "string" && contato.nome.trim() ? contato.nome : "Sem nome";
-  const agora = new Date().toISOString();
-  let colunaId: string;
-  if (typeof contato.colunaId === "string" && colunasValidas.has(contato.colunaId)) {
-    colunaId = contato.colunaId;
-  } else {
-    colunaId = primeira;
-    marcar();
-  }
-  const saida: Contato = {
-    id,
-    nome,
-    colunaId,
-    tags: Array.isArray(contato.tags)
-      ? contato.tags.filter((tag): tag is string => typeof tag === "string")
-      : [],
-    interacoes: Array.isArray(contato.interacoes)
-      ? contato.interacoes
-          .map((item, indice) => saneiaInteracao(item, id, indice))
-          .filter((item): item is Interacao => item !== null)
-      : [],
-    tarefas: Array.isArray(contato.tarefas)
-      ? contato.tarefas
-          .map((item, indice) => saneiaTarefa(item, id, indice))
-          .filter((item): item is Tarefa => item !== null)
-      : [],
-    criadoEm: dataValida(contato.criadoEm, agora),
-    atualizadoEm: dataValida(contato.atualizadoEm, agora),
-  };
-  copiarCamposContato(saida, contato);
-  return saida;
-}
-
-function saneiaNegocio(v: unknown): Negocio | null {
-  if (!v || typeof v !== "object") return null;
-  const negocio = v as Record<string, unknown>;
-  if (
-    typeof negocio.id !== "string" ||
-    typeof negocio.titulo !== "string" ||
-    typeof negocio.contatoId !== "string"
-  ) {
-    return null;
-  }
-  const agora = new Date().toISOString();
-  const saida: Negocio = {
-    id: negocio.id,
-    titulo: negocio.titulo,
-    contatoId: negocio.contatoId,
-    criadoEm: dataValida(negocio.criadoEm, agora),
-    atualizadoEm: dataValida(negocio.atualizadoEm, agora),
-  };
-  const valor = numeroPreservado(negocio.valorEstimado);
-  if (valor !== undefined) saida.valorEstimado = valor;
-  return saida;
-}
-
-// Migra um contato do CRM v1 (quando o contato ja carregava colunaId e valor).
-// O contato herda o estagio; o valor, se houver, vira um negocio sem estagio.
-function migrarContatoV1(
-  v: unknown,
-  primeira: string,
-  colunasValidas: Set<string>,
-): { contato: Contato; negocio: Negocio | null } | null {
-  if (!v || typeof v !== "object") return null;
-  const antigo = v as Record<string, unknown>;
-  const id = typeof antigo.id === "string" && antigo.id ? antigo.id : gerarId("c");
-  const nome =
-    typeof antigo.nome === "string" && antigo.nome.trim() ? antigo.nome : "Sem nome";
-  const colunaId =
-    typeof antigo.colunaId === "string" && colunasValidas.has(antigo.colunaId)
-      ? antigo.colunaId
-      : primeira;
-  const agora = new Date().toISOString();
-  const criadoEm = dataValida(antigo.criadoEm, agora);
-  const atualizadoEm = dataValida(antigo.atualizadoEm, criadoEm);
-  const contato: Contato = {
-    id,
-    nome,
-    colunaId,
-    tags: Array.isArray(antigo.tags)
-      ? antigo.tags.filter((tag): tag is string => typeof tag === "string")
-      : [],
-    interacoes: Array.isArray(antigo.notas)
-      ? antigo.notas.flatMap((nota, notaIndice) => {
-          if (!nota || typeof nota !== "object") return [];
-          const n = nota as Record<string, unknown>;
-          if (typeof n.texto !== "string") return [];
-          return [{
-            id: `i-${id}-nota-${notaIndice}`,
-            em: dataValida(n.em, atualizadoEm),
-            tipo: "nota" as const,
-            texto: n.texto,
-          }];
-        })
-      : [],
+    versao: 4,
+    colunas: colunasPadrao(),
+    organizacoes: [],
+    contatos: [],
+    negocios: [],
+    orcamentos: [],
     tarefas: [],
-    criadoEm,
-    atualizadoEm,
-  };
-  copiarCamposContato(contato, antigo);
-
-  const valor = numeroPreservado(antigo.valorEstimado);
-  const negocio: Negocio | null = valor !== undefined
-    ? {
-        id: `n-${id}`,
-        titulo: nome,
-        contatoId: id,
-        valorEstimado: valor,
-        criadoEm,
-        atualizadoEm,
-      }
-    : null;
-  return { contato, negocio };
-}
-
-// Estagio implicito de cada contato na migracao v2 para v3: o contato herda a
-// coluna do seu negocio mais recente (a v2 punha o estagio no negocio). Contato
-// sem negocio cai na primeira coluna.
-function estagiosDosNegociosV2(
-  negocios: unknown,
-  colunasValidas: Set<string>,
-): Map<string, string> {
-  const mapa = new Map<string, { colunaId: string; quando: number }>();
-  if (!Array.isArray(negocios)) return new Map();
-  for (const bruto of negocios) {
-    if (!bruto || typeof bruto !== "object") continue;
-    const n = bruto as Record<string, unknown>;
-    if (typeof n.contatoId !== "string" || typeof n.colunaId !== "string") continue;
-    if (!colunasValidas.has(n.colunaId)) continue;
-    const instante = typeof n.atualizadoEm === "string" ? Date.parse(n.atualizadoEm) : NaN;
-    const quando = Number.isNaN(instante) ? 0 : instante;
-    const anterior = mapa.get(n.contatoId);
-    if (!anterior || quando >= anterior.quando) {
-      mapa.set(n.contatoId, { colunaId: n.colunaId, quando });
-    }
-  }
-  return new Map([...mapa].map(([id, { colunaId }]) => [id, colunaId]));
-}
-
-// Funcao pura exportada para testar a migracao sem tocar nos dados reais.
-// Versao mais nova que este codigo entende. Arquivo acima disso nao e migravel
-// pra tras: ele veio de uma versao futura do Hub e pode ter dado que este codigo
-// nem sabe ler.
-export const VERSAO_CRM_ATUAL = 3;
-
-export function normalizarEstadoCrm(bruto: unknown): ResultadoNormalizacaoCrm | null {
-  if (!bruto || typeof bruto !== "object") return null;
-  const dados = bruto as Record<string, unknown>;
-
-  // Guarda contra o pior modo de falha que este arquivo ja teve. Antes, versao
-  // desconhecida (4, ou o campo ausente num arquivo v3) caia no ramo v1 la
-  // embaixo, que le "notas" em vez de "interacoes", forca tarefas vazias e nem
-  // olha "negocios". O resultado destruido era gravado por cima do original na
-  // mesma leitura, sem quarentena, porque o arquivo era considerado valido.
-  //
-  // Devolver null joga o arquivo pra quarentena, o mesmo caminho do JSON
-  // quebrado. Perder acesso e recuperavel; perder o historico nao e.
-  const versao = dados.versao;
-  const versaoConhecida = versao === 1 || versao === 2 || versao === 3;
-  const pareceEstruturaNova =
-    Array.isArray(dados.negocios) ||
-    (Array.isArray(dados.contatos) &&
-      dados.contatos.some(
-        (c) => c && typeof c === "object" && "interacoes" in (c as object),
-      ));
-  if (!versaoConhecida && pareceEstruturaNova) return null;
-  if (typeof versao === "number" && versao > VERSAO_CRM_ATUAL) return null;
-
-  let colunas = Array.isArray(dados.colunas)
-    ? dados.colunas
-        .map(saneiaColuna)
-        .filter((coluna): coluna is Coluna => coluna !== null)
-    : [];
-  let precisaSalvar = false;
-  if (colunas.length === 0) {
-    colunas = colunasPadrao();
-    precisaSalvar = true;
-  }
-  const colunasValidas = new Set(colunas.map((coluna) => coluna.id));
-  const primeira = ordenarColunas(colunas)[0].id;
-
-  // v3: contato ja tem estagio, negocio ja e so valor.
-  if (dados.versao === 3) {
-    const contatos = Array.isArray(dados.contatos)
-      ? dados.contatos
-          .map((c) => saneiaContato(c, colunasValidas, primeira, () => { precisaSalvar = true; }))
-          .filter((c): c is Contato => c !== null)
-      : [];
-    const contatosValidos = new Set(contatos.map((c) => c.id));
-    const negociosSaneados = Array.isArray(dados.negocios)
-      ? dados.negocios.map(saneiaNegocio).filter((n): n is Negocio => n !== null)
-      : [];
-    const negocios = negociosSaneados.filter((n) => contatosValidos.has(n.contatoId));
-    if (negocios.length !== negociosSaneados.length) precisaSalvar = true;
-    return {
-      estado: { versao: 3, colunas: ordenarColunas(colunas), contatos, negocios },
-      precisaSalvar,
-    };
-  }
-
-  // v2: o estagio vivia no negocio. Cada contato herda o estagio do seu negocio
-  // mais recente; os negocios perdem o estagio e viram so valor.
-  if (dados.versao === 2) {
-    precisaSalvar = true;
-    const estagios = estagiosDosNegociosV2(dados.negocios, colunasValidas);
-    const contatos = Array.isArray(dados.contatos)
-      ? dados.contatos
-          .map((c) => {
-            const raw = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
-            const id = typeof raw.id === "string" ? raw.id : "";
-            const colunaId =
-              typeof raw.colunaId === "string" && colunasValidas.has(raw.colunaId)
-                ? raw.colunaId
-                : estagios.get(id);
-            return saneiaContato({ ...raw, colunaId }, colunasValidas, primeira, () => {});
-          })
-          .filter((c): c is Contato => c !== null)
-      : [];
-    const contatosValidos = new Set(contatos.map((c) => c.id));
-    const negocios = Array.isArray(dados.negocios)
-      ? dados.negocios
-          .map(saneiaNegocio)
-          .filter((n): n is Negocio => n !== null)
-          .filter((n) => contatosValidos.has(n.contatoId))
-      : [];
-    return {
-      estado: { versao: 3, colunas: ordenarColunas(colunas), contatos, negocios },
-      precisaSalvar,
-    };
-  }
-
-  // v1: contato carregava colunaId e valor. Migra pro modelo novo.
-  precisaSalvar = true;
-  const migrados = Array.isArray(dados.contatos)
-    ? dados.contatos
-        .map((contato) => migrarContatoV1(contato, primeira, colunasValidas))
-        .filter((item): item is { contato: Contato; negocio: Negocio | null } => item !== null)
-    : [];
-  const negocios = migrados
-    .map((item) => item.negocio)
-    .filter((n): n is Negocio => n !== null);
-  return {
-    estado: {
-      versao: 3,
-      colunas: ordenarColunas(colunas),
-      contatos: migrados.map((item) => item.contato),
-      negocios,
-    },
-    precisaSalvar: true,
   };
 }
 
 // Move o arquivo corrompido pra quarentena e devolve o novo caminho. A regra
-// mora no util compartilhado desde que os outros modulos passaram a usar a mesma
-// protecao: uma implementacao so, um comportamento so.
+// mora no util compartilhado: uma implementacao so, um comportamento so.
 function quarentenar(caminho: string): string {
   return quarentenarOuFalhar(caminho, "O arquivo do CRM");
 }
@@ -508,7 +121,13 @@ function quarentenar(caminho: string): string {
 // Arquivo que EXISTE mas nao parseia, ou que parseia num formato que nao e um
 // estado de CRM, vai pra quarentena e lanca um ErroCrm legivel: o original nunca
 // e sobrescrito nem descartado.
-function lerArquivo(caminho: string): ResultadoNormalizacaoCrm | null {
+//
+// Exportada pra provar o comportamento com fixture temporaria, sem apontar
+// teste pro CRM real.
+export function lerEstadoCrmDeArquivo(
+  caminho: string,
+  workspaceOrigemId = "",
+): EstadoCrm | null {
   if (!existsSync(caminho)) return null;
   let bruto: unknown;
   try {
@@ -520,7 +139,7 @@ function lerArquivo(caminho: string): ResultadoNormalizacaoCrm | null {
       409,
     );
   }
-  const resultado = normalizarEstadoCrm(bruto);
+  const resultado = normalizarEstadoCrm(bruto, workspaceOrigemId);
   if (!resultado) {
     const destino = quarentenar(caminho);
     throw new ErroCrm(
@@ -528,15 +147,23 @@ function lerArquivo(caminho: string): ResultadoNormalizacaoCrm | null {
       409,
     );
   }
-  return resultado;
-}
+  if (!resultado.precisaSalvar) return resultado.estado;
 
-// Le e, quando necessario, persiste a migracao no mesmo arquivo. Exportada para
-// provar o comportamento com fixture temporaria sem apontar testes ao CRM real.
-export function lerEstadoCrmDeArquivo(caminho: string): EstadoCrm | null {
-  const resultado = lerArquivo(caminho);
-  if (!resultado) return null;
-  if (resultado.precisaSalvar) gravarJsonAtomico(caminho, resultado.estado);
+  // Historico primeiro, crm.json depois. Se o processo cair no meio, a proxima
+  // leitura repete a migracao e o "sem repetir" evita linha duplicada. A ordem
+  // inversa perderia o historico de vez, porque o crm.json ja nao teria mais as
+  // interacoes de dentro dos contatos.
+  const pasta = dirname(caminho);
+  anexarInteracoesSemRepetir(pasta, resultado.interacoesExtraidas);
+  anexarEstagiosSemRepetir(pasta, resultado.estagiosExtraidos);
+  if (resultado.recuperados.length > 0) {
+    const em = new Date().toISOString();
+    anexarJsonl(
+      join(pasta, NOME_RECUPERACOES),
+      resultado.recuperados.map((mensagem) => ({ em, mensagem })),
+    );
+  }
+  gravarJsonAtomico(caminho, resultado.estado);
   return resultado.estado;
 }
 
@@ -546,7 +173,7 @@ function salvar(estado: EstadoCrm): void {
     throw new ErroCrm("Nenhum cliente ativo. Abra um workspace pra usar o CRM.", 409);
   }
   garantirPastaDadosWorkspace(id);
-  gravarJsonAtomico(join(pastaDadosWorkspace(id), "crm.json"), estado);
+  gravarJsonAtomico(join(pastaDadosWorkspace(id), NOME_ARQUIVO), estado);
 }
 
 function emitirCrm(tipo: string, dados: Record<string, unknown>): void {
@@ -557,17 +184,10 @@ function emitirCrm(tipo: string, dados: Record<string, unknown>): void {
 
 export function lerEstado(): EstadoCrm {
   const caminho = caminhoAtivo();
-  if (!caminho) {
-    return { versao: 3, colunas: colunasPadrao(), contatos: [], negocios: [] };
-  }
-  const existente = lerEstadoCrmDeArquivo(caminho);
+  if (!caminho) return estadoInicial();
+  const existente = lerEstadoCrmDeArquivo(caminho, idWorkspaceAtivo() ?? "");
   if (existente) return existente;
-  const inicial: EstadoCrm = {
-    versao: 3,
-    colunas: colunasPadrao(),
-    contatos: [],
-    negocios: [],
-  };
+  const inicial = estadoInicial();
   salvar(inicial);
   return inicial;
 }
@@ -579,46 +199,101 @@ function lerEstadoMutavel(): EstadoCrm {
   return lerEstado();
 }
 
-function primeiraColuna(estado: EstadoCrm): Coluna {
-  return ordenarColunas(estado.colunas)[0];
+// Pasta do historico do workspace ativo, ja criada. Interacao e estagio sao
+// dado do usuario: falha de escrita sobe, nunca vira log silencioso.
+function pastaHistoricoMutavel(): string {
+  const id = idWorkspaceAtivo();
+  if (!id) {
+    throw new ErroCrm("Nenhum cliente ativo. Abra um workspace pra usar o CRM.", 409);
+  }
+  return garantirPastaDadosWorkspace(id);
 }
 
-function textoObrigatorio(v: unknown, rotulo: string, limite = 200): string {
-  if (typeof v !== "string" || !v.trim()) {
+// ------------------------------------------------------------ historico
+
+// Interacoes do workspace ativo, das mais novas pras mais antigas. Filtra por
+// contato quando pedido.
+export function lerInteracoes(contatoId?: string): Interacao[] {
+  const pasta = pastaAtiva();
+  if (!pasta) return [];
+  const todas = lerInteracoesDaPasta(pasta);
+  const filtradas = contatoId
+    ? todas.filter((item) => item.contatoId === contatoId)
+    : todas;
+  return [...filtradas].sort((a, b) => Date.parse(b.em) - Date.parse(a.em));
+}
+
+// Historico de estagio, do mais antigo pro mais novo (a ordem em que aconteceu).
+export function lerEstagios(contatoId?: string): RegistroEstagio[] {
+  const pasta = pastaAtiva();
+  if (!pasta) return [];
+  const todos = lerEstagiosDaPasta(pasta);
+  return contatoId ? todos.filter((item) => item.contatoId === contatoId) : todos;
+}
+
+// ------------------------------------------------------------ validacao
+
+function textoObrigatorio(valor: unknown, rotulo: string, limite = 200): string {
+  if (typeof valor !== "string" || !valor.trim()) {
     throw new ErroCrm(`${rotulo} e obrigatorio.`, 400);
   }
-  return v.trim().slice(0, limite);
+  return valor.trim().slice(0, limite);
 }
 
-function textoOpcional(v: unknown, limite = 200): string | undefined {
-  if (typeof v !== "string") return undefined;
-  return v.trim().slice(0, limite) || undefined;
+function textoOpcional(valor: unknown, limite = 200): string | undefined {
+  if (typeof valor !== "string") return undefined;
+  return valor.trim().slice(0, limite) || undefined;
 }
 
-function normalizaValor(v: unknown): number | undefined {
-  if (v === undefined || v === null || v === "") return undefined;
-  const numero = typeof v === "string" ? Number(v) : v;
+function normalizaValor(valor: unknown, rotulo = "Valor"): number | undefined {
+  if (valor === undefined || valor === null || valor === "") return undefined;
+  const numero = typeof valor === "string" ? Number(valor) : valor;
   if (typeof numero !== "number" || !Number.isFinite(numero) || numero < 0) {
-    throw new ErroCrm("Valor estimado precisa ser um numero positivo.", 400);
+    throw new ErroCrm(`${rotulo} precisa ser um numero positivo.`, 400);
   }
   return numero;
 }
 
-function normalizaDataOpcional(v: unknown, rotulo: string): string | null {
-  if (v === undefined || v === null || v === "") return null;
-  if (typeof v !== "string" || Number.isNaN(Date.parse(v))) {
-    throw new ErroCrm(`${rotulo} precisa ser uma data valida.`, 400);
+function normalizaInteiro(
+  valor: unknown,
+  rotulo: string,
+  minimo: number,
+  maximo: number,
+): number | undefined {
+  if (valor === undefined || valor === null || valor === "") return undefined;
+  const numero = typeof valor === "string" ? Number(valor) : valor;
+  if (typeof numero !== "number" || !Number.isFinite(numero)) {
+    throw new ErroCrm(`${rotulo} precisa ser um numero.`, 400);
   }
-  return new Date(Date.parse(v)).toISOString();
+  const inteiro = Math.trunc(numero);
+  if (inteiro < minimo || inteiro > maximo) {
+    throw new ErroCrm(`${rotulo} precisa ficar entre ${minimo} e ${maximo}.`, 400);
+  }
+  return inteiro;
 }
 
-function normalizaTags(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
+function normalizaDataOpcional(valor: unknown, rotulo: string): string | null {
+  if (valor === undefined || valor === null || valor === "") return null;
+  if (typeof valor !== "string" || Number.isNaN(Date.parse(valor))) {
+    throw new ErroCrm(`${rotulo} precisa ser uma data valida.`, 400);
+  }
+  return new Date(Date.parse(valor)).toISOString();
+}
+
+function normalizaBooleano(valor: unknown, rotulo: string): boolean {
+  if (typeof valor !== "boolean") {
+    throw new ErroCrm(`${rotulo} precisa ser verdadeiro ou falso.`, 400);
+  }
+  return valor;
+}
+
+function normalizaTags(valor: unknown): string[] {
+  if (!Array.isArray(valor)) return [];
   const vistas = new Set<string>();
   const saida: string[] = [];
-  for (const valor of v) {
-    if (typeof valor !== "string") continue;
-    const tag = valor.trim().slice(0, 40);
+  for (const item of valor) {
+    if (typeof item !== "string") continue;
+    const tag = item.trim().slice(0, 40);
     const chave = tag.toLowerCase();
     if (!tag || vistas.has(chave)) continue;
     vistas.add(chave);
@@ -626,6 +301,27 @@ function normalizaTags(v: unknown): string[] {
   }
   return saida;
 }
+
+function normalizaParticipantes(
+  estado: EstadoCrm,
+  valor: unknown,
+): ParticipanteNegocio[] | undefined {
+  if (valor === undefined || valor === null) return undefined;
+  if (!Array.isArray(valor)) {
+    throw new ErroCrm("Participantes precisa ser uma lista.", 400);
+  }
+  const saida: ParticipanteNegocio[] = [];
+  for (const item of valor) {
+    if (!item || typeof item !== "object") continue;
+    const bruto = item as Record<string, unknown>;
+    const contatoId = textoObrigatorio(bruto.contatoId, "Contato do participante");
+    acharContato(estado, contatoId);
+    saida.push({ contatoId, papel: textoOpcional(bruto.papel, 40) ?? "participa" });
+  }
+  return saida;
+}
+
+// -------------------------------------------------------------- buscas
 
 function acharContato(estado: EstadoCrm, id: string): Contato {
   const contato = estado.contatos.find((item) => item.id === id);
@@ -645,20 +341,181 @@ function acharColuna(estado: EstadoCrm, id: string): Coluna {
   return coluna;
 }
 
-function definirOpcional(
-  contato: Contato,
-  campo: "empresa" | "telefone" | "email" | "origem",
-  valor: string | undefined,
-): void {
-  if (valor === undefined) delete contato[campo];
-  else contato[campo] = valor;
+function acharOrganizacao(estado: EstadoCrm, id: string): Organizacao {
+  const organizacao = estado.organizacoes.find((item) => item.id === id);
+  if (!organizacao) throw new ErroCrm("Organizacao nao encontrada.", 404);
+  return organizacao;
 }
 
-function colunaValidaOuPrimeira(estado: EstadoCrm, v: unknown): string {
-  if (typeof v === "string" && estado.colunas.some((coluna) => coluna.id === v)) {
-    return v;
+function acharOrcamento(estado: EstadoCrm, id: string): Orcamento {
+  const orcamento = estado.orcamentos.find((item) => item.id === id);
+  if (!orcamento) throw new ErroCrm("Orcamento nao encontrado.", 404);
+  return orcamento;
+}
+
+function acharTarefa(estado: EstadoCrm, id: string): Tarefa {
+  const tarefa = estado.tarefas.find((item) => item.id === id);
+  if (!tarefa) throw new ErroCrm("Tarefa nao encontrada.", 404);
+  return tarefa;
+}
+
+function primeiraColuna(estado: EstadoCrm): Coluna {
+  return ordenarColunas(estado.colunas)[0];
+}
+
+function colunaValidaOuPrimeira(estado: EstadoCrm, valor: unknown): string {
+  if (typeof valor === "string" && estado.colunas.some((coluna) => coluna.id === valor)) {
+    return valor;
   }
   return primeiraColuna(estado).id;
+}
+
+// -------------------------------------------------------- organizacoes
+
+// Resolve a organizacao de um contato a partir do corpo da requisicao. Aceita
+// organizacaoId direto ou o nome da empresa: nome que ainda nao existe vira uma
+// Organizacao nova, em vez de morrer como string solta no contato.
+function resolverOrganizacao(
+  estado: EstadoCrm,
+  corpo: Record<string, unknown>,
+): string | undefined {
+  if ("organizacaoId" in corpo) {
+    const id = textoOpcional(corpo.organizacaoId);
+    if (!id) return undefined;
+    acharOrganizacao(estado, id);
+    return id;
+  }
+  const nome = textoOpcional(corpo.empresa);
+  if (!nome) return undefined;
+  const chave = chaveOrganizacao(nome);
+  const existente = estado.organizacoes.find(
+    (item) => chaveOrganizacao(item.nome) === chave,
+  );
+  if (existente) return existente.id;
+  const agora = new Date().toISOString();
+  const organizacao: Organizacao = {
+    id: gerarId("o"),
+    nome,
+    criadoEm: agora,
+    atualizadoEm: agora,
+  };
+  estado.organizacoes.push(organizacao);
+  return organizacao.id;
+}
+
+export function criarOrganizacao(corpo: Record<string, unknown>): Organizacao {
+  const estado = lerEstadoMutavel();
+  const nome = textoObrigatorio(corpo.nome, "Nome da organizacao");
+  const chave = chaveOrganizacao(nome);
+  const existente = estado.organizacoes.find(
+    (item) => chaveOrganizacao(item.nome) === chave,
+  );
+  if (existente) throw new ErroCrm("Ja existe uma organizacao com esse nome.", 409);
+  const agora = new Date().toISOString();
+  const organizacao: Organizacao = {
+    id: gerarId("o"),
+    nome,
+    criadoEm: agora,
+    atualizadoEm: agora,
+  };
+  const documento = textoOpcional(corpo.documento, 40);
+  if (documento) organizacao.documento = documento;
+  const site = textoOpcional(corpo.site, 300);
+  if (site) organizacao.site = site;
+  estado.organizacoes.push(organizacao);
+  salvar(estado);
+  emitirCrm("crm:organizacao-criada", { organizacao });
+  return organizacao;
+}
+
+export function atualizarOrganizacao(
+  id: string,
+  corpo: Record<string, unknown>,
+): Organizacao {
+  const estado = lerEstadoMutavel();
+  const organizacao = acharOrganizacao(estado, id);
+  if ("nome" in corpo) organizacao.nome = textoObrigatorio(corpo.nome, "Nome da organizacao");
+  if ("documento" in corpo) {
+    const documento = textoOpcional(corpo.documento, 40);
+    if (documento) organizacao.documento = documento;
+    else delete organizacao.documento;
+  }
+  if ("site" in corpo) {
+    const site = textoOpcional(corpo.site, 300);
+    if (site) organizacao.site = site;
+    else delete organizacao.site;
+  }
+  organizacao.atualizadoEm = new Date().toISOString();
+  salvar(estado);
+  emitirCrm("crm:organizacao-atualizada", { organizacao });
+  return organizacao;
+}
+
+// Exclui a organizacao. Os contatos dela NAO somem: perdem so o vinculo.
+export function removerOrganizacao(id: string): void {
+  const estado = lerEstadoMutavel();
+  const organizacao = acharOrganizacao(estado, id);
+  const agora = new Date().toISOString();
+  for (const contato of estado.contatos) {
+    if (contato.organizacaoId === id) {
+      delete contato.organizacaoId;
+      contato.atualizadoEm = agora;
+    }
+  }
+  estado.organizacoes = estado.organizacoes.filter((item) => item.id !== id);
+  salvar(estado);
+  emitirCrm("crm:organizacao-excluida", { organizacao });
+}
+
+// ------------------------------------------------------------- contatos
+
+function definirTelefone(contato: Contato, valor: string | undefined): void {
+  if (!valor) {
+    delete contato.telefone;
+    delete contato.telefoneNormalizado;
+    return;
+  }
+  contato.telefone = valor;
+  const normalizado = normalizarTelefone(valor);
+  // Numero que nao da pra normalizar com confianca fica so no campo digitado.
+  // Melhor sem chave de deduplicacao do que com uma chave errada.
+  if (normalizado) contato.telefoneNormalizado = normalizado;
+  else delete contato.telefoneNormalizado;
+}
+
+function saneiaDadosLead(valor: unknown): DadosLead | undefined {
+  if (!valor || typeof valor !== "object") return undefined;
+  const bruto = valor as Record<string, unknown>;
+  const saida: DadosLead = {};
+  for (const campo of [
+    "placeId",
+    "categoria",
+    "endereco",
+    "site",
+    "termoBusca",
+    "localizacao",
+    "capturadoEm",
+  ] as const) {
+    const texto = textoOpcional(bruto[campo], 300);
+    if (texto) saida[campo] = texto;
+  }
+  for (const campo of ["nota", "totalAvaliacoes"] as const) {
+    const numero = bruto[campo];
+    if (typeof numero === "number" && Number.isFinite(numero)) saida[campo] = numero;
+  }
+  return Object.keys(saida).length > 0 ? saida : undefined;
+}
+
+// Grava a entrada do contato numa coluna. Toda mudanca de estagio vira linha,
+// inclusive a primeira, no nascimento da ficha.
+function registrarEstagio(contato: Contato, coluna: Coluna, quando: string): void {
+  anexarEstagios(pastaHistoricoMutavel(), [{
+    id: gerarId("e"),
+    contatoId: contato.id,
+    colunaId: coluna.id,
+    colunaNome: coluna.nome,
+    entrouEm: quando,
+  }]);
 }
 
 export function criarContato(corpo: Record<string, unknown>): Contato {
@@ -669,22 +526,31 @@ export function criarContato(corpo: Record<string, unknown>): Contato {
     nome: textoObrigatorio(corpo.nome, "Nome"),
     colunaId: colunaValidaOuPrimeira(estado, corpo.colunaId),
     tags: normalizaTags(corpo.tags),
-    interacoes: [],
-    tarefas: [],
+    workspaceOrigemId: idWorkspaceAtivo() ?? "",
     criadoEm: agora,
     atualizadoEm: agora,
   };
-  for (const campo of ["empresa", "telefone", "email", "origem"] as const) {
-    definirOpcional(contato, campo, textoOpcional(corpo[campo]));
-  }
+  const organizacaoId = resolverOrganizacao(estado, corpo);
+  if (organizacaoId) contato.organizacaoId = organizacaoId;
+  definirTelefone(contato, textoOpcional(corpo.telefone, 40));
+  const email = textoOpcional(corpo.email);
+  if (email) contato.email = email;
+  const origem = textoOpcional(corpo.origem);
+  if (origem) contato.origem = origem;
+  const chaveExterna = textoOpcional(corpo.chaveExterna, 300);
+  if (chaveExterna) contato.chaveExterna = chaveExterna;
   if ("proximoContato" in corpo) {
     const data = normalizaDataOpcional(corpo.proximoContato, "Proximo contato");
     if (data) contato.proximoContato = data;
   }
-  const lead = saneiaLead(corpo.lead);
+  const cadencia = normalizaInteiro(corpo.cadenciaDias, "Cadencia", 1, 3650);
+  if (cadencia !== undefined) contato.cadenciaDias = cadencia;
+  if (corpo.arquivado === true) contato.arquivado = true;
+  const lead = saneiaDadosLead(corpo.lead);
   if (lead) contato.lead = lead;
   estado.contatos.push(contato);
   salvar(estado);
+  registrarEstagio(contato, acharColuna(estado, contato.colunaId), agora);
   emitirCrm("crm:contato-criado", { contato });
   return contato;
 }
@@ -693,14 +559,37 @@ export function atualizarContato(id: string, corpo: Record<string, unknown>): Co
   const estado = lerEstadoMutavel();
   const contato = acharContato(estado, id);
   if ("nome" in corpo) contato.nome = textoObrigatorio(corpo.nome, "Nome");
-  for (const campo of ["empresa", "telefone", "email", "origem"] as const) {
-    if (campo in corpo) definirOpcional(contato, campo, textoOpcional(corpo[campo]));
+  if ("organizacaoId" in corpo || "empresa" in corpo) {
+    const organizacaoId = resolverOrganizacao(estado, corpo);
+    if (organizacaoId) contato.organizacaoId = organizacaoId;
+    else delete contato.organizacaoId;
+  }
+  if ("telefone" in corpo) definirTelefone(contato, textoOpcional(corpo.telefone, 40));
+  for (const campo of ["email", "origem"] as const) {
+    if (!(campo in corpo)) continue;
+    const valor = textoOpcional(corpo[campo]);
+    if (valor) contato[campo] = valor;
+    else delete contato[campo];
+  }
+  if ("chaveExterna" in corpo) {
+    const chave = textoOpcional(corpo.chaveExterna, 300);
+    if (chave) contato.chaveExterna = chave;
+    else delete contato.chaveExterna;
   }
   if ("tags" in corpo) contato.tags = normalizaTags(corpo.tags);
   if ("proximoContato" in corpo) {
     const data = normalizaDataOpcional(corpo.proximoContato, "Proximo contato");
-    if (data === null) delete contato.proximoContato;
-    else contato.proximoContato = data;
+    if (data) contato.proximoContato = data;
+    else delete contato.proximoContato;
+  }
+  if ("cadenciaDias" in corpo) {
+    const cadencia = normalizaInteiro(corpo.cadenciaDias, "Cadencia", 1, 3650);
+    if (cadencia !== undefined) contato.cadenciaDias = cadencia;
+    else delete contato.cadenciaDias;
+  }
+  if ("arquivado" in corpo) {
+    if (normalizaBooleano(corpo.arquivado, "Arquivado")) contato.arquivado = true;
+    else delete contato.arquivado;
   }
   contato.atualizadoEm = new Date().toISOString();
   salvar(estado);
@@ -711,7 +600,7 @@ export function atualizarContato(id: string, corpo: Record<string, unknown>): Co
 // A ordem do array de contatos e a ordem visual do quadro, entao soltar um
 // cartao numa posicao precisa reposicionar o item de verdade. Insere no bloco
 // da coluna de destino, mantendo os blocos contiguos. Generica sobre qualquer
-// item com id e colunaId (contato hoje; negocio era assim na v2).
+// item com id e colunaId.
 export function posicionarNoFunil<T extends { id: string; colunaId: string }>(
   itens: T[],
   item: T,
@@ -729,9 +618,7 @@ export function posicionarNoFunil<T extends { id: string; colunaId: string }>(
   return outros;
 }
 
-// Move um CONTATO de estagio (e, quando pedido, reposiciona na coluna). Emite o
-// mesmo evento crm:contato-movido de antes, agora disparado pela ficha e nao
-// pelo negocio, o que mantem os eventos de mudanca de estagio no barramento.
+// Move um CONTATO de estagio (e, quando pedido, reposiciona na coluna).
 export function moverContato(id: string, corpo: Record<string, unknown>): Contato {
   const estado = lerEstadoMutavel();
   const contato = acharContato(estado, id);
@@ -739,15 +626,17 @@ export function moverContato(id: string, corpo: Record<string, unknown>): Contat
   const colunaPara = acharColuna(estado, colunaId);
   const colunaDe = contato.colunaId;
   const nomeColunaDe = estado.colunas.find((coluna) => coluna.id === colunaDe)?.nome ?? "";
+  const agora = new Date().toISOString();
   contato.colunaId = colunaId;
-  contato.atualizadoEm = new Date().toISOString();
+  contato.atualizadoEm = agora;
   if (typeof corpo.indice === "number" && Number.isFinite(corpo.indice)) {
     estado.contatos = posicionarNoFunil(estado.contatos, contato, corpo.indice);
   }
   salvar(estado);
-  // So avisa o barramento quando a coluna mudou de verdade. Reordenar dentro da
-  // mesma coluna nao pode disparar automacao de mudanca de estagio.
+  // So registra e avisa quando a coluna mudou de verdade. Reordenar dentro da
+  // mesma coluna nao e transicao de estagio e nao pode disparar automacao.
   if (colunaDe !== colunaId) {
+    registrarEstagio(contato, colunaPara, agora);
     emitirCrm("crm:contato-movido", {
       contato,
       colunaDe,
@@ -759,36 +648,62 @@ export function moverContato(id: string, corpo: Record<string, unknown>): Contat
   return contato;
 }
 
+// Exclui o contato e o que so existia por causa dele: negocios, orcamentos
+// desses negocios e tarefas ligadas a ele. As linhas ja gravadas no
+// interacoes.jsonl e no estagios.jsonl ficam: append-only nao reescreve o
+// passado, e historico de quem passou pelo funil tem valor proprio.
 export function removerContato(id: string): void {
   const estado = lerEstadoMutavel();
   const contato = acharContato(estado, id);
+  const negociosDele = new Set(
+    estado.negocios.filter((item) => item.contatoId === id).map((item) => item.id),
+  );
   estado.contatos = estado.contatos.filter((item) => item.id !== id);
   estado.negocios = estado.negocios.filter((item) => item.contatoId !== id);
+  estado.orcamentos = estado.orcamentos.filter(
+    (item) => !negociosDele.has(item.negocioId),
+  );
+  estado.tarefas = estado.tarefas.filter((item) => item.contatoId !== id);
+  for (const negocio of estado.negocios) {
+    if (!negocio.participantes) continue;
+    const restantes = negocio.participantes.filter((p) => p.contatoId !== id);
+    if (restantes.length > 0) negocio.participantes = restantes;
+    else delete negocio.participantes;
+  }
   salvar(estado);
   emitirCrm("crm:contato-excluido", { contato });
 }
 
-function tipoInteracao(v: unknown): TipoInteracao {
-  if (typeof v !== "string" || !TIPOS_INTERACAO.has(v as TipoInteracao)) {
+// ----------------------------------------------------------- interacoes
+
+function tipoInteracao(valor: unknown): TipoInteracao {
+  if (typeof valor !== "string" || !TIPOS_INTERACAO.has(valor as TipoInteracao)) {
     throw new ErroCrm("Tipo de interacao invalido.", 400);
   }
-  return v as TipoInteracao;
+  return valor as TipoInteracao;
 }
 
+// Registra uma interacao na linha do tempo do contato. A linha vai pro
+// interacoes.jsonl; no crm.json so o carimbo do contato muda.
 export function registrarInteracao(
   id: string,
   corpo: Record<string, unknown>,
 ): Interacao {
   const estado = lerEstadoMutavel();
   const contato = acharContato(estado, id);
+  const agora = new Date().toISOString();
   const interacao: Interacao = {
     id: gerarId("i"),
-    em: new Date().toISOString(),
+    contatoId: contato.id,
+    // "em" e quando aconteceu no mundo real, separado de criadaEm: registro
+    // retroativo ("liguei ontem") depende dessa separacao.
+    em: normalizaDataOpcional(corpo.em, "Data da interacao") ?? agora,
     tipo: tipoInteracao(corpo.tipo),
     texto: textoObrigatorio(corpo.texto, "Interacao", 2000),
+    criadaEm: agora,
   };
-  contato.interacoes.unshift(interacao);
-  contato.atualizadoEm = interacao.em;
+  anexarInteracoes(pastaHistoricoMutavel(), [interacao]);
+  contato.atualizadoEm = agora;
   salvar(estado);
   emitirCrm("crm:interacao-registrada", { contato, interacao });
   return interacao;
@@ -800,63 +715,136 @@ export function adicionarNota(id: string, corpo: Record<string, unknown>): Conta
   return acharContato(lerEstado(), id);
 }
 
-export function criarTarefa(id: string, corpo: Record<string, unknown>): Tarefa {
+// -------------------------------------------------------------- tarefas
+
+export function criarTarefa(corpo: Record<string, unknown>): Tarefa {
   const estado = lerEstadoMutavel();
-  const contato = acharContato(estado, id);
   const tarefa: Tarefa = {
     id: gerarId("t"),
     texto: textoObrigatorio(corpo.texto, "Tarefa", 500),
     feita: false,
     criadaEm: new Date().toISOString(),
   };
+  const contatoId = textoOpcional(corpo.contatoId);
+  if (contatoId) {
+    acharContato(estado, contatoId);
+    tarefa.contatoId = contatoId;
+  }
+  const negocioId = textoOpcional(corpo.negocioId);
+  if (negocioId) {
+    acharNegocio(estado, negocioId);
+    tarefa.negocioId = negocioId;
+  }
   if ("prazo" in corpo) {
     const prazo = normalizaDataOpcional(corpo.prazo, "Prazo");
     if (prazo) tarefa.prazo = prazo;
   }
-  contato.tarefas.push(tarefa);
-  contato.atualizadoEm = tarefa.criadaEm;
+  estado.tarefas.push(tarefa);
   salvar(estado);
+  emitirCrm("crm:tarefa-criada", { tarefa });
   return tarefa;
-}
-
-function acharTarefa(estado: EstadoCrm, id: string): { contato: Contato; tarefa: Tarefa } {
-  for (const contato of estado.contatos) {
-    const tarefa = contato.tarefas.find((item) => item.id === id);
-    if (tarefa) return { contato, tarefa };
-  }
-  throw new ErroCrm("Tarefa nao encontrada.", 404);
 }
 
 export function atualizarTarefa(id: string, corpo: Record<string, unknown>): Tarefa {
   const estado = lerEstadoMutavel();
-  const { contato, tarefa } = acharTarefa(estado, id);
+  const tarefa = acharTarefa(estado, id);
   if ("texto" in corpo) tarefa.texto = textoObrigatorio(corpo.texto, "Tarefa", 500);
   if ("prazo" in corpo) {
     const prazo = normalizaDataOpcional(corpo.prazo, "Prazo");
-    if (prazo === null) delete tarefa.prazo;
-    else tarefa.prazo = prazo;
+    if (prazo) tarefa.prazo = prazo;
+    else delete tarefa.prazo;
   }
-  if ("feita" in corpo) {
-    if (typeof corpo.feita !== "boolean") {
-      throw new ErroCrm("Feita precisa ser verdadeiro ou falso.", 400);
-    }
-    tarefa.feita = corpo.feita;
+  if ("feita" in corpo) tarefa.feita = normalizaBooleano(corpo.feita, "Feita");
+  if ("contatoId" in corpo) {
+    const contatoId = textoOpcional(corpo.contatoId);
+    if (contatoId) {
+      acharContato(estado, contatoId);
+      tarefa.contatoId = contatoId;
+    } else delete tarefa.contatoId;
   }
-  contato.atualizadoEm = new Date().toISOString();
+  if ("negocioId" in corpo) {
+    const negocioId = textoOpcional(corpo.negocioId);
+    if (negocioId) {
+      acharNegocio(estado, negocioId);
+      tarefa.negocioId = negocioId;
+    } else delete tarefa.negocioId;
+  }
   salvar(estado);
+  emitirCrm("crm:tarefa-atualizada", { tarefa });
   return tarefa;
 }
 
 export function removerTarefa(id: string): void {
   const estado = lerEstadoMutavel();
-  const { contato } = acharTarefa(estado, id);
-  contato.tarefas = contato.tarefas.filter((item) => item.id !== id);
-  contato.atualizadoEm = new Date().toISOString();
+  const tarefa = acharTarefa(estado, id);
+  estado.tarefas = estado.tarefas.filter((item) => item.id !== id);
   salvar(estado);
+  emitirCrm("crm:tarefa-excluida", { tarefa });
 }
 
-// Negocio e valor/oportunidade preso a um contato. Nao tem estagio: quem caminha
-// no funil e o contato.
+// ------------------------------------------------------------- negocios
+
+function statusNegocio(valor: unknown): StatusNegocio {
+  if (typeof valor !== "string" || !STATUS_NEGOCIO.has(valor as StatusNegocio)) {
+    throw new ErroCrm("Status de negocio invalido.", 400);
+  }
+  return valor as StatusNegocio;
+}
+
+// Aplica os campos opcionais que negocio e orcamento tem em comum na forma:
+// presente e vazio apaga, presente e valido grava, ausente nao mexe.
+function aplicarCamposNegocio(
+  estado: EstadoCrm,
+  negocio: Negocio,
+  corpo: Record<string, unknown>,
+): void {
+  const numeros = [
+    ["valorEstimado", "Valor estimado"],
+    ["valorFechado", "Valor fechado"],
+    ["valorMensal", "Valor mensal"],
+  ] as const;
+  for (const [campo, rotulo] of numeros) {
+    if (!(campo in corpo)) continue;
+    const valor = normalizaValor(corpo[campo], rotulo);
+    if (valor !== undefined) negocio[campo] = valor;
+    else delete negocio[campo];
+  }
+  const datas = [
+    ["fechadoEm", "Data de fechamento"],
+    ["proximaAcaoEm", "Proxima acao"],
+  ] as const;
+  for (const [campo, rotulo] of datas) {
+    if (!(campo in corpo)) continue;
+    const data = normalizaDataOpcional(corpo[campo], rotulo);
+    if (data) negocio[campo] = data;
+    else delete negocio[campo];
+  }
+  const textos = [
+    ["proximaAcaoTexto", 300],
+    ["escopo", 4000],
+  ] as const;
+  for (const [campo, limite] of textos) {
+    if (!(campo in corpo)) continue;
+    const texto = textoOpcional(corpo[campo], limite);
+    if (texto) negocio[campo] = texto;
+    else delete negocio[campo];
+  }
+  if ("recorrente" in corpo) {
+    if (normalizaBooleano(corpo.recorrente, "Recorrente")) negocio.recorrente = true;
+    else delete negocio.recorrente;
+  }
+  if ("diaDoCiclo" in corpo) {
+    const dia = normalizaInteiro(corpo.diaDoCiclo, "Dia do ciclo", 1, 31);
+    if (dia !== undefined) negocio.diaDoCiclo = dia;
+    else delete negocio.diaDoCiclo;
+  }
+  if ("participantes" in corpo) {
+    const participantes = normalizaParticipantes(estado, corpo.participantes);
+    if (participantes && participantes.length > 0) negocio.participantes = participantes;
+    else delete negocio.participantes;
+  }
+}
+
 export function criarNegocio(corpo: Record<string, unknown>): Negocio {
   const estado = lerEstadoMutavel();
   const contatoId = textoObrigatorio(corpo.contatoId, "Contato");
@@ -866,11 +854,11 @@ export function criarNegocio(corpo: Record<string, unknown>): Negocio {
     id: gerarId("n"),
     titulo: textoObrigatorio(corpo.titulo, "Titulo do negocio"),
     contatoId,
+    status: "status" in corpo ? statusNegocio(corpo.status) : "aberto",
     criadoEm: agora,
     atualizadoEm: agora,
   };
-  const valor = normalizaValor(corpo.valorEstimado);
-  if (valor !== undefined) negocio.valorEstimado = valor;
+  aplicarCamposNegocio(estado, negocio, corpo);
   estado.negocios.push(negocio);
   salvar(estado);
   emitirCrm("crm:negocio-criado", { contato, negocio });
@@ -886,11 +874,8 @@ export function atualizarNegocio(id: string, corpo: Record<string, unknown>): Ne
     acharContato(estado, contatoId);
     negocio.contatoId = contatoId;
   }
-  if ("valorEstimado" in corpo) {
-    const valor = normalizaValor(corpo.valorEstimado);
-    if (valor === undefined) delete negocio.valorEstimado;
-    else negocio.valorEstimado = valor;
-  }
+  if ("status" in corpo) negocio.status = statusNegocio(corpo.status);
+  aplicarCamposNegocio(estado, negocio, corpo);
   negocio.atualizadoEm = new Date().toISOString();
   salvar(estado);
   const contato = acharContato(estado, negocio.contatoId);
@@ -898,32 +883,144 @@ export function atualizarNegocio(id: string, corpo: Record<string, unknown>): Ne
   return negocio;
 }
 
+// Exclui o negocio e os orcamentos dele. Tarefa ligada ao negocio sobrevive e
+// so perde o vinculo: o texto dela e trabalho do usuario.
 export function removerNegocio(id: string): void {
   const estado = lerEstadoMutavel();
   const negocio = acharNegocio(estado, id);
   const contato = estado.contatos.find((item) => item.id === negocio.contatoId);
   estado.negocios = estado.negocios.filter((item) => item.id !== id);
+  estado.orcamentos = estado.orcamentos.filter((item) => item.negocioId !== id);
+  for (const tarefa of estado.tarefas) {
+    if (tarefa.negocioId === id) delete tarefa.negocioId;
+  }
   salvar(estado);
   emitirCrm("crm:negocio-excluido", contato ? { contato, negocio } : { negocio });
 }
 
+// ----------------------------------------------------------- orcamentos
+
+function statusOrcamento(valor: unknown): StatusOrcamento {
+  if (typeof valor !== "string" || !STATUS_ORCAMENTO.has(valor as StatusOrcamento)) {
+    throw new ErroCrm("Status de orcamento invalido.", 400);
+  }
+  return valor as StatusOrcamento;
+}
+
+function aplicarCamposOrcamento(
+  orcamento: Orcamento,
+  corpo: Record<string, unknown>,
+): void {
+  const datas = [
+    ["enviadoEm", "Data de envio"],
+    ["validoAte", "Validade"],
+  ] as const;
+  for (const [campo, rotulo] of datas) {
+    if (!(campo in corpo)) continue;
+    const data = normalizaDataOpcional(corpo[campo], rotulo);
+    if (data) orcamento[campo] = data;
+    else delete orcamento[campo];
+  }
+  for (const campo of ["arquivo", "link"] as const) {
+    if (!(campo in corpo)) continue;
+    const texto = textoOpcional(corpo[campo], 500);
+    if (texto) orcamento[campo] = texto;
+    else delete orcamento[campo];
+  }
+}
+
+export function criarOrcamento(corpo: Record<string, unknown>): Orcamento {
+  const estado = lerEstadoMutavel();
+  const negocioId = textoObrigatorio(corpo.negocioId, "Negocio");
+  const negocio = acharNegocio(estado, negocioId);
+  const valor = normalizaValor(corpo.valor, "Valor do orcamento");
+  if (valor === undefined) throw new ErroCrm("Valor do orcamento e obrigatorio.", 400);
+  const agora = new Date().toISOString();
+  const orcamento: Orcamento = {
+    id: gerarId("q"),
+    negocioId,
+    valor,
+    status: "status" in corpo ? statusOrcamento(corpo.status) : "rascunho",
+    criadoEm: agora,
+    atualizadoEm: agora,
+  };
+  aplicarCamposOrcamento(orcamento, corpo);
+  estado.orcamentos.push(orcamento);
+  salvar(estado);
+  emitirCrm("crm:orcamento-criado", { negocio, orcamento });
+  return orcamento;
+}
+
+export function atualizarOrcamento(
+  id: string,
+  corpo: Record<string, unknown>,
+): Orcamento {
+  const estado = lerEstadoMutavel();
+  const orcamento = acharOrcamento(estado, id);
+  if ("negocioId" in corpo) {
+    const negocioId = textoObrigatorio(corpo.negocioId, "Negocio");
+    acharNegocio(estado, negocioId);
+    orcamento.negocioId = negocioId;
+  }
+  if ("valor" in corpo) {
+    const valor = normalizaValor(corpo.valor, "Valor do orcamento");
+    if (valor === undefined) throw new ErroCrm("Valor do orcamento e obrigatorio.", 400);
+    orcamento.valor = valor;
+  }
+  if ("status" in corpo) orcamento.status = statusOrcamento(corpo.status);
+  aplicarCamposOrcamento(orcamento, corpo);
+  orcamento.atualizadoEm = new Date().toISOString();
+  salvar(estado);
+  const negocio = acharNegocio(estado, orcamento.negocioId);
+  emitirCrm("crm:orcamento-atualizado", { negocio, orcamento });
+  return orcamento;
+}
+
+export function removerOrcamento(id: string): void {
+  const estado = lerEstadoMutavel();
+  const orcamento = acharOrcamento(estado, id);
+  estado.orcamentos = estado.orcamentos.filter((item) => item.id !== id);
+  salvar(estado);
+  emitirCrm("crm:orcamento-excluido", { orcamento });
+}
+
+// --------------------------------------------------------------- colunas
+
+function tipoColuna(valor: unknown): TipoColuna {
+  if (typeof valor !== "string" || !TIPOS_COLUNA.has(valor as TipoColuna)) {
+    throw new ErroCrm("Tipo de coluna invalido.", 400);
+  }
+  return valor as TipoColuna;
+}
+
 export function criarColuna(corpo: Record<string, unknown>): Coluna {
   const estado = lerEstadoMutavel();
-  const ordem = estado.colunas.reduce((maior, coluna) => Math.max(maior, coluna.ordem), -1) + 1;
+  const ordem =
+    estado.colunas.reduce((maior, coluna) => Math.max(maior, coluna.ordem), -1) + 1;
   const coluna: Coluna = {
     id: gerarId("k"),
     nome: textoObrigatorio(corpo.nome, "Nome da coluna", 60),
     ordem,
+    tipo: "tipo" in corpo ? tipoColuna(corpo.tipo) : "aberto",
   };
+  const dias = normalizaInteiro(corpo.diasParaEsfriar, "Dias para esfriar", 1, 3650);
+  if (dias !== undefined) coluna.diasParaEsfriar = dias;
   estado.colunas.push(coluna);
   salvar(estado);
   return coluna;
 }
 
-export function renomearColuna(id: string, corpo: Record<string, unknown>): Coluna {
+// Atualiza nome, tipo e o limite de esfriamento de uma coluna.
+export function atualizarColuna(id: string, corpo: Record<string, unknown>): Coluna {
   const estado = lerEstadoMutavel();
   const coluna = acharColuna(estado, id);
-  coluna.nome = textoObrigatorio(corpo.nome, "Nome da coluna", 60);
+  if ("nome" in corpo) coluna.nome = textoObrigatorio(corpo.nome, "Nome da coluna", 60);
+  if ("tipo" in corpo) coluna.tipo = tipoColuna(corpo.tipo);
+  if ("diasParaEsfriar" in corpo) {
+    const dias = normalizaInteiro(corpo.diasParaEsfriar, "Dias para esfriar", 1, 3650);
+    if (dias !== undefined) coluna.diasParaEsfriar = dias;
+    else delete coluna.diasParaEsfriar;
+  }
   salvar(estado);
   return coluna;
 }
@@ -935,17 +1032,31 @@ export function removerColuna(id: string): void {
     throw new ErroCrm("O funil precisa de pelo menos uma coluna.", 400);
   }
   const restantes = ordenarColunas(estado.colunas.filter((coluna) => coluna.id !== id));
-  const destino = restantes[0].id;
+  const destino = restantes[0];
+  const agora = new Date().toISOString();
+  const movidos: Contato[] = [];
   // Os contatos daquela coluna caem na primeira que sobrar, pra nenhum sumir do
   // quadro.
   for (const contato of estado.contatos) {
-    if (contato.colunaId === id) {
-      contato.colunaId = destino;
-      contato.atualizadoEm = new Date().toISOString();
-    }
+    if (contato.colunaId !== id) continue;
+    contato.colunaId = destino.id;
+    contato.atualizadoEm = agora;
+    movidos.push(contato);
   }
   estado.colunas = restantes;
   salvar(estado);
+  if (movidos.length > 0) {
+    anexarEstagios(
+      pastaHistoricoMutavel(),
+      movidos.map((contato) => ({
+        id: gerarId("e"),
+        contatoId: contato.id,
+        colunaId: destino.id,
+        colunaNome: destino.nome,
+        entrouEm: agora,
+      })),
+    );
+  }
 }
 
 export function reordenarColunas(corpo: Record<string, unknown>): Coluna[] {
@@ -958,7 +1069,7 @@ export function reordenarColunas(corpo: Record<string, unknown>): Coluna[] {
   ordem.forEach((id, indice) => posicoes.set(id, indice));
   let proxima = ordem.length;
   for (const coluna of estado.colunas) {
-    coluna.ordem = posicoes.has(coluna.id) ? posicoes.get(coluna.id) as number : proxima++;
+    coluna.ordem = posicoes.get(coluna.id) ?? proxima++;
   }
   estado.colunas = ordenarColunas(estado.colunas);
   salvar(estado);

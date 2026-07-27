@@ -1,27 +1,36 @@
-// Rotas REST do CRM. Montado sob /api pelo index.ts, com prefixo /crm.
+// Rotas REST do CRM v4. Montado sob /api pelo index.ts, com prefixo /crm.
 // O funil de contatos e escopado no workspace ativo (ver estado.ts). Todos os
-// erros de dominio saem no formato { erro: mensagem } com o status certo.
+// erros de dominio saem no formato { erro: mensagem } com o status certo:
+// 400 payload invalido, 404 id que nao existe, 409 sem workspace ativo.
 
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 
 import {
   ErroCrm,
   adicionarNota,
-  atualizarNegocio,
-  atualizarTarefa,
+  atualizarColuna,
   atualizarContato,
+  atualizarNegocio,
+  atualizarOrcamento,
+  atualizarOrganizacao,
+  atualizarTarefa,
   criarColuna,
   criarContato,
   criarNegocio,
+  criarOrcamento,
+  criarOrganizacao,
   criarTarefa,
   lerEstado,
+  lerEstagios,
+  lerInteracoes,
   moverContato,
   registrarInteracao,
   removerColuna,
   removerContato,
   removerNegocio,
+  removerOrcamento,
+  removerOrganizacao,
   removerTarefa,
-  renomearColuna,
   reordenarColunas,
 } from "./estado.js";
 
@@ -38,8 +47,14 @@ function corpoDe(req: FastifyRequest): Record<string, unknown> {
   return (req.body ?? {}) as Record<string, unknown>;
 }
 
+function idDe(req: FastifyRequest): string {
+  return (req.params as { id: string }).id;
+}
+
 export const rotasCrm: FastifyPluginAsync = async (app) => {
-  // Estado inteiro do funil do workspace ativo.
+  // Estado inteiro do funil do workspace ativo: colunas, organizacoes,
+  // contatos, negocios, orcamentos e tarefas. Interacoes e historico de estagio
+  // NAO vem aqui: eles moram em append-only e sao pedidos por contato.
   app.get("/crm", async (_req, resposta) => {
     try {
       return lerEstado();
@@ -48,7 +63,8 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // Cria uma ficha de contato. Negocios sao criados separadamente.
+  // ------------------------------------------------------------ contatos
+
   app.post("/crm/contatos", async (req, resposta) => {
     try {
       return resposta.status(201).send(criarContato(corpoDe(req)));
@@ -57,21 +73,17 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // Atualiza campos de um contato.
   app.patch("/crm/contatos/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      return atualizarContato(id, corpoDe(req));
+      return atualizarContato(idDe(req), corpoDe(req));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  // Remove um contato.
   app.delete("/crm/contatos/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      removerContato(id);
+      removerContato(idDe(req));
       return { ok: true };
     } catch (erro) {
       return responderErro(erro, resposta);
@@ -79,21 +91,38 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
   });
 
   // Move um contato de estagio no funil (e reposiciona na coluna). O contato e
-  // o cartao do quadro; isto e o que dispara crm:contato-movido.
+  // o cartao do quadro; isto e o que dispara crm:contato-movido e o que grava
+  // uma linha no estagios.jsonl.
   app.patch("/crm/contatos/:id/mover", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      return moverContato(id, corpoDe(req));
+      return moverContato(idDe(req), corpoDe(req));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  // Registra uma interacao na linha do tempo do contato.
-  app.post("/crm/contatos/:id/interacoes", async (req, resposta) => {
-    const { id } = req.params as { id: string };
+  // ---------------------------------------------------------- interacoes
+
+  app.get("/crm/contatos/:id/interacoes", async (req, resposta) => {
     try {
-      return resposta.status(201).send(registrarInteracao(id, corpoDe(req)));
+      return { interacoes: lerInteracoes(idDe(req)) };
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  app.post("/crm/contatos/:id/interacoes", async (req, resposta) => {
+    try {
+      return resposta.status(201).send(registrarInteracao(idDe(req), corpoDe(req)));
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  // Historico de estagio do contato, do mais antigo pro mais novo.
+  app.get("/crm/contatos/:id/estagios", async (req, resposta) => {
+    try {
+      return { estagios: lerEstagios(idDe(req)) };
     } catch (erro) {
       return responderErro(erro, resposta);
     }
@@ -101,44 +130,84 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
 
   // Alias temporario do CRM v1. Conserva a resposta antiga: contato atualizado.
   app.post("/crm/contatos/:id/notas", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      return resposta.status(201).send(adicionarNota(id, corpoDe(req)));
+      return resposta.status(201).send(adicionarNota(idDe(req), corpoDe(req)));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  // Cria uma tarefa simples vinculada ao contato.
-  app.post("/crm/contatos/:id/tarefas", async (req, resposta) => {
-    const { id } = req.params as { id: string };
+  // ------------------------------------------------------- organizacoes
+
+  app.post("/crm/organizacoes", async (req, resposta) => {
     try {
-      return resposta.status(201).send(criarTarefa(id, corpoDe(req)));
+      return resposta.status(201).send(criarOrganizacao(corpoDe(req)));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  app.patch("/crm/tarefas/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
+  app.patch("/crm/organizacoes/:id", async (req, resposta) => {
     try {
-      return atualizarTarefa(id, corpoDe(req));
+      return atualizarOrganizacao(idDe(req), corpoDe(req));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  app.delete("/crm/tarefas/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
+  // Exclui a organizacao. Os contatos dela ficam, so perdem o vinculo.
+  app.delete("/crm/organizacoes/:id", async (req, resposta) => {
     try {
-      removerTarefa(id);
+      removerOrganizacao(idDe(req));
       return { ok: true };
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  // Negocios sao os cartoes movidos no quadro e sempre apontam pra um contato.
+  // ------------------------------------------------------------- tarefas
+
+  // Tarefa saiu de dentro do contato: agora ela pode nascer solta, presa a um
+  // contato ou presa a um negocio.
+  app.post("/crm/tarefas", async (req, resposta) => {
+    try {
+      return resposta.status(201).send(criarTarefa(corpoDe(req)));
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  // Atalho compativel: cria a tarefa ja vinculada ao contato da URL.
+  app.post("/crm/contatos/:id/tarefas", async (req, resposta) => {
+    try {
+      const corpo = { ...corpoDe(req), contatoId: idDe(req) };
+      return resposta.status(201).send(criarTarefa(corpo));
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  app.patch("/crm/tarefas/:id", async (req, resposta) => {
+    try {
+      return atualizarTarefa(idDe(req), corpoDe(req));
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  app.delete("/crm/tarefas/:id", async (req, resposta) => {
+    try {
+      removerTarefa(idDe(req));
+      return { ok: true };
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  // ------------------------------------------------------------ negocios
+
+  // Negocio e valor/oportunidade preso a um contato. Quem caminha no funil e o
+  // contato, entao negocio nao tem coluna: tem status.
   app.post("/crm/negocios", async (req, resposta) => {
     try {
       return resposta.status(201).send(criarNegocio(corpoDe(req)));
@@ -148,25 +217,51 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
   });
 
   app.patch("/crm/negocios/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      return atualizarNegocio(id, corpoDe(req));
+      return atualizarNegocio(idDe(req), corpoDe(req));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
   app.delete("/crm/negocios/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      removerNegocio(id);
+      removerNegocio(idDe(req));
       return { ok: true };
     } catch (erro) {
       return responderErro(erro, resposta);
     }
   });
 
-  // Cria uma coluna nova no fim do funil.
+  // ---------------------------------------------------------- orcamentos
+
+  app.post("/crm/orcamentos", async (req, resposta) => {
+    try {
+      return resposta.status(201).send(criarOrcamento(corpoDe(req)));
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  app.patch("/crm/orcamentos/:id", async (req, resposta) => {
+    try {
+      return atualizarOrcamento(idDe(req), corpoDe(req));
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  app.delete("/crm/orcamentos/:id", async (req, resposta) => {
+    try {
+      removerOrcamento(idDe(req));
+      return { ok: true };
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
+
+  // ------------------------------------------------------------- colunas
+
   app.post("/crm/colunas", async (req, resposta) => {
     try {
       return resposta.status(201).send(criarColuna(corpoDe(req)));
@@ -186,11 +281,10 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
     }
   });
 
-  // Renomeia uma coluna.
+  // Atualiza nome, tipo (aberto, ganho, perdido) e dias para esfriar.
   app.patch("/crm/colunas/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      return renomearColuna(id, corpoDe(req));
+      return atualizarColuna(idDe(req), corpoDe(req));
     } catch (erro) {
       return responderErro(erro, resposta);
     }
@@ -198,9 +292,8 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
 
   // Exclui uma coluna. Os contatos dela vao pra primeira coluna que sobrar.
   app.delete("/crm/colunas/:id", async (req, resposta) => {
-    const { id } = req.params as { id: string };
     try {
-      removerColuna(id);
+      removerColuna(idDe(req));
       return { ok: true };
     } catch (erro) {
       return responderErro(erro, resposta);

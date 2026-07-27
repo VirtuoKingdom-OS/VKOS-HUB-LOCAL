@@ -11,48 +11,46 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { lerEstadoCrmDeArquivo, normalizarEstadoCrm } from "./estado.js";
+import { lerEstadoCrmDeArquivo } from "./estado.js";
+import { lerEstagiosDaPasta, lerInteracoesDaPasta } from "./historico.js";
+
+function pastaTemp(nome: string): string {
+  return mkdtempSync(join(tmpdir(), `vkos-crm-${nome}-`));
+}
 
 // Guarda do pior modo de falha que este arquivo ja teve, provado em 2026-07-27.
-// Um crm.json com versao 4, ou sem o campo versao, caia no ramo de migracao da
-// v1: ele le "notas" em vez de "interacoes", forca tarefas vazias e nem olha
-// "negocios". Uma unica leitura destruia o historico e gravava o resultado por
-// cima do original, sem quarentena, porque o arquivo era considerado valido.
+// Um crm.json de versao desconhecida caia no ramo de migracao da v1: ele le
+// "notas" em vez de "interacoes", forca tarefas vazias e nem olha "negocios".
+// Uma unica leitura destruia o historico e gravava o resultado por cima do
+// original, sem quarentena, porque o arquivo era considerado valido.
 const fixtureVersaoFutura = {
-  versao: 4,
-  colunas: [{ id: "k1", nome: "Conversando", ordem: 0 }],
+  versao: 5,
+  colunas: [{ id: "k1", nome: "Conversando", ordem: 0, tipo: "aberto" }],
+  organizacoes: [],
   contatos: [{
     id: "c1",
     nome: "Padaria Aurora",
     colunaId: "k1",
     tags: ["cliente"],
-    interacoes: [
-      { id: "i1", em: "2026-07-01T10:00:00.000Z", tipo: "ligacao", texto: "Fechamos por 4500" },
-      { id: "i2", em: "2026-07-10T10:00:00.000Z", tipo: "reuniao", texto: "Briefing" },
-    ],
-    tarefas: [
-      { id: "t1", texto: "Enviar contrato", feita: false, criadaEm: "2026-07-10T10:00:00.000Z" },
-    ],
+    workspaceOrigemId: "ws-1",
     criadoEm: "2026-06-01T10:00:00.000Z",
     atualizadoEm: "2026-07-10T10:00:00.000Z",
   }],
-  negocios: [
-    { id: "n1", titulo: "Site", contatoId: "c1", valorEstimado: 4500, criadoEm: "2026-06-01T10:00:00.000Z", atualizadoEm: "2026-07-01T10:00:00.000Z" },
-  ],
+  negocios: [{
+    id: "n1",
+    titulo: "Site",
+    contatoId: "c1",
+    status: "aberto",
+    valorEstimado: 4500,
+    criadoEm: "2026-06-01T10:00:00.000Z",
+    atualizadoEm: "2026-07-01T10:00:00.000Z",
+  }],
+  orcamentos: [],
+  tarefas: [],
 };
 
-test("versao futura nao e migrada como v1", () => {
-  assert.equal(normalizarEstadoCrm(fixtureVersaoFutura), null);
-});
-
-test("v3 sem o campo versao nao e migrada como v1", () => {
-  const { versao, ...semVersao } = fixtureVersaoFutura;
-  assert.equal(versao, 4);
-  assert.equal(normalizarEstadoCrm(semVersao), null);
-});
-
-test("versao futura vai pra quarentena com o historico intacto", () => {
-  const pasta = mkdtempSync(join(tmpdir(), "crm-versao-"));
+test("versao futura vai pra quarentena com o dado intacto", () => {
+  const pasta = pastaTemp("versao");
   try {
     const caminho = join(pasta, "crm.json");
     const texto = JSON.stringify(fixtureVersaoFutura, null, 2);
@@ -64,137 +62,19 @@ test("versao futura vai pra quarentena com o historico intacto", () => {
     assert.equal(existsSync(caminho), false);
     const quarentena = readdirSync(pasta).find((n) => n.includes("corrompido"));
     assert.ok(quarentena, "o original precisa ir pra quarentena");
-
-    // E chegou la inteiro: nenhuma interacao, tarefa ou negocio se perdeu.
-    const preservado = readFileSync(join(pasta, quarentena), "utf8");
-    assert.equal(preservado, texto);
-    const dados = JSON.parse(preservado);
-    assert.equal(dados.contatos[0].interacoes.length, 2);
-    assert.equal(dados.contatos[0].tarefas.length, 1);
-    assert.equal(dados.negocios.length, 1);
-    assert.equal(dados.negocios[0].valorEstimado, 4500);
+    assert.equal(readFileSync(join(pasta, quarentena), "utf8"), texto);
   } finally {
     rmSync(pasta, { recursive: true, force: true });
   }
 });
 
-test("v1 legitima continua migrando, sem falso positivo da guarda", () => {
-  // v1 nao tem "negocios" nem "interacoes": a guarda nao pode barrar ela.
-  const resultado = normalizarEstadoCrm(fixtureV1);
-  assert.ok(resultado, "a v1 precisa continuar sendo migrada");
-  assert.equal(resultado.estado.versao, 3);
-  assert.equal(resultado.estado.contatos.length, 1);
-});
-
-const fixtureV1 = {
-  colunas: [
-    { id: "novo", nome: "Novo contato", ordem: 0 },
-    { id: "proposta", nome: "Proposta enviada", ordem: 1 },
-  ],
-  contatos: [{
-    id: "c-cheio",
-    nome: "Maria Completa",
-    empresa: "Acme",
-    telefone: "+55 11 99999-8888",
-    email: "maria@acme.test",
-    origem: "Indicacao",
-    valorEstimado: 9876.54,
-    proximoContato: "2026-08-01T15:30:00.000Z",
-    colunaId: "proposta",
-    tags: ["VIP", "Retorno"],
-    notas: [
-      { em: "2026-07-15T12:00:00.000Z", texto: "Nota mais nova" },
-      { em: "2026-07-10T09:00:00.000Z", texto: "Nota anterior" },
-    ],
-    criadoEm: "2026-07-01T10:00:00.000Z",
-    atualizadoEm: "2026-07-15T12:00:00.000Z",
-  }],
-};
-
-test("migra contato v1 cheio para contato v3 com estagio, valor vira negocio", () => {
-  const resultado = normalizarEstadoCrm(fixtureV1);
-  assert.ok(resultado);
-  assert.equal(resultado.precisaSalvar, true);
-  assert.equal(resultado.estado.versao, 3);
-  assert.deepEqual(resultado.estado.colunas, fixtureV1.colunas);
-
-  const contato = resultado.estado.contatos[0];
-  assert.deepEqual({
-    id: contato.id,
-    nome: contato.nome,
-    colunaId: contato.colunaId,
-    empresa: contato.empresa,
-    telefone: contato.telefone,
-    email: contato.email,
-    origem: contato.origem,
-    tags: contato.tags,
-    proximoContato: contato.proximoContato,
-    criadoEm: contato.criadoEm,
-    atualizadoEm: contato.atualizadoEm,
-  }, {
-    id: "c-cheio",
-    nome: "Maria Completa",
-    colunaId: "proposta",
-    empresa: "Acme",
-    telefone: "+55 11 99999-8888",
-    email: "maria@acme.test",
-    origem: "Indicacao",
-    tags: ["VIP", "Retorno"],
-    proximoContato: "2026-08-01T15:30:00.000Z",
-    criadoEm: "2026-07-01T10:00:00.000Z",
-    atualizadoEm: "2026-07-15T12:00:00.000Z",
-  });
-  assert.deepEqual(
-    contato.interacoes.map(({ em, tipo, texto }) => ({ em, tipo, texto })),
-    [
-      { em: "2026-07-15T12:00:00.000Z", tipo: "nota", texto: "Nota mais nova" },
-      { em: "2026-07-10T09:00:00.000Z", tipo: "nota", texto: "Nota anterior" },
-    ],
-  );
-  assert.deepEqual(contato.tarefas, []);
-
-  // O valor vira um negocio sem estagio (o estagio agora e do contato).
-  assert.deepEqual(resultado.estado.negocios[0], {
-    id: "n-c-cheio",
-    titulo: "Maria Completa",
-    contatoId: "c-cheio",
-    valorEstimado: 9876.54,
-    criadoEm: "2026-07-01T10:00:00.000Z",
-    atualizadoEm: "2026-07-15T12:00:00.000Z",
-  });
-});
-
-test("persiste a migracao uma vez e a segunda leitura nao duplica dados", () => {
-  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-v2-"));
-  const arquivo = join(pasta, "crm.json");
-  try {
-    writeFileSync(arquivo, JSON.stringify(fixtureV1), "utf8");
-    const primeira = lerEstadoCrmDeArquivo(arquivo);
-    const persistido = JSON.parse(readFileSync(arquivo, "utf8"));
-    const segunda = lerEstadoCrmDeArquivo(arquivo);
-
-    assert.ok(primeira);
-    assert.ok(segunda);
-    assert.equal(persistido.versao, 3);
-    assert.equal(primeira.contatos.length, 1);
-    assert.equal(primeira.contatos[0].colunaId, "proposta");
-    assert.equal(primeira.negocios.length, 1);
-    assert.equal(primeira.contatos[0].interacoes.length, 2);
-    assert.deepEqual(segunda, primeira);
-  } finally {
-    rmSync(pasta, { recursive: true, force: true });
-  }
-});
-
-// C1: arquivo corrompido nunca pode ser sobrescrito por estado vazio.
 test("arquivo corrompido vai pra quarentena e nunca e sobrescrito", () => {
-  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-corrompido-"));
+  const pasta = pastaTemp("corrompido");
   const arquivo = join(pasta, "crm.json");
   const conteudoOriginal = "{ isto nao e json valido";
   try {
     writeFileSync(arquivo, conteudoOriginal, "utf8");
     assert.throws(() => lerEstadoCrmDeArquivo(arquivo), /corrompido/i);
-    // O crm.json saiu do lugar (nao foi sobrescrito) e virou quarentena.
     assert.equal(existsSync(arquivo), false);
     const quarentenas = readdirSync(pasta).filter((n) => n.startsWith("crm.json.corrompido-"));
     assert.equal(quarentenas.length, 1);
@@ -206,7 +86,7 @@ test("arquivo corrompido vai pra quarentena e nunca e sobrescrito", () => {
 });
 
 test("json valido mas sem forma de CRM tambem vai pra quarentena", () => {
-  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-forma-"));
+  const pasta = pastaTemp("forma");
   const arquivo = join(pasta, "crm.json");
   try {
     writeFileSync(arquivo, '"apenas uma string"', "utf8");
@@ -222,65 +102,118 @@ test("json valido mas sem forma de CRM tambem vai pra quarentena", () => {
 });
 
 test("arquivo ausente devolve null sem criar quarentena", () => {
-  const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-ausente-"));
-  const arquivo = join(pasta, "crm.json");
+  const pasta = pastaTemp("ausente");
   try {
-    assert.equal(lerEstadoCrmDeArquivo(arquivo), null);
+    assert.equal(lerEstadoCrmDeArquivo(join(pasta, "crm.json")), null);
     assert.equal(readdirSync(pasta).length, 0);
   } finally {
     rmSync(pasta, { recursive: true, force: true });
   }
 });
 
-// M7: migracao e saneamento com fallback, nunca descarte de contato.
-test("migra contato v1 sem colunaId para a primeira coluna", () => {
-  const resultado = normalizarEstadoCrm({
-    colunas: [
-      { id: "k1", nome: "Novo", ordem: 0 },
-      { id: "k2", nome: "Fechado", ordem: 1 },
+const fixtureV3 = {
+  versao: 3,
+  colunas: [
+    { id: "k1", nome: "Conversando", ordem: 0 },
+    { id: "k2", nome: "Fechado", ordem: 1 },
+  ],
+  contatos: [{
+    id: "c1",
+    nome: "Padaria Aurora",
+    colunaId: "k2",
+    empresa: "Padaria Aurora ME",
+    telefone: "(31) 99999-8888",
+    origem: "google-maps:place-42",
+    tags: ["cliente"],
+    interacoes: [
+      { id: "i1", em: "2026-07-10T10:00:00.000Z", tipo: "reuniao", texto: "Briefing" },
+      { id: "i2", em: "2026-07-01T10:00:00.000Z", tipo: "ligacao", texto: "Fechamos" },
     ],
-    contatos: [{ id: "c1", nome: "Sem Coluna" }],
-  });
-  assert.ok(resultado);
-  assert.equal(resultado.estado.contatos.length, 1);
-  // O contato e o cartao do funil: sem estagio informado, cai na primeira coluna.
-  assert.equal(resultado.estado.contatos[0].colunaId, "k1");
-  // Sem valor, nao nasce negocio: o contato ja caminha sozinho no quadro.
-  assert.equal(resultado.estado.negocios.length, 0);
+    tarefas: [
+      { id: "t1", texto: "Enviar contrato", feita: false, criadaEm: "2026-07-10T10:00:00.000Z" },
+    ],
+    criadoEm: "2026-06-01T10:00:00.000Z",
+    atualizadoEm: "2026-07-10T10:00:00.000Z",
+  }],
+  negocios: [
+    { id: "n1", titulo: "Site", contatoId: "c1", valorEstimado: 4500 },
+    // Orfao: a v3 descartava este em silencio.
+    { id: "n2", titulo: "Perdido no tempo", contatoId: "c-que-sumiu", valorEstimado: 800 },
+  ],
+};
+
+test("migracao da v3 grava o historico no jsonl e o resto no crm.json", () => {
+  const pasta = pastaTemp("v3");
+  const arquivo = join(pasta, "crm.json");
+  try {
+    writeFileSync(arquivo, JSON.stringify(fixtureV3), "utf8");
+    const estado = lerEstadoCrmDeArquivo(arquivo, "ws-1");
+    assert.ok(estado);
+    assert.equal(estado.versao, 4);
+
+    // Interacoes sairam de dentro do contato pro arquivo append-only.
+    const interacoes = lerInteracoesDaPasta(pasta);
+    assert.deepEqual(interacoes.map((i) => i.id), ["i1", "i2"]);
+    assert.equal(interacoes[0].contatoId, "c1");
+
+    // Uma linha de estagio por contato, com a coluna em que ele estava.
+    const estagios = lerEstagiosDaPasta(pasta);
+    assert.equal(estagios.length, 2, "um por contato, contando o de recuperacao");
+    const doContato = estagios.find((e) => e.contatoId === "c1");
+    assert.equal(doContato?.colunaId, "k2");
+    assert.equal(doContato?.colunaNome, "Fechado");
+
+    // Tarefa virou lista de topo, organizacao virou entidade, telefone em E.164.
+    assert.equal(estado.tarefas[0].contatoId, "c1");
+    assert.equal(estado.organizacoes[0].nome, "Padaria Aurora ME");
+    assert.equal(estado.contatos[0].telefoneNormalizado, "+5531999998888");
+    assert.equal(estado.contatos[0].chaveExterna, "google-maps:place-42");
+
+    // Nenhum negocio se perdeu: o orfao ganhou dono de recuperacao.
+    assert.equal(estado.negocios.length, 2);
+    // E o que foi recuperado ficou registrado num arquivo ao lado.
+    const rastro = readFileSync(join(pasta, "recuperacoes.jsonl"), "utf8");
+    assert.match(rastro, /c-que-sumiu/);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
 });
 
-test("migra contato v1 sem nome para 'Sem nome' sem descartar", () => {
-  const resultado = normalizarEstadoCrm({
-    colunas: [{ id: "k1", nome: "Novo", ordem: 0 }],
-    contatos: [{ id: "c1", colunaId: "k1" }],
-  });
-  assert.ok(resultado);
-  assert.equal(resultado.estado.contatos.length, 1);
-  assert.equal(resultado.estado.contatos[0].nome, "Sem nome");
-  assert.equal(resultado.estado.contatos[0].colunaId, "k1");
+test("persiste a migracao uma vez e a segunda leitura nao duplica nada", () => {
+  const pasta = pastaTemp("idempotente");
+  const arquivo = join(pasta, "crm.json");
+  try {
+    writeFileSync(arquivo, JSON.stringify(fixtureV3), "utf8");
+    const primeira = lerEstadoCrmDeArquivo(arquivo, "ws-1");
+    const persistido = JSON.parse(readFileSync(arquivo, "utf8"));
+    const segunda = lerEstadoCrmDeArquivo(arquivo, "ws-1");
+
+    assert.ok(primeira);
+    assert.ok(segunda);
+    assert.equal(persistido.versao, 4);
+    assert.deepEqual(segunda, primeira);
+    assert.equal(lerInteracoesDaPasta(pasta).length, 2);
+    assert.equal(lerEstagiosDaPasta(pasta).length, 2);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
 });
 
-test("sanea contato v2 com nome invalido para 'Sem nome' sem descartar", () => {
-  const resultado = normalizarEstadoCrm({
-    versao: 2,
-    colunas: [{ id: "k1", nome: "Novo", ordem: 0 }],
-    contatos: [{ id: "c1", nome: 123 }],
-    negocios: [],
-  });
-  assert.ok(resultado);
-  assert.equal(resultado.estado.contatos.length, 1);
-  assert.equal(resultado.estado.contatos[0].id, "c1");
-  assert.equal(resultado.estado.contatos[0].nome, "Sem nome");
-});
+// Se o processo cair depois de gravar o historico e antes de gravar o crm.json
+// novo, a proxima leitura repete a migracao. Nada pode duplicar por causa disso.
+test("migracao repetida sobre o arquivo antigo nao duplica o historico", () => {
+  const pasta = pastaTemp("recaida");
+  const arquivo = join(pasta, "crm.json");
+  try {
+    writeFileSync(arquivo, JSON.stringify(fixtureV3), "utf8");
+    lerEstadoCrmDeArquivo(arquivo, "ws-1");
+    // Volta o arquivo antigo por cima, simulando a queda antes da gravacao.
+    writeFileSync(arquivo, JSON.stringify(fixtureV3), "utf8");
+    lerEstadoCrmDeArquivo(arquivo, "ws-1");
 
-test("contato v2 saneado nao derruba o negocio que aponta pra ele", () => {
-  const resultado = normalizarEstadoCrm({
-    versao: 2,
-    colunas: [{ id: "k1", nome: "Novo", ordem: 0 }],
-    contatos: [{ id: "c1", nome: null }],
-    negocios: [{ id: "n1", titulo: "Deal", contatoId: "c1", colunaId: "k1" }],
-  });
-  assert.ok(resultado);
-  assert.equal(resultado.estado.negocios.length, 1);
-  assert.equal(resultado.estado.negocios[0].contatoId, "c1");
+    assert.equal(lerInteracoesDaPasta(pasta).length, 2);
+    assert.equal(lerEstagiosDaPasta(pasta).length, 2);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
 });
