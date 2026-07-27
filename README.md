@@ -100,7 +100,7 @@ Fora do versionamento: `app/dados/` (dados e credenciais do usuário), `VKOS/` e
 1. **Local-first.** Nenhum dado do usuário sai da máquina dele. Sem backend hospedado, sem telemetria.
 2. **A credencial é do usuário.** O Hub nunca recebe nem guarda token de IA. O login acontece pelo programa oficial do motor.
 3. **Dado do usuário é sagrado.** Arquivo existente nunca é sobrescrito às cegas. Na dúvida, quarentena com data. Migração usa valor padrão, nunca descarta registro.
-4. **Dado pessoal de cliente nunca entra em peça publicável.** Insight agregado sim, nome e telefone nunca.
+4. **Dado pessoal de cliente não vira conteúdo.** O que a IA recebe do CRM é agregado: contagem por estágio, valor somado, follow-up atrasado. Das conversas vai o primeiro nome do contato, senão o conselho não faz sentido, e o texto passa por uma limpeza que apaga telefone e email. Telefone e email completos nunca entram nesse contexto. Ver `decisoes/2026-07-27-o-que-a-ia-recebe-do-crm.md`.
 5. **Geração é verificada, não confiada.** Auditoria determinística antes de dar por pronto.
 6. **Funciona para leigo total, de fábrica.** Se exige configuração ou vocabulário técnico, ainda não está pronto.
 
