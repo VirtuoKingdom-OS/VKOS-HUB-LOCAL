@@ -4,6 +4,9 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { basename } from "node:path";
+
+import { quarentenar } from "../util/quarentena.js";
 
 import type { ConferenciaSite, Sessao, StatusSessao } from "../tipos.js";
 import type { ProcessoSessao } from "../provedores/contrato.js";
@@ -872,7 +875,17 @@ export class GerenciadorSessoes {
           todas.push(sessao);
         }
       } catch {
-        // Arquivo corrompido de um workspace: ignora ele, sem quebrar o boot.
+        // Roda no boot, entao nao pode lancar: um workspace corrompido nao pode
+        // impedir o Hub de subir. Mas ignorar em silencio deixava a lista de
+        // sessoes daquele workspace de fora, e o agendarSalvar seguinte gravava
+        // a lista sem elas por cima do arquivo. Quarentena antes, pra a proxima
+        // gravacao nunca alcancar o original.
+        const movido = quarentenar(arquivo);
+        console.warn(
+          movido
+            ? `Sessoes do workspace ${id} estavam corrompidas. Original preservado em ${basename(movido)}.`
+            : `Sessoes do workspace ${id} estavam corrompidas e nao deu pra mover pra quarentena.`,
+        );
       }
     }
     this.sessoes = todas;
