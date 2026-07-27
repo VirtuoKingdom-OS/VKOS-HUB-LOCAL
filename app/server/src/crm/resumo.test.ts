@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { EstadoCrm, Interacao } from "./estado.js";
-import { montarResumoCrm } from "./resumo.js";
+import { REGRA_DE_USO, montarResumoCrm } from "./resumo.js";
 
 function estadoVazio(): EstadoCrm {
   return {
@@ -94,4 +94,40 @@ test("contato sem interacao nenhuma continua no resumo", () => {
   assert.ok(resumo);
   assert.match(resumo, /Nenhuma interacao registrada/);
   assert.match(resumo, /1 contato\(s\) sem interacao ha mais de 30 dias/);
+});
+
+// O SECURITY.md promete "proibicao explicita de publicar dado identificavel"
+// dentro do resumo. Ate 2026-07-27 a promessa nao tinha lastro: o texto
+// injetado nao trazia instrucao nenhuma.
+//
+// Este teste afirma o CONTEUDO da regra, palavra por palavra. Um teste que so
+// olhasse o entorno passaria com a regra apagada, e ai a promessa voltaria a
+// ser vazia sem ninguem perceber.
+test("o resumo carrega a proibicao de publicar dado de cliente", () => {
+  const { estado, interacoes } = cenario("Pediu orcamento pro rebranding");
+  const resumo = montarResumoCrm(estado, interacoes);
+  assert.ok(resumo);
+
+  // A regra inteira, literal, esta la dentro.
+  assert.ok(
+    resumo.includes(REGRA_DE_USO),
+    "a regra de uso precisa chegar literal no texto injetado",
+  );
+
+  // E ela diz o que precisa dizer, nao um texto qualquer.
+  assert.match(REGRA_DE_USO, /nunca copie/i);
+  for (const proibido of ["nome", "telefone", "email"]) {
+    assert.match(REGRA_DE_USO, new RegExp(proibido, "i"));
+  }
+  assert.match(REGRA_DE_USO, /peca\s+publicavel/i);
+
+  // Vem antes dos dados: instrucao depois do dado ja perdeu a chance.
+  assert.ok(
+    resumo.indexOf(REGRA_DE_USO) < resumo.indexOf("## Funil"),
+    "a regra precisa vir antes do primeiro dado",
+  );
+});
+
+test("a regra nao aparece quando nao ha resumo nenhum", () => {
+  assert.equal(montarResumoCrm(estadoVazio(), []), null);
 });

@@ -13,6 +13,14 @@ import {
 const LIMITE_BYTES = 8 * 1024;
 const DIA_MS = 24 * 60 * 60 * 1000;
 
+// Vai junto do resumo, toda vez. Exportada pro teste afirmar o texto que
+// realmente foi injetado, e nao so o entorno dele.
+export const REGRA_DE_USO =
+  "REGRA: estes dados sao de clientes reais e servem so pra orientar a decisao. " +
+  "Nunca copie nome, telefone, email ou fala de cliente pra dentro de peca " +
+  "publicavel (site, post, carrossel, anuncio, legenda). Em peca publicavel, " +
+  "use so o padrao agregado, sem identificar ninguem.";
+
 function primeiroNome(nome: string): string {
   const primeiro = nome.trim().split(/\s+/)[0] || "Cliente";
   return anonimizarTextoCrm(primeiro) || "Cliente";
@@ -122,7 +130,20 @@ export function montarResumoCrm(
   );
   vozes.sort((a, b) => b.instante - a.instante);
 
-  const linhas: string[] = ["# Resumo agregado do CRM", "", "## Funil"];
+  const linhas: string[] = [
+    "# Resumo agregado do CRM",
+    "",
+    // O SECURITY.md promete "proibicao explicita de publicar dado
+    // identificavel" e ate 2026-07-27 essa proibicao nao existia no texto
+    // injetado. Agora existe.
+    //
+    // Seja honesto sobre o alcance disto: e instrucao pra um modelo, entao
+    // reduz o risco, nao elimina. A garantia tecnica de verdade e a limpeza
+    // de telefone e email que roda antes de qualquer texto sair daqui.
+    REGRA_DE_USO,
+    "",
+    "## Funil",
+  ];
   for (const coluna of [...estado.colunas].sort((a, b) => a.ordem - b.ordem)) {
     // O contato e o cartao do funil: cada coluna conta os contatos naquele
     // estagio e soma o valor dos negocios presos a eles.
