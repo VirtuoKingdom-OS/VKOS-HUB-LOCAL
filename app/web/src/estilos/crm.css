@@ -194,11 +194,24 @@
   justify-content: space-between;
   gap: 8px;
 }
+.crm-coluna-rodape {
+  flex-wrap: wrap;
+}
 .crm-coluna-total {
   font-size: 12px;
   font-weight: 700;
   color: var(--menta);
   letter-spacing: 0.2px;
+}
+.crm-coluna-ajustes {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--fundo-3);
+  animation: crm-surgir 0.14s ease-out both;
 }
 
 /* Corpo rolavel da coluna. */
@@ -541,6 +554,50 @@ body.crm-arrastando .crm-cartao {
   font-size: 15px;
   font-weight: 700;
 }
+.crm-painel-topo-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Salvamento visivel. O campo salvava no blur e nada dizia se tinha salvado. */
+.crm-marca-salvo {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--menta-rgb), 0.35);
+  background: rgba(var(--menta-rgb), 0.12);
+  color: var(--menta-clara);
+  font-size: 11px;
+  font-weight: 700;
+  animation: crm-surgir 0.15s ease-out both;
+}
+.crm-marca-salvo.ocupado {
+  border-color: var(--borda);
+  background: var(--superficie);
+  color: var(--texto-fraco);
+}
+/* Erro DENTRO do painel: na faixa da tela ele ficava atras dele em tela
+   estreita, e o usuario nunca via por que nao salvou. */
+.crm-painel-erro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 18px;
+  padding: 9px 12px;
+  border: 1px solid rgba(var(--alerta-rgb), 0.45);
+  border-radius: var(--raio-p);
+  background: rgba(var(--alerta-rgb), 0.12);
+  color: var(--alerta-suave);
+  font-size: 12.5px;
+}
+.crm-painel-erro button {
+  display: inline-flex;
+  color: inherit;
+}
+.crm-painel-erro svg {
+  width: 13px;
+  height: 13px;
+}
 .crm-painel-fechar {
   display: inline-flex;
   align-items: center;
@@ -767,48 +824,205 @@ body.crm-arrastando .crm-cartao {
   flex-direction: column;
   gap: 7px;
   margin-top: 16px;
+  list-style: none;
 }
-.crm-item-hoje {
+
+/* Linha da tela do dia. Cada item age no lugar: concluir, registrar contato,
+   adiar. Abrir a ficha e acao secundaria. */
+.crm-item-dia {
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 6px 12px;
   padding: 10px 11px;
   text-align: left;
   border: 1px solid var(--borda);
   border-radius: var(--raio-p);
   background: var(--superficie);
-  transition: border-color var(--transicao), transform var(--transicao);
+  transition: border-color var(--transicao);
 }
-.crm-item-hoje:hover {
+.crm-item-dia:hover,
+.crm-item-dia:focus-within {
   border-color: var(--borda-forte);
-  transform: translateY(-1px);
 }
-.crm-item-hoje.atrasado {
+.crm-item-dia.atrasado {
   border-color: rgba(var(--alerta-rgb), 0.5);
   background: rgba(var(--alerta-rgb), 0.07);
 }
-.crm-item-hoje > span,
-.crm-item-hoje b,
-.crm-item-hoje small {
+.crm-item-dia-check {
+  display: inline-flex;
+  align-items: center;
+}
+.crm-item-dia-check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--menta);
+}
+.crm-item-dia-marca {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--borda-forte);
+}
+.crm-item-dia.atrasado .crm-item-dia-marca {
+  background: var(--alerta);
+}
+.crm-item-dia-texto {
   min-width: 0;
   display: block;
 }
-.crm-item-hoje b {
-  color: var(--texto);
-  font-size: 12.5px;
+.crm-item-dia-texto b,
+.crm-item-dia-texto small {
+  min-width: 0;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.crm-item-hoje small,
-.crm-item-hoje time {
+.crm-item-dia-texto b {
+  color: var(--texto);
+  font-size: 12.5px;
+}
+.crm-item-dia-texto small,
+.crm-item-dia time {
   color: var(--texto-fraco);
   font-size: 11px;
 }
-.crm-item-hoje.atrasado time {
+.crm-item-dia.atrasado time {
   color: var(--alerta-suave);
+}
+.crm-item-dia-acoes {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.crm-acao-inline {
+  padding: 4px 9px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  background: var(--fundo-2);
+  color: var(--texto-suave);
+  font-size: 11px;
+  font-weight: 600;
+  transition: color var(--transicao), border-color var(--transicao), background var(--transicao);
+}
+.crm-acao-inline:hover:not(:disabled) {
+  color: var(--menta-clara);
+  border-color: rgba(var(--menta-rgb), 0.45);
+  background: rgba(var(--menta-rgb), 0.1);
+}
+.crm-acao-inline:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.crm-acao-secundaria {
+  border-color: transparent;
+  background: none;
+  color: var(--texto-fraco);
+}
+
+/* Adiar: presets de um clique. O menu nasce ancorado no botao. */
+.crm-adiar {
+  position: relative;
+  display: inline-flex;
+}
+.crm-adiar-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-p);
+  background: var(--fundo-3);
+  box-shadow: var(--sombra-media);
+  animation: crm-surgir 0.12s ease-out both;
+}
+.crm-adiar-opcao {
+  padding: 7px 9px;
+  border-radius: 7px;
+  text-align: left;
+  color: var(--texto-suave);
+  font-size: 12px;
+  transition: color var(--transicao), background var(--transicao);
+}
+.crm-adiar-opcao:hover {
+  color: var(--texto);
+  background: var(--superficie-2);
+}
+.crm-ver-todos {
+  margin-top: 10px;
+  padding: 6px 0;
+  color: var(--menta-clara);
+  font-size: 12px;
+  font-weight: 600;
+}
+.crm-ver-todos:hover {
+  text-decoration: underline;
+}
+.crm-hoje-limpo {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+.crm-hoje-limpo-titulo {
+  color: var(--texto);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Placar do funil: aberto manda, ganho e perdido ficam ao lado. */
+.crm-funil-placar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.crm-funil-placar > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--superficie);
+}
+.crm-funil-placar b {
+  font-size: 14px;
+}
+.crm-funil-placar small {
+  color: var(--texto-fraco);
+  font-size: 10.5px;
+}
+.crm-placar-ganho b {
+  color: var(--menta-clara);
+}
+.crm-placar-perdido b {
+  color: var(--alerta-suave);
+}
+
+/* Texto so pra leitor de tela: some da vista sem sumir da arvore. */
+.crm-so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .crm-funil-lista {
   width: 100%;
@@ -1003,6 +1217,86 @@ body.crm-arrastando .crm-cartao {
   grid-template-columns: 1fr 120px auto;
   gap: 7px;
 }
+.crm-negocio-linha.status-ganho {
+  border-color: rgba(var(--menta-rgb), 0.35);
+}
+.crm-negocio-linha.status-perdido {
+  opacity: 0.75;
+}
+.crm-negocio-acao {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+/* Orcamento: criar, ver status e validade, marcar aceito ou recusado. */
+.crm-orcamentos {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--borda);
+}
+.crm-orcamentos-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.crm-orcamento-novo {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+.crm-orcamentos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+.crm-orcamento {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--superficie);
+}
+.crm-orcamento.status-aceito {
+  border-color: rgba(var(--menta-rgb), 0.45);
+}
+.crm-orcamento.status-recusado,
+.crm-orcamento.status-expirado {
+  border-color: rgba(var(--alerta-rgb), 0.4);
+}
+.crm-orcamento-dados {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.crm-orcamento-dados b {
+  font-size: 13px;
+}
+.crm-orcamento-dados small {
+  color: var(--texto-fraco);
+  font-size: 11px;
+}
+.crm-orcamento-acoes {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.crm-orcamento-acoes select {
+  padding: 4px 8px;
+  font-size: 11.5px;
+}
 .crm-excluir-negocio {
   min-width: 38px;
 }
@@ -1172,6 +1466,23 @@ body.crm-arrastando .crm-cartao {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+}
+/* Clique no fundo com formulario preenchido nao descarta calado: avisa. */
+.crm-modal-aviso {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--alerta-rgb), 0.45);
+  border-radius: var(--raio-p);
+  background: rgba(var(--alerta-rgb), 0.1);
+  color: var(--alerta-suave);
+  font-size: 12.5px;
+}
+.crm-modal-aviso-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .crm-autocomplete {
   position: relative;
@@ -1413,6 +1724,9 @@ body.crm-arrastando .crm-cartao {
   }
   .crm-campos-grade,
   .crm-negocio-campos,
+  .crm-negocio-acao,
+  .crm-orcamento-novo,
+  .crm-funil-placar,
   .crm-interacao-nova,
   .crm-tarefa-nova {
     grid-template-columns: 1fr;
@@ -1508,8 +1822,10 @@ body.crm-arrastando .crm-cartao {
   .crm-leads-pulso i {
     animation: none;
   }
-  .crm-item-hoje:hover {
-    transform: none;
+  .crm-adiar-menu,
+  .crm-marca-salvo,
+  .crm-coluna-ajustes {
+    animation: none;
   }
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { Coluna, Contato } from "../../api/crm";
+import type { Coluna, Contato, DadosColuna, TipoColuna } from "../../api/crm";
 import { CartaoContato } from "./CartaoContato";
 import { BotaoConfirmar } from "./BotaoConfirmar";
 import { formatarReais } from "./formatos";
@@ -9,6 +9,7 @@ export function ColunaCrm({
   coluna,
   contatos,
   valorDe,
+  resumoDe,
   total,
   selecionadoId,
   arrastandoId,
@@ -18,12 +19,16 @@ export function ColunaCrm({
   totalColunas,
   aoMoverColuna,
   aoDescerCartao,
+  aoAbrirCartao,
+  aoMoverPorTeclado,
   aoRenomear,
+  aoAjustar,
   aoExcluir,
 }: {
   coluna: Coluna;
   contatos: Contato[];
   valorDe: (contatoId: string) => number;
+  resumoDe: (contato: Contato) => string;
   total: number;
   selecionadoId: string | null;
   arrastandoId: string | null;
@@ -33,10 +38,14 @@ export function ColunaCrm({
   totalColunas: number;
   aoMoverColuna: (id: string, direcao: -1 | 1) => void;
   aoDescerCartao: (contato: Contato, e: ReactPointerEvent) => void;
+  aoAbrirCartao: (contato: Contato) => void;
+  aoMoverPorTeclado: (contato: Contato, eixo: "coluna" | "posicao", passo: -1 | 1) => void;
   aoRenomear: (id: string, nome: string) => void | Promise<void>;
+  aoAjustar: (id: string, dados: DadosColuna) => void | Promise<void>;
   aoExcluir: (id: string) => void | Promise<void>;
 }) {
   const [editando, setEditando] = useState(false);
+  const [ajustando, setAjustando] = useState(false);
   const [rascunho, setRascunho] = useState(coluna.nome);
   const campo = useRef<HTMLInputElement>(null);
 
@@ -61,9 +70,12 @@ export function ColunaCrm({
         key={contato.id}
         contato={contato}
         valorTotal={valorDe(contato.id)}
+        resumo={resumoDe(contato)}
         arrastando={arrastandoId === contato.id}
         selecionado={selecionadoId === contato.id}
         aoDescer={aoDescerCartao}
+        aoAbrir={aoAbrirCartao}
+        aoMoverPorTeclado={aoMoverPorTeclado}
       />,
     );
   });
@@ -111,6 +123,15 @@ export function ColunaCrm({
               <IconeChevron className="crm-chevron-direita" />
             </button>
           </span>
+          <button
+            className="crm-acao-inline"
+            onClick={() => setAjustando((atual) => !atual)}
+            aria-expanded={ajustando}
+            title="Semântica do estágio e limite de esfriamento"
+            type="button"
+          >
+            Ajustes
+          </button>
           {podeExcluir && (
             <BotaoConfirmar
               className="crm-excluir-coluna"
@@ -122,6 +143,39 @@ export function ColunaCrm({
             </BotaoConfirmar>
           )}
         </div>
+        {/* Sem estes dois campos, "tipo" e "diasParaEsfriar" existiriam no
+            servidor e ninguem conseguiria definir: o funil nao saberia o que e
+            ganho e nada esfriaria nunca. */}
+        {ajustando && (
+          <div className="crm-coluna-ajustes">
+            <label className="crm-campo">
+              <span className="crm-rotulo">O que este estágio significa</span>
+              <select
+                value={coluna.tipo}
+                onChange={(e) => void aoAjustar(coluna.id, { tipo: e.target.value as TipoColuna })}
+              >
+                <option value="aberto">Em aberto</option>
+                <option value="ganho">Ganho</option>
+                <option value="perdido">Perdido</option>
+              </select>
+            </label>
+            <label className="crm-campo">
+              <span className="crm-rotulo">Esfria sem contato há (dias)</span>
+              <input
+                type="number"
+                min={1}
+                max={3650}
+                defaultValue={coluna.diasParaEsfriar ?? ""}
+                placeholder="Nunca"
+                onBlur={(e) => {
+                  const dias = Number(e.target.value);
+                  const valor = e.target.value && Number.isFinite(dias) && dias > 0 ? Math.trunc(dias) : null;
+                  if (valor !== (coluna.diasParaEsfriar ?? null)) void aoAjustar(coluna.id, { diasParaEsfriar: valor });
+                }}
+              />
+            </label>
+          </div>
+        )}
       </header>
       <div className="crm-coluna-corpo" data-coluna-drop={coluna.id}>
         {itens}

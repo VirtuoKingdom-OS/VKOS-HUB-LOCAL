@@ -1,98 +1,101 @@
-// Cliente REST do CRM v2. Mantem o tratamento de erro autocontido e o contrato
-// do servidor em tipos pequenos, usados pelas tres visoes da tela.
+// Cliente REST do CRM v4.
+//
+// FRONTEIRA DE TIPOS: as entidades do CRM nao sao redeclaradas aqui. Elas vem
+// de ../tipos/crm, que reexporta app/server/src/crm/modelo.ts. Antes este
+// arquivo tinha a propria copia dos tipos, e foi por isso que o servidor pulou
+// pra v4 sem o typecheck do web reclamar: existiam duas verdades. Agora existe
+// uma so, e divergencia de modelo vira erro de compilacao.
+//
+// O que continua morando aqui: os corpos de requisicao (Dados*). Eles nao sao
+// entidades, sao o formato do que a tela ENVIA, e o servidor aceita coisas que
+// a entidade nao tem (o caso do "empresa", que ele resolve numa Organizacao).
 
-export type TipoInteracao = "nota" | "ligacao" | "mensagem" | "reuniao" | "outro";
+import type {
+  Coluna,
+  Contato,
+  EstadoCrm,
+  Interacao,
+  Negocio,
+  Orcamento,
+  Organizacao,
+  StatusNegocio,
+  StatusOrcamento,
+  Tarefa,
+  TipoColuna,
+  TipoInteracao,
+} from "../tipos/crm";
 
-export interface Interacao {
-  id: string;
-  em: string;
-  tipo: TipoInteracao;
-  texto: string;
-}
+export type {
+  Coluna,
+  Contato,
+  DadosLead,
+  EstadoCrm,
+  Interacao,
+  Negocio,
+  Orcamento,
+  Organizacao,
+  RegistroEstagio,
+  StatusNegocio,
+  StatusOrcamento,
+  Tarefa,
+  TipoColuna,
+  TipoInteracao,
+} from "../tipos/crm";
 
-export interface Tarefa {
-  id: string;
-  texto: string;
-  prazo?: string;
-  feita: boolean;
-  criadaEm: string;
-}
-
-// Retrato do lead de origem (mineracao no Google Maps). So leitura.
-export interface DadosLead {
-  placeId?: string;
-  categoria?: string;
-  endereco?: string;
-  site?: string;
-  nota?: number;
-  totalAvaliacoes?: number;
-  termoBusca?: string;
-  localizacao?: string;
-  capturadoEm?: string;
-}
-
-export interface Contato {
-  id: string;
-  nome: string;
-  // Estagio do contato no funil: o contato e o cartao do quadro.
-  colunaId: string;
-  empresa?: string;
-  telefone?: string;
-  email?: string;
-  origem?: string;
-  tags: string[];
-  interacoes: Interacao[];
-  tarefas: Tarefa[];
-  proximoContato?: string;
-  lead?: DadosLead;
-  criadoEm: string;
-  atualizadoEm: string;
-}
-
-// Valor/oportunidade preso a um contato, sem estagio proprio.
-export interface Negocio {
-  id: string;
-  titulo: string;
-  contatoId: string;
-  valorEstimado?: number;
-  criadoEm: string;
-  atualizadoEm: string;
-}
-
-export interface Coluna {
-  id: string;
-  nome: string;
-  ordem: number;
-}
-
-export interface EstadoCrm {
-  versao: 3;
-  colunas: Coluna[];
-  contatos: Contato[];
-  negocios: Negocio[];
-}
-
+// Corpo do POST e do PATCH de contato. "empresa" nao e campo da entidade: o
+// servidor recebe o nome e resolve (ou cria) a Organizacao, entao a tela pode
+// continuar tendo um campo de texto simples.
 export interface DadosContato {
   nome?: string;
   empresa?: string;
+  organizacaoId?: string | null;
   telefone?: string;
   email?: string;
   origem?: string;
   proximoContato?: string | null;
+  cadenciaDias?: number | null;
   tags?: string[];
   colunaId?: string;
+  arquivado?: boolean;
 }
 
 export interface DadosNegocio {
   titulo?: string;
   contatoId?: string;
+  status?: StatusNegocio;
   valorEstimado?: number | null;
+  valorFechado?: number | null;
+  fechadoEm?: string | null;
+  proximaAcaoEm?: string | null;
+  proximaAcaoTexto?: string | null;
+  escopo?: string | null;
+  recorrente?: boolean;
+  valorMensal?: number | null;
+  diaDoCiclo?: number | null;
 }
 
 export interface DadosTarefa {
   texto?: string;
   prazo?: string | null;
   feita?: boolean;
+  contatoId?: string | null;
+  negocioId?: string | null;
+}
+
+export interface DadosOrcamento {
+  negocioId?: string;
+  valor?: number;
+  status?: StatusOrcamento;
+  enviadoEm?: string | null;
+  validoAte?: string | null;
+  arquivo?: string | null;
+  link?: string | null;
+}
+
+export interface DadosColuna {
+  nome?: string;
+  tipo?: TipoColuna;
+  diasParaEsfriar?: number | null;
 }
 
 export class ErroCrm extends Error {
@@ -132,9 +135,15 @@ function corpo(metodo: string, dados: unknown): RequestInit {
   return { method: metodo, body: JSON.stringify(dados) };
 }
 
+function apagar(url: string): Promise<{ ok: boolean }> {
+  return pedir<{ ok: boolean }>(url, { method: "DELETE" });
+}
+
 export function obterCrm(): Promise<EstadoCrm> {
   return pedir<EstadoCrm>("/api/crm");
 }
+
+// ------------------------------------------------------------- contatos
 
 export function criarContato(dados: DadosContato): Promise<Contato> {
   return pedir<Contato>("/api/crm/contatos", corpo("POST", dados));
@@ -145,9 +154,7 @@ export function atualizarContato(id: string, dados: DadosContato): Promise<Conta
 }
 
 export function excluirContato(id: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(`/api/crm/contatos/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return apagar(`/api/crm/contatos/${encodeURIComponent(id)}`);
 }
 
 export function moverContato(id: string, colunaId: string, indice?: number): Promise<Contato> {
@@ -157,22 +164,40 @@ export function moverContato(id: string, colunaId: string, indice?: number): Pro
   );
 }
 
+// ----------------------------------------------------------- interacoes
+
+// A linha do tempo saiu de dentro do contato pro interacoes.jsonl, entao ela e
+// pedida por contato, sob demanda.
+export async function listarInteracoes(contatoId: string): Promise<Interacao[]> {
+  const dados = await pedir<{ interacoes: Interacao[] }>(
+    `/api/crm/contatos/${encodeURIComponent(contatoId)}/interacoes`,
+  );
+  return dados.interacoes;
+}
+
 export function registrarInteracao(
-  id: string,
+  contatoId: string,
   tipo: TipoInteracao,
   texto: string,
 ): Promise<Interacao> {
   return pedir<Interacao>(
-    `/api/crm/contatos/${encodeURIComponent(id)}/interacoes`,
+    `/api/crm/contatos/${encodeURIComponent(contatoId)}/interacoes`,
     corpo("POST", { tipo, texto }),
   );
 }
 
-export function criarTarefa(id: string, texto: string, prazo?: string): Promise<Tarefa> {
-  return pedir<Tarefa>(
-    `/api/crm/contatos/${encodeURIComponent(id)}/tarefas`,
-    corpo("POST", { texto, ...(prazo ? { prazo } : {}) }),
-  );
+// ------------------------------------------------------- organizacoes
+
+export function criarOrganizacao(nome: string): Promise<Organizacao> {
+  return pedir<Organizacao>("/api/crm/organizacoes", corpo("POST", { nome }));
+}
+
+// --------------------------------------------------------------- tarefas
+
+// Tarefa saiu de dentro do contato: nasce na lista de topo, podendo apontar pro
+// contato, pro negocio, ou pra nenhum dos dois.
+export function criarTarefa(dados: DadosTarefa & { texto: string }): Promise<Tarefa> {
+  return pedir<Tarefa>("/api/crm/tarefas", corpo("POST", dados));
 }
 
 export function atualizarTarefa(id: string, dados: DadosTarefa): Promise<Tarefa> {
@@ -180,16 +205,12 @@ export function atualizarTarefa(id: string, dados: DadosTarefa): Promise<Tarefa>
 }
 
 export function excluirTarefa(id: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(`/api/crm/tarefas/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return apagar(`/api/crm/tarefas/${encodeURIComponent(id)}`);
 }
 
-export function criarNegocio(dados: {
-  titulo: string;
-  contatoId: string;
-  valorEstimado?: number;
-}): Promise<Negocio> {
+// -------------------------------------------------------------- negocios
+
+export function criarNegocio(dados: DadosNegocio & { titulo: string; contatoId: string }): Promise<Negocio> {
   return pedir<Negocio>("/api/crm/negocios", corpo("POST", dados));
 }
 
@@ -198,23 +219,39 @@ export function atualizarNegocio(id: string, dados: DadosNegocio): Promise<Negoc
 }
 
 export function excluirNegocio(id: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(`/api/crm/negocios/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return apagar(`/api/crm/negocios/${encodeURIComponent(id)}`);
 }
 
-export function criarColuna(nome: string): Promise<Coluna> {
-  return pedir<Coluna>("/api/crm/colunas", corpo("POST", { nome }));
+// ------------------------------------------------------------ orcamentos
+
+export function criarOrcamento(dados: DadosOrcamento & { negocioId: string; valor: number }): Promise<Orcamento> {
+  return pedir<Orcamento>("/api/crm/orcamentos", corpo("POST", dados));
+}
+
+export function atualizarOrcamento(id: string, dados: DadosOrcamento): Promise<Orcamento> {
+  return pedir<Orcamento>(`/api/crm/orcamentos/${encodeURIComponent(id)}`, corpo("PATCH", dados));
+}
+
+export function excluirOrcamento(id: string): Promise<{ ok: boolean }> {
+  return apagar(`/api/crm/orcamentos/${encodeURIComponent(id)}`);
+}
+
+// --------------------------------------------------------------- colunas
+
+export function criarColuna(nome: string, tipo: TipoColuna = "aberto"): Promise<Coluna> {
+  return pedir<Coluna>("/api/crm/colunas", corpo("POST", { nome, tipo }));
+}
+
+export function atualizarColuna(id: string, dados: DadosColuna): Promise<Coluna> {
+  return pedir<Coluna>(`/api/crm/colunas/${encodeURIComponent(id)}`, corpo("PATCH", dados));
 }
 
 export function renomearColuna(id: string, nome: string): Promise<Coluna> {
-  return pedir<Coluna>(`/api/crm/colunas/${encodeURIComponent(id)}`, corpo("PATCH", { nome }));
+  return atualizarColuna(id, { nome });
 }
 
 export function excluirColuna(id: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(`/api/crm/colunas/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return apagar(`/api/crm/colunas/${encodeURIComponent(id)}`);
 }
 
 export function reordenarColunas(ordem: string[]): Promise<{ colunas: Coluna[] }> {
