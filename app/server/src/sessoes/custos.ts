@@ -200,7 +200,7 @@ export function lerCustos(workspaceId: string): CustosAcumulados {
 
 // Le o historico dos clientes removidos. Exportada com caminho pra ter teste.
 export function lerHistoricoDeArquivo(caminho: string): HistoricoRemovidos {
-  const dados = lerObjetoDeCusto(caminho, "O historico de gasto dos clientes removidos");
+  const dados = lerObjetoDeCusto(caminho, "O historico de gasto dos workspaces removidos");
   if (!dados) return { ...HISTORICO_ZERADO };
   return {
     ...camposAcumulados(dados),
@@ -296,7 +296,7 @@ export function absorverCustosDeWorkspace(workspaceId: string): void {
     // O proprio historico esta corrompido: ja foi pra quarentena por lerHistorico.
     // Nao grava nada por cima e deixa a remocao seguir.
     console.warn(
-      `Nao deu pra abrir o historico de gasto dos clientes removidos: ${(erro as Error).message}`,
+      `Nao deu pra abrir o historico de gasto dos workspaces removidos: ${(erro as Error).message}`,
     );
     return;
   }
@@ -306,7 +306,7 @@ export function absorverCustosDeWorkspace(workspaceId: string): void {
     doCliente = lerCustos(workspaceId);
   } catch (erro) {
     console.warn(
-      `Nao deu pra preservar o gasto do cliente ${workspaceId}: ${(erro as Error).message}`,
+      `Nao deu pra preservar o gasto do workspace ${workspaceId}: ${(erro as Error).message}`,
     );
   }
 
@@ -326,7 +326,7 @@ export function absorverCustosDeWorkspace(workspaceId: string): void {
     gravarJsonAtomico(caminho, atualizado);
   } catch (erro) {
     console.warn(
-      `Nao deu pra gravar o historico de gasto dos clientes removidos: ${(erro as Error).message}`,
+      `Nao deu pra gravar o historico de gasto dos workspaces removidos: ${(erro as Error).message}`,
     );
   }
 }

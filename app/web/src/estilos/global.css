@@ -870,15 +870,46 @@ textarea {
   color: var(--menta);
 }
 .sidebar-nav {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+/* A navegacao do CORE nao rola: sao cinco itens no maximo. Ela nao pode rolar,
+   porque um ancestral que rola recortaria qualquer coisa que passe da borda. */
+.sidebar-nav-core {
+  flex: none;
+}
+/* A do workspace e a que cresce e rola quando ha muita peca e muita fonte. */
+.sidebar-nav-workspace {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 .sidebar-secao {
   padding: 16px 12px 6px;
+}
+/* Rotulo de NIVEL (Core e Workspace). E o que deixa obvio em qual camada o
+   usuario esta: o de cima nao muda quando se troca de workspace, o de baixo e
+   todo do projeto aberto. Ver decisoes/2026-07-27-hub-core.md. */
+.sidebar-secao-nivel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px 6px;
+}
+.sidebar-secao-nivel::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--borda);
+}
+.sidebar-secao-nivel:first-child {
+  padding-top: 4px;
+}
+/* Subsecao (Conteudo, Fontes de dados) fica dentro do nivel do workspace, entao
+   ela recua pra nao competir com o rotulo de nivel. */
+.sidebar-subsecao {
+  padding-left: 18px;
 }
 
 .item-nav {

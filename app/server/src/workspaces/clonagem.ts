@@ -77,7 +77,7 @@ function esqueletoCerebro(origem: string): string {
 // a pasta se ainda nao existe.
 function prepararDestino(pastaDestino: string): void {
   if (!pastaDestino || !isAbsolute(pastaDestino)) {
-    throw new ErroWorkspace(400, "Informe um caminho absoluto para a pasta do novo cliente.");
+    throw new ErroWorkspace(400, "Informe um caminho absoluto para a pasta do novo workspace.");
   }
   if (existsSync(pastaDestino)) {
     if (!statSync(pastaDestino).isDirectory()) {
@@ -140,12 +140,12 @@ export function criarWorkspaceNovo(entrada: {
 }): { registro: RegistroWorkspaces; avisos: string[]; workspace: Workspace | null } {
   const nome = (entrada.nome ?? "").trim();
   if (!nome) {
-    throw new ErroWorkspace(400, "Informe o nome do novo cliente.");
+    throw new ErroWorkspace(400, "Informe o nome do novo workspace.");
   }
 
   const origem = obterPastaVkos();
   if (!origem) {
-    throw new ErroWorkspace(400, "Nenhum workspace ativo pra clonar a estrutura.");
+    throw new ErroWorkspace(400, "Nenhum workspace aberto pra clonar a estrutura.");
   }
 
   const pastaDestino = entrada.pastaDestino ?? "";

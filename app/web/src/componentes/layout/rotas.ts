@@ -1,13 +1,20 @@
 import type { TipoGeracao } from "../../estado/geracao";
 
-export const TELAS_FIXAS = new Set([
-  "dashboard",
-  "galerias",
-  "fontes",
-  "crm",
-  "conexoes",
-  "mapa",
-]);
+// Duas camadas de navegacao desde 2026-07-27 (ver decisoes/2026-07-27-hub-core.md).
+//
+// CORE, o nivel do dono: nao muda quando se troca de workspace.
+export const TELAS_CORE = ["dashboard", "workspaces", "conexoes", "crm", "mapa"] as const;
+
+// WORKSPACE, o nivel do projeto aberto: tudo aqui fala do workspace ativo.
+export const TELAS_WORKSPACE = ["inicio", "cockpit", "galerias", "fontes"] as const;
+
+export const TELAS_FIXAS = new Set<string>([...TELAS_CORE, ...TELAS_WORKSPACE]);
+
+// Em qual nivel uma tela mora. A Sidebar usa isto pra desenhar as duas secoes,
+// e o teste trava a divisao.
+export function nivelDaTela(tela: string): "core" | "workspace" {
+  return (TELAS_CORE as readonly string[]).includes(tela) ? "core" : "workspace";
+}
 
 const TIPOS_CRIACAO = new Set<TipoGeracao>([
   "carrossel",
@@ -29,7 +36,6 @@ export function telaParaHash(tela: string): string {
     const tipo = tela.slice("criar:".length);
     if (tipoCriacaoValido(tipo)) return `#/criar/${tipo}`;
   }
-  if (tela === "cockpit") return "#/cockpit";
   if (TELAS_FIXAS.has(tela)) return `#/${tela}`;
   return "#/dashboard";
 }
@@ -44,7 +50,6 @@ export function hashParaTela(hash: string): string {
     const tipo = caminho.slice("criar/".length);
     if (tipoCriacaoValido(tipo)) return `criar:${tipo}`;
   }
-  if (caminho === "cockpit") return "cockpit";
   if (TELAS_FIXAS.has(caminho)) return caminho;
   return "dashboard";
 }
@@ -55,11 +60,13 @@ export function tipoCriacaoDaTela(tela: string): TipoGeracao | null {
   return tipoCriacaoValido(tipo) ? tipo : null;
 }
 
+// Cancelar uma criacao volta pro trabalho do workspace, nunca pro CORE: quem
+// estava criando peca estava dentro de um projeto.
 export function retornoSeguroDaCriacao(valor: unknown): string {
   if (typeof valor !== "string" || valor.length === 0 || valor.startsWith("criar:")) {
-    return "dashboard";
+    return "inicio";
   }
-  return hashParaTela(telaParaHash(valor)) === valor ? valor : "dashboard";
+  return hashParaTela(telaParaHash(valor)) === valor ? valor : "inicio";
 }
 
 export function destinoAposCriacao(tipo: TipoGeracao, pasta: string): string {

@@ -1,13 +1,38 @@
 {
   "fonte": "curado a mao a partir de app/web/src/componentes/layout/rotas.ts, Shell.tsx e App.tsx",
-  "atualizadoEm": "2026-07-26",
+  "atualizadoEm": "2026-07-27",
   "versao": 1,
   "zonas": [
-    { "id": "entrada", "nome": "Entrada e boot", "cor": "suave" },
-    { "id": "hub", "nome": "Hub", "cor": "menta" },
-    { "id": "conteudo", "nome": "Conteúdo", "cor": "amarelo" },
-    { "id": "criacao", "nome": "Criação", "cor": "alerta" },
-    { "id": "edicao", "nome": "Edição", "cor": "fraco" }
+    {
+      "id": "entrada",
+      "nome": "Entrada e boot",
+      "cor": "suave"
+    },
+    {
+      "id": "core",
+      "nome": "Core",
+      "cor": "menta"
+    },
+    {
+      "id": "workspace",
+      "nome": "Workspace aberto",
+      "cor": "fraco"
+    },
+    {
+      "id": "conteudo",
+      "nome": "Conteúdo",
+      "cor": "amarelo"
+    },
+    {
+      "id": "criacao",
+      "nome": "Criação",
+      "cor": "alerta"
+    },
+    {
+      "id": "edicao",
+      "nome": "Edição",
+      "cor": "fraco"
+    }
   ],
   "telas": [
     {
@@ -18,7 +43,9 @@
       "destino": null,
       "resumo": "A porta que aparece enquanto o Hub carrega o cliente.",
       "descricao": "Primeiro quadro do app. Fica no ar enquanto o servidor responde e o estado inicial chega. Sai sozinho para o Dashboard quando tudo está pronto, ou para o Setup na primeira execução.",
-      "estados": ["carregando inicial"],
+      "estados": [
+        "carregando inicial"
+      ],
       "esqueleto": "splash"
     },
     {
@@ -29,7 +56,10 @@
       "destino": null,
       "resumo": "Quando o backend local não responde.",
       "descricao": "Aparece se o servidor do Hub estiver fora. Tem um botão para tentar de novo e reconecta sozinho a cada poucos segundos.",
-      "estados": ["botão tentar de novo", "retentativa automática"],
+      "estados": [
+        "botão tentar de novo",
+        "retentativa automática"
+      ],
       "esqueleto": "splash"
     },
     {
@@ -40,7 +70,12 @@
       "destino": "setup",
       "resumo": "Escolhe e prepara o motor de IA (Claude ou Codex).",
       "descricao": "Onde o motor de IA vira padrão. Escolhe o provedor, instala guiado se faltar, faz login e roda um teste ao vivo mostrando o custo aproximado. É a primeira tela da primeira execução.",
-      "estados": ["escolha do provedor", "instalação guiada", "login", "teste ao vivo com custo"],
+      "estados": [
+        "escolha do provedor",
+        "instalação guiada",
+        "login",
+        "teste ao vivo com custo"
+      ],
       "esqueleto": "setup"
     },
     {
@@ -51,34 +86,76 @@
       "destino": null,
       "resumo": "Escolher ou criar a pasta VKOS do cliente.",
       "descricao": "Depois do motor pronto, o cliente precisa de uma pasta VKOS com Cérebro. Aqui o Jesse aponta uma pasta existente ou cria uma nova. Concluído, o cockpit libera e o Dashboard abre.",
-      "estados": ["escolher pasta existente", "criar pasta nova"],
+      "estados": [
+        "escolher pasta existente",
+        "criar pasta nova"
+      ],
       "esqueleto": "wizard"
     },
     {
       "id": "dashboard",
-      "zona": "hub",
-      "nome": "Dashboard",
+      "zona": "core",
+      "nome": "Dashboard do Core",
       "rota": "#/dashboard",
       "destino": "dashboard",
-      "resumo": "Porta de entrada do cliente ativo.",
-      "descricao": "Centro do Hub. Resumo do cliente ativo e os botões que abrem os fluxos de criação. Volta aqui ao concluir ou cancelar qualquer criação.",
-      "estados": ["botões de criação", "resumo do cliente"],
+      "resumo": "Gasto com IA e projetos ativos.",
+      "descricao": "Tela principal do nível CORE, e a primeira que abre. Mostra o gasto com IA de todos os workspaces (inclusive os já removidos), a série dos últimos 14 dias e quais projetos estão ativos. Nada aqui muda quando se troca de workspace.",
+      "estados": [
+        "total como piso quando falta preço",
+        "série de 14 dias",
+        "lista de projetos ativos"
+      ],
+      "esqueleto": "dashboard"
+    },
+    {
+      "id": "workspaces",
+      "zona": "core",
+      "nome": "Workspaces",
+      "rota": "#/workspaces",
+      "destino": "workspaces",
+      "resumo": "A lista de projetos do dono.",
+      "descricao": "Lista dos workspaces registrados, com o gasto de cada um, o estado de atividade e a última vez que houve trabalho. Abrir, criar, adicionar, renomear e remover moram aqui. Até 2026-07-27 isso vivia só no seletor da sidebar.",
+      "estados": [
+        "lista",
+        "adicionar pasta existente",
+        "criar workspace novo",
+        "confirmar remoção"
+      ],
+      "esqueleto": "grade"
+    },
+    {
+      "id": "inicio",
+      "zona": "workspace",
+      "nome": "Início do workspace",
+      "rota": "#/inicio",
+      "destino": "inicio",
+      "resumo": "A tela de trabalho do projeto aberto.",
+      "descricao": "Porta de entrada do workspace aberto: saudação com o nome dele, criação guiada de conteúdo visual e de site, criações recentes e atalhos para o Cockpit e as Galerias. Era o Dashboard até 2026-07-27, quando o Dashboard virou a tela do CORE.",
+      "estados": [
+        "botões de criação",
+        "criações recentes"
+      ],
       "esqueleto": "dashboard"
     },
     {
       "id": "cockpit",
-      "zona": "hub",
+      "zona": "workspace",
       "nome": "Cockpit",
       "rota": "#/cockpit",
       "destino": "cockpit",
       "resumo": "Canvas infinito de operação multi-IA.",
       "descricao": "O cockpit conversacional. Canvas infinito com o nó do Cérebro, nós de sessão (conversa com IA ao vivo, custo, modelo), o terminal e o preview de site. É onde a operação com IA acontece de fato.",
-      "estados": ["nó do Cérebro", "nós de sessão", "terminal", "preview de site"],
+      "estados": [
+        "nó do Cérebro",
+        "nós de sessão",
+        "terminal",
+        "preview de site"
+      ],
       "esqueleto": "canvas"
     },
     {
       "id": "crm",
-      "zona": "hub",
+      "zona": "core",
       "nome": "CRM",
       "rota": "#/crm",
       "destino": "crm",
@@ -96,35 +173,48 @@
     },
     {
       "id": "conexoes",
-      "zona": "hub",
+      "zona": "core",
       "nome": "Conexões",
       "rota": "#/conexoes",
       "destino": "conexoes",
       "resumo": "Catálogo de integrações externas.",
       "descricao": "Onde entra o token da Apify, a integração que abastece a busca de leads do CRM. A conexão faz um teste real na API antes de ficar ativa.",
-      "estados": ["catálogo de integrações", "token", "teste real"],
+      "estados": [
+        "catálogo de integrações",
+        "token",
+        "teste real"
+      ],
       "esqueleto": "grade"
     },
     {
       "id": "mapa",
-      "zona": "hub",
+      "zona": "core",
       "nome": "Mapa",
       "rota": "#/mapa",
       "destino": "mapa",
       "resumo": "Visão Sistema e visão Telas do próprio Hub.",
       "descricao": "O mapa vivo do produto. A visão Sistema mostra quem alimenta quem, com modos discreto, percurso das skills e mapa completo. A visão Telas (esta) mostra todas as telas, rotas e estados de ponta a ponta.",
-      "estados": ["visão Sistema", "visão Telas", "modo discreto", "percurso das skills", "mapa completo"],
+      "estados": [
+        "visão Sistema",
+        "visão Telas",
+        "modo discreto",
+        "percurso das skills",
+        "mapa completo"
+      ],
       "esqueleto": "mapa"
     },
     {
       "id": "ide",
-      "zona": "hub",
+      "zona": "workspace",
       "nome": "IDE",
       "rota": "camada sobreposta",
       "destino": "ide",
       "resumo": "Chat de IA por cima de qualquer tela.",
       "descricao": "Camada de IDE que abre sobre a tela atual, sem sair dela. Um chat direto com a IA para tarefas rápidas de operação.",
-      "estados": ["chat IDE", "ferramentas ao vivo"],
+      "estados": [
+        "chat IDE",
+        "ferramentas ao vivo"
+      ],
       "esqueleto": "terminal"
     },
     {
@@ -135,7 +225,10 @@
       "destino": "galerias",
       "resumo": "Todas as peças de imagem num lugar.",
       "descricao": "Galeria unificada das peças de imagem do cliente: carrossel, post e stories juntos. Clicar numa peça abre o Studio dela.",
-      "estados": ["grade de peças", "carrossel, post e stories"],
+      "estados": [
+        "grade de peças",
+        "carrossel, post e stories"
+      ],
       "esqueleto": "galeria"
     },
     {
@@ -146,7 +239,9 @@
       "destino": "fluxo:site",
       "resumo": "Lista dos sites do cliente.",
       "descricao": "As peças de site do cliente. Clicar num site abre a Tela do Site, com preview, conformidade e exportação.",
-      "estados": ["lista de sites"],
+      "estados": [
+        "lista de sites"
+      ],
       "esqueleto": "lista"
     },
     {
@@ -157,7 +252,9 @@
       "destino": "fontes",
       "resumo": "Nós de contexto que alimentam as sessões.",
       "descricao": "Os tipos de fonte de dados presentes no cliente: texto, imagens e links. Cada tipo abre a lista dos seus itens.",
-      "estados": ["tipos de contexto presentes"],
+      "estados": [
+        "tipos de contexto presentes"
+      ],
       "esqueleto": "lista"
     },
     {
@@ -168,7 +265,10 @@
       "destino": "fonte:@fonte",
       "resumo": "Itens de um tipo de contexto.",
       "descricao": "Os itens de um tipo de fonte: as notas de texto, a grade de imagens de referência ou os links. O botão Abrir leva ao primeiro tipo de fonte presente no cliente ativo.",
-      "estados": ["itens do tipo", "anexos"],
+      "estados": [
+        "itens do tipo",
+        "anexos"
+      ],
       "esqueleto": "lista"
     },
     {
@@ -179,7 +279,13 @@
       "destino": "criar:carrossel",
       "resumo": "Wizard de geração de carrossel.",
       "descricao": "Assistente guiado do carrossel: briefing, escolha de modelo e estilo, origens de imagem, instruções finais e o interruptor Aprimorar com IA. Concluído, abre o Studio da peça nova.",
-      "estados": ["briefing", "modelo e estilo", "origens de imagem", "instruções finais", "geração ao vivo"],
+      "estados": [
+        "briefing",
+        "modelo e estilo",
+        "origens de imagem",
+        "instruções finais",
+        "geração ao vivo"
+      ],
       "esqueleto": "wizard"
     },
     {
@@ -190,7 +296,11 @@
       "destino": "criar:post",
       "resumo": "Wizard de geração de post.",
       "descricao": "Mesmo assistente guiado, no formato de post único. Concluído, abre o Studio da peça nova.",
-      "estados": ["briefing", "modelo e estilo", "geração ao vivo"],
+      "estados": [
+        "briefing",
+        "modelo e estilo",
+        "geração ao vivo"
+      ],
       "esqueleto": "wizard"
     },
     {
@@ -201,7 +311,11 @@
       "destino": "criar:story",
       "resumo": "Wizard de geração de story.",
       "descricao": "Assistente guiado no formato de stories. Concluído, abre o Studio da peça nova.",
-      "estados": ["briefing", "modelo e estilo", "geração ao vivo"],
+      "estados": [
+        "briefing",
+        "modelo e estilo",
+        "geração ao vivo"
+      ],
       "esqueleto": "wizard"
     },
     {
@@ -212,7 +326,12 @@
       "destino": "criar:site",
       "resumo": "Site Guiado com laço de conformidade.",
       "descricao": "Assistente do Site Guiado: briefing, estilo, instruções finais e o laço de conformidade que confere e corrige o site depois da geração. Concluído, abre a Tela do Site.",
-      "estados": ["briefing", "estilo", "instruções finais", "laço de conformidade"],
+      "estados": [
+        "briefing",
+        "estilo",
+        "instruções finais",
+        "laço de conformidade"
+      ],
       "esqueleto": "wizard"
     },
     {
@@ -223,7 +342,10 @@
       "destino": null,
       "resumo": "Mini card quando o wizard é minimizado.",
       "descricao": "Quando o wizard é fechado mas a geração segue viva, um mini card flutuante mostra o progresso e reabre o assistente ao clique.",
-      "estados": ["progresso", "reabrir o wizard"],
+      "estados": [
+        "progresso",
+        "reabrir o wizard"
+      ],
       "esqueleto": "splash"
     },
     {
@@ -233,8 +355,15 @@
       "rota": "#/studio/:pasta",
       "destino": "studio:@peca-imagem",
       "resumo": "Editor visual da peça de imagem.",
-      "descricao": "Canvas de edição da peça: seleção, alças de redimensionar, painel de propriedades, painel de camadas e o ajustar com IA. O botão Abrir leva à peça de imagem mais recente do cliente ativo.",
-      "estados": ["canvas da peça", "seleção", "alças de redimensionar", "painel de propriedades", "painel de camadas", "ajustar com IA"],
+      "descricao": "Canvas de edição da peça por manipulação direta: seleção, alças de redimensionar, arrasto com guias de alinhamento, desfazer e refazer, atalhos de teclado, painel de propriedades, painel de camadas e o ajustar com IA. O painel abre pelo elemento selecionado. O botão Abrir leva à peça de imagem mais recente do cliente ativo.",
+      "estados": [
+        "canvas da peça",
+        "seleção",
+        "alças de redimensionar",
+        "painel de propriedades",
+        "painel de camadas",
+        "ajustar com IA"
+      ],
       "esqueleto": "editor"
     },
     {
@@ -245,35 +374,161 @@
       "destino": "site:@peca-site",
       "resumo": "Preview, conformidade e exportação do site.",
       "descricao": "A tela do site de uma peça: preview ao vivo, auditoria de conformidade e a exportação local, que abre a pasta da peça ou baixa o site pronto num ZIP. O botão Abrir leva ao site mais recente do cliente ativo.",
-      "estados": ["preview", "conformidade", "abrir pasta", "baixar site"],
+      "estados": [
+        "preview",
+        "conformidade",
+        "abrir pasta",
+        "baixar site"
+      ],
       "esqueleto": "split"
     }
   ],
   "ligacoes": [
-    { "de": "splash", "para": "dashboard", "gesto": "carrega e abre" },
-    { "de": "splash", "para": "setup", "gesto": "primeira execução" },
-    { "de": "setup", "para": "dashboard", "gesto": "conclui o setup" },
-    { "de": "onboarding", "para": "dashboard", "gesto": "escolhe a pasta VKOS" },
-    { "de": "dashboard", "para": "cockpit", "gesto": "abre o Cockpit" },
-    { "de": "dashboard", "para": "criar-carrossel", "gesto": "clica em criar carrossel" },
-    { "de": "dashboard", "para": "criar-post", "gesto": "clica em criar post" },
-    { "de": "dashboard", "para": "criar-story", "gesto": "clica em criar story" },
-    { "de": "dashboard", "para": "criar-site", "gesto": "clica em criar site" },
-    { "de": "dashboard", "para": "crm", "gesto": "abre o CRM" },
-    { "de": "dashboard", "para": "conexoes", "gesto": "abre as Conexões" },
-    { "de": "dashboard", "para": "mapa", "gesto": "abre o Mapa" },
-    { "de": "dashboard", "para": "galerias", "gesto": "abre as Galerias" },
-    { "de": "dashboard", "para": "fontes", "gesto": "abre as Fontes" },
-    { "de": "criar-carrossel", "para": "studio", "gesto": "conclui o wizard" },
-    { "de": "criar-post", "para": "studio", "gesto": "conclui o wizard" },
-    { "de": "criar-story", "para": "studio", "gesto": "conclui o wizard" },
-    { "de": "criar-site", "para": "site", "gesto": "conclui o wizard" },
-    { "de": "criar-carrossel", "para": "geracao-flutuante", "gesto": "minimiza o wizard" },
-    { "de": "galerias", "para": "studio", "gesto": "clica numa peça" },
-    { "de": "fluxo-site", "para": "site", "gesto": "clica num site" },
-    { "de": "fontes", "para": "fonte", "gesto": "abre um tipo de fonte" },
-    { "de": "cockpit", "para": "ide", "gesto": "abre a IDE" },
-    { "de": "dashboard", "para": "ide", "gesto": "abre a IDE" }
+    {
+      "de": "splash",
+      "para": "dashboard",
+      "gesto": "carrega e abre"
+    },
+    {
+      "de": "splash",
+      "para": "setup",
+      "gesto": "primeira execução"
+    },
+    {
+      "de": "setup",
+      "para": "dashboard",
+      "gesto": "conclui o setup"
+    },
+    {
+      "de": "onboarding",
+      "para": "dashboard",
+      "gesto": "escolhe a pasta VKOS"
+    },
+    {
+      "de": "inicio",
+      "para": "cockpit",
+      "gesto": "abre o Cockpit"
+    },
+    {
+      "de": "inicio",
+      "para": "criar-carrossel",
+      "gesto": "clica em criar carrossel"
+    },
+    {
+      "de": "inicio",
+      "para": "criar-post",
+      "gesto": "clica em criar post"
+    },
+    {
+      "de": "inicio",
+      "para": "criar-story",
+      "gesto": "clica em criar story"
+    },
+    {
+      "de": "inicio",
+      "para": "criar-site",
+      "gesto": "clica em criar site"
+    },
+    {
+      "de": "dashboard",
+      "para": "crm",
+      "gesto": "abre o CRM"
+    },
+    {
+      "de": "dashboard",
+      "para": "conexoes",
+      "gesto": "abre as Conexões"
+    },
+    {
+      "de": "dashboard",
+      "para": "mapa",
+      "gesto": "abre o Mapa"
+    },
+    {
+      "de": "inicio",
+      "para": "galerias",
+      "gesto": "abre as Galerias"
+    },
+    {
+      "de": "inicio",
+      "para": "fontes",
+      "gesto": "abre as Fontes"
+    },
+    {
+      "de": "criar-carrossel",
+      "para": "studio",
+      "gesto": "conclui o wizard"
+    },
+    {
+      "de": "criar-post",
+      "para": "studio",
+      "gesto": "conclui o wizard"
+    },
+    {
+      "de": "criar-story",
+      "para": "studio",
+      "gesto": "conclui o wizard"
+    },
+    {
+      "de": "criar-site",
+      "para": "site",
+      "gesto": "conclui o wizard"
+    },
+    {
+      "de": "criar-carrossel",
+      "para": "geracao-flutuante",
+      "gesto": "minimiza o wizard"
+    },
+    {
+      "de": "galerias",
+      "para": "studio",
+      "gesto": "clica numa peça"
+    },
+    {
+      "de": "fluxo-site",
+      "para": "site",
+      "gesto": "clica num site"
+    },
+    {
+      "de": "fontes",
+      "para": "fonte",
+      "gesto": "abre um tipo de fonte"
+    },
+    {
+      "de": "cockpit",
+      "para": "ide",
+      "gesto": "abre a IDE"
+    },
+    {
+      "de": "dashboard",
+      "para": "ide",
+      "gesto": "abre a IDE"
+    },
+    {
+      "de": "dashboard",
+      "para": "workspaces",
+      "gesto": "clica em Workspaces"
+    },
+    {
+      "de": "dashboard",
+      "para": "inicio",
+      "gesto": "abre um workspace da lista"
+    },
+    {
+      "de": "workspaces",
+      "para": "inicio",
+      "gesto": "abre um workspace"
+    },
+    {
+      "de": "inicio",
+      "para": "dashboard",
+      "gesto": "clica em Dashboard"
+    },
+    {
+      "de": "workspaces",
+      "para": "dashboard",
+      "gesto": "clica em Dashboard"
+    }
   ],
   "jornadas": [
     {
@@ -281,42 +536,77 @@
       "nome": "Primeira vez no Hub",
       "resumo": "Do boot até o Dashboard pronto para operar.",
       "cor": "menta",
-      "passos": ["splash", "setup", "onboarding", "dashboard"]
+      "passos": [
+        "splash",
+        "setup",
+        "onboarding",
+        "dashboard"
+      ]
     },
     {
       "id": "criar-carrossel",
       "nome": "Criar um carrossel",
       "resumo": "Do Dashboard ao Studio da peça nova.",
       "cor": "amarelo",
-      "passos": ["dashboard", "criar-carrossel", "studio"]
+      "passos": [
+        "inicio",
+        "criar-carrossel",
+        "studio"
+      ]
     },
     {
       "id": "criar-site",
       "nome": "Criar e exportar um site",
       "resumo": "Do Dashboard ao site pronto pra baixar.",
       "cor": "menta",
-      "passos": ["dashboard", "criar-site", "site"]
+      "passos": [
+        "inicio",
+        "criar-site",
+        "site"
+      ]
     },
     {
       "id": "editar-peca",
       "nome": "Editar uma peça",
       "resumo": "Da galeria ao editor.",
       "cor": "fraco",
-      "passos": ["galerias", "studio"]
+      "passos": [
+        "galerias",
+        "studio"
+      ]
     },
     {
       "id": "cuidar-crm",
       "nome": "Cuidar do CRM",
       "resumo": "Do Dashboard ao funil de negócios.",
       "cor": "alerta",
-      "passos": ["dashboard", "crm"]
+      "passos": [
+        "inicio",
+        "crm"
+      ]
     },
     {
       "id": "operar-ia",
       "nome": "Operar com IA",
       "resumo": "Do Dashboard ao Cockpit e à IDE.",
       "cor": "suave",
-      "passos": ["dashboard", "cockpit", "ide"]
+      "passos": [
+        "inicio",
+        "cockpit",
+        "ide"
+      ]
+    },
+    {
+      "id": "abrir-um-projeto",
+      "nome": "Abrir um projeto",
+      "resumo": "Do Dashboard do Core até o trabalho dentro do workspace.",
+      "cor": "menta",
+      "passos": [
+        "dashboard",
+        "workspaces",
+        "inicio",
+        "cockpit"
+      ]
     }
   ]
 }

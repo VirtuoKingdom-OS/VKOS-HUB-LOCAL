@@ -8,7 +8,8 @@ import { Sidebar, type ItemFluxo, type ItemFonte } from "./Sidebar";
 import { TelaFluxo } from "../telas/TelaFluxo";
 import { TelaFonte } from "../telas/TelaFonte";
 import { TelaFontes } from "../telas/TelaFontes";
-import { TelaDashboard } from "../dashboard/TelaDashboard";
+import { TelaWorkspace } from "../workspace/TelaWorkspace";
+import { TelaCore } from "../core/TelaCore";
 import { TelaGalerias } from "../telas/TelaGalerias";
 import { ORDEM_TIPOS } from "../telas/fluxos";
 import { ORDEM_TIPOS_FONTE } from "../telas/fontes";
@@ -35,6 +36,9 @@ const TelaCrm = lazy(() =>
 );
 const TelaMapa = lazy(() =>
   import("../mapa").then((m) => ({ default: m.TelaMapa }))
+);
+const TelaWorkspaces = lazy(() =>
+  import("../core").then((m) => ({ default: m.TelaWorkspaces }))
 );
 const TelaStudio = lazy(() =>
   import("../studio/TelaStudio").then((m) => ({ default: m.TelaStudio }))
@@ -183,8 +187,7 @@ export function Shell() {
       ? tipoFonte
       : null;
 
-  // Tela fixa do hub pedida (Dashboard, Galerias, Fontes, CRM e Conexoes):
-  // sempre valida.
+  // Tela fixa pedida, dos dois niveis (CORE e workspace): sempre valida.
   const telaFixa = TELAS_FIXAS.has(tela) ? tela : null;
 
   // Studio de uma peca: o segmento URL-encoded da pasta. A validade da peca e
@@ -216,14 +219,12 @@ export function Shell() {
             ? `site:${paramSite}`
             : telaFixa
               ? telaFixa
-              : tela === "cockpit"
-                ? "cockpit"
-                : "dashboard";
+              : "dashboard";
 
   const abrirCriacao = useCallback((tipo: TipoGeracao) => {
     const proxima = `criar:${tipo}`;
     if (telaAtiva === proxima) return;
-    const retorno = tipoCriacao ? "dashboard" : telaAtiva;
+    const retorno = tipoCriacao ? "inicio" : telaAtiva;
     flushSync(() => {
       setIdeAberta(false);
       setTela(proxima);
@@ -265,7 +266,7 @@ export function Shell() {
       <Sidebar
         itensFluxo={itensFluxo}
         itensFonte={itensFonte}
-        telaAtiva={tipoCriacao ? "dashboard" : telaAtiva}
+        telaAtiva={tipoCriacao ? "inicio" : telaAtiva}
         aoNavegar={navegar}
         ideAberta={ideAberta}
         aoAlternarIde={alternarIde}
@@ -288,12 +289,15 @@ export function Shell() {
             aoVoltar={() => navegar("fontes")}
           />
         )}
-        {/* Telas fixas leves, sempre no bundle principal: o Dashboard e a porta
-            de entrada e a Galeria/Em breve sao telas simples. Key por workspace:
-            trocar de cliente remonta a tela com os dados do cliente novo. */}
-        {(telaFixa === "dashboard" || tipoCriacao) && (
-          <TelaDashboard
-            key={`dash-${workspaceAtivo}`}
+        {/* Dashboard do CORE: o nivel de cima. Sem key por workspace de
+            proposito, porque nada nele e do workspace aberto. */}
+        {telaFixa === "dashboard" && <TelaCore aoNavegar={navegar} />}
+        {/* Tela de trabalho do workspace aberto. Continua sendo a base do
+            assistente de criacao: criar peca e trabalho de projeto. Key por
+            workspace: trocar remonta com os dados do novo. */}
+        {(telaFixa === "inicio" || tipoCriacao) && (
+          <TelaWorkspace
+            key={`inicio-${workspaceAtivo}`}
             aoCriar={abrirCriacao}
           />
         )}
@@ -310,13 +314,16 @@ export function Shell() {
         {/* Telas fixas pesadas, por import dinamico. */}
         {(telaFixa === "conexoes" ||
           telaFixa === "mapa" ||
+          telaFixa === "workspaces" ||
           telaFixa === "crm") && (
           <Suspense
             fallback={<div className="tela-hub-carregando">Abrindo...</div>}
           >
-            {telaFixa === "conexoes" && (
-              <TelaConexoes key={`cx-${workspaceAtivo}`} />
-            )}
+            {/* Conexoes subiu pro CORE junto com o CRM: a conta e do dono, nao
+                do cliente. Sem key por workspace, porque trocar de cliente nao
+                muda nada aqui. */}
+            {telaFixa === "conexoes" && <TelaConexoes />}
+            {telaFixa === "workspaces" && <TelaWorkspaces aoNavegar={navegar} />}
             {/* O CRM nao leva key por workspace: o funil e do dono do Hub, o
                 mesmo em qualquer cliente. Remontar na troca so jogaria fora o
                 que estava aberto na tela, sem trazer dado novo nenhum. */}

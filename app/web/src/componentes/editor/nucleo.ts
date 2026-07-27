@@ -236,36 +236,67 @@ export function lerNum(v: string | null | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
-// Pilha de snapshots pro desfazer. Generica: cada motor decide o que um
-// snapshot guarda (corpo + vars no carrossel, documento inteiro no site) e como
-// restaura. A pilha so empilha, retira e limita o tamanho.
-export class PilhaSnapshots<T> {
-  private itens: T[] = [];
+// Historico de snapshots com desfazer E refazer. Generico: cada motor decide o
+// que um snapshot guarda (corpo + vars no carrossel, documento inteiro no site)
+// e como restaura. Aqui mora so a decisao de qual pilha recebe o que.
+//
+// O contrato de refazer exige o estado ATUAL na hora de desfazer: sem ele nao
+// ha pra onde voltar. Por isso desfazer(atual) e refazer(atual) recebem o
+// snapshot de agora e devolvem o que restaurar.
+//
+// Regra classica de editor: acao nova mata o refazer pendente. Desfiz, mudei de
+// ideia e editei outra coisa: o galho abandonado nao volta.
+export class Historico<T> {
+  private paraDesfazer: T[] = [];
+  private paraRefazer: T[] = [];
   constructor(private limite = 40) {}
-  // Empilha um snapshot novo; se passar do limite, descarta o mais antigo.
-  empurrar(snap: T): void {
-    this.itens.push(snap);
-    if (this.itens.length > this.limite) this.itens.shift();
+
+  // Registra o estado de ANTES de uma acao nova. Zera o refazer.
+  registrar(snap: T): void {
+    this.paraDesfazer.push(snap);
+    if (this.paraDesfazer.length > this.limite) this.paraDesfazer.shift();
+    this.paraRefazer = [];
   }
-  // Retira e devolve o topo (o snapshot a restaurar), ou undefined se vazia.
-  retirar(): T | undefined {
-    return this.itens.pop();
+
+  // Desfaz: devolve o snapshot a restaurar e guarda o atual pro refazer.
+  desfazer(atual: T): T | undefined {
+    const snap = this.paraDesfazer.pop();
+    if (snap === undefined) return undefined;
+    this.paraRefazer.push(atual);
+    if (this.paraRefazer.length > this.limite) this.paraRefazer.shift();
+    return snap;
   }
-  // Joga fora o topo sem restaurar (ex: edicao que nao mudou nada).
+
+  // Refaz: devolve o snapshot a restaurar e guarda o atual pro desfazer. Nao
+  // passa por registrar(), senao o proprio refazer apagaria a fila de refazer.
+  refazer(atual: T): T | undefined {
+    const snap = this.paraRefazer.pop();
+    if (snap === undefined) return undefined;
+    this.paraDesfazer.push(atual);
+    if (this.paraDesfazer.length > this.limite) this.paraDesfazer.shift();
+    return snap;
+  }
+
+  // Joga fora o topo do desfazer sem restaurar (ex: edicao que nao mudou nada).
+  // Nao mexe no refazer: o registrar() que veio antes ja o havia zerado.
   descartarUltimo(): void {
-    this.itens.pop();
+    this.paraDesfazer.pop();
   }
-  // Zera a pilha (ex: ao recarregar o iframe).
+
+  // Zera as duas pilhas (ex: ao recarregar o iframe ou ao salvar).
   limpar(): void {
-    this.itens = [];
+    this.paraDesfazer = [];
+    this.paraRefazer = [];
   }
-  // Ha ao menos um snapshot pra desfazer.
-  get tem(): boolean {
-    return this.itens.length > 0;
+
+  get temDesfazer(): boolean {
+    return this.paraDesfazer.length > 0;
   }
-  // Quantos snapshots existem.
+  get temRefazer(): boolean {
+    return this.paraRefazer.length > 0;
+  }
   get tamanho(): number {
-    return this.itens.length;
+    return this.paraDesfazer.length;
   }
 }
 

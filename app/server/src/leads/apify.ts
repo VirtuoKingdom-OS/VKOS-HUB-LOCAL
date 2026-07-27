@@ -93,8 +93,8 @@ export function normalizarRespostaApify(bruto: unknown): LeadEncontrado[] {
   return leads;
 }
 
-function tokenApify(workspaceId: string): string {
-  const conexao = lerConexoes(workspaceId).servidores.apify;
+function tokenApify(): string {
+  const conexao = lerConexoes().servidores.apify;
   const token = conexao?.config.token?.trim() ?? "";
   if (!conexao?.habilitado || !token) {
     throw new ErroLeads(
@@ -178,12 +178,11 @@ function corpoDaBusca(
 }
 
 export async function buscarLeads(
-  workspaceId: string,
   termo: string,
   opcoes: OpcoesBuscaLeads = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<LeadEncontrado[]> {
-  const token = tokenApify(workspaceId);
+  const token = tokenApify();
   const consulta = termo.trim();
   if (!consulta) throw new ErroLeads("Informe o que você quer buscar.", 400);
 

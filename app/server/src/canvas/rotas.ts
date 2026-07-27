@@ -80,7 +80,7 @@ export const rotasCanvas: FastifyPluginAsync = async (app) => {
     const corpo = (req.body ?? {}) as Record<string, unknown>;
     const { workspaceId, ...canvas } = corpo;
     if (typeof workspaceId === "string" && workspaceId !== id) {
-      return resposta.status(409).send({ erro: "canvas de outro cliente, gravacao recusada" });
+      return resposta.status(409).send({ erro: "canvas de outro workspace, gravacao recusada" });
     }
     const caminho = join(pastaDadosWorkspace(id), "canvas.json");
     // Confere o que ja esta em disco antes de gravar por cima. Se estiver

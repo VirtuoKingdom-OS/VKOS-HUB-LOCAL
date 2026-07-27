@@ -9,7 +9,18 @@ import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import { PainelPropriedades } from "./PainelPropriedades";
 import { PainelAjusteCarrossel } from "./PainelAjusteCarrossel";
 import { blocoDeAnexos } from "../comum/AnexosAjuste";
-import { IconeSeta, IconeArquivo, IconeGaleria, IconeChevron, IconeRaio } from "../comum/Icones";
+import {
+  IconeSeta,
+  IconeArquivo,
+  IconeGaleria,
+  IconeChevron,
+  IconeRaio,
+  IconeDesfazer,
+  IconeRefazer,
+  IconeTeclado,
+} from "../comum/Icones";
+import { Confirmacao } from "../comum/Confirmacao";
+import { AtalhosStudio } from "./AtalhosStudio";
 import "../../estilos/editor.css";
 import "../../estilos/studio.css";
 
@@ -76,7 +87,16 @@ export function TelaStudio({ pasta }: Props) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  // Confirmacao de exclusao, compartilhada pelo botao do painel e pela tecla
+  // Delete no canvas. Mora aqui, e nao no painel, porque a tecla chega pelo
+  // motor e as duas portas precisam abrir a MESMA janela.
+  const [confirmarExclusao, setConfirmarExclusao] = useState<"elemento" | "imagem" | null>(
+    null,
+  );
   const [menuBaixar, setMenuBaixar] = useState(false);
+  // Confirmacao efemera de gravacao, e a folha de atalhos.
+  const [avisoSalvo, setAvisoSalvo] = useState(false);
+  const [ajuda, setAjuda] = useState(false);
   const [ts, setTs] = useState(() => Date.now());
   const [painelIa, setPainelIa] = useState(false);
   const [pedidoIa, setPedidoIa] = useState("");
@@ -174,16 +194,29 @@ export function TelaStudio({ pasta }: Props) {
     if (melhor !== focoRef.current) setFoco(melhor);
   }, [geos]);
 
-  // Roda do mouse rola as paginas na horizontal (padrao de canvas de slides
-  // lado a lado). deltaY vira scrollLeft; deltaX e Shift somam no mesmo eixo. O
-  // mesmo handler serve pro corpo do iframe (que nao rola sozinho) e pra area
-  // do canvas fora do iframe, pra roda funcionar em QUALQUER ponto. Ctrl+roda
-  // fica de fora (reservado a zoom do navegador), sem interceptar.
+  // Roda do mouse no canvas. As paginas ficam lado a lado, entao a roda pra
+  // baixo anda na horizontal, que e o gesto util na maior parte do tempo.
+  // Excecao que faltava: com zoom alto o slide fica MAIS ALTO que a area
+  // visivel, e antes nao havia jeito nenhum de ver o pe da pagina (a roda so
+  // rolava na horizontal e o preventDefault matava a rolagem nativa). Agora,
+  // quando ha o que rolar na vertical e o usuario nao pediu horizontal com
+  // Shift, o deltaY vai pra vertical. Ctrl+roda fica de fora (zoom do
+  // navegador), sem interceptar.
   const aoRoda = useCallback((e: WheelEvent) => {
     if (e.ctrlKey) return;
     const box = refCanvas.current;
     if (!box) return;
-    box.scrollLeft += e.deltaX + e.deltaY;
+    const sobraVertical = box.scrollHeight - box.clientHeight > 1;
+    const vertical = sobraVertical && !e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX);
+    // Um scrollBy so, e sempre instantaneo. O canvas tem scroll-behavior:smooth
+    // pros deslocamentos programaticos, mas gesto de roda tem que ser imediato:
+    // com smooth, cada atribuicao vira uma animacao nova, a segunda cancela a
+    // primeira e a rolagem simplesmente nao acontecia.
+    box.scrollBy({
+      left: vertical ? e.deltaX : e.deltaX + e.deltaY,
+      top: vertical ? e.deltaY : 0,
+      behavior: "auto",
+    });
     e.preventDefault();
   }, []);
 
@@ -195,6 +228,9 @@ export function TelaStudio({ pasta }: Props) {
     aoAtalhoSalvar: () => {
       if (naoSalvoRef.current && !salvando) void salvarWrap();
     },
+    // Delete no canvas cai na MESMA confirmacao do botao do painel: o Desfazer
+    // some depois de salvar, entao a tecla nao pode apagar em silencio.
+    aoPedirExcluir: () => setConfirmarExclusao("elemento"),
     aoInstrumentar: (doc) => {
       injetarLayout(doc);
       doc.addEventListener("wheel", aoRoda, { passive: false });
@@ -409,24 +445,37 @@ export function TelaStudio({ pasta }: Props) {
     if (ok) sair();
   }
 
-  // ===== Atalhos: Ctrl+S salva, Ctrl+Z desfaz, Esc desmarca (nao fecha a tela).
+  // ===== Atalhos com o foco no APP. Os mesmos gestos existem dentro do iframe
+  // (motor.aoTeclaDoc): o keydown nao atravessa a fronteira do documento, entao
+  // cada atalho precisa dos dois lados.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const tecla = e.key.toLowerCase();
+      if (ctrl && tecla === "s") {
         e.preventDefault();
         if (motor.naoSalvo && !salvando) void salvarWrap();
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      if (ctrl && ((tecla === "z" && e.shiftKey) || (tecla === "y" && !e.shiftKey))) {
+        e.preventDefault();
+        motor.refazer();
+        return;
+      }
+      if (ctrl && tecla === "z") {
         e.preventDefault();
         motor.desfazer();
         return;
       }
       if (e.key === "Escape") {
-        if (confirmando) {
+        if (confirmarExclusao) {
+          setConfirmarExclusao(null);
+        } else if (confirmando) {
           setConfirmando(false);
         } else if (menuBaixar) {
           setMenuBaixar(false);
+        } else if (ajuda) {
+          setAjuda(false);
         } else if (motor.selecao) {
           e.stopPropagation();
           motor.limparSelecao();
@@ -436,7 +485,17 @@ export function TelaStudio({ pasta }: Props) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [motor.naoSalvo, salvando, confirmando, menuBaixar, motor.selecao]);
+  }, [motor.naoSalvo, salvando, confirmando, menuBaixar, motor.selecao, confirmarExclusao, ajuda]);
+
+  // ===== Aviso de "Salvo": aparece na gravacao e some sozinho. Salvar aqui e
+  // rapido (arquivo local), e o guia do NN/g diz pra nao mostrar spinner abaixo
+  // de 1 segundo: o que falta nao e a espera, e a confirmacao do resultado.
+  useEffect(() => {
+    if (!motor.salvoEm) return;
+    setAvisoSalvo(true);
+    const t = window.setTimeout(() => setAvisoSalvo(false), 2600);
+    return () => window.clearTimeout(t);
+  }, [motor.salvoEm]);
 
   // Fecha o menu Baixar ao clicar fora.
   useEffect(() => {
@@ -487,20 +546,53 @@ export function TelaStudio({ pasta }: Props) {
           </button>
           <div className="studio-titulo">
             <h1 title={nome}>{nome}</h1>
-            {motor.naoSalvo && (
-              <span className="studio-ponto-salvar" title="Alterações não salvas" />
-            )}
+            {/* Estado da gravação em um lugar só, ao lado do nome: o padrão do
+                Google Docs e do Canva. Antes o único sinal era o sumiço do
+                ponto, e nada dizia que tinha dado certo. */}
+            <span className="studio-estado" role="status" aria-live="polite">
+              {salvando ? (
+                <span className="studio-estado-txt">Salvando...</span>
+              ) : motor.naoSalvo ? (
+                <>
+                  <span className="studio-ponto-salvar" title="Alterações não salvas" />
+                  <span className="studio-estado-txt">Não salvo</span>
+                </>
+              ) : avisoSalvo ? (
+                <span className="studio-estado-txt studio-estado-ok">Salvo</span>
+              ) : null}
+            </span>
           </div>
         </div>
 
         <div className="studio-acoes">
+          <div className="studio-historico">
+            <button
+              className="botao botao-fantasma botao-icone"
+              onClick={motor.desfazer}
+              disabled={!motor.podeDesfazer || ajustandoIa}
+              title="Desfazer (Ctrl+Z)"
+              aria-label="Desfazer"
+            >
+              <IconeDesfazer className="" />
+            </button>
+            <button
+              className="botao botao-fantasma botao-icone"
+              onClick={motor.refazer}
+              disabled={!motor.podeRefazer || ajustandoIa}
+              title="Refazer (Ctrl+Shift+Z)"
+              aria-label="Refazer"
+            >
+              <IconeRefazer className="" />
+            </button>
+          </div>
+
           <button
-            className="botao botao-fantasma"
-            onClick={motor.desfazer}
-            disabled={!motor.podeDesfazer || ajustandoIa}
-            title="Desfazer (Ctrl+Z)"
+            className="botao botao-fantasma botao-icone"
+            onClick={() => setAjuda(true)}
+            title="Atalhos do teclado"
+            aria-label="Atalhos do teclado"
           >
-            Desfazer
+            <IconeTeclado className="" />
           </button>
 
           <div className="studio-baixar">
@@ -628,6 +720,7 @@ export function TelaStudio({ pasta }: Props) {
             pecaPasta={pasta}
             aplicarTodas={aplicarTodas}
             aoAlternarTodas={() => setAplicarTodas((v) => !v)}
+            aoPedirExcluir={setConfirmarExclusao}
           />
         )}
 
@@ -657,6 +750,28 @@ export function TelaStudio({ pasta }: Props) {
           </div>
         </div>
       </div>
+
+      {ajuda && <AtalhosStudio aoFechar={() => setAjuda(false)} />}
+
+      {confirmarExclusao && motor.selecao && (
+        <Confirmacao
+          dados={{
+            titulo:
+              confirmarExclusao === "imagem"
+                ? "Excluir esta imagem?"
+                : "Excluir este elemento?",
+            mensagem:
+              "Você ainda poderá desfazer enquanto estiver editando. Depois de salvar o carrossel, esta exclusão será irreversível.",
+            rotuloConfirmar:
+              confirmarExclusao === "imagem" ? "Excluir imagem" : "Excluir elemento",
+            aoConfirmar:
+              confirmarExclusao === "imagem"
+                ? motor.excluirImagemSelecionada
+                : motor.excluirSelecionado,
+          }}
+          aoFechar={() => setConfirmarExclusao(null)}
+        />
+      )}
 
       {confirmando && (
         <div className="studio-confirm-scrim" onMouseDown={() => setConfirmando(false)}>

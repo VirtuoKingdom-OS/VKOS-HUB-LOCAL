@@ -622,7 +622,7 @@ function PassoTeste({
       <h1>Vamos ouvir o {nomeMotor}.</h1>
       <p className="setup-legenda">
         Este botão faz uma chamada curta de verdade. A resposta aparece aqui ao vivo,
-        sem criar cliente, histórico ou custo salvo no hub.
+        sem criar workspace, histórico ou custo salvo no hub.
       </p>
       <div className={`setup-terminal${sucesso ? " sucesso" : ""}`}>
         <span className="setup-terminal-topo">

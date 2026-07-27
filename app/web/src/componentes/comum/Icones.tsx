@@ -228,6 +228,36 @@ export function IconeOlhoRiscado({ className, style }: PropsIcone) {
 }
 
 // Mapa por id de fluxo, usado na barra de lancadores.
+// Seta que volta sobre si: o gesto de desfazer.
+export function IconeDesfazer({ className, style }: PropsIcone) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} {...base}>
+      <path d="M4 8h9a5 5 0 0 1 0 10h-4" />
+      <path d="M8 4 4 8l4 4" />
+    </svg>
+  );
+}
+
+// O espelho do desfazer: mesma seta, para o outro lado.
+export function IconeRefazer({ className, style }: PropsIcone) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} {...base}>
+      <path d="M20 8h-9a5 5 0 0 0 0 10h4" />
+      <path d="m16 4 4 4-4 4" />
+    </svg>
+  );
+}
+
+// Teclado: abre a folha de atalhos.
+export function IconeTeclado({ className, style }: PropsIcone) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} {...base}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6.5 9.5h.01M10 9.5h.01M13.5 9.5h.01M17 9.5h.01M8 14.5h8" />
+    </svg>
+  );
+}
+
 export function IconeFluxo({ id, className }: { id: string; className?: string }) {
   if (id === "carrossel") return <IconeCarrossel className={className} />;
   if (id === "post") return <IconePost className={className} />;

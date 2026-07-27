@@ -18,9 +18,26 @@ import { quarentenarComErro } from "../util/quarentena.js";
 const arquivoAtual = fileURLToPath(import.meta.url);
 const pastaModulo = dirname(arquivoAtual);
 const pastaApp = resolve(pastaModulo, "..", "..", "..");
-const pastaDados = join(pastaApp, "dados");
-const caminhoRegistro = join(pastaDados, "workspaces.json");
-const pastaWorkspaces = join(pastaDados, "workspaces");
+
+// Raiz dos dados, lida a CADA chamada e nunca fixada na carga do modulo.
+//
+// VKOS_DADOS_TESTE desvia a raiz pro teste nao gravar no registro real. Isso
+// nao e conveniencia, e conserto: ate 2026-07-27 estas tres constantes eram
+// calculadas uma vez, entao o teste de rota registrava cliente no
+// app/dados/workspaces.json de verdade. Ele salvava o registro antes e
+// restaurava no fim, mas o runner roda os arquivos em paralelo, e duas
+// restauracoes concorrentes se atropelam. O resultado apareceu na conferencia
+// visual: cinco clientes fantasma no Dashboard, apontando pra pasta temporaria
+// que ja tinha sumido.
+//
+// O CRM ja resolvia assim (ver crm/estado.ts). Aqui a raiz e o registro em si.
+function raizDados(): string {
+  return process.env.VKOS_DADOS_TESTE?.trim() || join(pastaApp, "dados");
+}
+
+function caminhoRegistroAtual(): string {
+  return join(raizDados(), "workspaces.json");
+}
 
 // Um cliente do prestador. A pasta e uma instalacao VKOS completa.
 export interface Workspace {
@@ -40,10 +57,13 @@ export interface RegistroWorkspaces {
 // Cache em memoria do registro. Toda mutacao passa por salvarRegistro, entao o
 // cache fica sempre coerente com o disco.
 let cache: RegistroWorkspaces | null = null;
+// De qual raiz o cache veio. Trocou a raiz, o cache nao vale mais.
+let raizDoCache: string | null = null;
 
 function garantirPastaDados(): void {
-  if (!existsSync(pastaDados)) {
-    mkdirSync(pastaDados, { recursive: true });
+  const raiz = raizDados();
+  if (!existsSync(raiz)) {
+    mkdirSync(raiz, { recursive: true });
   }
 }
 
@@ -57,7 +77,7 @@ function ehWorkspace(v: unknown): v is Workspace {
 // Diz se o arquivo do registro ja existe em disco. A migracao usa isso pra
 // decidir se ainda precisa rodar (idempotencia).
 export function registroExiste(): boolean {
-  return existsSync(caminhoRegistro);
+  return existsSync(caminhoRegistroAtual());
 }
 
 // Le o registro de um caminho. Arquivo ausente devolve null (primeira execucao,
@@ -77,11 +97,11 @@ export function lerRegistroDeArquivo(caminho: string): RegistroWorkspaces | null
   try {
     bruto = JSON.parse(readFileSync(caminho, "utf8"));
   } catch {
-    throw quarentenarComErro(caminho, "O registro de clientes");
+    throw quarentenarComErro(caminho, "O registro de workspaces");
   }
   const dados = bruto as { workspaces?: unknown; ativo?: unknown } | null;
   if (!dados || typeof dados !== "object" || !Array.isArray(dados.workspaces)) {
-    throw quarentenarComErro(caminho, "O registro de clientes");
+    throw quarentenarComErro(caminho, "O registro de workspaces");
   }
   return {
     workspaces: dados.workspaces.filter(ehWorkspace),
@@ -92,8 +112,9 @@ export function lerRegistroDeArquivo(caminho: string): RegistroWorkspaces | null
 // Le o registro do disco uma vez. Arquivo ausente vira registro vazio.
 // Corrompido lanca: ver lerRegistroDeArquivo.
 export function lerRegistro(): RegistroWorkspaces {
-  if (cache) return cache;
-  cache = lerRegistroDeArquivo(caminhoRegistro) ?? { workspaces: [], ativo: null };
+  if (cache && raizDoCache === raizDados()) return cache;
+  cache = lerRegistroDeArquivo(caminhoRegistroAtual()) ?? { workspaces: [], ativo: null };
+  raizDoCache = raizDados();
   return cache;
 }
 
@@ -101,7 +122,8 @@ export function lerRegistro(): RegistroWorkspaces {
 export function salvarRegistro(reg: RegistroWorkspaces): void {
   cache = reg;
   garantirPastaDados();
-  gravarJsonAtomico(caminhoRegistro, reg);
+  gravarJsonAtomico(caminhoRegistroAtual(), reg);
+  raizDoCache = raizDados();
 }
 
 // Id do workspace ativo, ou null. So devolve id que aponta pra um workspace real.
@@ -116,17 +138,17 @@ export function idWorkspaceAtivo(): string | null {
 // Raiz dos dados do hub: app/dados/. E o escopo CORE, do dono do Hub, onde mora
 // o que nao pertence a cliente nenhum (o CRM, por exemplo).
 export function pastaDadosHub(): string {
-  return pastaDados;
+  return raizDados();
 }
 
 // Pasta que guarda os dados de todos os clientes: app/dados/workspaces/.
 export function pastaWorkspacesHub(): string {
-  return pastaWorkspaces;
+  return join(raizDados(), "workspaces");
 }
 
 // Pasta de dados escopada de um workspace: app/dados/workspaces/<id>/.
 export function pastaDadosWorkspace(id: string): string {
-  return join(pastaWorkspaces, id);
+  return join(raizDados(), "workspaces", id);
 }
 
 // Garante a pasta de dados de um workspace e devolve o caminho.

@@ -4,7 +4,9 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Próxima fase:** Fase 4, o HUB CORE completo. Dashboard com o gasto de IA e projetos ativos, a lista de Workspaces, e Conexões subindo para o nível CORE.
+**Próxima fase:** Fase 5, o design system e a nova pele. A pesquisa e a Etapa 1 (a ordem da cascata) já fecharam; falta a implementação.
+
+A Fase 4, o HUB CORE, fechou em 2026-07-27 na versão 1.4.0. O Hub passou a ter dois níveis de verdade: o CORE, do dono, e o workspace, do projeto aberto.
 
 As fases 2 e 3 fecharam em 2026-07-27, na versão 1.3.0. O CRM foi reconstruído por inteiro: modelo v4, subida para o CORE, ao vivo, mensagens e o chat de três painéis. O gasto de IA foi medido com os CLIs de verdade e parou de mentir.
 
@@ -26,16 +28,17 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 2e. Mensagens e o chat | fechada | 1.3.0 | 2026-07-27 |
 | 3. Verdade do gasto | fechada | 1.3.0 | 2026-07-27 |
 | 5, etapa 1. Ordem da cascata | fechada | 1.3.0 | 2026-07-27 |
-| 4. HUB CORE completo | pendente | | |
+| 4. HUB CORE completo | fechada | 1.4.0 | 2026-07-27 |
 | 5. Design system e nova pele | pesquisa fechada, implementação pendente | | |
 | 6. Studio | pendente | | |
 
 ## O que ainda não foi visto por olho humano
 
-Isto não é ressalva de rodapé, é a maior dívida aberta da rodada. Os cinco portões não veem pixel, e duas mudanças grandes mexeram em muita tela:
+Isto não é ressalva de rodapé, é a maior dívida aberta da rodada. Os cinco portões não veem pixel, e as mudanças grandes mexeram em muita tela:
 
 1. **A ordem da cascata** mudou o valor final de 98 seletores, todos previstos pela medição, nos três temas. Vale a passada em CRM, Site, Studio, Conexões, IDE e no painel do editor.
 2. **O chat de três painéis e a ficha de contato.** A ficha teve 257 linhas extraídas para o `EditorNegocio` compartilhado. O typecheck cobre a costura, nada cobre o layout. Não existe teste de DOM neste projeto.
+3. **A Sidebar em dois níveis e as duas telas novas do CORE.** A navegação inteira foi reorganizada: as seções Core e Workspace, o seletor de workspace mudando de lugar, o Dashboard do CORE e a tela de Workspaces, ambas com CSS novo. A lógica de formato e de leitura está coberta por 18 testes sem DOM; o layout, o espaçamento e o comportamento nos três temas não estão cobertos por nada. A série de barras de gasto e o cartão de workspace são os dois pontos que mais pedem olho.
 
 ## Fase 2 e 3, o que ficou pronto
 
@@ -101,6 +104,18 @@ Nota: o conversor Astro continua gerando `netlify.toml` dentro do projeto export
 - Linha do tempo unificada da ficha em `GET /crm/contatos/:id/linha-do-tempo`, view sobre interações e mensagens, sem duplicar dado.
 - Fecha verde: 337 testes no server (30 novos só de mensagens), 65 na web, dois typechecks e build.
 
+## Fase 4, o que ficou pronto
+
+- Dois níveis declarados no código, não só no menu: `TELAS_CORE` e `TELAS_WORKSPACE` em `layout/rotas.ts`, com teste travando quem mora onde e provando que abrir o Hub cai no Dashboard do CORE.
+- Dashboard do CORE com o gasto de IA total (incluindo workspace já removido), declarado como piso quando falta preço, e a série de 14 dias com a comparação entre a semana corrente e a anterior. Barra de dia com turno sem preço sai listrada.
+- Projetos ativos com critério declarado na tela: sessão em voo agora, ou trabalho nos últimos 7 dias. Abrir um workspace conta como trabalho, mesmo sem gastar IA.
+- Tela de Workspaces nova, com o gasto e a atividade de cada projeto. O seletor da sidebar continua para a troca rápida, mas foi para dentro da seção Workspace.
+- A tela de trabalho do projeto virou `#/inicio` (`componentes/workspace/TelaWorkspace.tsx`), e continua sendo a base do assistente de criação. Cancelar uma criação volta para lá, nunca para o CORE.
+- Conexões subiu para `app/dados/conexoes.json`. Fusão no desenho do CRM, conflito virando anotação, origem preservada por rename, e nenhum valor de config no rastro.
+- `GET /api/core/resumo` com a decisão isolada em `core/resumo.ts` e tipos compartilhados por ponte, com teste de fronteira travando a definição única.
+- "Cliente" virou "Workspace" em toda a interface, no web e nas mensagens do servidor.
+- Fecha verde: 385 testes no server (24 novos), 154 na web (52 novos), dois typechecks e build.
+
 ## Achados que já valem para as próximas fases
 
 1. **Argumento multilinha quebra no Windows sob shell.** Provado em 2026-07-26. Quando o Claude é disparado por `.cmd` ou pelo fallback do PATH, um argumento com quebra de linha é cortado na primeira linha e o resto da linha de comando some junto, levando `--mcp-config` e `--allowedTools`. Some com o Modo enxuto, mas o contexto do CRM usa o mesmo caminho. Conserto na Fase 1.
@@ -116,3 +131,5 @@ Nota: o conversor Astro continua gerando `netlify.toml` dentro do projeto export
 6. **A camada oficial de tema perde em produção.** Provado no build em 2026-07-27. `visual-hub.css` carrega por último em `main.tsx`, mas as 15 folhas de tela são importadas por componente, e sete delas entram por chunk lazy, que o Vite injeta como `<link>` depois. Mesma especificidade, quem chega depois vence. São 95 seletores e 181 pares de propriedade em que o `visual-hub.css` perde, nas telas Site, Studio, IDE, Conexões, Mapa, CRM e no painel de editor. Quem criar tela nova antes do conserto herda o mesmo bug. O conserto é `@layer base, tela, tema`, uma linha por arquivo, e é a Etapa 1 da Fase 5.
 
 7. **Requisição de teste sem afirmar o status engole a falha.** Provado em 2026-07-27: um POST de interação com `tipo` inválido devolveu 400, o teste não conferiu o status e a falha só apareceu três passos adiante, como um `undefined` difícil de ler. Toda chamada de preparação afirma o status, não só a chamada que está sendo testada.
+
+8. **Segredo que muda de escopo muda uma garantia de segurança.** Provado em 2026-07-27 com as conexões: subir o token da Apify para o CORE fez a garantia 3 do `SECURITY.md` ("excluir um workspace apaga os segredos dele") parar de descrever o produto. Toda mudança de escopo de dado sensível tem que reler o `SECURITY.md` na mesma tarefa, senão sobra uma garantia que promete o que o código não faz mais.

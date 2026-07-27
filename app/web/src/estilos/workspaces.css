@@ -1,5 +1,5 @@
-/* Switcher de cliente (workspaces). Identidade VK: dark, verde-menta, glow
-   sutil, motion caprichado. Este arquivo e so do switcher. */
+/* Switcher de workspace. Identidade VK: dark, verde-menta, glow sutil, motion
+   caprichado. Este arquivo e so do switcher. */
 
 /* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
    navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
@@ -7,11 +7,12 @@
 @layer base, externo, tela, tema;
 
 @layer tela {
+/* Desde 2026-07-27 o seletor mora DENTRO da navegacao, logo abaixo do rotulo
+   "Workspace". Nao ha mais borda embaixo dele: a divisa entre os dois niveis
+   agora e o proprio rotulo de secao. */
 .seletor-workspace {
   position: relative;
-  padding: 0 8px 12px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--borda);
+  padding: 0 2px 6px;
 }
 
 /* Gatilho: mostra o cliente ativo com a bolinha menta. */

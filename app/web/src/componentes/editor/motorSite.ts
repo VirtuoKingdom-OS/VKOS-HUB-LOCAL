@@ -7,7 +7,7 @@ import {
   lerVarsRoot,
   limparArtefatosSelecao,
   montarFontes,
-  PilhaSnapshots,
+  Historico,
   primeiraFonte,
   rgbParaHex,
   sairContentEditable,
@@ -15,6 +15,7 @@ import {
   temTextoProprio,
   type VarCss,
 } from "./nucleo";
+import { corDoTema } from "./tema";
 import {
   extrairUrlFundo,
   removerUrlFundo,
@@ -62,6 +63,9 @@ import type { DirecaoCamada, ItemCamada } from "./PainelCamadas";
 //     Ha edicao pendente de gravacao. Volta a falso so depois de salvar() ok.
 //   podeDesfazer: boolean
 //     Ha ao menos um snapshot na pilha de desfazer.
+//   podeRefazer: boolean
+//     Ha ao menos um snapshot na pilha de refazer (so depois de um desfazer;
+//     qualquer edicao nova zera essa pilha).
 //   selecao: SelecaoSite | null
 //     Propriedades do elemento selecionado, pro painel espelhar. Null sem
 //     selecao. Campos:
@@ -230,6 +234,7 @@ export interface MotorSite {
   pronto: boolean;
   naoSalvo: boolean;
   podeDesfazer: boolean;
+  podeRefazer: boolean;
   selecao: SelecaoSite | null;
   secoes: SecaoSite[];
   camadas: ItemCamada[];
@@ -255,6 +260,8 @@ export interface MotorSite {
   excluirSecao(id: string): void;
   limparSelecao(): void;
   desfazer(): void;
+  // Refaz o passo que o desfazer acabou de tirar (Ctrl+Shift+Z, Ctrl+Y).
+  refazer(): void;
   serializar(): string;
   salvar(gravar: (texto: string) => Promise<void>): Promise<void>;
 }
@@ -302,6 +309,7 @@ export function usarMotorSite(
   const [pronto, setPronto] = useState(false);
   const [naoSalvo, setNaoSalvo] = useState(false);
   const [podeDesfazer, setPodeDesfazer] = useState(false);
+  const [podeRefazer, setPodeRefazer] = useState(false);
   const [selecao, setSelecao] = useState<SelecaoSite | null>(null);
   const [secoes, setSecoes] = useState<SecaoSite[]>([]);
   const [camadas, setCamadas] = useState<ItemCamada[]>([]);
@@ -315,7 +323,7 @@ export function usarMotorSite(
   optsRef.current = opts;
 
   const selRef = useRef<HTMLElement | null>(null);
-  const undoRef = useRef(new PilhaSnapshots<{ html: string }>());
+  const histRef = useRef(new Historico<{ html: string }>(50));
   const modeloRef = useRef<ModeloAjustes>({ root: new Map(), alvos: new Map() });
   const contadorVkRef = useRef(0);
   const secoesRef = useRef<Map<string, HTMLElement>>(new Map());
@@ -341,9 +349,12 @@ export function usarMotorSite(
       s.id = "vkos-ed-runtime";
       doc.head.appendChild(s);
     }
+    // A cor vem do token --menta do documento do HUB, resolvida agora: o doc do
+    // iframe nao enxerga as variaveis do app. Ver editor/tema.ts.
+    const menta = corDoTema("--menta");
     s.textContent =
-      "[data-ed-sel]{outline:2px solid #00c896 !important;outline-offset:-2px !important;cursor:pointer !important;}" +
-      "[data-ed-editando]{outline:2px dashed #00c896 !important;outline-offset:2px !important;cursor:text !important;}" +
+      `[data-ed-sel]{outline:2px solid ${menta} !important;outline-offset:-2px !important;cursor:pointer !important;}` +
+      `[data-ed-editando]{outline:2px dashed ${menta} !important;outline-offset:2px !important;cursor:text !important;}` +
       "[data-ed-editando] *{cursor:text !important;}";
   }
 
@@ -600,8 +611,8 @@ export function usarMotorSite(
     if (el.innerHTML !== edAntesRef.current) {
       marcarMudou();
     } else {
-      undoRef.current.descartarUltimo();
-      setPodeDesfazer(undoRef.current.tem);
+      histRef.current.descartarUltimo();
+      sincronizarBotoesHistorico();
     }
     ressincronizarSelecao();
   }
@@ -610,20 +621,30 @@ export function usarMotorSite(
   // ===== Snapshot pro desfazer: o documento inteiro, limpo dos artefatos
   // volateis (o runtime e re-injetado na restauracao). Cobre texto, estilo
   // (folha vkos-ajustes e data-vk ficam no snapshot), link, imagem e secoes.
-  function snapshot() {
+  function capturarSnapshot(): { html: string } | null {
     const doc = getDoc();
-    if (!doc) return;
+    if (!doc) return null;
     const clone = doc.documentElement.cloneNode(true) as HTMLElement;
     clone.querySelectorAll("#vkos-ed-runtime").forEach((n) => n.remove());
     limparArtefatosSelecao(clone);
-    undoRef.current.empurrar({ html: clone.innerHTML });
-    setPodeDesfazer(true);
+    return { html: clone.innerHTML };
   }
 
-  function desfazer() {
+  function sincronizarBotoesHistorico() {
+    setPodeDesfazer(histRef.current.temDesfazer);
+    setPodeRefazer(histRef.current.temRefazer);
+  }
+
+  function snapshot() {
+    const snap = capturarSnapshot();
+    if (!snap) return;
+    histRef.current.registrar(snap);
+    sincronizarBotoesHistorico();
+  }
+
+  function restaurar(snap: { html: string }) {
     const doc = getDoc();
-    const snap = undoRef.current.retirar();
-    if (!doc || !snap) return;
+    if (!doc) return;
     if (editandoRef.current) {
       editandoRef.current.removeEventListener("blur", aoBlurEd.current);
       editandoRef.current = null;
@@ -634,8 +655,22 @@ export function usarMotorSite(
     // Os listeners ficam no document (nao nos filhos), entao sobrevivem a troca
     // do innerHTML. So re-preparamos o estado derivado do doc.
     prepararDoc(doc);
-    setPodeDesfazer(undoRef.current.tem);
+    sincronizarBotoesHistorico();
     marcarMudou();
+  }
+
+  function desfazer() {
+    const atual = capturarSnapshot();
+    if (!atual) return;
+    const snap = histRef.current.desfazer(atual);
+    if (snap) restaurar(snap);
+  }
+
+  function refazer() {
+    const atual = capturarSnapshot();
+    if (!atual) return;
+    const snap = histRef.current.refazer(atual);
+    if (snap) restaurar(snap);
   }
 
   // ===== Estilo via folha vkos-ajustes.
@@ -1112,8 +1147,9 @@ export function usarMotorSite(
   async function salvar(gravar: (texto: string) => Promise<void>): Promise<void> {
     const texto = serializar();
     await gravar(texto);
-    undoRef.current.limpar();
+    histRef.current.limpar();
     setPodeDesfazer(false);
+    setPodeRefazer(false);
     setNaoSalvo(false);
   }
 
@@ -1152,6 +1188,14 @@ export function usarMotorSite(
     e.preventDefault();
   }
 
+  // Refazer nas duas grafias que os editores aceitam: Ctrl+Shift+Z e Ctrl+Y.
+  function ehRefazer(e: KeyboardEvent): boolean {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (!ctrl) return false;
+    const k = e.key.toLowerCase();
+    return (k === "z" && e.shiftKey) || (k === "y" && !e.shiftKey);
+  }
+
   function aoTeclaDoc(e: KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
     if (editandoRef.current) {
@@ -1159,6 +1203,12 @@ export function usarMotorSite(
         e.preventDefault();
         e.stopPropagation();
         finalizarEdicao();
+        return;
+      }
+      if (ehRefazer(e)) {
+        e.preventDefault();
+        finalizarEdicao();
+        refazer();
         return;
       }
       if (ctrl && e.key.toLowerCase() === "z") {
@@ -1184,6 +1234,11 @@ export function usarMotorSite(
     if (ctrl && e.key.toLowerCase() === "s") {
       e.preventDefault();
       optsRef.current.aoAtalhoSalvar?.();
+      return;
+    }
+    if (ehRefazer(e)) {
+      e.preventDefault();
+      refazer();
       return;
     }
     if (ctrl && e.key.toLowerCase() === "z") {
@@ -1219,10 +1274,12 @@ export function usarMotorSite(
         doc.addEventListener("dblclick", aoDuploClicarDoc, true);
         doc.addEventListener("keydown", aoTeclaDoc, true);
         doc.addEventListener("submit", aoSubmitDoc, true);
-        undoRef.current.limpar();
+        histRef.current.limpar();
         selRef.current = null;
         setSelecao(null);
         setPodeDesfazer(false);
+        setPodeRefazer(false);
+    setPodeRefazer(false);
         prepararDoc(doc);
         setPronto(true);
         optsRef.current.aoInstrumentar?.(doc);
@@ -1259,6 +1316,7 @@ export function usarMotorSite(
     pronto,
     naoSalvo,
     podeDesfazer,
+    podeRefazer,
     selecao,
     secoes,
     camadas,
@@ -1284,6 +1342,7 @@ export function usarMotorSite(
     excluirSecao,
     limparSelecao,
     desfazer,
+    refazer,
     serializar,
     salvar,
   };

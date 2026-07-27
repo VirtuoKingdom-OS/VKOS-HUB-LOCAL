@@ -81,6 +81,27 @@
   background: var(--amarelo);
   box-shadow: 0 0 8px rgba(var(--amarelo-rgb), 0.6);
 }
+
+/* Estado da gravacao ao lado do nome. Tres estados, um lugar so, no padrao do
+   Google Docs e do Canva: "Salvando...", "Nao salvo" e "Salvo". Antes o unico
+   sinal era o ponto amarelo sumindo, e nada confirmava o sucesso. */
+.studio-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 16px;
+}
+.studio-estado-txt {
+  font-size: 12px;
+  color: var(--texto-suave);
+  white-space: nowrap;
+  animation: entrada-suave 160ms ease both;
+}
+.studio-estado-ok {
+  color: var(--menta);
+}
+
 .studio-acoes {
   display: flex;
   align-items: center;
@@ -94,6 +115,115 @@
 .studio-acoes .botao svg {
   width: 15px;
   height: 15px;
+}
+/* Desfazer e refazer andam juntos, colados, como um par. */
+.studio-historico {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.studio-acoes .botao-icone {
+  padding: 8px;
+  min-width: 34px;
+  justify-content: center;
+}
+.studio-acoes .botao-icone svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ===== Folha de atalhos ===== */
+.studio-atalhos {
+  width: 100%;
+  max-width: 460px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: 0 24px 64px rgba(var(--scrim-rgb), 0.55);
+  animation: entrada-no 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  overflow: hidden;
+}
+.studio-atalhos-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--borda);
+}
+.studio-atalhos-topo h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+.studio-atalhos-fechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--raio-p);
+  color: var(--texto-suave);
+  border: 1px solid transparent;
+  transition: color var(--transicao), border-color var(--transicao);
+}
+.studio-atalhos-fechar:hover {
+  color: var(--texto);
+  border-color: var(--borda);
+}
+.studio-atalhos-fechar svg {
+  width: 16px;
+  height: 16px;
+}
+.studio-atalhos-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 18px 20px;
+  overflow-y: auto;
+}
+.studio-atalhos-corpo ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+.studio-atalhos-corpo li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.studio-atalhos-teclas {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  width: 148px;
+}
+.studio-atalhos-teclas kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 3px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--texto);
+  background: var(--fundo-2);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-p);
+}
+.studio-atalhos-mais {
+  font-size: 11px;
+  color: var(--texto-suave);
+}
+.studio-atalhos-oque {
+  color: var(--texto-suave);
 }
 
 /* Menu Baixar (dropdown). Scrim proprio nao precisa: fecha ao clicar fora. */
@@ -171,7 +301,12 @@
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
+  /* "safe" e o que destrava a rolagem vertical no zoom alto. Com "center" puro,
+     um palco mais alto que a area transborda pros DOIS lados e a parte de cima
+     fica inalcancavel: scrollTop nao passa de zero. Com "safe", assim que
+     transborda o alinhamento cai pro inicio e a pagina inteira fica acessivel.
+     Centralizado enquanto cabe, rolavel quando nao cabe. */
+  align-items: safe center;
   justify-content: flex-start;
   overflow: auto;
   padding: 40px 0;
@@ -403,14 +538,21 @@
   cursor: progress;
 }
 
+/* Ações do elemento numa linha só, com peso igual. Empilhadas e em largura
+   total, a ação destrutiva virava o maior elemento do painel: hierarquia
+   errada pra uma coisa que quase nunca é o que a pessoa quer. */
 .studio-elemento-acoes {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .studio-elemento-acoes .botao {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   justify-content: center;
+  padding: 8px 10px;
+  font-size: 12px;
 }
 
 .studio-elemento-acoes .botao svg {
@@ -546,5 +688,13 @@
 .studio-confirm-acoes .botao {
   padding: 9px 14px;
   font-size: 13px;
+}
+
+/* Quem pediu menos movimento recebe as mesmas telas, sem a entrada animada. */
+@media (prefers-reduced-motion: reduce) {
+  .studio-atalhos,
+  .studio-estado-txt {
+    animation: none;
+  }
 }
 } /* fim de @layer tela */

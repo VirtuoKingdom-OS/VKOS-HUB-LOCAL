@@ -379,7 +379,7 @@ export function ChatIde() {
             </div>
             <h3>Converse com a IA</h3>
             <p>
-              O motor {ativo === "codex" ? "Codex" : "Claude"} lê o mesmo Cérebro deste cliente e pode editar os arquivos da
+              O motor {ativo === "codex" ? "Codex" : "Claude"} lê o mesmo Cérebro deste workspace e pode editar os arquivos da
               pasta.
             </p>
             <div className="ide-chat-escolhas">

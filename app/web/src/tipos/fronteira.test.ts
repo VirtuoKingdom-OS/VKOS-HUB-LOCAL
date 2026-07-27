@@ -13,6 +13,8 @@ const ponte = readFileSync(new URL("./crm.ts", import.meta.url), "utf8");
 const cliente = readFileSync(new URL("../api/crm.ts", import.meta.url), "utf8");
 const ponteMensagens = readFileSync(new URL("./mensagens.ts", import.meta.url), "utf8");
 const clienteMensagens = readFileSync(new URL("../api/mensagens.ts", import.meta.url), "utf8");
+const ponteCore = readFileSync(new URL("./core.ts", import.meta.url), "utf8");
+const clienteCore = readFileSync(new URL("../api/core.ts", import.meta.url), "utf8");
 
 test("a ponte de tipos aponta pro modelo do servidor", () => {
   assert.match(ponte, /from "\.\.\/\.\.\/\.\.\/server\/src\/crm\/modelo"/);
@@ -63,6 +65,34 @@ test("o cliente das conversas nao redeclara as entidades", () => {
   }
   assert.match(clienteMensagens, /from "\.\.\/tipos\/mensagens"/);
   assert.doesNotMatch(clienteMensagens, /from "[^"]*server\/src/);
+});
+
+// A MESMA guarda pro resumo do CORE. O Dashboard do dono mostra dinheiro: uma
+// segunda copia do tipo aqui deixaria o servidor mudar um campo com o typecheck
+// do web verde e o numero errado na tela.
+
+test("a ponte do CORE aponta pro modelo do servidor", () => {
+  assert.match(ponteCore, /from "\.\.\/\.\.\/\.\.\/server\/src\/core\/modelo"/);
+  // So tipo atravessa a fronteira. Import de valor traria codigo de servidor
+  // (e a arvore de node:) pro bundle do navegador.
+  assert.doesNotMatch(ponteCore, /^\s*import\s+\{/m);
+});
+
+test("a ponte do CORE trava a versao do contrato", () => {
+  assert.match(ponteCore, /VersaoResumoCoreDoWeb/);
+  assert.match(ponteCore, /Confere</);
+});
+
+test("o cliente do CORE nao redeclara o resumo", () => {
+  for (const entidade of ["ResumoCore", "GastoDoCore", "WorkspaceNoCore", "DiaDeGasto"]) {
+    assert.doesNotMatch(
+      clienteCore,
+      new RegExp(`\binterface\s+${entidade}\b`),
+      `${entidade} precisa vir do servidor, nao de uma copia local`,
+    );
+  }
+  assert.match(clienteCore, /from "\.\.\/tipos\/core"/);
+  assert.doesNotMatch(clienteCore, /from "[^"]*server\/src/);
 });
 
 // O comentario explica a regra e cita o antipadrao de proposito, entao a busca

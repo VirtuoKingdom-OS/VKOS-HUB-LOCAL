@@ -2,6 +2,10 @@
 // chama montarConfigMcp(workspaceId) na hora do spawn: se ha servidor habilitado,
 // grava o JSON com a config completa (segredos reais) e devolve o caminho e os
 // ids, pra empurrar --mcp-config e liberar as ferramentas mcp__<id>.
+//
+// O ESTADO das conexoes e do CORE (uma conta so, do dono). O ARQUIVO montado
+// continua na pasta do workspace da sessao, porque ele e artefato daquele spawn:
+// duas sessoes de clientes diferentes nao podem disputar o mesmo arquivo.
 
 import { join } from "node:path";
 import { existsSync, unlinkSync } from "node:fs";
@@ -26,7 +30,7 @@ export function montarConfigMcp(workspaceId: string): ConfigMcp | null {
   if (!workspaceId) return null;
 
   const caminho = join(pastaDadosWorkspace(workspaceId), NOME_ARQUIVO);
-  const estado = lerConexoes(workspaceId);
+  const estado = lerConexoes();
 
   const mcpServers: Record<string, unknown> = {};
   const servidores: string[] = [];

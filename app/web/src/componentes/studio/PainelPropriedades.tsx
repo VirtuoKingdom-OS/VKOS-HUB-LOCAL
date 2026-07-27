@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
-import { IconeCheck, IconeLixeira, IconeSubir } from "../comum/Icones";
-import { Confirmacao } from "../comum/Confirmacao";
+import { IconeCheck, IconeDuplicar, IconeLixeira, IconeSubir } from "../comum/Icones";
 import type { MotorEdicao } from "../editor/motor";
 import { ControlesImagem, MenuAdicionarImagem } from "../editor/ControlesImagem";
 import { PainelCamadas } from "../editor/PainelCamadas";
@@ -37,6 +36,9 @@ interface Props {
   pecaPasta: string;
   aplicarTodas: boolean;
   aoAlternarTodas: () => void;
+  // Abre a confirmacao de exclusao, que vive na tela: a tecla Delete no canvas
+  // precisa cair na MESMA janela que o botao daqui.
+  aoPedirExcluir: (alvo: "elemento" | "imagem") => void;
 }
 
 export function PainelPropriedades({
@@ -45,13 +47,13 @@ export function PainelPropriedades({
   pecaPasta,
   aplicarTodas,
   aoAlternarTodas,
+  aoPedirExcluir,
 }: Props) {
   const sel = motor.selecao;
   const [enviando, setEnviando] = useState(false);
   const [enviandoNova, setEnviandoNova] = useState(false);
   const [erroNova, setErroNova] = useState<string | null>(null);
   const [erroUpload, setErroUpload] = useState<string | null>(null);
-  const [confirmarExclusao, setConfirmarExclusao] = useState<"elemento" | "imagem" | null>(null);
   const [galeriaAberta, setGaleriaAberta] = useState(false);
   const alvoGaleria = useRef<AlvoImagemCapturado | null>(null);
   const geracaoImagem = usarGeracaoImagemIA();
@@ -123,63 +125,13 @@ export function PainelPropriedades({
 
   return (
     <aside className="editor-painel studio-painel nowheel">
-      {/* Camadas do slide em foco: seleciona pela lista, sobe e desce. */}
-      <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Camadas da página {foco + 1}</div>
-        <PainelCamadas
-          itens={camadas}
-          selecionadoId={sel?.vkId || null}
-          aoSelecionar={motor.selecionarPorId}
-          aoMover={motor.moverCamada}
-        />
-      </section>
-
-      {/* Cores globais do tema (variaveis do :root). */}
-      <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Cores do tema</div>
-        {motor.vars.length === 0 ? (
-          <p className="painel-vazio">Este modelo não expõe cores no :root.</p>
-        ) : (
-          <div className="lista-cores">
-            {motor.vars.map((v) => (
-              <div className="cor-item" key={v.nome}>
-                <span className="cor-nome" title={v.nome}>
-                  {v.nome.replace(/^--/, "")}
-                </span>
-                {ehHex(v.valor) ? (
-                  <label className="cor-swatch">
-                    <input
-                      type="color"
-                      value={
-                        v.valor.length === 4
-                          ? "#" + v.valor.slice(1).replace(/./g, (c) => c + c)
-                          : v.valor
-                      }
-                      onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
-                    />
-                    <span style={{ background: v.valor }} />
-                  </label>
-                ) : (
-                  <input
-                    className="cor-texto"
-                    value={v.valor}
-                    onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
-                    spellCheck={false}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* Elemento selecionado. */}
       <section className="painel-secao">
         <div className="secao-titulo rotulo-secao">Elemento</div>
         {!sel ? (
           <p className="painel-vazio">
-            Clique num texto de qualquer página para selecionar. Dê dois cliques
-            para editar direto no canvas. Arraste para mover, ou use as setas.
+            Clique em qualquer parte da página para selecionar. Dois cliques
+            editam o texto no lugar. Arraste para mover, com guias de alinhamento.
           </p>
         ) : (
           <div className="campos-elemento">
@@ -196,16 +148,27 @@ export function PainelPropriedades({
                   title="Selecionar o bloco que envolve este elemento"
                 >
                   <IconeSubir className="" />
-                  Selecionar contêiner
+                  Contêiner
+                </button>
+              )}
+              {sel.podeExcluir && (
+                <button
+                  className="botao botao-fantasma"
+                  onClick={motor.duplicarSelecionado}
+                  title="Duplicar ao lado (Ctrl+D)"
+                >
+                  <IconeDuplicar className="" />
+                  Duplicar
                 </button>
               )}
               {sel.podeExcluir && (
                 <button
                   className="botao botao-perigo"
-                  onClick={() => setConfirmarExclusao("elemento")}
+                  onClick={() => aoPedirExcluir("elemento")}
+                  title="Excluir (Delete)"
                 >
                   <IconeLixeira className="" />
-                  Excluir elemento
+                  Excluir
                 </button>
               )}
             </div>
@@ -338,20 +301,6 @@ export function PainelPropriedades({
         )}
       </section>
 
-      {/* Toggle de aplicar em todas as paginas. */}
-      <section className="painel-secao">
-        <button
-          className={`toggle-todas${aplicarTodas ? " ativo" : ""}`}
-          onClick={aoAlternarTodas}
-        >
-          <span className="toggle-marca">{aplicarTodas && <IconeCheck className="" />}</span>
-          <span className="toggle-texto">
-            Aplicar estilo em todas as páginas
-            <small>Mesma tag e classes, em todos os slides. Texto nunca replica.</small>
-          </span>
-        </button>
-      </section>
-
       {/* Qualquer imagem selecionada, pequena ou grande, img ou fundo CSS. */}
       <section className="painel-secao">
         <div className="secao-titulo rotulo-secao">Imagem da página {foco + 1}</div>
@@ -366,7 +315,7 @@ export function PainelPropriedades({
               aoArquivo={(file) => void aoEscolher(file)}
               aoAbrirGaleria={abrirGaleria}
               aoGerar={aoGerar}
-              aoExcluir={() => setConfirmarExclusao("imagem")}
+              aoExcluir={() => aoPedirExcluir("imagem")}
             />
             {sel.tipoImagem === "img" && (
               <label className="campo">
@@ -391,6 +340,70 @@ export function PainelPropriedades({
         )}
       </section>
 
+      {/* Toggle de aplicar em todas as paginas. */}
+      <section className="painel-secao">
+        <button
+          className={`toggle-todas${aplicarTodas ? " ativo" : ""}`}
+          onClick={aoAlternarTodas}
+        >
+          <span className="toggle-marca">{aplicarTodas && <IconeCheck className="" />}</span>
+          <span className="toggle-texto">
+            Aplicar estilo em todas as páginas
+            <small>Mesma tag e classes, em todos os slides. Texto nunca replica.</small>
+          </span>
+        </button>
+      </section>
+
+      {/* Camadas do slide em foco: seleciona pela lista, sobe e desce. */}
+      <section className="painel-secao">
+        <div className="secao-titulo rotulo-secao">Camadas da página {foco + 1}</div>
+        <PainelCamadas
+          itens={camadas}
+          selecionadoId={sel?.vkId || null}
+          aoSelecionar={motor.selecionarPorId}
+          aoMover={motor.moverCamada}
+        />
+      </section>
+
+      {/* Cores globais do tema (variaveis do :root). */}
+      <section className="painel-secao">
+        <div className="secao-titulo rotulo-secao">Cores do tema</div>
+        {motor.vars.length === 0 ? (
+          <p className="painel-vazio">Este modelo não expõe cores no :root.</p>
+        ) : (
+          <div className="lista-cores">
+            {motor.vars.map((v) => (
+              <div className="cor-item" key={v.nome}>
+                <span className="cor-nome" title={v.nome}>
+                  {v.nome.replace(/^--/, "")}
+                </span>
+                {ehHex(v.valor) ? (
+                  <label className="cor-swatch">
+                    <input
+                      type="color"
+                      value={
+                        v.valor.length === 4
+                          ? "#" + v.valor.slice(1).replace(/./g, (c) => c + c)
+                          : v.valor
+                      }
+                      onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
+                    />
+                    <span style={{ background: v.valor }} />
+                  </label>
+                ) : (
+                  <input
+                    className="cor-texto"
+                    value={v.valor}
+                    onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
+                    spellCheck={false}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Adicionar imagem propria como elemento livre da pagina em foco. */}
       <section className="painel-secao">
         <div className="secao-titulo rotulo-secao">Adicionar imagem</div>
@@ -405,25 +418,6 @@ export function PainelPropriedades({
           use as camadas pra escolher o que fica na frente.
         </p>
       </section>
-      {confirmarExclusao && sel && (
-        <Confirmacao
-          dados={{
-            titulo:
-              confirmarExclusao === "imagem"
-                ? "Excluir esta imagem?"
-                : "Excluir este elemento?",
-            mensagem:
-              "Você ainda poderá desfazer enquanto estiver editando. Depois de salvar o carrossel, esta exclusão será irreversível.",
-            rotuloConfirmar:
-              confirmarExclusao === "imagem" ? "Excluir imagem" : "Excluir elemento",
-            aoConfirmar:
-              confirmarExclusao === "imagem"
-                ? motor.excluirImagemSelecionada
-                : motor.excluirSelecionado,
-          }}
-          aoFechar={() => setConfirmarExclusao(null)}
-        />
-      )}
       <GaleriaFontes
         aberta={galeriaAberta}
         aoFechar={() => {

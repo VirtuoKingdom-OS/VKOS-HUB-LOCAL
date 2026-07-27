@@ -31,10 +31,14 @@ const IDS_COM_TESTE = new Set(["apify"]);
 // Mapa de estado por id de servidor.
 type MapaServidores = Record<string, EstadoServidor>;
 
-// Tela das conexoes MCP: um card por servico. O usuario cola o token, liga o
-// servidor e salva. Os tokens ficam so nesta maquina, no arquivo local do cliente.
+// Tela das conexoes: um card por servico. O usuario cola o token, liga o
+// servidor e salva.
+//
+// A conexao e do CORE desde 2026-07-27, nao do workspace: a conta e do dono do
+// Hub e a mesma em todo projeto. Por isso nada aqui depende do workspace aberto,
+// e trocar de workspace nao recarrega nem remonta esta tela.
 export function TelaConexoes() {
-  const { workspaceAtivo, ambiente: ambienteInicial } = usarEstado();
+  const { ambiente: ambienteInicial } = usarEstado();
   const {
     ativo: provedorAtivo,
     provedores,
@@ -64,10 +68,11 @@ export function TelaConexoes() {
     }
   }, []);
 
-  // Recarrega no boot e a cada troca de cliente (cada workspace tem o seu estado).
+  // Carrega uma vez. O estado e do CORE, entao nao ha troca de escopo pra
+  // acompanhar.
   useEffect(() => {
     void carregar();
-  }, [carregar, workspaceAtivo]);
+  }, [carregar]);
 
   useEffect(() => {
     let vivo = true;
@@ -105,10 +110,10 @@ export function TelaConexoes() {
             <h1>Conexões</h1>
             <p className="subtitulo">
               {ligadas === 0
-                ? "Nenhuma conexao ligada"
+                ? "Nenhuma conexão ligada, valem para todos os workspaces"
                 : ligadas === 1
-                ? "1 conexao ligada"
-                : `${ligadas} conexoes ligadas`}
+                ? "1 conexão ligada, vale para todos os workspaces"
+                : `${ligadas} conexões ligadas, valem para todos os workspaces`}
             </p>
           </div>
         </div>
@@ -136,8 +141,8 @@ export function TelaConexoes() {
 
         <p className="conx-aviso-local">
           <IconeAlerta className="conx-aviso-icone" />
-          Os tokens ficam so nesta maquina, no arquivo local do cliente. Nada sai
-          daqui.
+          Os tokens ficam só nesta máquina, num arquivo local do Hub. Eles são
+          seus, não do workspace, e nada sai daqui.
         </p>
 
         {provedorAtivo === "codex" && (
@@ -162,7 +167,7 @@ export function TelaConexoes() {
             <span className="giro" />
           </div>
         ) : (
-          <div className="conx-grade" key={workspaceAtivo ?? "sem-cliente"}>
+          <div className="conx-grade">
             {catalogo.map((entrada) => (
               <CartaoConexao
                 key={entrada.id}

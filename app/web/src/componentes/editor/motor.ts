@@ -4,13 +4,13 @@ import {
   alvoNoPonto,
   entrarContentEditable,
   FONTES_SEGURAS,
+  Historico,
   lerBase64,
   lerNum,
   lerVarsRoot,
   limparArtefatosSelecao,
   montarFontes,
   pilhaNoPonto,
-  PilhaSnapshots,
   primeiraFonte,
   rgbParaHex,
   sairContentEditable,
@@ -18,6 +18,14 @@ import {
   temTextoProprio,
   type VarCss,
 } from "./nucleo";
+import {
+  calcularAlinhamento,
+  deveAgruparPasso,
+  type Caixa,
+  type Guia,
+  type PassoGesto,
+} from "./alinhamento";
+import { canaisRgb, corDoTema } from "./tema";
 import type { DirecaoCamada, ItemCamada } from "./PainelCamadas";
 import {
   extrairUrlFundo,
@@ -99,6 +107,10 @@ export interface OpcoesMotor {
   // motor instala um atalho no doc e chama esta callback pra quem monta seguir
   // o mesmo caminho de salvar.
   aoAtalhoSalvar?: () => void;
+  // Chamado quando o usuario aperta Delete ou Backspace com um elemento
+  // selecionado. O motor NAO apaga sozinho: quem monta a tela abre a mesma
+  // confirmacao do botao do painel, porque o Desfazer some depois de salvar.
+  aoPedirExcluir?: () => void;
 }
 
 export interface MotorEdicao {
@@ -119,12 +131,19 @@ export interface MotorEdicao {
   excluirImagemSelecionada(): void;
   selecionarPai(): void;
   excluirSelecionado(): void;
+  // Duplica o selecionado ao lado, com ids novos, e seleciona a copia (Ctrl+D).
+  duplicarSelecionado(): void;
   adicionarImagemFundoPagina(pagina: number, caminhoRelativo: string): void;
   capturarImagemSelecionada(): AlvoImagemCapturado | null;
   desfazer(): void;
   podeDesfazer: boolean;
+  refazer(): void;
+  podeRefazer: boolean;
   salvar(): Promise<void>;
   naoSalvo: boolean;
+  // Instante da ultima gravacao bem sucedida (0 se ainda nao salvou nesta
+  // sessao). Quem monta usa pra confirmar "Salvo" por alguns segundos.
+  salvoEm: number;
   // Solta a selecao atual (ex: ao trocar de pagina no overlay).
   limparSelecao(): void;
   // ===== Camadas (E2). Lista as camadas visiveis de uma pagina (mais alta
@@ -149,6 +168,13 @@ interface Fundo {
   tipo: "img" | "bg";
 }
 
+// O que um passo de desfazer guarda: o corpo do doc e o valor das vars de tema
+// editadas. Nao guarda a selecao: ela e reencontrada pelo data-vk.
+interface Snapshot {
+  body: string;
+  vars: Record<string, string>;
+}
+
 // Estado do gesto de arrasto em andamento.
 interface Arrasto {
   el: HTMLElement;
@@ -162,6 +188,8 @@ interface Arrasto {
   ativo: boolean;
   guiaV: HTMLElement | null;
   guiaH: HTMLElement | null;
+  // Caixas dos vizinhos, medidas uma vez no inicio do gesto (elas nao andam).
+  vizinhos: Caixa[];
   // Guardamos se demos position:relative temporario no slide, pra restaurar.
   slidePosAntes: string | null;
   // Janela do iframe onde o gesto acontece: e onde ouvimos move/up.
@@ -204,14 +232,24 @@ interface Redim {
 
 // Tamanho da alca na TELA (px). Convertido pra px de slide dividindo pela
 // escala, pra alca ficar do mesmo tamanho visual em qualquer zoom.
-const TAM_ALCA = 12;
+// Sao duas medidas de proposito: o QUADRADINHO desenhado tem 10 px, o padrao de
+// editor (Konva usa 10, Excalidraw 8 no mouse), e a AREA DE CLIQUE tem 24 px, o
+// minimo do WCAG 2.5.8 (AA). Desenhar 24 px deixaria a alca gorda em cima da
+// peca; a area maior mora num pseudo-elemento transparente.
+const TAM_ALCA = 10;
+const ALVO_ALCA = 24;
+// Abaixo de 5 vezes a alca no eixo, as alcas de LADO somem e ficam so os cantos:
+// senao elas se sobrepoem e o gesto vira loteria. Regra do Excalidraw
+// (minimumSizeForEightHandles).
+const MIN_ALCA_LATERAL = 5 * TAM_ALCA;
 // Tamanho minimo (px de slide) de um elemento redimensionado.
 const MIN_REDIM = 16;
 
 // Distancia da tela pra iniciar o arrasto (nao confundir com clique).
 const LIMIAR_ARRASTO = 3;
-// Distancia (em px de tela) pro snap ao centro do slide.
-const LIMIAR_SNAP = 6;
+// Distancia (em px de TELA) pro alinhamento grudar. 8 px e o valor documentado
+// pelo tldraw, escalado pelo zoom: a tolerancia e do olho, nao do documento.
+const LIMIAR_SNAP = 8;
 
 // Assinatura de um elemento: tag + lista de classes ordenada. Serve pra achar
 // os "irmaos" em todas as paginas quando "aplicar em todas" esta on.
@@ -271,6 +309,11 @@ export function usarMotorEdicao(
   const [selecao, setSelecao] = useState<PropsSel | null>(null);
   const [naoSalvo, setNaoSalvo] = useState(false);
   const [podeDesfazer, setPodeDesfazer] = useState(false);
+  const [podeRefazer, setPodeRefazer] = useState(false);
+  // Instante da ultima gravacao bem sucedida. Zero enquanto nada foi salvo nesta
+  // sessao de edicao. Serve pro aviso "salvo" da tela, que hoje so tinha o
+  // sumico do ponto de nao salvo como sinal.
+  const [salvoEm, setSalvoEm] = useState(0);
   const [versaoDoc, setVersaoDoc] = useState(0);
 
   // opts muda de identidade a cada render, entao guardamos num ref pros
@@ -281,7 +324,12 @@ export function usarMotorEdicao(
   const selRef = useRef<HTMLElement | null>(null);
   const varsRef = useRef<VarCss[]>([]);
   const editadasRef = useRef<Set<string>>(new Set());
-  const undoRef = useRef(new PilhaSnapshots<{ body: string; vars: Record<string, string> }>());
+  // 50 passos: o padrao do Photoshop. As bibliotecas de texto usam 100, mas
+  // aqui cada passo e o corpo inteiro do documento serializado, bem mais pesado
+  // que um diff de texto.
+  const histRef = useRef(new Historico<Snapshot>(50));
+  // Ultimo passo registrado, pro agrupamento de gesto continuo (setas seguidas).
+  const ultimoPassoRef = useRef<PassoGesto | null>(null);
   const arrastoRef = useRef<Arrasto | null>(null);
   const redimRef = useRef<Redim | null>(null);
   const suprimirCliqueRef = useRef(false);
@@ -321,9 +369,13 @@ export function usarMotorEdicao(
       s.id = "vkos-ed-runtime";
       doc.head.appendChild(s);
     }
+    // A cor vem do token --menta do documento do HUB, resolvida agora: o doc do
+    // iframe nao enxerga as variaveis do app. Ver editor/tema.ts.
+    const menta = corDoTema("--menta");
+    const canais = canaisRgb(menta) || "47, 212, 167";
     s.textContent =
-      "[data-ed-sel]{outline:2px solid #00c896 !important;outline-offset:-2px !important;cursor:move !important;}" +
-      "[data-ed-editando]{outline:2px dashed #00c896 !important;outline-offset:2px !important;cursor:text !important;}" +
+      `[data-ed-sel]{outline:2px solid ${menta} !important;outline-offset:-2px !important;cursor:move !important;}` +
+      `[data-ed-editando]{outline:2px dashed ${menta} !important;outline-offset:2px !important;cursor:text !important;}` +
       "[data-ed-editando] *{cursor:text !important;}" +
       // Muitos carrosseis usam um frame decorativo com pointer-events:none.
       // A propriedade e herdada, entao o img interno ficava impossivel de
@@ -335,13 +387,26 @@ export function usarMotorEdicao(
       // So no runtime do Studio, nao vaza pro HTML salvo.
       ".slide img{pointer-events:auto !important;cursor:move !important;-webkit-user-drag:none !important;user-drag:none !important;}" +
       ".vkos-ed-arrastando,.vkos-ed-arrastando *{cursor:grabbing !important;}" +
-      ".vkos-ed-guia{position:absolute;background:#00c896;pointer-events:none;z-index:2147483646;box-shadow:0 0 4px rgba(0,200,150,0.6);}" +
-      ".vkos-ed-guia-v{width:1px;top:0;bottom:0;}" +
-      ".vkos-ed-guia-h{height:1px;left:0;right:0;}" +
+      // Guia de alinhamento: um SEGMENTO, nao uma linha atravessando a pagina.
+      // A geometria (left/top/width/height) e escrita inline a cada movimento,
+      // porque muda com o par que alinhou. Ver editor/alinhamento.ts.
+      `.vkos-ed-guia{position:absolute;background:${menta};pointer-events:none;z-index:2147483646;box-shadow:0 0 4px rgba(${canais},0.55);}` +
+      ".vkos-ed-guia-v{width:1px;}" +
+      ".vkos-ed-guia-h{height:1px;}" +
+      // Guia de centro fica pontilhada pra o olho separar "alinhei pelo meio"
+      // de "encostei numa borda" sem precisar contar pixel.
+      `.vkos-ed-guia-centro{background:repeating-linear-gradient(var(--vkos-ed-eixo,to bottom),${menta} 0 7px,transparent 7px 13px);}` +
       // Alcas de redimensionamento: quadradinhos brancos com borda menta, sempre
       // por cima, pointer-events auto pra pegar o gesto. So instrumentacao, o
       // serializador as remove com as guias.
-      ".vkos-ed-alca{position:absolute;background:#fff;border:2px solid #00c896;border-radius:2px;box-sizing:border-box;box-shadow:0 0 3px rgba(0,0,0,0.45);z-index:2147483645;pointer-events:auto;}";
+      // A caixa da alca e a AREA DE CLIQUE (transparente, 24px de tela). O
+      // quadradinho visivel de 10px e desenhado pelo ::after no centro dela.
+      ".vkos-ed-alca{position:absolute;background:transparent;border:0;box-sizing:border-box;" +
+      "z-index:2147483645;pointer-events:auto;display:block;}" +
+      `.vkos-ed-alca::after{content:'';position:absolute;left:50%;top:50%;` +
+      `width:var(--vkos-ed-alca-tam,10px);height:var(--vkos-ed-alca-tam,10px);` +
+      `transform:translate(-50%,-50%);background:#fff;border:2px solid ${menta};` +
+      "border-radius:2px;box-sizing:border-box;box-shadow:0 0 3px rgba(0,0,0,0.45);}";
   }
 
   // Detecta o fundo de um slide: a maior imagem ou o maior elemento com
@@ -510,34 +575,57 @@ export function usarMotorEdicao(
     if (el.innerHTML !== edAntesRef.current) {
       marcarMudou();
     } else {
-      undoRef.current.descartarUltimo();
-      setPodeDesfazer(undoRef.current.tem);
+      histRef.current.descartarUltimo();
+      sincronizarBotoesHistorico();
     }
     ressincronizarSelecao();
   }
   finalizarEdRef.current = finalizarEdicao;
 
   // ===== Snapshot pro desfazer: corpo do doc mais o mapa de vars editadas.
-  function snapshot() {
+  function capturarSnapshot(): Snapshot | null {
     const doc = getDoc();
-    if (!doc) return;
+    if (!doc) return null;
     const clone = doc.body.cloneNode(true) as HTMLElement;
     limparArtefatosSelecao(clone);
     const mapa: Record<string, string> = {};
     for (const v of varsRef.current) {
       mapa[v.nome] = doc.documentElement.style.getPropertyValue(v.nome) || "";
     }
-    undoRef.current.empurrar({ body: clone.innerHTML, vars: mapa });
-    setPodeDesfazer(true);
+    return { body: clone.innerHTML, vars: mapa };
   }
 
-  function desfazer() {
+  function sincronizarBotoesHistorico() {
+    setPodeDesfazer(histRef.current.temDesfazer);
+    setPodeRefazer(histRef.current.temRefazer);
+  }
+
+  // Registra o estado de ANTES de uma acao. Quando "gesto" vem preenchido e o
+  // toque continua o gesto anterior (mesma acao, mesmo elemento, dentro da
+  // janela de tempo), NAO empilha: assim vinte toques de seta viram um unico
+  // passo de desfazer, que volta pra posicao de antes do gesto inteiro.
+  // A decisao esta em alinhamento.ts, testada sem DOM.
+  function snapshot(gesto?: { acao: string; alvo: string }) {
+    const passo: PassoGesto | null = gesto
+      ? { acao: gesto.acao, alvo: gesto.alvo, momento: Date.now() }
+      : null;
+    if (passo && deveAgruparPasso(ultimoPassoRef.current, passo)) {
+      ultimoPassoRef.current = passo;
+      return;
+    }
+    ultimoPassoRef.current = passo;
+    const snap = capturarSnapshot();
+    if (!snap) return;
+    histRef.current.registrar(snap);
+    sincronizarBotoesHistorico();
+  }
+
+  // Aplica um snapshot no documento, preservando a selecao pelo data-vk: o no
+  // atual morre com o innerHTML, mas o id estavel sobrevive no snapshot.
+  function restaurar(snap: Snapshot) {
     const doc = getDoc();
-    const snap = undoRef.current.retirar();
-    if (!doc || !snap) return;
+    if (!doc) return;
     if (editandoRef.current) finalizarEdicao();
-    // Guarda o id estavel da selecao ANTES de restaurar: o no atual morre com o
-    // innerHTML, mas o data-vk sobrevive no snapshot e ancora a re-selecao.
     const idSel = selRef.current?.getAttribute("data-vk") || null;
     selRef.current = null;
     setSelecao(null);
@@ -550,8 +638,28 @@ export function usarMotorEdicao(
       const el = doc.querySelector<HTMLElement>(`[data-vk="${idSel}"]`);
       if (el) selecionar(el);
     }
-    setPodeDesfazer(undoRef.current.tem);
+    sincronizarBotoesHistorico();
     marcarMudou();
+  }
+
+  function desfazer() {
+    const atual = capturarSnapshot();
+    if (!atual) return;
+    // Um desfazer sempre fecha o gesto corrente: o proximo toque comeca outro
+    // passo, senao ele agruparia com o que acabou de ser desfeito.
+    ultimoPassoRef.current = null;
+    const snap = histRef.current.desfazer(atual);
+    if (!snap) return;
+    restaurar(snap);
+  }
+
+  function refazer() {
+    const atual = capturarSnapshot();
+    if (!atual) return;
+    ultimoPassoRef.current = null;
+    const snap = histRef.current.refazer(atual);
+    if (!snap) return;
+    restaurar(snap);
   }
 
   // ===== Estilo no elemento selecionado (e nos irmaos se emTodas).
@@ -646,10 +754,46 @@ export function usarMotorEdicao(
   function moverSelecao(dx: number, dy: number) {
     const el = selRef.current;
     if (!el || el.matches(".slide,body,html")) return;
-    snapshot();
+    // Gesto de seta: toques seguidos no mesmo elemento viram UM passo. Antes
+    // disso, 20 toques comiam 20 dos 40 lugares da pilha e apagavam a historia.
+    snapshot({ acao: "seta", alvo: el.getAttribute("data-vk") || "" });
     deslocar(el, dx, dy);
     marcarMudou();
     ressincronizarSelecao();
+  }
+
+  // Duplica o selecionado no mesmo pai, deslocado alguns pixels, e ja seleciona
+  // a copia. E o gesto que o usuario espera de Ctrl+D num editor visual: repetir
+  // um cartao ou um enfeite sem passar pela IA nem pelo HTML.
+  const DESLOC_COPIA = 24;
+  function duplicarSelecionado(): void {
+    const el = selRef.current;
+    const doc = getDoc();
+    const slide = el?.closest<HTMLElement>(".slide");
+    const pai = el?.parentElement;
+    if (!el || !doc || !slide || !pai || el === slide) return;
+    if (editandoRef.current) finalizarEdicao();
+    snapshot();
+    const copia = el.cloneNode(true) as HTMLElement;
+    limparArtefatosSelecao(copia);
+    copia.removeAttribute("data-ed-sel");
+    // Ids novos pra copia e pra toda a descendencia: data-vk repetido quebraria
+    // o painel de camadas, a re-selecao do desfazer e a reordenacao.
+    copia.setAttribute("data-vk", "a" + ++contadorVkRef.current);
+    copia.querySelectorAll<HTMLElement>("[data-vk]").forEach((n) => {
+      n.setAttribute("data-vk", "a" + ++contadorVkRef.current);
+    });
+    pai.insertBefore(copia, el.nextSibling);
+    // A copia nasce visivel ao lado da original, nunca exatamente por baixo.
+    const cs = doc.defaultView!.getComputedStyle(copia);
+    garantirPosicionavel(copia, cs);
+    liberarParaMover(copia, cs);
+    const base = offsetAtual(copia, cs);
+    copia.style.left = base.left + DESLOC_COPIA + "px";
+    copia.style.top = base.top + DESLOC_COPIA + "px";
+    copia.setAttribute("data-ed-mov", "1");
+    marcarMudou();
+    selecionar(copia);
   }
 
   function resetarPosicao() {
@@ -702,7 +846,15 @@ export function usarMotorEdicao(
     const by = er.top - sr.top;
     const bw = er.width;
     const bh = er.height;
-    const tam = TAM_ALCA / escala();
+    const esc = escala();
+    // Tamanhos em px de SLIDE, pra alca ficar do mesmo tamanho na tela em
+    // qualquer zoom: o desenho (10px) e o alvo de clique (24px).
+    const desenho = TAM_ALCA / esc;
+    // A area de clique nunca passa da metade do elemento em nenhum eixo: num
+    // objeto pequeno, oito alvos de 24px cobririam a peca inteira e ninguem
+    // conseguiria mais clicar nela nem arrastar. Nunca fica menor que o desenho.
+    const alvo = Math.max(desenho, Math.min(ALVO_ALCA / esc, bw / 2, bh / 2));
+    const minLado = MIN_ALCA_LATERAL / esc;
     const ponto: Record<DirAlca, [number, number]> = {
       nw: [bx, by],
       n: [bx + bw / 2, by],
@@ -714,14 +866,19 @@ export function usarMotorEdicao(
       w: [bx, by + bh / 2],
     };
     DIRS_ALCA.forEach((dir) => {
+      // Elemento estreito ou baixo perde a alca de lado do eixo apertado: duas
+      // alcas coladas viram loteria pro ponteiro.
+      if ((dir === "n" || dir === "s") && bw < minLado) return;
+      if ((dir === "e" || dir === "w") && bh < minLado) return;
       const [ax, ay] = ponto[dir];
       const a = doc.createElement("div");
       a.className = "vkos-ed-alca";
       a.setAttribute("data-ed-dir", dir);
-      a.style.width = tam + "px";
-      a.style.height = tam + "px";
-      a.style.left = ax - tam / 2 + "px";
-      a.style.top = ay - tam / 2 + "px";
+      a.style.width = alvo + "px";
+      a.style.height = alvo + "px";
+      a.style.left = ax - alvo / 2 + "px";
+      a.style.top = ay - alvo / 2 + "px";
+      a.style.setProperty("--vkos-ed-alca-tam", desenho + "px");
       a.style.cursor = CURSOR_ALCA[dir];
       slide.appendChild(a);
     });
@@ -870,15 +1027,75 @@ export function usarMotorEdicao(
     ressincronizarSelecao();
   }
 
-  // Cria uma guia (linha) dentro do slide, escondida.
+  // Cria uma guia (segmento) dentro do slide, escondida. A geometria e escrita
+  // a cada movimento por desenharGuia: ela muda conforme o par que alinhou.
   function criarGuia(doc: Document, slide: HTMLElement, eixo: "v" | "h"): HTMLElement {
     const g = doc.createElement("div");
     g.className = "vkos-ed-guia vkos-ed-guia-" + eixo;
     g.style.display = "none";
-    if (eixo === "v") g.style.left = "50%";
-    else g.style.top = "50%";
     slide.appendChild(g);
     return g;
+  }
+
+  // Posiciona uma guia em coordenadas do slide. Vertical: x fixo, altura do
+  // segmento. Horizontal: y fixo, largura do segmento.
+  function desenharGuia(g: HTMLElement | null, guia: Guia | undefined) {
+    if (!g) return;
+    if (!guia) {
+      g.style.display = "none";
+      return;
+    }
+    const tam = Math.max(1, guia.ate - guia.de);
+    if (guia.eixo === "v") {
+      g.style.left = guia.posicao + "px";
+      g.style.top = guia.de + "px";
+      g.style.height = tam + "px";
+      // Direcao do tracejado da guia de centro, que segue o eixo da linha.
+      g.style.setProperty("--vkos-ed-eixo", "to bottom");
+    } else {
+      g.style.top = guia.posicao + "px";
+      g.style.left = guia.de + "px";
+      g.style.width = tam + "px";
+      g.style.setProperty("--vkos-ed-eixo", "to right");
+    }
+    g.classList.toggle("vkos-ed-guia-centro", guia.tipo === "centro");
+    g.style.display = "block";
+  }
+
+  // Quantos vizinhos entram na conta do alinhamento. Passar disso so acrescenta
+  // ruido de guia e trabalho por frame, num slide que nunca tem tanto objeto.
+  const MAX_VIZINHOS = 48;
+
+  // Caixa de um elemento em coordenadas do slide (px do doc, sem a escala css).
+  function caixaNoSlide(el: HTMLElement, rSlide: DOMRect): Caixa {
+    const r = el.getBoundingClientRect();
+    return {
+      esquerda: r.left - rSlide.left,
+      topo: r.top - rSlide.top,
+      largura: r.width,
+      altura: r.height,
+    };
+  }
+
+  // Vizinhos com quem vale alinhar: os objetos de topo do slide mais os irmaos
+  // diretos do arrastado, sem ele proprio, sem quem o contem e sem artefato do
+  // editor. Medidos UMA vez, no inicio do gesto: eles nao se mexem durante ele.
+  function coletarVizinhos(el: HTMLElement, slide: HTMLElement): Caixa[] {
+    const rSlide = slide.getBoundingClientRect();
+    const candidatos: HTMLElement[] = [...filhosEmpilhados(slide)];
+    const pai = el.parentElement;
+    if (pai && pai !== slide) candidatos.push(...filhosEmpilhados(pai));
+    const vistos = new Set<HTMLElement>();
+    const caixas: Caixa[] = [];
+    for (const c of candidatos) {
+      if (caixas.length >= MAX_VIZINHOS) break;
+      if (vistos.has(c)) continue;
+      vistos.add(c);
+      if (c === el || c.contains(el) || el.contains(c)) continue;
+      if (!ehAlvoLegitimo(c)) continue;
+      caixas.push(caixaNoSlide(c, rSlide));
+    }
+    return caixas;
   }
 
   // ===== Arrasto (mouse). O gesto acontece DENTRO do iframe, entao o mousedown
@@ -933,6 +1150,7 @@ export function usarMotorEdicao(
       ativo: false,
       guiaV: null,
       guiaH: null,
+      vizinhos: [],
       slidePosAntes: null,
       win,
     };
@@ -960,6 +1178,8 @@ export function usarMotorEdicao(
         a.slidePosAntes = a.slide.style.position;
         a.slide.style.position = "relative";
       }
+      // Mede os vizinhos ANTES de criar as guias, pra elas nao entrarem na conta.
+      a.vizinhos = coletarVizinhos(a.el, a.slide);
       a.guiaV = criarGuia(doc, a.slide, "v");
       a.guiaH = criarGuia(doc, a.slide, "h");
     }
@@ -996,27 +1216,26 @@ export function usarMotorEdicao(
     a.el.style.left = left + "px";
     a.el.style.top = top + "px";
     a.el.setAttribute("data-ed-mov", "1");
-    // Snap ao centro do slide, com guias. getBoundingClientRect de um elemento
-    // do iframe volta em px do doc (nao escalado), entao a diferenca dos centros
-    // ja esta em px de slide; o limiar de tela vira px de slide dividindo pela escala.
+    // Alinhamento: gruda no palco (bordas e centro) e nos vizinhos, e desenha a
+    // guia do encaixe. getBoundingClientRect de um elemento do iframe volta em
+    // px do doc (nao escalado), entao tudo ja esta no sistema do slide; o limiar
+    // de tela vira px de slide dividindo pela escala. A decisao de onde grudar
+    // e de onde a guia aparece esta em alinhamento.ts, testada sem DOM.
     if (a.slide) {
       const limiar = LIMIAR_SNAP / escala();
-      const rEl = a.el.getBoundingClientRect();
       const rSl = a.slide.getBoundingClientRect();
-      const resX = rSl.left + rSl.width / 2 - (rEl.left + rEl.width / 2);
-      const resY = rSl.top + rSl.height / 2 - (rEl.top + rEl.height / 2);
-      if (Math.abs(resX) <= limiar) {
-        a.el.style.left = left + resX + "px";
-        if (a.guiaV) a.guiaV.style.display = "block";
-      } else if (a.guiaV) {
-        a.guiaV.style.display = "none";
-      }
-      if (Math.abs(resY) <= limiar) {
-        a.el.style.top = top + resY + "px";
-        if (a.guiaH) a.guiaH.style.display = "block";
-      } else if (a.guiaH) {
-        a.guiaH.style.display = "none";
-      }
+      const movel = caixaNoSlide(a.el, rSl);
+      const palco: Caixa = {
+        esquerda: 0,
+        topo: 0,
+        largura: rSl.width,
+        altura: rSl.height,
+      };
+      const r = calcularAlinhamento(movel, a.vizinhos, palco, limiar);
+      if (r.dx !== 0) a.el.style.left = left + r.dx + "px";
+      if (r.dy !== 0) a.el.style.top = top + r.dy + "px";
+      desenharGuia(a.guiaV, r.guias.find((g) => g.eixo === "v"));
+      desenharGuia(a.guiaH, r.guias.find((g) => g.eixo === "h"));
     }
   }
 
@@ -1139,13 +1358,34 @@ export function usarMotorEdicao(
     iniciarEdicao(el, e.clientX, e.clientY);
   }
 
-  // Setas movem o selecionado quando o foco nao esta num campo. 1px, Shift 10px.
+  // Atalhos que agem sobre o OBJETO selecionado: setas movem (1px, Shift 10px),
+  // Delete pede a exclusao, Ctrl+D duplica. Valem com o foco no app e, pelo
+  // aoTeclaDoc, tambem com o foco dentro do iframe. Enquanto edita texto,
+  // nenhum deles vale: ali as teclas sao do cursor.
   function aoTeclaJanela(e: KeyboardEvent) {
     if (!selRef.current) return;
-    // Enquanto edita texto, as setas andam com o cursor, nunca movem o elemento.
     if (editandoRef.current) return;
     const alvo = e.target as HTMLElement | null;
     if (alvo && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName))) return;
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (ctrl && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      e.stopPropagation();
+      duplicarSelecionado();
+      return;
+    }
+    if (!ctrl && (e.key === "Delete" || e.key === "Backspace")) {
+      const el = selRef.current;
+      const slide = el.closest(".slide");
+      if (!slide || el === slide) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // A exclusao continua passando pela confirmacao de quem monta a tela: o
+      // Desfazer some depois de salvar, entao apagar por tecla sem aviso seria
+      // uma perda silenciosa. Ver decisoes/2026-07-27-manipulacao-direta-studio.md.
+      optsRef.current.aoPedirExcluir?.();
+      return;
+    }
     const passo = e.shiftKey ? 10 : 1;
     let dx = 0;
     let dy = 0;
@@ -1159,9 +1399,19 @@ export function usarMotorEdicao(
     moverSelecao(dx, dy);
   }
 
+  // Verdadeiro pro gesto de refazer, nas duas grafias que os editores aceitam:
+  // Ctrl+Shift+Z (Canva, Figma) e Ctrl+Y (herança do Windows).
+  function ehRefazer(e: KeyboardEvent): boolean {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (!ctrl) return false;
+    const k = e.key.toLowerCase();
+    return (k === "z" && e.shiftKey) || (k === "y" && !e.shiftKey);
+  }
+
   // Teclas com o foco DENTRO do iframe (depois de clicar num elemento, o
-  // keydown vai pro doc do iframe, nao pro window do app). Espelha os atalhos:
-  // Ctrl+S salva pelo caminho de quem monta, Ctrl+Z desfaz, setas movem.
+  // keydown vai pro doc do iframe, e o listener do app NAO ve o evento: ele nao
+  // atravessa a fronteira do documento). Todo atalho da tela precisa existir
+  // aqui tambem, senao ele so funciona quando o foco esta no painel.
   function aoTeclaDoc(e: KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
     // Em edicao in-place: Esc sai, Ctrl+Z sai e desfaz, Ctrl+S sai e salva.
@@ -1171,6 +1421,12 @@ export function usarMotorEdicao(
         e.preventDefault();
         e.stopPropagation();
         finalizarEdicao();
+        return;
+      }
+      if (ehRefazer(e)) {
+        e.preventDefault();
+        finalizarEdicao();
+        refazer();
         return;
       }
       if (ctrl && e.key.toLowerCase() === "z") {
@@ -1192,12 +1448,48 @@ export function usarMotorEdicao(
       optsRef.current.aoAtalhoSalvar?.();
       return;
     }
+    if (ehRefazer(e)) {
+      e.preventDefault();
+      refazer();
+      return;
+    }
     if (ctrl && e.key.toLowerCase() === "z") {
       e.preventDefault();
       desfazer();
       return;
     }
+    // Esc solta a selecao. Antes so o listener do app tratava isso, e ele nunca
+    // recebia a tecla com o foco no iframe: apos clicar num elemento, Esc nao
+    // fazia nada. Arrasto em andamento e cancelado primeiro.
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (arrastoRef.current || redimRef.current) cancelarGesto();
+      else if (selRef.current) limparSelecao();
+      return;
+    }
+    // Enter com um objeto selecionado entra na edicao de texto, como no Figma,
+    // no Canva e no tldraw. Poupa mirar o duplo clique num texto pequeno.
+    if (e.key === "Enter" && !ctrl && !e.shiftKey && selRef.current) {
+      const alvo = alvoEdicao(selRef.current);
+      if (alvo) {
+        e.preventDefault();
+        e.stopPropagation();
+        const r = alvo.getBoundingClientRect();
+        iniciarEdicao(alvo, r.left + r.width / 2, r.top + r.height / 2);
+        return;
+      }
+    }
     aoTeclaJanela(e);
+  }
+
+  // Aborta o gesto em andamento e devolve o elemento ao estado de antes dele.
+  // O snapshot do inicio do gesto ja esta no historico, entao desfazer() basta.
+  function cancelarGesto() {
+    const tinha = !!(arrastoRef.current || redimRef.current);
+    if (arrastoRef.current) aoMouseUp();
+    if (redimRef.current) aoSoltarRedim();
+    if (tinha) desfazer();
   }
 
   // ===== Troca de imagem de fundo (a pagina e parametro, nao estado global).
@@ -1570,9 +1862,11 @@ export function usarMotorEdicao(
     if (!resp.ok) throw new Error("Não foi possível salvar.");
     // Salvar confirma o estado atual como nova base. A confirmação de exclusão
     // avisa que, depois daqui, o elemento não volta pelo Desfazer.
-    undoRef.current.limpar();
-    setPodeDesfazer(false);
+    histRef.current.limpar();
+    ultimoPassoRef.current = null;
+    sincronizarBotoesHistorico();
     setNaoSalvo(false);
+    setSalvoEm(Date.now());
   }
 
   // ===== Instrumentacao: liga tudo ao (re)carregar o iframe, limpa no unmount.
@@ -1612,12 +1906,14 @@ export function usarMotorEdicao(
             }
           }
         }
-        undoRef.current.limpar();
+        histRef.current.limpar();
+        ultimoPassoRef.current = null;
         selRef.current = null;
         setVars(lista);
         setFontesOpc(montarFontes(doc));
         setSelecao(null);
         setPodeDesfazer(false);
+        setPodeRefazer(false);
         setPaginas(doc.querySelectorAll(".slide").length || 1);
         setVersaoDoc((v) => v + 1);
         setPronto(true);
@@ -1640,9 +1936,22 @@ export function usarMotorEdicao(
     }
     window.addEventListener("keydown", aoTeclaJanela, true);
 
+    // O tema do app troca por data-theme no <html>. O CSS do editor mora dentro
+    // do iframe, fora da cascata do Hub, entao ele nao se atualiza sozinho:
+    // reinjeta com o menta do tema novo. Ver editor/tema.ts.
+    const observadorTema = new MutationObserver(() => {
+      const d = getDoc();
+      if (d) injetarEstilo(d);
+    });
+    observadorTema.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
     return () => {
       iframe.removeEventListener("load", aoCarregar);
       window.removeEventListener("keydown", aoTeclaJanela, true);
+      observadorTema.disconnect();
       window.removeEventListener("mousemove", aoMouseMoveApp, true);
       window.removeEventListener("mouseup", aoMouseUp, true);
       const d = iframe.contentDocument;
@@ -1679,12 +1988,16 @@ export function usarMotorEdicao(
     excluirImagemSelecionada,
     selecionarPai,
     excluirSelecionado,
+    duplicarSelecionado,
     adicionarImagemFundoPagina,
     capturarImagemSelecionada,
     desfazer,
     podeDesfazer,
+    refazer,
+    podeRefazer,
     salvar,
     naoSalvo,
+    salvoEm,
     limparSelecao,
     listarCamadas,
     selecionarPorId,

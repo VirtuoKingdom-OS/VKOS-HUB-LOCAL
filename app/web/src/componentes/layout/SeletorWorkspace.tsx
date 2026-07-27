@@ -13,7 +13,7 @@ import {
 } from "../comum/Icones";
 import "../../estilos/workspaces.css";
 
-// Quantos clientes ate valer a busca por nome.
+// Quantos workspaces ate valer a busca por nome.
 const LIMITE_BUSCA = 6;
 // Tempo pra desarmar a confirmacao de remover (nunca por mouseleave).
 const MS_DESARME = 4000;
@@ -27,8 +27,13 @@ function encurtar(caminho: string): string {
 
 type Vista = "lista" | "adicionar" | "novo";
 
-// Switcher de cliente no topo da sidebar. Mostra o cliente ativo e abre um
-// painel pra trocar, adicionar, criar, renomear e remover clientes.
+// Switcher de workspace, dentro da secao Workspace da sidebar. Mostra o
+// workspace aberto e abre um painel pra trocar, adicionar, criar, renomear e
+// remover.
+//
+// Os nomes das funcoes do contexto ainda dizem "Cliente". E de propria vontade:
+// o rotulo que o usuario le virou Workspace, mas identificador de codigo nao se
+// renomeia por simetria.
 export function SeletorWorkspace() {
   const {
     workspaces,
@@ -51,17 +56,17 @@ export function SeletorWorkspace() {
   const [ocupado, setOcupado] = useState(false);
   const [avisos, setAvisos] = useState<string[] | null>(null);
 
-  // Edicao inline do nome de um cliente.
+  // Edicao inline do nome de um workspace.
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nomeEdit, setNomeEdit] = useState("");
   // Confirmacao de remover em dois cliques.
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
-  // Form de cliente novo.
+  // Form de workspace novo.
   const [nomeNovo, setNomeNovo] = useState("");
   const [pastaDestino, setPastaDestino] = useState<string | null>(null);
 
   const ativo = workspaces.find((w) => w.id === workspaceAtivo) ?? null;
-  const nomeAtivo = ativo?.nome ?? "Selecionar cliente";
+  const nomeAtivo = ativo?.nome ?? "Selecionar workspace";
 
   const mostrarBusca = workspaces.length > LIMITE_BUSCA;
   const filtrados = useMemo(() => {
@@ -184,7 +189,7 @@ export function SeletorWorkspace() {
     setOcupado(true);
     try {
       const caminho = await escolherPastaNativa(
-        "Escolha a pasta VKOS do cliente"
+        "Escolha a pasta VKOS do workspace"
       );
       if (!caminho) {
         setOcupado(false);
@@ -203,7 +208,7 @@ export function SeletorWorkspace() {
     setErro(null);
     try {
       const caminho = await escolherPastaNativa(
-        "Escolha onde criar a pasta do cliente novo"
+        "Escolha onde criar a pasta do workspace novo"
       );
       if (caminho) setPastaDestino(caminho);
     } catch (e) {
@@ -211,9 +216,9 @@ export function SeletorWorkspace() {
     }
   };
 
-  // A pasta do cliente novo nasce DENTRO da pasta escolhida no navegador, com
-  // o nome do cliente em slug. O backend cria a pasta se nao existir, entao o
-  // usuario nao precisa criar nada no Explorer antes.
+  // A pasta do workspace novo nasce DENTRO da pasta escolhida no navegador, com
+  // o nome dele em slug. O backend cria a pasta se nao existir, entao o usuario
+  // nao precisa criar nada no Explorer antes.
   const slugPasta = (nome: string): string => {
     const limpo = nome
       .normalize("NFD")
@@ -221,7 +226,7 @@ export function SeletorWorkspace() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
-    return limpo || "cliente";
+    return limpo || "workspace";
   };
 
   const destinoFinal = (): string | null => {
@@ -256,11 +261,11 @@ export function SeletorWorkspace() {
         className={`sw-trigger${aberto ? " aberto" : ""}`}
         onClick={() => (aberto ? fechar() : setAberto(true))}
         disabled={trocandoWorkspace}
-        title={ativo?.pasta ?? "Nenhum cliente ativo"}
+        title={ativo?.pasta ?? "Nenhum workspace aberto"}
       >
         <span className="sw-ponto" />
         <span className="sw-trigger-texto">
-          <span className="sw-trigger-rotulo">Cliente</span>
+          <span className="sw-trigger-rotulo">Workspace</span>
           <span className="sw-trigger-nome" title={nomeAtivo}>
             {nomeAtivo}
           </span>
@@ -278,7 +283,7 @@ export function SeletorWorkspace() {
                     autoFocus
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
-                    placeholder="Buscar cliente"
+                    placeholder="Buscar workspace"
                   />
                 </div>
               )}
@@ -287,7 +292,7 @@ export function SeletorWorkspace() {
                 {filtrados.length === 0 ? (
                   <div className="sw-vazio">
                     {workspaces.length === 0
-                      ? "Nenhum cliente ainda."
+                      ? "Nenhum workspace ainda."
                       : "Nada encontrado."}
                   </div>
                 ) : (
@@ -349,8 +354,8 @@ export function SeletorWorkspace() {
                               }`}
                               title={
                                 ehAtivo
-                                  ? "Nao da pra remover o cliente ativo"
-                                  : "Remover cliente"
+                                  ? "Não dá pra remover o workspace aberto"
+                                  : "Remover workspace"
                               }
                               disabled={ehAtivo}
                               onClick={() => clicarRemover(w.id)}
@@ -384,7 +389,7 @@ export function SeletorWorkspace() {
                   }}
                 >
                   <IconePasta className="" />
-                  Adicionar cliente
+                  Adicionar workspace
                 </button>
                 <button
                   className="sw-acao-rodape"
@@ -394,7 +399,7 @@ export function SeletorWorkspace() {
                   }}
                 >
                   <IconeMais className="" />
-                  Novo cliente
+                  Novo workspace
                 </button>
               </div>
             </>
@@ -410,10 +415,10 @@ export function SeletorWorkspace() {
                 >
                   <IconeX className="" />
                 </button>
-                <h3>Adicionar cliente</h3>
+                <h3>Adicionar workspace</h3>
               </div>
               <p className="sw-ajuda">
-                Aponte a pasta VKOS de um cliente que ja existe. O seletor do
+                Aponte a pasta VKOS de um projeto que já existe. O seletor do
                 Windows vai abrir.
               </p>
               <button
@@ -422,9 +427,9 @@ export function SeletorWorkspace() {
                 disabled={ocupado}
               >
                 <IconePasta className="" />
-                {ocupado ? "Aguardando o seletor..." : "Escolher pasta do cliente"}
+                {ocupado ? "Aguardando o seletor..." : "Escolher pasta do workspace"}
               </button>
-              {ocupado && <div className="sw-carregando">Registrando o cliente.</div>}
+              {ocupado && <div className="sw-carregando">Registrando o workspace.</div>}
               {erro && (
                 <div className="sw-erro">
                   <IconeAlerta className="" />
@@ -444,17 +449,17 @@ export function SeletorWorkspace() {
                 >
                   <IconeX className="" />
                 </button>
-                <h3>Novo cliente</h3>
+                <h3>Novo workspace</h3>
               </div>
               <p className="sw-ajuda">
-                Cria um cliente novo com a mesma estrutura do atual e o Cerebro em
-                branco. Escolha o nome e a pasta onde ele vai morar.
+                Cria um workspace novo com a mesma estrutura do aberto e o Cérebro
+                em branco. Escolha o nome e a pasta onde ele vai morar.
               </p>
               <input
                 className="sw-input"
                 value={nomeNovo}
                 onChange={(e) => setNomeNovo(e.target.value)}
-                placeholder="Nome do cliente"
+                placeholder="Nome do workspace"
                 disabled={ocupado}
               />
               <button
@@ -466,7 +471,7 @@ export function SeletorWorkspace() {
                 {pastaDestino ? "Trocar a pasta" : "Escolher onde criar"}
               </button>
               <div className="sw-destino">
-                <span className="sw-destino-rotulo">Pasta do cliente</span>
+                <span className="sw-destino-rotulo">Pasta do workspace</span>
                 <span className="sw-destino-valor">
                   {destinoFinal()
                     ? encurtar(destinoFinal() as string)
@@ -485,7 +490,7 @@ export function SeletorWorkspace() {
                   onClick={() => void aoCriar()}
                   disabled={ocupado || !nomeNovo.trim() || !pastaDestino}
                 >
-                  {ocupado ? "Criando" : "Criar cliente"}
+                  {ocupado ? "Criando" : "Criar workspace"}
                 </button>
               </div>
             </div>
@@ -497,7 +502,7 @@ export function SeletorWorkspace() {
         <div className="sw-toast">
           <div className="sw-toast-topo">
             <IconeAlerta className="" />
-            <strong>Cliente criado, com pendencias</strong>
+            <strong>Workspace criado, com pendências</strong>
             <button className="sw-toast-x" onClick={() => setAvisos(null)}>
               <IconeX className="" />
             </button>

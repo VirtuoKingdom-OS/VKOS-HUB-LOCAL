@@ -1,6 +1,6 @@
 {
   "name": "vkosapp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "VKOS Hub. Cockpit web local multi-IA, orquestrando o VKOS pelo Cerebro.",
   "type": "module",

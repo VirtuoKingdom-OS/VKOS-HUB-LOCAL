@@ -31,9 +31,21 @@
     {
       "id": "dashboard",
       "grupo": "entrada",
-      "nome": "Dashboard e criação guiada",
-      "resumo": "A recepção do Hub, onde uma ideia começa sem exigir conhecimento técnico.",
-      "descricao": "É como o balcão de entrada de um estúdio: a pessoa diz o que quer e recebe perguntas simples na ordem certa. No carrossel, escolhe modelos com contrato visual real, traz imagens das fontes ou do computador e fecha com instruções livres. Dali, o pedido segue para uma sessão de IA ou para um dos Studios, sem obrigar ninguém a conhecer os bastidores.",
+      "nome": "Dashboard do Core",
+      "resumo": "A tela principal do dono: quanto ele gastou com IA e o que está acontecendo agora.",
+      "descricao": "É o painel do negócio, não o de um cliente. Mostra o gasto com IA somando todos os workspaces, inclusive os que já foram removidos, e diz quando esse número é um piso em vez de um valor exato, porque algum turno consumiu crédito sem preço conhecido. Mostra também a evolução do gasto nos últimos catorze dias, comparando a semana corrente com a anterior, e quais projetos estão ativos: primeiro os que têm sessão de IA rodando neste momento, depois os que tiveram trabalho na última semana. Trocar de workspace não muda nada nesta tela.",
+      "conversaCom": [
+        "custos",
+        "workspaces",
+        "sessoes"
+      ]
+    },
+    {
+      "id": "inicio-workspace",
+      "grupo": "entrada",
+      "nome": "Início do workspace e criação guiada",
+      "resumo": "A recepção do projeto aberto, onde uma ideia começa sem exigir conhecimento técnico.",
+      "descricao": "É o balcão de entrada do estúdio de um projeto: a pessoa diz o que quer e recebe perguntas simples na ordem certa. No carrossel, escolhe modelos com contrato visual real, traz imagens das fontes ou do computador e fecha com instruções livres. Dali, o pedido segue para uma sessão de IA ou para um dos Studios. Tudo aqui fala do workspace aberto, e muda quando se troca de projeto.",
       "conversaCom": [
         "cerebro",
         "fontes",
@@ -60,7 +72,7 @@
       "grupo": "entrada",
       "nome": "Studio de carrossel",
       "resumo": "A bancada onde cada página do carrossel pode ser vista e refinada.",
-      "descricao": "Funciona como uma mesa de diagramação: a peça chega pronta, mas texto, imagem, posição e aparência ainda podem ser ajustados. Um painel de camadas lista o que há em cada página, deixa escolher o que fica na frente e aceita imagens próprias como elementos livres. A IA também pode ajudar sem sair dos limites daquela peça.",
+      "descricao": "Funciona como uma mesa de diagramação: a peça chega pronta, mas texto, imagem, posição e aparência ainda podem ser ajustados clicando direto no que se quer mudar. Arrastar mostra guias de alinhamento, as alças redimensionam, o teclado move, duplica e apaga, e todo passo volta atrás e para frente enquanto a peça não foi salva. Um painel de camadas lista o que há em cada página, deixa escolher o que fica na frente e aceita imagens próprias como elementos livres. A IA também pode ajudar sem sair dos limites daquela peça.",
       "conversaCom": [
         "pecas",
         "anexos",
@@ -148,9 +160,9 @@
     {
       "id": "workspaces",
       "grupo": "dados",
-      "nome": "Espaços de clientes",
-      "resumo": "As gavetas separadas que guardam a identidade e o trabalho de cada cliente.",
-      "descricao": "É um armário com uma gaveta por negócio. Trocar de cliente muda Cérebro, peças e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu. O CRM não está aqui dentro: o funil comercial é do dono do Hub e vale para todos os clientes ao mesmo tempo.",
+      "nome": "Workspaces",
+      "resumo": "As gavetas separadas que guardam a identidade e o trabalho de cada projeto.",
+      "descricao": "É um armário com uma gaveta por projeto. Trocar de workspace muda Cérebro, peças e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu. Desde 2026-07-27 existe uma tela própria no nível de cima, com a lista de todos, o gasto de cada um e o estado de atividade. O CRM e as Conexões não estão aqui dentro: os dois são do dono do Hub e valem para todos os projetos ao mesmo tempo.",
       "conversaCom": [
         "cerebro",
         "pecas",
@@ -222,11 +234,10 @@
       "id": "conexoes",
       "grupo": "integracoes",
       "nome": "Conexões",
-      "resumo": "As pontes locais que dão acesso controlado a serviços externos por API direta.",
-      "descricao": "São como tomadas com chave: cada serviço só participa quando sua conexão está ligada. Hoje a única é a Apify, que abastece a busca de leads do CRM, com a credencial guardada apenas no computador.",
+      "resumo": "As chaves das contas do dono, uma vez só para todos os workspaces.",
+      "descricao": "É o molho de chaves do dono do Hub, não do cliente atendido: a conta da Apify é uma só e quem paga por ela é quem opera o Hub. Desde 2026-07-27 a chave mora no nível de cima, então ela é digitada uma vez e vale em todos os projetos, e a tela abre com ou sem workspace aberto. Antes cada projeto tinha o seu arquivo, e o mesmo token precisava ser colado de novo a cada cliente. O que estava espalhado subiu numa migração única: o primeiro projeto em ordem vence, a divergência entre dois vira anotação em vez de escolha silenciosa, e o arquivo de origem nunca é apagado, vira uma cópia carimbada com a data. Nenhum valor de chave entra na anotação. As chaves ficam só em disco local e nunca saem da máquina.",
       "conversaCom": [
         "sessoes",
-        "setup",
         "crm"
       ]
     },
@@ -291,12 +302,12 @@
       "rotulo": "orienta"
     },
     {
-      "de": "dashboard",
+      "de": "inicio-workspace",
       "para": "sessoes",
       "rotulo": "inicia"
     },
     {
-      "de": "dashboard",
+      "de": "inicio-workspace",
       "para": "site-guiado",
       "rotulo": "abre"
     },
@@ -404,6 +415,21 @@
       "de": "ide",
       "para": "sessoes",
       "rotulo": "conversa"
+    },
+    {
+      "de": "custos",
+      "para": "dashboard",
+      "rotulo": "mostra o gasto"
+    },
+    {
+      "de": "workspaces",
+      "para": "dashboard",
+      "rotulo": "lista os projetos"
+    },
+    {
+      "de": "sessoes",
+      "para": "dashboard",
+      "rotulo": "diz o que roda agora"
     }
   ],
   "skills": [
@@ -412,49 +438,90 @@
       "nome": "/instalar",
       "resumo": "A cerimonia que entrevista o dono e preenche o Cerebro do zero.",
       "cor": "menta",
-      "percurso": ["cockpit", "sessoes", "skills", "cerebro"]
+      "percurso": [
+        "cockpit",
+        "sessoes",
+        "skills",
+        "cerebro"
+      ]
     },
     {
       "id": "carrossel",
       "nome": "/carrossel",
       "resumo": "Do tema escolhido no wizard ao carrossel pronto na galeria.",
       "cor": "amarelo",
-      "percurso": ["dashboard", "sessoes", "skills", "cerebro", "studio-carrossel", "pecas"]
+      "percurso": [
+        "inicio-workspace",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "studio-carrossel",
+        "pecas"
+      ]
     },
     {
       "id": "stories",
       "nome": "/stories",
       "resumo": "Sequencia de stories montada com o mesmo motor do carrossel.",
       "cor": "amarelo",
-      "percurso": ["dashboard", "sessoes", "skills", "cerebro", "studio-carrossel", "pecas"]
+      "percurso": [
+        "inicio-workspace",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "studio-carrossel",
+        "pecas"
+      ]
     },
     {
       "id": "site",
       "nome": "/site",
       "resumo": "Site guiado que nasce, passa pela conferencia e vai pra exportacao.",
       "cor": "menta",
-      "percurso": ["site-guiado", "sessoes", "skills", "cerebro", "pecas", "publicacao"]
+      "percurso": [
+        "site-guiado",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "pecas",
+        "publicacao"
+      ]
     },
     {
       "id": "revisar-design",
       "nome": "/revisar-design",
       "resumo": "Auditoria de design que revisa a peca pronta e corrige o que reprova.",
       "cor": "alerta",
-      "percurso": ["site-guiado", "sessoes", "skills", "pecas"]
+      "percurso": [
+        "site-guiado",
+        "sessoes",
+        "skills",
+        "pecas"
+      ]
     },
     {
       "id": "semana",
       "nome": "/semana",
       "resumo": "Planejamento do conteudo da semana a partir da identidade do negocio.",
       "cor": "suave",
-      "percurso": ["cockpit", "sessoes", "skills", "cerebro"]
+      "percurso": [
+        "cockpit",
+        "sessoes",
+        "skills",
+        "cerebro"
+      ]
     },
     {
       "id": "evoluir",
       "nome": "/evoluir",
       "resumo": "Evolucao do proprio produto conduzida pelo VKOS-IDE.",
       "cor": "fraco",
-      "percurso": ["ide", "sessoes", "skills", "cerebro"]
+      "percurso": [
+        "ide",
+        "sessoes",
+        "skills",
+        "cerebro"
+      ]
     }
   ]
 }

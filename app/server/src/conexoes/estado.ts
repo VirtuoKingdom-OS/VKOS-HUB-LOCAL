@@ -1,93 +1,70 @@
-// Estado das conexoes MCP por workspace. Guarda quais servidores estao ligados
-// e a config de cada um (tokens). Os segredos vivem SO neste arquivo local, em
-// app/dados/workspaces/<id>/conexoes.json. Escrita atomica.
+// Estado das conexoes, unico do Hub, no nivel CORE.
 //
-// Modulo folha: depende so de fs/path, do gravarJson e dos resolvedores de
-// caminho de workspace. Nunca importa rotas nem catalogo, pra nao criar ciclo.
+// A conexao e do DONO do Hub, nao do cliente atendido: a conta da Apify e uma
+// so, e quem paga por ela e quem opera o Hub. Por isso o estado vive em
+// app/dados/conexoes.json e existe com ou sem cliente aberto. Antes ele morava
+// em app/dados/workspaces/<id>/conexoes.json e cada cliente tinha o seu, o que
+// obrigava a redigitar o mesmo token em cada um.
+//
+// O que ficou nos clientes sobe na primeira leitura, uma vez so (ver fusao.ts).
+//
+// Os segredos vivem SO neste arquivo local. Escrita atomica.
 
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
-import { quarentenarComErro } from "../util/quarentena.js";
-import { garantirPastaDadosWorkspace, pastaDadosWorkspace } from "../workspaces/estado.js";
+import { pastaDadosHub, pastaWorkspacesHub } from "../workspaces/estado.js";
+import { lerConexoesDeArquivo, type EstadoConexoes, type EstadoServidor } from "./arquivo.js";
+import { NOME_ARQUIVO_CONEXOES, fundirConexoesDosWorkspaces } from "./fusao.js";
 
-const NOME_ARQUIVO = "conexoes.json";
+export type { EstadoConexoes, EstadoServidor } from "./arquivo.js";
+// Reexportada: o teste prova o comportamento de leitura com fixture temporaria.
+export { lerConexoesDeArquivo } from "./arquivo.js";
 
-// Estado de um servidor: ligado ou nao, mais a config (tokens por chave).
-export interface EstadoServidor {
-  habilitado: boolean;
-  config: Record<string, string>;
-}
-
-// Estado inteiro das conexoes de um workspace.
-export interface EstadoConexoes {
-  servidores: Record<string, EstadoServidor>;
-}
-
-function caminhoArquivo(workspaceId: string): string {
-  return join(pastaDadosWorkspace(workspaceId), NOME_ARQUIVO);
-}
-
-// So aceita string nos valores de config. Descarta o resto sem quebrar.
-function normalizarConfig(v: unknown): Record<string, string> {
-  const saida: Record<string, string> = {};
-  if (v && typeof v === "object") {
-    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-      if (typeof val === "string") saida[k] = val;
-    }
-  }
-  return saida;
-}
-
-// Le o estado das conexoes de um caminho. Arquivo ausente vira estado vazio, em
-// silencio (primeira execucao, ninguem ligou servidor ainda). Arquivo que EXISTE
-// mas nao parseia, ou que parseia sem o mapa de servidores, vai pra quarentena e
-// lanca.
+// Pasta do estado do CORE.
 //
-// Falha fechado de proposito. Aqui moram os segredos: o token da Apify e as
-// configs dos servidores MCP, digitados na mao e sem copia em lugar nenhum.
-// Comecar vazio faria o primeiro toggle da tela de conexoes gravar um arquivo
-// sem token por cima do arquivo com token.
+// VKOS_DADOS_TESTE aponta a raiz de dados pra uma pasta temporaria, pra o teste
+// nunca gravar por cima do token real do dono. Mesma regra do CRM e do historico
+// de custos. Lida a cada chamada, nunca na carga do modulo.
+export function pastaConexoes(): string {
+  return process.env.VKOS_DADOS_TESTE?.trim() || pastaDadosHub();
+}
+
+// Pasta de onde a fusao le as origens. Sob VKOS_DADOS_TESTE, os "workspaces"
+// ficam dentro da raiz de teste, senao a fusao leria os clientes reais.
+function pastaOrigens(): string {
+  const teste = process.env.VKOS_DADOS_TESTE?.trim();
+  return teste ? join(teste, "workspaces") : pastaWorkspacesHub();
+}
+
+export function arquivoConexoes(): string {
+  return join(pastaConexoes(), NOME_ARQUIVO_CONEXOES);
+}
+
+function garantirPasta(): string {
+  const pasta = pastaConexoes();
+  if (!existsSync(pasta)) mkdirSync(pasta, { recursive: true });
+  return pasta;
+}
+
+// Le o estado das conexoes do CORE.
 //
-// Exportada pra provar o comportamento com fixture temporaria.
-export function lerConexoesDeArquivo(caminho: string): EstadoConexoes {
-  if (!existsSync(caminho)) return { servidores: {} };
-  let bruto: unknown;
-  try {
-    bruto = JSON.parse(readFileSync(caminho, "utf8"));
-  } catch {
-    throw quarentenarComErro(caminho, "O arquivo de conexoes");
-  }
-  const dados = bruto as { servidores?: unknown } | null;
-  if (
-    !dados ||
-    typeof dados !== "object" ||
-    !dados.servidores ||
-    typeof dados.servidores !== "object" ||
-    Array.isArray(dados.servidores)
-  ) {
-    throw quarentenarComErro(caminho, "O arquivo de conexoes");
-  }
-  const servidores: Record<string, EstadoServidor> = {};
-  for (const [id, servidor] of Object.entries(dados.servidores as Record<string, unknown>)) {
-    if (!servidor || typeof servidor !== "object") continue;
-    const s = servidor as Record<string, unknown>;
-    servidores[id] = {
-      habilitado: s.habilitado === true,
-      config: normalizarConfig(s.config),
-    };
-  }
-  return { servidores };
+// Na primeira leitura, quando o arquivo do CORE ainda nao existe, tenta subir o
+// que ficou nos clientes. A fusao grava o destino antes de renomear as origens,
+// entao uma queda no meio repete sem duplicar.
+export function lerConexoes(): EstadoConexoes {
+  const caminho = arquivoConexoes();
+  if (existsSync(caminho)) return lerConexoesDeArquivo(caminho);
+
+  const pasta = garantirPasta();
+  const fundido = fundirConexoesDosWorkspaces(pastaOrigens(), pasta);
+  if (fundido) return fundido.estado;
+  return { servidores: {} };
 }
 
-// Le o estado das conexoes de um workspace.
-export function lerConexoes(workspaceId: string): EstadoConexoes {
-  return lerConexoesDeArquivo(caminhoArquivo(workspaceId));
-}
-
-// Grava o estado das conexoes de um workspace, de forma atomica.
-export function salvarConexoes(workspaceId: string, estado: EstadoConexoes): void {
-  garantirPastaDadosWorkspace(workspaceId);
-  gravarJsonAtomico(caminhoArquivo(workspaceId), estado);
+// Grava o estado das conexoes do CORE, de forma atomica.
+export function salvarConexoes(estado: EstadoConexoes): void {
+  garantirPasta();
+  gravarJsonAtomico(arquivoConexoes(), estado);
 }

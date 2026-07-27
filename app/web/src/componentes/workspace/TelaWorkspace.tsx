@@ -54,15 +54,20 @@ function abrirPeca(peca: Peca) {
   window.location.hash = "#/galerias";
 }
 
-// Porta de entrada simplificada: saudacao, criacao guiada de carrossel, cards
-// "em breve", criacoes recentes e atalhos discretos pro modo avancado.
-export function TelaDashboard({ aoCriar }: Props) {
+// Tela de trabalho do workspace aberto: saudacao com o nome dele, criacao
+// guiada, criacoes recentes e atalhos pro modo avancado.
+//
+// Ate 2026-07-27 isto era o Dashboard e ficava em "#/dashboard". O Dashboard
+// virou a tela do CORE (gasto com IA e projetos ativos), que e o nivel de cima
+// e nao muda quando se troca de workspace. Criar conteudo e trabalho de
+// PROJETO, entao mora aqui, em "#/inicio", dentro do workspace aberto.
+export function TelaWorkspace({ aoCriar }: Props) {
   const { pecas, workspaces, workspaceAtivo, estadoVkos } = usarEstado();
   const { ativa } = usarGeracao();
   // Seletor de tipo (Carrossel/Post/Story) abre antes da rota do assistente.
   const [seletorAberto, setSeletorAberto] = useState(false);
 
-  // Nome do cliente ativo: prefere o rotulo do workspace, cai no nome da pasta.
+  // Nome do workspace aberto: prefere o rotulo do registro, cai no da pasta.
   const nomeWorkspace = useMemo(() => {
     const ws = workspaces.find((w) => w.id === workspaceAtivo);
     if (ws?.nome) return ws.nome;

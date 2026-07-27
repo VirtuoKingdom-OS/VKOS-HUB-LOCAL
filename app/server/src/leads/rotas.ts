@@ -157,7 +157,7 @@ export function importarLeadsNoCrm(
 
 function workspaceAtivoOuErro(): string {
   const workspaceId = idWorkspaceAtivo();
-  if (!workspaceId) throw new ErroLeads("Nenhum cliente ativo.", 400);
+  if (!workspaceId) throw new ErroLeads("Nenhum workspace aberto.", 400);
   return workspaceId;
 }
 
@@ -210,7 +210,7 @@ export const rotasLeads: FastifyPluginAsync = async (app) => {
 
     try {
       const workspaceId = workspaceAtivoOuErro();
-      const encontrados = await buscarLeads(workspaceId, termo, {
+      const encontrados = await buscarLeads(termo, {
         localizacao,
         limite,
         buscarEmails,

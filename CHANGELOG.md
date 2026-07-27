@@ -3,6 +3,26 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] 2026-07-27
+
+O HUB CORE. O Hub deixou de ter um nível só: agora existe o CORE, onde o dono opera o negócio dele, e o workspace, onde cada projeto é feito. Trocar de workspace parou de trocar o Hub inteiro.
+
+### Adicionado
+
+- **Dashboard do CORE**, a tela principal e a primeira que abre. Duas coisas: o gasto com IA e os projetos ativos. O gasto é o total de todos os workspaces, inclusive os já removidos, sai sempre marcado como estimativa (com assinatura nenhum dólar é cobrança real) e se declara um piso, com o número de turnos, quando algum turno consumiu crédito sem preço conhecido.
+- **Série do gasto dos últimos 14 dias**, com a leitura que justifica ela existir: a semana corrente comparada com a anterior. Dia com turno sem preço aparece listrado em vez de cheio, porque a barra dele também é um piso.
+- **Projetos ativos com critério declarado na tela.** "Rodando" é ter sessão de IA em voo neste instante. "Ativo" é ter tido turno de IA ou ter sido aberto nos últimos sete dias, e abrir um workspace conta mesmo sem gastar IA.
+- **Tela de Workspaces**, no nível CORE: a lista de projetos com o gasto de cada um, o estado de atividade e o último trabalho, mais criar, adicionar, renomear e remover. Antes isso só existia dentro de um popover na sidebar.
+- **Sidebar em duas seções**, Core e Workspace, com o seletor de workspace dentro da seção Workspace. No topo, acima de tudo, ele dizia visualmente que trocar de cliente trocava o Hub inteiro.
+- `GET /api/core/resumo`, com a decisão isolada num módulo puro e testada sem DOM.
+
+### Alterado
+
+- **Conexões subiu para o nível CORE.** A conta da Apify é do dono do Hub, não do cliente atendido: o token é digitado uma vez e vale em todos os projetos. Antes ele precisava ser colado de novo a cada cliente, e a busca de leads parava ao trocar de projeto. A migração roda uma vez, em ordem determinística, grava antes de renomear e nunca apaga a origem. Conflito entre dois projetos não é resolvido em silêncio: vira anotação, e nenhum valor de token entra nela.
+- **"Cliente" virou "Workspace"** em tudo que o usuário lê, no app e nas mensagens do servidor. A palavra continua no CRM, onde ela significa cliente de verdade.
+- **A tela de trabalho do projeto virou `#/inicio`.** Ela era o Dashboard: saudação, criação guiada e criações recentes. Criar peça é trabalho de projeto, então mora dentro do workspace, e cancelar uma criação volta para lá em vez de jogar a pessoa no nível de cima.
+- `SECURITY.md` corrigido: a garantia de que excluir um workspace apaga os segredos dele parou de descrever o produto quando o token subiu para o CORE. Agora estão separadas as duas coisas, o que é do projeto e o que é do dono.
+
 ## [1.3.0] 2026-07-27
 
 O CRM reconstruído por inteiro, o chat de conversas, e o gasto de IA medido em vez de suposto. A base estava vazia, então reestruturar o dado custou zero agora e custaria migração de risco depois.

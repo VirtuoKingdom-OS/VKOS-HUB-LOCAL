@@ -472,11 +472,11 @@ Arquivos: `web/src/componentes/ide/` (novo), `web/src/estilos/ide.css` (novo), `
 
 Arquivos: `server/src/conexoes/` (novo: rotas.ts, estado.ts, mcp.ts), `web/src/componentes/conexoes/` (novo), `web/src/estilos/conexoes.css` (novo), `web/src/api/conexoes.ts` (novo).
 
-- Estado por workspace em `app/dados/workspaces/<id>/conexoes.json`: `{ servidores: { [id]: { habilitado: boolean, config: Record<string,string> } } }`. Escrita atômica. Tokens ficam SO nesse arquivo local; a tela avisa isso com uma frase.
+- Estado ÚNICO do Hub, no nível CORE, em `app/dados/conexoes.json`: `{ servidores: { [id]: { habilitado: boolean, config: Record<string,string> } } }`. Escrita atômica, respeita `VKOS_DADOS_TESTE`. Tokens ficam SO nesse arquivo local; a tela avisa isso com uma frase. Até 2026-07-27 era um arquivo por workspace, ver a seção do HUB CORE no fim deste documento.
 - Catálogo fixo em `server/src/conexoes/catalogo.ts`: hoje só a Apify, que alimenta a busca de leads do CRM. GitHub, Netlify e Notion saíram em 2026-07-26, junto com a publicação integrada; Vercel saiu em 2026-07-14 por só aceitar OAuth de navegador. Cada entrada descreve campos e transporte. A montagem do servidor MCP é opcional: a Apify usa API REST direta e nunca entra na configuração MCP das sessões.
 - `POST /api/conexoes/:id/testar` confirma a credencial na API oficial do serviço, sem devolver o token ao frontend. Vale só para a Apify.
-- `GET /api/conexoes` devolve catálogo + estado do workspace ativo (segredos mascarados: só os 4 últimos caracteres). `PUT /api/conexoes/:id` body `{ habilitado, config? }`.
-- `montarConfigMcp(workspaceId): { caminho: string, servidores: string[] } | null` em mcp.ts: monta o JSON de mcp servers dos habilitados com config completa, grava atômico em `app/dados/workspaces/<id>/mcp-config.json` e devolve o caminho e os ids habilitados. Sem nenhum habilitado, null. Exporta também os tipos.
+- `GET /api/conexoes` devolve catálogo + estado do CORE (segredos mascarados: só os 4 últimos caracteres). `PUT /api/conexoes/:id` body `{ habilitado, config? }`. Nenhuma rota depende de workspace aberto: o 400 "nenhum cliente ativo" deixou de existir aqui.
+- `montarConfigMcp(workspaceId): { caminho: string, servidores: string[] } | null` em mcp.ts: lê o estado do CORE, monta o JSON de mcp servers dos habilitados com config completa, grava atômico em `app/dados/workspaces/<id>/mcp-config.json` e devolve o caminho e os ids habilitados. O ARQUIVO montado continua por workspace de propósito: ele é artefato do spawn daquela sessão, e duas sessões de projetos diferentes não podem disputar o mesmo caminho. Sem nenhum habilitado, null.
 - `TelaConexoes`: cards por serviço (nome, descrição, campo de token com olho de revelar, toggle habilitar, estado salvo com feedback), aviso local-first, cards indisponíveis com selo "em breve". Três temas.
 
 ## CRM (dono: agente CRM, full-stack)
@@ -503,7 +503,7 @@ Arquivos: `server/src/crm/` (novo), `web/src/componentes/crm/` (novo), `web/src/
 - `PATCH /api/leads/:id` recebe `{ status: "minerado" | "arquivado" }`. `DELETE /api/leads/:id` remove o item apenas da mineração. Excluir um Contato continua sendo responsabilidade da aba Contatos.
 - `POST /api/leads/importar` recebe `{ ids: string[] }` e responde `{ importados, duplicados, contatos, listas }`. O servidor busca os dados no estado persistido, sem confiar em um payload de contato vindo da tela. O teto por lote é 500: a mineração acumula várias buscas, então o limite de importação não é o limite de uma busca. A tela também importa um lead avulso pelo botão do próprio cartão, com o mesmo endpoint.
 - A comparação remove tudo que não é dígito do telefone e também confere `origem: "google-maps:<placeId>"`. Assim, um lead sem telefone não é importado duas vezes. Contato novo recebe essa origem, tag `google-maps` e a data normal de criação do CRM.
-- O token fica em `conexoes.json`, mascarado nas respostas do catálogo e ausente de logs. O teste de conexão usa `GET /v2/users/me` e não dispara o Actor.
+- O token fica em `app/dados/conexoes.json` (escopo CORE), mascarado nas respostas do catálogo e ausente de logs. `buscarLeads(termo, opcoes?, fetchImpl?)` não recebe mais workspace: a conta é do dono. A mineração (`leads.json`) continua por workspace. O teste de conexão usa `GET /v2/users/me` e não dispara o Actor.
 
 ## Mapa do sistema interno
 
@@ -681,6 +681,23 @@ Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 - Cada aresta move só a sua borda com a oposta ancorada; canto move os dois eixos com o canto oposto ancorado. Tamanho mínimo `MIN_REDIM` (16px de slide) nos dois eixos. Imagem em canto trava a proporção por padrão (Shift libera); bloco em canto é livre (Shift trava); arestas nunca travam. `prepararCaixa` deixa left/top/width/height explícitos e solta right/bottom antes do gesto, registrando em `data-ed-livre` só o que adicionou.
 - As alças nunca entram no clique de seleção, na pilha de camadas, no desfazer nem no HTML salvo: `ehAlvoLegitimo` e `filhosEmpilhados` as ignoram, `limparArtefatosSelecao` (núcleo) e o serializador as removem junto das guias, e o mousedown numa alça (`ehAlca`) desvia pro resize sem trocar a seleção. Somem durante o arrasto e a edição de texto e voltam na caixa nova ao fim.
 
+## Manipulação direta no Studio (2026-07-27)
+
+Ver `decisoes/2026-07-27-manipulacao-direta-no-studio.md`. Contrato técnico:
+
+- `Historico<T>` em `editor/nucleo.ts` substitui `PilhaSnapshots`. `registrar(snap)` empilha o estado de ANTES e zera o refazer; `desfazer(atual)` e `refazer(atual)` recebem o estado corrente e devolvem o que restaurar; `descartarUltimo()` para ação que não mudou nada; `limpar()`. Limite 50 nos dois motores. `temDesfazer`/`temRefazer` alimentam os botões. Cada motor decide o que o snapshot guarda (corpo mais vars de tema no carrossel, documento inteiro no site) e como restaura; `restaurar` re-seleciona pelo `data-vk` guardado antes de trocar o innerHTML. Salvar continua zerando as duas pilhas.
+- `MotorEdicao` ganhou `refazer()`, `podeRefazer`, `duplicarSelecionado()` e `salvoEm` (instante da última gravação, 0 antes da primeira). `MotorSite` ganhou `refazer()` e `podeRefazer`. `OpcoesMotor` ganhou `aoPedirExcluir?: () => void`: o motor nunca apaga por tecla, ele avisa quem monta a tela, que abre a mesma confirmação do botão do painel.
+- `editor/alinhamento.ts` é o módulo puro das decisões do gesto, sem DOM, testado em `alinhamento.test.ts`. `calcularAlinhamento(movel, vizinhos, palco, limiar, folgaGuia)` devolve `{ dx, dy, guias }`: compara as três âncoras de cada eixo (dois lados e o meio) do móvel contra as do palco e as dos vizinhos, e escolhe o menor deslocamento dentro do limiar. Um eixo gruda no máximo uma vez. Empate de distância entrega o centro; o palco entra antes dos vizinhos na lista de referências. `Guia` traz `eixo`, `posicao`, `de`, `ate` e `tipo` ("centro" ou "borda"). `deveAgruparPasso(anterior, atual, janelaMs)` decide se um toque continua o gesto anterior: mesma ação, mesmo alvo não vazio, dentro de `JANELA_GESTO_MS` (500). `Historico` é testado em `nucleo.test.ts`.
+- No arrasto, os vizinhos são medidos UMA vez em `ativarArrasto` (`coletarVizinhos`: filhos empilhados do slide mais os irmãos diretos do arrastado, sem ele, sem quem o contém, sem artefato do editor, teto de 48). Limiar `LIMIAR_SNAP` = 8px de tela dividido pela escala. As duas guias são criadas no início do gesto e reposicionadas por `desenharGuia` (geometria inline, classe `vkos-ed-guia-centro` quando o encaixe é de centro); somem no fim junto com o resto dos artefatos.
+- `moverSelecao` passa `{ acao: "seta", alvo: data-vk }` pro `snapshot`, que pula o `registrar` quando o toque continua o gesto. Vinte setas seguidas voltam com um Ctrl+Z para a posição anterior ao gesto. `desfazer` e `refazer` zeram o gesto corrente.
+- Atalhos existem nos DOIS lados da fronteira do iframe, porque o keydown não atravessa documento: `aoTeclaDoc` (dentro) e o listener da TelaStudio (fora) cobrem Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y, Ctrl+S, Ctrl+D, Delete/Backspace, Esc, Enter e as setas. Esc com gesto em andamento chama `cancelarGesto` (encerra o arrasto ou o resize e desfaz); sem gesto, solta a seleção. Enter com objeto selecionado entra na edição in-place pelo `alvoEdicao`. Nenhum deles age enquanto o contentEditable está ativo.
+- `duplicarSelecionado` clona no mesmo pai, logo depois do original, limpa os artefatos do editor, gera `data-vk` novo para a cópia e toda a descendência, desloca 24px em left/top e seleciona a cópia.
+- `editor/tema.ts` resolve a cor do editor: `corDoTema(nome, padrao)` lê o token computado no `:root` do documento do Hub e `canaisRgb(cor)` converte pra "r, g, b". Os dois motores injetam o literal no iframe, que está fora da cascata em `@layer` do app. Um `MutationObserver` no `data-theme` do `<html>` reinjeta o estilo na troca de tema. O `#00c896` hardcoded saiu do `motor.ts` e do `motorSite.ts`.
+- Alça: `TAM_ALCA` = 10 (o quadradinho, desenhado no `::after`) e `ALVO_ALCA` = 24 (a caixa transparente que recebe o gesto, mínimo do WCAG 2.5.8). Os dois convertidos por `/escala` pra tamanho fixo na tela. Elemento com menos de `MIN_ALCA_LATERAL` (5 × TAM_ALCA) num eixo perde as alças de lado daquele eixo.
+- `PainelPropriedades` recebe `aoPedirExcluir(alvo)` e não guarda mais estado de confirmação: a `Confirmacao` vive na TelaStudio, alcançável pelo botão e pela tecla. Ordem fixa das seções: Elemento, Imagem, aplicar em todas, Camadas, Cores do tema, Adicionar imagem. A linha de ações do elemento traz Contêiner, Duplicar e Excluir.
+- `studio-estado` no cabeçalho mostra "Salvando...", "Não salvo" ou "Salvo" (este por 2,6 s após a gravação, disparado pela mudança de `motor.salvoEm`), com `role="status"` e `aria-live="polite"`. `AtalhosStudio.tsx` é a folha de atalhos, aberta pelo botão de teclado e fechada por Esc ou clique fora.
+- `.studio-canvas` usa `align-items: safe center`: centralizado enquanto o palco cabe, alinhado ao início quando transborda, senão o excesso de cima fica inalcançável no zoom alto. A roda usa um `scrollBy` instantâneo (`behavior: "auto"`), na vertical quando há sobra vertical e o usuário não segura Shift, na horizontal no resto. Com `scroll-behavior: smooth` herdado, duas atribuições seguidas viravam duas animações e a segunda cancelava a primeira.
+
 ## Editor de site: camadas na seção e imagem de bloco
 
 - Dentro da seção selecionada, `relistarCamadas` monta os itens no contrato do PainelCamadas (dois níveis, ordem de fluxo do DOM, primeiro da lista = topo da seção). `moverCamada` troca só a ordem no DOM (site é fluxo, sem z-index). `selecionarCamada` seleciona no canvas com scroll até o elemento.
@@ -784,3 +801,36 @@ Módulo novo `server/src/mensagens/`, dono de tudo dentro. Etapa 2e do plano `pl
 - O aviso NUNCA carrega texto de mensagem, prévia ou qualquer conteúdo: só id e escopo. Quem quer o conteúdo pede pela rota.
 - `thread` (mensagem nova, marcar lida) implica `conversas`: mudou prévia, ordem e não lidas na lista também. `conversas` (criar conversa, mudar status) não faz thread aberta nenhuma reler.
 - `origem` é o id da aba que gravou, vindo do cabeçalho `x-vkos-aba`, para ela não recarregar por causa do próprio eco.
+
+
+## HUB CORE, os dois níveis (2026-07-27, Fase 4)
+
+Ver `decisoes/2026-07-27-hub-core.md` e `decisoes/2026-07-27-conexoes-no-nivel-core.md`.
+
+### Navegação
+
+- Duas camadas declaradas em `web/src/componentes/layout/rotas.ts`, com teste travando quem mora onde:
+  - `TELAS_CORE`: `dashboard`, `workspaces`, `conexoes`, `crm`, `mapa`. Nada aqui muda ao trocar de workspace.
+  - `TELAS_WORKSPACE`: `inicio`, `cockpit`, `galerias`, `fontes`. Tudo aqui fala do workspace aberto.
+  - `nivelDaTela(tela)` devolve `"core"` ou `"workspace"`.
+- A Sidebar desenha as duas seções com um rótulo de nível cada (`.sidebar-secao-nivel`). O `SeletorWorkspace` saiu do topo e passou a ficar DENTRO da seção Workspace, logo abaixo do rótulo: no topo ele dizia visualmente que trocar de cliente trocava o Hub inteiro.
+- `#/dashboard` é a tela do CORE e a landing do app. `#/inicio` é a tela de trabalho do workspace aberto, que era o Dashboard antigo (`componentes/workspace/TelaWorkspace.tsx`, antes `componentes/dashboard/TelaDashboard.tsx`). O assistente de criação continua montado sobre `#/inicio`, e `retornoSeguroDaCriacao` cai em `inicio`, nunca no CORE.
+- `#/workspaces` é tela nova: a lista de projetos com gasto, atividade e as ações de criar, adicionar, renomear e remover.
+- Rótulo "Cliente" virou "Workspace" em toda interface, no web e nas mensagens do servidor. Identificador de código (`adicionarCliente` e companhia no contexto do React), chave de JSON e caminho em disco (`app/dados/workspaces/`) NÃO foram renomeados: renomear por simetria gera churn e, no caso de chave e caminho, quebra dado gravado. "Cliente" continua onde significa cliente de verdade, no CRM.
+
+### `GET /api/core/resumo`
+
+- `server/src/core/`: `modelo.ts` (a única definição dos tipos, importada pelo web via `web/src/tipos/core.ts`), `resumo.ts` (decisão pura, sem disco) e `rotas.ts` (costura com o estado real).
+- Resposta: `{ versao, gasto, workspaces, sessoesRodando, projetosAtivos, janelaAtividadeDias, diasDaSerie }`.
+- `gasto`: `{ totalUsd, estimado, piso, turnosSemCusto, usdDeRemovidos, workspacesRemovidos, workspacesSemHistorico, porDia }`. `totalUsd` soma os workspaces do registro MAIS `custos-historico.json`, dos já removidos. `piso` é verdadeiro quando há turno sem preço conhecido, workspace removido sem histórico legível, ou workspace do registro com `custos.json` corrompido.
+- `porDia`: 14 itens, do mais antigo para o mais novo, um por dia LOCAL (não UTC), inclusive os dias sem gasto. Cada item tem `{ dia, usd, turnos, turnosSemCusto }`. Sai de `custos.jsonl` de cada workspace. Turno com erro conta em `turnos` e NÃO em `turnosSemCusto`: no erro o Hub sabe que não deve somar, não falta informação.
+- `workspaces[]`: `{ id, nome, pasta, ativo, atividade, sessoesRodando, totalUsd, estimado, piso, turnosSemCusto, totalSessoes, ultimoUso, ultimoTurnoEm, gastoIlegivel }`, ordenados por atividade (rodando, recente, parado) e, dentro do grupo, pelo uso mais novo.
+- `atividade`: `"rodando"` com sessão em voo (fila, iniciando ou rodando); `"recente"` com turno de IA ou abertura do workspace nos últimos `janelaAtividadeDias` (7); `"parado"` no resto. `projetosAtivos` conta rodando mais recente.
+- `custos.json` corrompido de um workspace não derruba a rota: vira `gastoIlegivel: true` naquele item e `piso: true` no total, em vez de zero silencioso.
+
+### Telas
+
+- `web/src/componentes/core/`: `TelaCore.tsx` (Dashboard), `TelaWorkspaces.tsx` (lista) e `logica.ts` com toda a decisão de formato e leitura, testada em `logica.test.ts` sem DOM.
+- Todo valor em dólar sai por `formatarUsd`, que marca `~` (estimado, sempre que há gasto) e `≥` (piso). `fraseDoPiso` diz quantos turnos gastaram sem preço, e `fraseDosRemovidos` diz quanto veio de workspace já removido.
+- A série de 14 dias existe por causa de `lerSerie` e `fraseDaTendencia`: comparação da semana corrente contra a anterior. Barra de dia com turno sem preço sai listrada, não cheia, porque ela também é um piso. Período inteiro sem gasto deixa todas as barras zeradas.
+- `web/src/estilos/core.css`, na camada `tela`, cor só por token, com `prefers-reduced-motion`.

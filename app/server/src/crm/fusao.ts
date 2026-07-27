@@ -240,7 +240,7 @@ export function fundirCrmsDosWorkspaces(
     const resultado = lerOrigem(pasta, workspaceId);
     if (!resultado) {
       recuperados.push(
-        `O crm.json do cliente "${workspaceId}" nao pode ser lido e ficou de fora da fusao. O arquivo continua na pasta dele.`,
+        `O crm.json do workspace "${workspaceId}" nao pode ser lido e ficou de fora da fusao. O arquivo continua na pasta dele.`,
       );
       continue;
     }
@@ -350,7 +350,7 @@ export function fundirCrmsDosWorkspaces(
     }
 
     for (const mensagem of resultado.recuperados) {
-      recuperados.push(`Cliente "${workspaceId}": ${mensagem}`);
+      recuperados.push(`Workspace "${workspaceId}": ${mensagem}`);
     }
   }
 

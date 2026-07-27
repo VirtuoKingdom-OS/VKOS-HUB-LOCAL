@@ -1277,7 +1277,7 @@ function CanvasCockpit() {
             <div className="bv-cartao">
               {!cerebroPreenchido ? (
                 <>
-                  <h3 className="bv-titulo">Este cliente ainda não tem nada</h3>
+                  <h3 className="bv-titulo">Este workspace ainda não tem nada</h3>
                   <p className="bv-texto">
                     Tudo começa pelo Cérebro: a identidade do negócio que todas
                     as gerações vão usar. A entrevista guiada monta ele com
@@ -1300,7 +1300,7 @@ function CanvasCockpit() {
                   <h3 className="bv-titulo">O Cérebro está pronto</h3>
                   <p className="bv-texto">
                     Agora crie o primeiro fluxo: uma sessão de IA que gera a
-                    partir do Cérebro deste cliente.
+                    partir do Cérebro deste workspace.
                   </p>
                   <button
                     className="botao botao-principal bv-botao"

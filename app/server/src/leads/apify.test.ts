@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { salvarConexoes } from "../conexoes/estado.js";
@@ -13,6 +16,21 @@ import {
   LIMITE_RESULTADOS,
   normalizarRespostaApify,
 } from "./apify.js";
+
+// A conexao subiu pro CORE: o token nao mora mais por cliente. Cada caso aponta
+// a raiz de dados pra uma pasta temporaria, senao o teste gravaria por cima do
+// token real do dono.
+function raizTemp(nome: string): string {
+  const raiz = mkdtempSync(join(tmpdir(), `vkos-apify-${nome}-`));
+  mkdirSync(join(raiz, "workspaces"), { recursive: true });
+  process.env.VKOS_DADOS_TESTE = raiz;
+  return raiz;
+}
+
+function limpar(raiz: string): void {
+  delete process.env.VKOS_DADOS_TESTE;
+  rmSync(raiz, { recursive: true, force: true });
+}
 
 const fixtureApifyDocumentado = [{
   title: "Kim's Island",
@@ -46,19 +64,24 @@ test("normaliza o JSON documentado do Actor para o contrato de leads", () => {
 });
 
 test("buscarLeads exige uma conexão Apify habilitada", async () => {
-  const workspaceId = `w-teste-leads-sem-conexao-${Math.random().toString(36).slice(2, 8)}`;
-  await assert.rejects(
-    () => buscarLeads(workspaceId, "padaria em Belo Horizonte"),
-    (erro: unknown) =>
-      erro instanceof ErroLeads
-      && erro.statusHttp === 400
-      && /Conecte a Apify/i.test(erro.message),
-  );
+  const raiz = raizTemp("sem-conexao");
+  try {
+    await assert.rejects(
+      () => buscarLeads("padaria em Belo Horizonte"),
+      (erro: unknown) =>
+        erro instanceof ErroLeads
+        && erro.statusHttp === 400
+        && /Conecte a Apify/i.test(erro.message),
+    );
+  } finally {
+    limpar(raiz);
+  }
 });
 
 test("conexão Apify nunca entra na configuração MCP", () => {
+  const raiz = raizTemp("sem-mcp");
   const workspaceId = `w-teste-leads-sem-mcp-${Math.random().toString(36).slice(2, 8)}`;
-  salvarConexoes(workspaceId, {
+  salvarConexoes({
     servidores: {
       apify: { habilitado: true, config: { token: "token-teste" } },
     },
@@ -67,12 +90,14 @@ test("conexão Apify nunca entra na configuração MCP", () => {
     assert.equal(montarConfigMcp(workspaceId), null);
   } finally {
     apagarPastaDadosWorkspace(workspaceId);
+    limpar(raiz);
   }
 });
 
 test("busca usa o endpoint síncrono com teto, idioma e token só no header", async () => {
+  const raiz = raizTemp("busca");
   const workspaceId = `w-teste-leads-apify-${Math.random().toString(36).slice(2, 8)}`;
-  salvarConexoes(workspaceId, {
+  salvarConexoes({
     servidores: {
       apify: { habilitado: true, config: { token: "apify_api_token_secreto" } },
     },
@@ -99,7 +124,6 @@ test("busca usa o endpoint síncrono com teto, idioma e token só no header", as
     }) as typeof fetch;
 
     const leads = await buscarLeads(
-      workspaceId,
       "padaria em Belo Horizonte",
       { localizacao: "Belo Horizonte, MG", limite: 40, buscarEmails: true },
       fetchFalso,
@@ -109,12 +133,13 @@ test("busca usa o endpoint síncrono com teto, idioma e token só no header", as
   } finally {
     apagarPastaDadosWorkspace(workspaceId);
     assert.equal(pastaDadosWorkspace(workspaceId).includes(workspaceId), true);
+    limpar(raiz);
   }
 });
 
 test("traduz falta de crédito da Apify sem devolver a mensagem crua", async () => {
-  const workspaceId = `w-teste-leads-credito-${Math.random().toString(36).slice(2, 8)}`;
-  salvarConexoes(workspaceId, {
+  const raiz = raizTemp("credito");
+  salvarConexoes({
     servidores: {
       apify: { habilitado: true, config: { token: "token-teste" } },
     },
@@ -132,13 +157,13 @@ test("traduz falta de crédito da Apify sem devolver a mensagem crua", async () 
     })) as typeof fetch;
 
     await assert.rejects(
-      () => buscarLeads(workspaceId, "clinica em Contagem", {}, fetchFalso),
+      () => buscarLeads("clinica em Contagem", {}, fetchFalso),
       (erro: unknown) =>
         erro instanceof ErroLeads
         && erro.statusHttp === 502
         && erro.message === "Sua conta Apify está sem crédito.",
     );
   } finally {
-    apagarPastaDadosWorkspace(workspaceId);
+    limpar(raiz);
   }
 });

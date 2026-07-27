@@ -112,17 +112,17 @@ function resolverDestino(
 
   if (destino.startsWith("studio:@")) {
     const peca = pecaMaisRecente(pecas, TIPOS_IMAGEM);
-    if (!peca) return { motivo: "Nenhuma peça de imagem neste cliente ainda." };
+    if (!peca) return { motivo: "Nenhuma peça de imagem neste workspace ainda." };
     return { hash: `#/studio/${encodeURIComponent(peca.pasta)}` };
   }
   if (destino.startsWith("site:@")) {
     const peca = pecaMaisRecente(pecas, ["site"]);
-    if (!peca) return { motivo: "Nenhum site neste cliente ainda." };
+    if (!peca) return { motivo: "Nenhum site neste workspace ainda." };
     return { hash: `#/site/${encodeURIComponent(peca.pasta)}` };
   }
   if (destino.startsWith("fonte:@")) {
     const fonte = contextos[0];
-    if (!fonte) return { motivo: "Nenhuma fonte de dados neste cliente ainda." };
+    if (!fonte) return { motivo: "Nenhuma fonte de dados neste workspace ainda." };
     return { hash: `#/fonte/${fonte.tipo}` };
   }
 

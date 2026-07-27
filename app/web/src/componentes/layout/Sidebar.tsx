@@ -25,9 +25,9 @@ export interface ItemFonte {
 interface Props {
   itensFluxo: ItemFluxo[];
   itensFonte: ItemFonte[];
-  // "dashboard", "cockpit", "galerias", "fontes", "crm", "conexoes",
-  // "fluxo:<tipo>", "fonte:<tipo>" ou
-  // "studio:<pasta>".
+  // "dashboard", "workspaces", "crm", "conexoes", "mapa" (CORE) ou "inicio",
+  // "cockpit", "galerias", "fontes", "fluxo:<tipo>", "fonte:<tipo>",
+  // "studio:<pasta>" (workspace).
   telaAtiva: string;
   aoNavegar: (tela: string) => void;
   ideAberta: boolean;
@@ -35,8 +35,14 @@ interface Props {
   mapaDisponivel: boolean;
 }
 
-// Menu lateral fixo: marca, navegacao do hub, secao de conteudo condicional,
-// fontes de dados, a VKOS-IDE ancorada no fim e o rodape de status.
+// Menu lateral fixo, em DOIS NIVEIS desde 2026-07-27.
+//
+// Em cima o CORE, o nivel do dono: Dashboard, Workspaces, CRM e Conexoes. Nada
+// ali muda quando se troca de workspace.
+//
+// Embaixo o WORKSPACE aberto, com o seletor logo abaixo do rotulo da secao. Foi
+// de proposito: o seletor dentro da secao mostra na hora que trocar de workspace
+// so mexe no que esta abaixo dele, e nao no Hub inteiro.
 export function Sidebar({
   itensFluxo,
   itensFonte,
@@ -46,7 +52,8 @@ export function Sidebar({
   aoAlternarIde,
   mapaDisponivel,
 }: Props) {
-  const { ambiente, wsConectado, sessoes, estadoVkos, custos } = usarEstado();
+  const { ambiente, wsConectado, sessoes, estadoVkos, custos, workspaces } =
+    usarEstado();
 
   const ativas = sessoes.filter((s) => INFO_STATUS[s.status].ativa).length;
   const claudeOk = ambiente?.claude.instalado ?? false;
@@ -110,9 +117,15 @@ export function Sidebar({
         </span>
       </div>
 
-      <SeletorWorkspace />
-
-      <nav className="sidebar-nav">
+      {/* Duas navegacoes, uma por nivel. Elas sao separadas por um motivo
+          concreto, nao so visual: a de baixo rola (overflow-y), e um filho
+          que rola recorta o popover do seletor de workspace. Com o seletor
+          FORA dela, o painel dele volta a poder passar da borda da sidebar,
+          como sempre passou. */}
+      <nav className="sidebar-nav sidebar-nav-core">
+        <div className="sidebar-secao sidebar-secao-nivel">
+          <span className="rotulo-secao">Core</span>
+        </div>
         <button
           className={`item-nav${telaAtiva === "dashboard" ? " ativo" : ""}`}
           aria-current={telaAtiva === "dashboard" ? "page" : undefined}
@@ -122,12 +135,15 @@ export function Sidebar({
           <span className="item-nav-rotulo">Dashboard</span>
         </button>
         <button
-          className={`item-nav${telaAtiva === "cockpit" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "cockpit" ? "page" : undefined}
-          onClick={() => aoNavegar("cockpit")}
+          className={`item-nav${telaAtiva === "workspaces" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "workspaces" ? "page" : undefined}
+          onClick={() => aoNavegar("workspaces")}
         >
-          <IconeCockpit className="" />
-          <span className="item-nav-rotulo">Cockpit</span>
+          <IconeWorkspaces />
+          <span className="item-nav-rotulo">Workspaces</span>
+          {workspaces.length > 0 && (
+            <span className="item-nav-contagem">{workspaces.length}</span>
+          )}
         </button>
         <button
           className={`item-nav${telaAtiva === "crm" ? " ativo" : ""}`}
@@ -156,9 +172,34 @@ export function Sidebar({
           </button>
         )}
 
+      </nav>
+
+      <div className="sidebar-secao sidebar-secao-nivel">
+        <span className="rotulo-secao">Workspace</span>
+      </div>
+      <SeletorWorkspace />
+
+      <nav className="sidebar-nav sidebar-nav-workspace">
+        <button
+          className={`item-nav${telaAtiva === "inicio" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "inicio" ? "page" : undefined}
+          onClick={() => aoNavegar("inicio")}
+        >
+          <IconeInicio />
+          <span className="item-nav-rotulo">Início</span>
+        </button>
+        <button
+          className={`item-nav${telaAtiva === "cockpit" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "cockpit" ? "page" : undefined}
+          onClick={() => aoNavegar("cockpit")}
+        >
+          <IconeCockpit className="" />
+          <span className="item-nav-rotulo">Cockpit</span>
+        </button>
+
         {temConteudo && (
           <>
-            <div className="sidebar-secao">
+            <div className="sidebar-secao sidebar-subsecao">
               <span className="rotulo-secao">Conteúdo</span>
             </div>
             {galeriasTotal > 0 && (
@@ -188,7 +229,7 @@ export function Sidebar({
 
         {itensFonte.length > 0 && (
           <>
-            <div className="sidebar-secao">
+            <div className="sidebar-secao sidebar-subsecao">
               <span className="rotulo-secao">Fontes de dados</span>
             </div>
             <button
@@ -244,14 +285,14 @@ export function Sidebar({
           className="rodape-custo"
           title={
             temTotalGeral
-              ? `Geral (todos os clientes, incluindo os já removidos): ${
+              ? `Geral (todos os workspaces, incluindo os já removidos): ${
                   totalGeralEhPiso ? "no mínimo " : ""
                 }${totalGeralEstimado ? "~" : ""}$${totalGeral.toFixed(2)}. ${dicaTokens}`
               : dicaTokens
           }
         >
           <div className="rodape-custo-linha">
-            <span className="rodape-custo-rotulo">Gasto do cliente</span>
+            <span className="rodape-custo-rotulo">Gasto deste workspace</span>
             <span className="rodape-custo-valor">
               {totalEhPiso ? "≥ " : ""}
               {custoEstimado ? "~" : ""}${totalGasto.toFixed(2)}
@@ -269,7 +310,7 @@ export function Sidebar({
           )}
           {temTotalGeral && (
             <div className="rodape-custo-detalhe">
-              Geral, todos os clientes: {totalGeralEhPiso ? "≥ " : ""}
+              Geral, todos os workspaces: {totalGeralEhPiso ? "≥ " : ""}
               {totalGeralEstimado ? "~" : ""}${totalGeral.toFixed(2)}
               {totalGeralEstimado ? ", aproximado" : ""}
             </div>
@@ -486,6 +527,26 @@ function IconeDashboard() {
       <rect x="13" y="4" width="7" height="5" rx="1.5" />
       <rect x="13" y="11" width="7" height="9" rx="1.5" />
       <rect x="4" y="13" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+// Workspaces: pilha de cartoes, a lista de projetos do dono.
+function IconeWorkspaces() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="8" width="18" height="12" rx="2" />
+      <path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M3 13h18" />
+    </svg>
+  );
+}
+
+// Inicio do workspace: uma casa, a tela de trabalho do projeto aberto.
+function IconeInicio() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="m4 10.5 8-6.5 8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19Z" />
+      <path d="M9.5 20.5v-6h5v6" />
     </svg>
   );
 }

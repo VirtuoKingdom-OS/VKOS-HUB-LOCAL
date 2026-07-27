@@ -23,6 +23,7 @@ import { rotasConfig } from "./config/rotas.js";
 import { rotasWorkspaces } from "./workspaces/rotas.js";
 import { rotasIde } from "./ide/rotas.js";
 import { rotasConexoes } from "./conexoes/rotas.js";
+import { rotasCore } from "./core/rotas.js";
 import { rotasCrm } from "./crm/rotas.js";
 import { rotasMensagens } from "./mensagens/rotas.js";
 import { migrarSeNecessario } from "./workspaces/migracao.js";
@@ -132,6 +133,7 @@ async function subir(): Promise<void> {
   // Telas do hub (rodada 10): IDE, conexoes MCP e CRM.
   await app.register(rotasIde, { prefix: "/api" });
   await app.register(rotasConexoes, { prefix: "/api" });
+  await app.register(rotasCore, { prefix: "/api" });
   await app.register(rotasCrm, { prefix: "/api" });
   // Conversas do CRM. Plugin proprio, com aviso ao vivo proprio, mas URL da
   // familia do CRM: conversa nao existe sem contato.

@@ -1,11 +1,12 @@
 // Rotas HTTP das conexoes MCP. Caminhos sem /api: o prefixo e aplicado por quem
 // registra o plugin (index.ts). Segredos sempre mascarados na resposta: so os 4
-// ultimos caracteres ficam visiveis. O caminho de estado e resolvido POR CHAMADA
-// (workspace ativo), que troca em runtime.
+// ultimos caracteres ficam visiveis.
+//
+// O estado e do CORE desde 2026-07-27: nao depende de cliente aberto, entao
+// nenhuma rota daqui responde mais "nenhum cliente ativo".
 
 import type { FastifyPluginAsync } from "fastify";
 
-import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { catalogoPublico, entradaCatalogo, listaCatalogo } from "./catalogo.js";
 import { lerConexoes, salvarConexoes, type EstadoServidor } from "./estado.js";
 
@@ -49,10 +50,9 @@ function estadoMascarado(id: string, servidor: EstadoServidor | undefined) {
 }
 
 export const rotasConexoes: FastifyPluginAsync = async (app) => {
-  // Catalogo fixo mais o estado do workspace ativo, com os segredos mascarados.
+  // Catalogo fixo mais o estado do CORE, com os segredos mascarados.
   app.get("/conexoes", async () => {
-    const id = idWorkspaceAtivo();
-    const estado = id ? lerConexoes(id) : { servidores: {} };
+    const estado = lerConexoes();
     const servidores: Record<string, ReturnType<typeof estadoMascarado>> = {};
     for (const entrada of listaCatalogo()) {
       servidores[entrada.id] = estadoMascarado(entrada.id, estado.servidores[entrada.id]);
@@ -74,17 +74,12 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
       return resposta.status(400).send({ erro: "conexao ainda indisponivel" });
     }
 
-    const workspaceId = idWorkspaceAtivo();
-    if (!workspaceId) {
-      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
-    }
-
     const corpo = (requisicao.body ?? {}) as { habilitado?: unknown; config?: unknown };
     if (typeof corpo.habilitado !== "boolean") {
       return resposta.status(400).send({ erro: "habilitado precisa ser booleano" });
     }
 
-    const estado = lerConexoes(workspaceId);
+    const estado = lerConexoes();
     const atual = estado.servidores[id] ?? { habilitado: false, config: {} };
     const mesclada: Record<string, string> = { ...atual.config };
 
@@ -102,7 +97,7 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
     }
 
     estado.servidores[id] = { habilitado: corpo.habilitado, config: mesclada };
-    salvarConexoes(workspaceId, estado);
+    salvarConexoes(estado);
 
     return { servidor: estadoMascarado(id, estado.servidores[id]) };
   });
@@ -115,12 +110,7 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
       return resposta.status(400).send({ erro: "esta conexao nao tem teste remoto" });
     }
 
-    const workspaceId = idWorkspaceAtivo();
-    if (!workspaceId) {
-      return resposta.status(400).send({ erro: "nenhum cliente ativo" });
-    }
-
-    const servidor = lerConexoes(workspaceId).servidores[id];
+    const servidor = lerConexoes().servidores[id];
     const token = (servidor?.config?.token ?? "").trim();
     if (!servidor?.habilitado || !token) {
       return resposta
