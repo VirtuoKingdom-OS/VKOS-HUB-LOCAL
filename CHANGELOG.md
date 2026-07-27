@@ -3,6 +3,28 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
 
+## [1.5.0] 2026-07-27
+
+A nova pele. Redesenho em etapas, cada uma deixando o app funcionando, com conferência visual antes e depois nos três temas.
+
+### A base
+
+- **Escalas de verdade no lugar de 146 valores soltos.** Espaçamento, tipografia, peso, raio, movimento, elevação e empilhamento viraram escala derivada. Um teste trava a escala e garante que a camada de tema não a redeclara: lá só entra cor.
+- **Paleta nova nos três temas.** Cada token de cor era declarado seis vezes, agora são três. Um teste verifica 48 pares pela fórmula do WCAG 2.2: a paleta antiga falhava em 13, esta falha em zero.
+- **Fonte embarcada.** O app não embarcava fonte nenhuma, então a hierarquia de pesos achatava em silêncio em máquina sem a fonte certa. Agora o Inter variável vem no repositório, com a licença ao lado. Local-first não pode depender de CDN nem da máquina.
+
+### A forma
+
+- 83 sombras removidas e 33 trocadas pelos três tokens de elevação. As 84 que ficaram são anel, inset ou foco: nenhuma é elevação, todas são indicador. A profundidade agora é degrau de superfície mais fio de um pixel.
+- 23 gradientes ambientes de menta e 30 pulos de hover removidos.
+- **O glow ficou, com regra escrita.** Ele é identidade declarada. São três tokens, um para sinal de vivo, um para foco e um para ação, mais a lista do que nunca recebe glow. Glow que marca estado vale, glow que só decora não.
+- **A borda de controle ficou firme.** Campo de formulário estava em 1,55:1, que é inacessível. Duas linhas separadas resolvem: a decorativa continua sutil, e só o controle fica forte.
+- `prefers-reduced-motion` parou de matar toda animação e passou a substituir: posição some, cor e opacidade ficam, o que pulsa vira fade.
+
+### O que ficou de fora
+
+O redesenho parou numa etapa fechada. Faltam os componentes de campo, chip, selo e superfície; a camada de modal sobre `<dialog>`, que é o que resolve a prisão de foco que hoje não existe em véu nenhum; a passada tela a tela com o corpo de texto menor; e a limpeza dos apelidos de token. A tabela de estado está no topo de `planos/vkos-hub-local-v1/05-design-system.md`.
+
 ## [1.4.0] 2026-07-27
 
 O HUB CORE. O Hub deixou de ter um nível só: agora existe o CORE, onde o dono opera o negócio dele, e o workspace, onde cada projeto é feito. Trocar de workspace parou de trocar o Hub inteiro.

@@ -4,7 +4,9 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Próxima fase:** Fase 5, a nova pele. É a última. A pesquisa e a Etapa 1 (a ordem da cascata) já fecharam, e todas as telas já existem na forma final, que era a condição para redesenhar sem pintar tela que ia mudar.
+**Onde parou:** as seis fases que o Jesse pediu estão entregues. O redesenho parou numa etapa fechada, com a base pronta (escalas, paleta, forma, contraste, fonte embarcada) e a passada tela a tela pendente.
+
+**O que vem depois, em ordem de retorno:** terminar a Etapa 4 (campo, chip, selo, superfície), a Etapa 5 (a camada de modal sobre `<dialog>`, que resolve a prisão de foco que hoje não existe em véu nenhum), e a passada tela a tela da Etapa 7. A tabela de estado detalhada está no topo de `05-design-system.md`.
 
 A Fase 4, o HUB CORE, fechou em 2026-07-27 na versão 1.4.0. O Hub passou a ter dois níveis de verdade: o CORE, do dono, e o workspace, do projeto aberto.
 
@@ -29,7 +31,7 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 3. Verdade do gasto | fechada | 1.3.0 | 2026-07-27 |
 | 5, etapa 1. Ordem da cascata | fechada | 1.3.0 | 2026-07-27 |
 | 4. HUB CORE completo | fechada | 1.4.0 | 2026-07-27 |
-| 5. Design system e nova pele | pesquisa fechada, implementação pendente | | |
+| 5. Design system e nova pele | base fechada, telas pendentes | 1.5.0 | 2026-07-27 |
 | 6. Studio, manipulação direta | fechada | 1.4.0 | 2026-07-27 |
 
 ## O que ainda não foi visto por olho humano
