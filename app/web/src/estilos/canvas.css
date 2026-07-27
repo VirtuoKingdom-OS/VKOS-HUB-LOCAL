@@ -1154,7 +1154,7 @@ body.overlay-aberto .no-cerebro .miolo::after {
 }
 .botao-perigo-solido {
   background: var(--alerta);
-  color: #2a0d0d;
+  color: var(--sobre-alerta);
 }
 .botao-perigo-solido:hover:not(:disabled) {
   background: var(--alerta-suave);
@@ -2347,6 +2347,9 @@ body.overlay-aberto .no-cerebro .miolo::after {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  /* Branco literal de proposito: isto e o papel da pagina do cliente dentro
+     do preview, nao superficie da interface. Uma pagina web renderiza
+     branca independente do tema do Hub. Nao troque por token. */
   background: #fff;
 }
 .mini-site-frame {
@@ -2704,6 +2707,9 @@ body.overlay-aberto .no-cerebro .miolo::after {
   border: 1px solid var(--borda-forte);
   border-radius: 6px;
   overflow: hidden;
+  /* Branco literal de proposito: isto e o papel da pagina do cliente dentro
+     do preview, nao superficie da interface. Uma pagina web renderiza
+     branca independente do tema do Hub. Nao troque por token. */
   background: #fff;
   box-shadow: var(--sombra-popover);
 }

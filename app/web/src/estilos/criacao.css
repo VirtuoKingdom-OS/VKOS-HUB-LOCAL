@@ -311,6 +311,9 @@
   transform-origin: top left;
   border: 0;
   pointer-events: none;
+  /* Branco literal de proposito: isto e o papel da pagina do cliente dentro
+     do preview, nao superficie da interface. Uma pagina web renderiza
+     branca independente do tema do Hub. Nao troque por token. */
   background: #fff;
 }
 @media (max-width: 520px) {

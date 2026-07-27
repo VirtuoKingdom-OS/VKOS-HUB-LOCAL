@@ -80,6 +80,11 @@
   --sobre-menta: #03211a;
 
   --alerta: #ff7b7b;
+  /* Texto sobre o alerta cheio (botao de excluir). Escuro sobre o vermelho
+     claro dos temas escuros, branco sobre o vermelho fechado do Claro. Sem
+     este token o rotulo ficava em 3,74:1 no Claro, e e o botao onde ler
+     errado apaga alguma coisa. */
+  --sobre-alerta: #2a0d0d;
   --alerta-tenue: #2d2723;
   --alerta-linha: #ff7b7b;
 

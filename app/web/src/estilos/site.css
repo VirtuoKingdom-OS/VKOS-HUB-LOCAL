@@ -185,6 +185,9 @@
   border: 1px solid var(--borda-forte);
   border-radius: 8px;
   overflow: hidden;
+  /* Branco literal de proposito: isto e o papel da pagina do cliente dentro
+     do preview, nao superficie da interface. Uma pagina web renderiza
+     branca independente do tema do Hub. Nao troque por token. */
   background: #fff;
   box-shadow: 0 0 0 1px rgba(var(--menta-rgb), 0.06);
   transition: width 140ms ease, height 140ms ease;

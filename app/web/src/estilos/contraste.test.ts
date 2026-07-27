@@ -55,7 +55,7 @@ function razao(frente: string, fundo: string): number {
   return (claro + 0.05) / (escuro + 0.05);
 }
 
-// Os 16 pares criticos. O minimo de 4,5 vem do criterio 1.4.3 (texto). O de 3
+// Os pares criticos. O minimo de 4,5 vem do criterio 1.4.3 (texto). O de 3
 // vem do 1.4.11, que vale onde a borda E o unico indicador de um controle.
 const PARES: { frente: string; fundo: string; minimo: number; oque: string }[] = [
   { frente: "--texto", fundo: "--fundo", minimo: 4.5, oque: "texto na area de trabalho" },
@@ -69,6 +69,9 @@ const PARES: { frente: string; fundo: string; minimo: number; oque: string }[] =
   { frente: "--menta", fundo: "--fundo", minimo: 4.5, oque: "menta sobre o canvas" },
   { frente: "--menta", fundo: "--superficie", minimo: 4.5, oque: "menta como texto ou icone" },
   { frente: "--sobre-menta", fundo: "--menta", minimo: 4.5, oque: "rotulo do botao principal" },
+  // Achado em 2026-07-27, na conferencia final: o rotulo do botao de excluir
+  // era um hex literal e dava 3,74:1 no Claro. E o botao onde ler errado apaga.
+  { frente: "--sobre-alerta", fundo: "--alerta", minimo: 4.5, oque: "rotulo do botao de excluir" },
   { frente: "--alerta", fundo: "--superficie", minimo: 4.5, oque: "texto de erro" },
   { frente: "--aviso", fundo: "--superficie", minimo: 4.5, oque: "texto de aviso" },
   { frente: "--linha-forte", fundo: "--superficie", minimo: 3, oque: "borda de campo dentro de cartao" },
@@ -77,7 +80,7 @@ const PARES: { frente: string; fundo: string; minimo: number; oque: string }[] =
 ];
 
 for (const tema of TEMAS) {
-  test(`contraste do tema ${tema}: os 16 pares criticos passam`, () => {
+  test(`contraste do tema ${tema}: os ${PARES.length} pares criticos passam`, () => {
     const tokens = tokensDoTema(tema);
     const falhas: string[] = [];
     for (const par of PARES) {
