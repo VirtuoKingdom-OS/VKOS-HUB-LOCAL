@@ -3,6 +3,12 @@
    alto contraste, glow sutil. Consistente com os seletores ja existentes
    (seletor-modelo e seletor-estilo do canvas.css). */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .seletor-formato,
 .seletor-proporcao {
   display: flex;
@@ -168,3 +174,4 @@
   width: 92px;
   padding: 7px 9px;
 }
+} /* fim de @layer tela */

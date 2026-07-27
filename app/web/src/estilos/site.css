@@ -4,6 +4,12 @@
    Toda cor via tokens de tema, funciona nos 3 temas, sem backdrop-filter
    (scrim e fundos solidos). Motion curto e sutil. */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .tela-site {
   position: absolute;
   inset: 0;
@@ -1470,3 +1476,4 @@
   max-height: 280px;
   overflow-y: auto;
 }
+} /* fim de @layer tela */

@@ -111,7 +111,12 @@ function raizDados(): string {
 
 // Pasta unica do CRM, no nivel CORE. Nao depende de workspace nenhum, entao
 // existe sempre e o CRM nunca mais responde "abra um cliente".
-function pastaCrm(): string {
+//
+// Exportada porque o modulo de mensagens guarda as conversas DENTRO dela
+// (crm/mensagens/): o historico de conversa e dado do CRM, e a regra do
+// VKOS_DADOS_TESTE precisa valer igual nos dois. Duas copias da mesma regra
+// dariam duas verdades sobre onde o dado do usuario mora.
+export function pastaCrm(): string {
   return join(raizDados(), NOME_PASTA);
 }
 

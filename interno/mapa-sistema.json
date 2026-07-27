@@ -191,7 +191,19 @@
       "conversaCom": [
         "sessoes",
         "barramento",
-        "conexoes"
+        "conexoes",
+        "mensagens"
+      ]
+    },
+    {
+      "id": "mensagens",
+      "grupo": "dados",
+      "nome": "Conversas",
+      "resumo": "O histórico de conversa de cada cliente, guardado junto do funil e nunca em caixa separada.",
+      "descricao": "É o caderno de conversa que fica na mesma gaveta da ficha do cliente. Cada conversa pertence a um contato, sempre: chegou mensagem de um número desconhecido, o Hub abre a ficha antes de abrir a conversa, para nunca existir uma segunda caixa de entrada correndo por fora do funil. Cada conversa tem o arquivo dela, que só recebe linha nova, então registrar mensagem é barato e uma linha estragada custa uma mensagem, não o histórico. O que aconteceu no mundo real é guardado separado de quando foi digitado, então dá para registrar hoje o que foi dito ontem sem embaralhar a ordem. Hoje existe um jeito só de conversar: o registro manual, em que o dono anota o que mandou e o que recebeu. O desenho já está pronto para um canal de verdade entrar por trás do mesmo contrato, com envio, confirmação de entrega e a janela de resposta do WhatsApp, sem reescrever nada. A linha do tempo da ficha junta interações e mensagens numa lista só, sem copiar nada de lugar nenhum. Quando uma conversa muda, as outras janelas ficam sabendo na hora, mas o aviso nunca leva o texto da mensagem junto.",
+      "conversaCom": [
+        "crm",
+        "barramento"
       ]
     },
     {
@@ -365,6 +377,21 @@
     },
     {
       "de": "crm",
+      "para": "barramento",
+      "rotulo": "anuncia"
+    },
+    {
+      "de": "crm",
+      "para": "mensagens",
+      "rotulo": "dá o contato"
+    },
+    {
+      "de": "mensagens",
+      "para": "crm",
+      "rotulo": "conta a conversa"
+    },
+    {
+      "de": "mensagens",
       "para": "barramento",
       "rotulo": "anuncia"
     },

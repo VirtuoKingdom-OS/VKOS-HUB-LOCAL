@@ -1,6 +1,12 @@
 /* Switcher de cliente (workspaces). Identidade VK: dark, verde-menta, glow
    sutil, motion caprichado. Este arquivo e so do switcher. */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .seletor-workspace {
   position: relative;
   padding: 0 8px 12px;
@@ -527,3 +533,4 @@
   width: 16px;
   height: 16px;
 }
+} /* fim de @layer tela */

@@ -719,3 +719,55 @@ Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 - `escopo` separa o que se relê: `funil` pede `GET /crm`; `interacoes` (só `/contatos/:id/interacoes` e `/contatos/:id/notas`) pede `GET /crm/interacoes/ultimas` e a linha do tempo daquele contato. Registrar interação só mexe no `interacoes.jsonl` e no carimbo do contato, que a tela não desenha, então não vale reler o funil inteiro.
 - `origem` é o id da aba que gravou, mandado por ela no cabeçalho `x-vkos-aba` (`web/src/api/aba.ts`) e devolvido no aviso. A aba que gravou reconhece o próprio eco e não recarrega: ela já aplicou a resposta do próprio PATCH. O envio é `transmitir`, para todas as abas, porque o CRM é do CORE e não tem workspace pra filtrar.
 - Web: a tela assina pelo WebSocket único do app, via `avisoCrm` do `estado/contexto.tsx`. As regras vivem em `web/src/componentes/crm/aovivo.ts` (`criarSincronizador`), separadas do componente porque o teste do web roda sem DOM. A recarga fica guardada e só entra quando a aba não está editando um campo de texto do CRM nem com gravação própria no ar. Adiar nunca perde a pendência. A recarga de fundo nunca passa por `setCarregando`, que trocaria a tela inteira pelo aviso de carregamento e desmontaria a ficha aberta com tudo que estivesse digitado nela. Reconexão manda `escopo: "tudo"`.
+
+## Mensagens: conversas do CRM, servidor (2026-07-27)
+
+Módulo novo `server/src/mensagens/`, dono de tudo dentro. Etapa 2e do plano `planos/vkos-hub-local-v1/04-crm-e-mensagens.md`. Esta rodada é só servidor: os três painéis são a rodada seguinte.
+
+### Armazenamento
+
+- `app/dados/crm/mensagens/indice.json` guarda a lista de conversas (a coluna da esquerda) e `app/dados/crm/mensagens/conversas/<id>.jsonl` guarda uma conversa por arquivo, append-only. Fica dentro da pasta do CRM porque conversa é dado do CRM, e por isso respeita `VKOS_DADOS_TESTE` pela mesma função: `pastaCrm()` passou a ser exportada de `crm/estado.ts` e é a única regra sobre onde o dado do CRM mora.
+- Reusa `util/jsonl.ts` (leitura tolerante e append), `util/gravarJson.ts` (índice atômico), `util/quarentena.ts` (índice corrompido sai do lugar com os bytes intactos e a rota responde 409) e `util/telefone.ts` (E.164). Nenhuma segunda versão de nada disso.
+- Linha corrompida no `.jsonl` custa uma mensagem, não a conversa: ela é pulada, contada e devolvida em `linhasInvalidas`.
+- Atualizar mensagem é gravar uma LINHA NOVA E COMPLETA com o mesmo `id`, preservando `enviadaEm` e `criadaEm`. A leitura colapsa por id, a última linha vence e a posição da primeira é mantida. É o que vai deixar o canal real mudar status por callback sem reescrever arquivo. Ver `decisoes/2026-07-27-conversa-append-only-e-atualizacao-por-linha-nova.md`.
+- Id de conversa é `cv-<uuid>` e passa por `ehIdSeguro` antes de virar caminho de arquivo. Id que não serve como nome de arquivo responde 404, nunca lê fora da pasta.
+
+### Modelo
+
+- `Mensagem`: `id` (UUID local, SEMPRE, nunca do provedor), `conversaId`, `direcao` (`entrada` | `saida`), `canal`, `origem` (`manual` | `api`), `tipo`, `texto`, `privada`, `status` (`rascunho` | `na-fila` | `enviada` | `entregue` | `lida` | `falhou`), `erroCodigo?`, `erroTexto?`, `idExterno?` (wamid, único na thread), `chaveIdempotencia`, `respondeA?`, `autorTipo`, `enviadaEm`, `entregueEm?`, `lidaEm?`, `criadaEm`, `payloadBruto?`, `anexos[]`.
+- `enviadaEm` é quando aconteceu no mundo real e é o que ordena a thread; `criadaEm` é quando a linha entrou no arquivo e nunca é retroativo. Registro retroativo entra no fim do arquivo e no meio da thread.
+- `AnexoMensagem` guarda `caminhoLocal`, NUNCA URL: a URL de mídia da Meta expira em 5 minutos. Anexo com URL é recusado com 400.
+- `Conversa`: `id`, `contatoId` (obrigatório), `negocioId?`, `canal`, `identificadorExterno`, `status` (`aberta` | `aguardando` | `resolvida` | `adiada`), `adiadaAte?`, `ultimaEntradaEm?`, `ultimaMensagemEm?`, `previa`, `naoLidas`, `lidasAte?`, `criadaEm`, `atualizadaEm`.
+- `ultimaEntradaEm` é quando o CONTATO falou por último e é a única fonte da janela de 24 horas. Só mensagem de entrada não privada a move. `lidasAte` é o cursor de leitura do dono, e existe porque marcar lida não pode reescrever histórico append-only.
+- Os campos derivados da conversa (`ultimaMensagemEm`, `ultimaEntradaEm`, `previa`, `naoLidas`) são recalculados da thread inteira a cada escrita, não incrementados: a thread já foi lida para deduplicar, e contador incremental erra uma vez e mente para sempre.
+
+### A regra que define o produto
+
+- Conversa não existe sem contato. `POST /conversas` sem `contatoId` é 400, com id inexistente é 404. `garantirConversaPorIdentificador({ identificadorExterno, nomeSugerido? })` é a costura do webhook: acha o contato pelo telefone normalizado e, se não existe, CRIA O CONTATO no CRM antes de abrir a conversa. Não há caminho que termine com conversa solta.
+- Uma conversa por contato e por canal. Pedir de novo devolve a que existe, com 200 em vez de 201.
+
+### Contrato de canal (`mensagens/canais/`)
+
+- Espelha `provedores/contrato.ts`. `CanalMensagens` tem `id`, `rotulo`, `capacidades` (`envioReal`, `janela24h`, `templates`, `recebePorWebhook`, `anexos`) e `montarMensagem(pedido)` obrigatório, puro, que garante mensagem válida com id local e status inicial coerente com o canal e NÃO garante envio nem entrega.
+- Opcionais, e método ausente significa que o canal não faz aquilo: `despachar` (garante só o aceite do provedor, nunca a entrega, que chega depois por callback), `interpretarRecebimento` (webhook cru em mensagens, sem garantir unicidade, porque quem deduplica é o núcleo), `interpretarStatus` (confirmação de status) e `janelaAberta` (a janela de resposta livre, calculada de `ultimaEntradaEm`).
+- Só o canal `manual` está implementado e registrado: sem envio real, sem janela, sem template, sem webhook, com anexo. Saída nasce `enviada`, entrada nasce `entregue`, nota privada nasce `rascunho` porque nunca sai. Pedir canal `whatsapp` responde 400 até a integração existir de verdade.
+- Deduplicação no núcleo, nesta ordem: `idExterno` igual na thread devolve a mensagem original com 200 (reenvio de webhook não duplica), depois `chaveIdempotencia` igual (clique duplo e retentativa não duplicam).
+
+### API HTTP
+
+- `GET /api/crm/mensagens/canais` responde `{ canais: [{ id, rotulo, capacidades }] }`.
+- `GET /api/crm/mensagens/conversas?contatoId=&status=` responde `{ conversas }`, mais recentes primeiro, sem mensagem nenhuma dentro.
+- `POST /api/crm/mensagens/conversas` body `{ contatoId, canal?, identificadorExterno?, negocioId? }` responde 201 com a conversa, ou 200 com a que já existia.
+- `GET /api/crm/mensagens/conversas/:id?limite=&antesDe=` responde `{ conversa, mensagens, total, temMais, cursorAnterior?, linhasInvalidas }`. Padrão 50 por página, teto 200, sempre a página mais nova. `antesDe` é o id da mensagem mais antiga da página atual e caminha para trás. Cursor que não existe mais cai na página mais nova em vez de virar erro.
+- `POST /api/crm/mensagens/conversas/:id/mensagens` body `{ direcao, texto, tipo?, privada?, autorTipo?, enviadaEm?, idExterno?, chaveIdempotencia?, respondeA?, anexos?, payloadBruto? }` responde 201, ou 200 quando é repetição já conhecida. Mensagem sem texto só vale com anexo. Entrada não privada reabre a conversa (volta a `aberta` e limpa `adiadaAte`).
+- `POST /api/crm/mensagens/conversas/:id/lida` zera `naoLidas` e move `lidasAte`, sem tocar no arquivo da thread.
+- `PATCH /api/crm/mensagens/conversas/:id` body `{ status?, adiadaAte?, negocioId? }`. Adiar exige a data para retomar, senão é 400.
+- `GET /api/crm/contatos/:id/linha-do-tempo?limite=` responde `{ itens }`, união ordenada de interações e mensagens, mais novas primeiro. É view: nada é copiado de um arquivo para o outro.
+- Erros no formato `{ erro: mensagem }`: 400 payload inválido, 404 id que não existe, 409 índice corrompido, 413 payload bruto grande demais.
+
+### Ao vivo
+
+- `mensagens/aovivo.ts` transmite `{ tipo: "mensagens:atualizadas", escopo: "conversas" | "thread", conversaId?, origem? }` em broadcast, pelo mesmo hook `onResponse` do padrão do CRM, mas dentro do plugin `rotasMensagens`.
+- O aviso NUNCA carrega texto de mensagem, prévia ou qualquer conteúdo: só id e escopo. Quem quer o conteúdo pede pela rota.
+- `thread` (mensagem nova, marcar lida) implica `conversas`: mudou prévia, ordem e não lidas na lista também. `conversas` (criar conversa, mudar status) não faz thread aberta nenhuma reler.
+- `origem` é o id da aba que gravou, vindo do cabeçalho `x-vkos-aba`, para ela não recarregar por causa do próprio eco.

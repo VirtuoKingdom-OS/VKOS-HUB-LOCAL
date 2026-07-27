@@ -1,6 +1,12 @@
 /* CRM: kanban do funil de contatos. Toda cor sai dos tokens de global.css, pros
    dois temas. Motion sutil de entrada, identidade menta, glow discreto. */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .crm-tela {
   display: flex;
   flex-direction: column;
@@ -1852,3 +1858,4 @@ body.crm-arrastando .crm-cartao {
   .crm-leads-rodape { align-items: stretch; flex-direction: column; padding: 10px 12px; }
   .crm-leads-rodape > div { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
+} /* fim de @layer tela */

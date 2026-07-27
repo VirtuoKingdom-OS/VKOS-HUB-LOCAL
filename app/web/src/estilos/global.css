@@ -5,6 +5,22 @@
    Todos os valores de cor passam por estes tokens. Os canais *-rgb existem
    pra compor alpha: rgba(var(--menta-rgb), 0.3) muda junto com o tema. */
 
+/* A ordem das camadas de cascata do Hub, da que perde para a que vence:
+
+   base     este arquivo, o reset, as escalas e o contrato de nome dos tokens
+   externo  o CSS do React Flow, que vem de fora e o app sobrescreve
+   tela     as 16 folhas de tela, que so tratam da sua tela
+   tema     visual-hub.css, o valor final de cada token por tema
+
+   A declaracao se repete no topo de toda folha de proposito. A primeira que o
+   navegador ler e a que fixa a ordem, e o bundler nao garante qual folha vem
+   primeiro: telas carregadas sob demanda entram depois de tudo. Com a ordem
+   declarada, nada disso importa mais.
+
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer base {
 :root {
   /* Tema Dark VKOS (a identidade original). Serve de base: quando data-theme
      e "vkos" ou ausente, estes valores valem. Nao mexer nos valores daqui. */
@@ -154,6 +170,20 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+}
+
+/* Quebra de linha padrao de titulo e paragrafo. Mora aqui, na camada base, e
+   nao na de tema: nao e valor de tema, e um padrao de elemento. Na camada de
+   tema estas duas regras venceriam por camada qualquer "white-space: nowrap"
+   de classe, e todo titulo que hoje trunca numa linha so voltaria a quebrar. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 ::selection {
@@ -1784,3 +1814,4 @@ textarea {
   gap: 10px;
   margin-top: 4px;
 }
+} /* fim de @layer base */

@@ -51,9 +51,11 @@ Em decisões estratégicas ele gosta de debater antes de travar. Apresentar opç
 
 Em execução ele quer velocidade e iteração. Quando ele disser "bora torar", é pra construir, não pra planejar mais.
 
-Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. O tema sai de duas camadas: `app/web/src/estilos/global.css` define a base dos tokens e `app/web/src/estilos/visual-hub.css` deveria fixar o valor final de cada token por tema. Toda cor passa por esses tokens, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
+Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. Toda cor passa pelos tokens de tema, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
 
-Atenção, e isto é prova de build, não opinião: hoje o `visual-hub.css` NÃO é a última palavra. As folhas de tela são importadas por componente, e as que entram por chunk carregado sob demanda o Vite injeta depois de tudo. Com a mesma especificidade, quem chega por último vence. Enquanto isso não for consertado com `@layer`, não confie na ordem dos arquivos: se um valor de tema precisa vencer, garanta na camada, não no arquivo. O diagnóstico completo e a correção estão em `planos/vkos-hub-local-v1/05-design-system.md`.
+A cascata do CSS tem quatro camadas declaradas com `@layer`, da que perde para a que vence: `base` (`app/web/src/estilos/global.css`, o reset e a base dos tokens), `externo` (o CSS do React Flow, que entra por `estilos/externo.css`), `tela` (as 16 folhas de tela) e `tema` (`app/web/src/estilos/visual-hub.css`, o valor final de cada token por tema).
+
+Duas regras que não se quebram, e `estilos/camadas.test.ts` trava as duas. A linha `@layer base, externo, tela, tema;` fica no topo de toda folha, antes de qualquer regra: a primeira que o navegador lê é a que fixa a ordem, e o bundler não garante qual vem primeiro. E cada folha declara todo o seu conteúdo dentro da camada dela, porque regra fora de camada vence qualquer camada. Folha nova nasce assim. Ver `decisoes/2026-07-27-ordem-da-cascata-com-layer.md`.
 
 ## Código
 

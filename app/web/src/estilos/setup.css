@@ -1,5 +1,11 @@
 /* Jornada de setup. Toda cor vem dos tokens de global.css. */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .setup {
   position: fixed;
   inset: 0;
@@ -250,3 +256,4 @@
   .setup-ambiente span,
   .setup-miolo { animation: none; }
 }
+} /* fim de @layer tela */

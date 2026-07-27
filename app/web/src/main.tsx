@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ProvedorEstado } from "./estado/contexto";
-import "@xyflow/react/dist/style.css";
+import "./estilos/externo.css";
 import "./estilos/global.css";
 import "./estilos/canvas.css";
 import "./estilos/visual-hub.css";

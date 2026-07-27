@@ -6,6 +6,12 @@
  * existentes para manter rotas, estados, eventos e integrações intactos.
  */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tema {
 :root {
   --raio: 16px;
   --raio-p: 10px;
@@ -139,15 +145,9 @@ body {
   letter-spacing: -0.006em;
 }
 
-h1,
-h2,
-h3 {
-  text-wrap: balance;
-}
-
-p {
-  text-wrap: pretty;
-}
+/* A quebra padrao de h1, h2, h3 e p vive em global.css, na camada base. Nao e
+   valor de tema, e daqui venceria por camada o "white-space: nowrap" de quem
+   trunca titulo numa linha so. */
 
 button,
 input,
@@ -1197,3 +1197,4 @@ select:focus {
     transition-duration: 0.01ms !important;
   }
 }
+} /* fim de @layer tema */

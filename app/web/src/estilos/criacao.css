@@ -3,6 +3,12 @@
    Todas as cores via tokens de global.css, funciona nos 3 temas. Scrim solido,
    NUNCA backdrop-filter (trava o canvas por baixo). */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .criacao-fundo {
   position: fixed;
   inset: 0;
@@ -1046,3 +1052,4 @@
     transition: none;
   }
 }
+} /* fim de @layer tela */

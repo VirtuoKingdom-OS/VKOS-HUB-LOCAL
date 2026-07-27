@@ -526,24 +526,27 @@ O `CLAUDE.md` define duas camadas, e elas continuam. A mudança é fazer a ordem
 em vez de acidental.
 
 ```
-Camada 1  base   global.css      as escalas e o contrato de nome. Nenhum valor final de cor.
-Camada 2  tela   crm.css, site.css, studio.css e as outras 15
-Camada 3  tema   visual-hub.css  o valor final de cada token por tema. Sempre por cima.
+Camada 1  base     global.css   o reset, as escalas e o contrato de nome. Nenhum valor final de cor.
+Camada 2  externo  o CSS do React Flow, que vem de fora e o app sobrescreve
+Camada 3  tela     crm.css, site.css, studio.css e as outras 13
+Camada 4  tema     visual-hub.css  o valor final de cada token por tema. Sempre por cima.
 ```
 
 A ferramenta é `@layer`, nativa do CSS e suportada em Chrome 99, Safari 15.4 e Firefox 97. A
-ordem das camadas passa a ser declarada uma vez e vale para sempre, independente de qual arquivo
-o Vite injeta primeiro:
+ordem das camadas passa a ser declarada e vale independente de qual arquivo o Vite injeta
+primeiro. A declaração vai no topo de **toda** folha, não de uma só, porque quem fixa a ordem é a
+primeira declaração que o navegador lê, e o `global.css` não é o primeiro arquivo do pacote:
 
 ```css
-/* primeira linha de global.css */
-@layer base, tela, tema;
+/* primeira linha de toda folha */
+@layer base, externo, tela, tema;
 ```
 
-E cada arquivo se anuncia:
+E cada arquivo se anuncia, com todo o seu conteúdo dentro da camada:
 
 ```css
 /* global.css  */  @layer base { ... }
+/* externo.css */  @import "@xyflow/react/dist/style.css" layer(externo);
 /* crm.css     */  @layer tela { ... }
 /* visual-hub  */  @layer tema { ... }
 ```
@@ -785,17 +788,57 @@ sem prop de cor.
 Nove etapas. Cada uma fecha com os três verdes do `CONTRIBUTING.md` e com a interface funcionando.
 Nenhuma delas deixa o app pela metade.
 
-### Etapa 1: consertar a ordem da cascata
+### Etapa 1: consertar a ordem da cascata. FEITA em 2026-07-27
 
-Uma linha por arquivo de CSS. `@layer base, tela, tema;` no topo do `global.css`, e cada folha se
-declara na sua camada.
+Ver `decisoes/2026-07-27-ordem-da-cascata-com-layer.md`.
 
-**Entrega:** a camada oficial de tema volta a vencer nas sete telas onde ela perde hoje.
-**Mudança visual esperada:** os 181 pares de propriedade da seção 1.3 passam a aplicar o valor do
-`visual-hub.css`. Isso é o comportamento que sempre foi o pretendido, mas na prática vai mudar
-pixel em Site, Studio, IDE, Conexões, Mapa e CRM. Precisa de uma passada de olho tela a tela.
-**Trava:** um teste que lê o CSS do build e afirma que a primeira regra é a declaração de ordem
-das camadas, e que nenhum arquivo de tela declara fora de `@layer tela`.
+Três correções em relação ao que esta seção previa, todas descobertas na implementação:
+
+1. **A ordem se declara em toda folha, não só no `global.css`.** A ordem é fixada pela primeira
+   declaração que o navegador lê, e o `global.css` não é o primeiro arquivo do pacote: o
+   `criacao.css` está no deslocamento 0. Se a declaração chegasse depois de um `@layer tela { }`,
+   `tela` já estaria fixada na frente de `base`.
+2. **São quatro camadas, não três: `base, externo, tela, tema`.** O CSS do React Flow entrava por
+   `main.tsx` sem camada, e estilo sem camada vence qualquer camada, o que mataria as
+   sobrescritas de `.react-flow__*` do `canvas.css` e do `mapa.css`. Ele passou a entrar por
+   `estilos/externo.css`, com `@import ... layer(externo)`. A camada fica acima de `base`, senão
+   o reset universal `* { margin: 0; padding: 0 }` zeraria o espaçamento interno do React Flow,
+   e abaixo de `tela`, que é onde o app o sobrescreve de propósito.
+3. **A trava lê a fonte, não o build.** O build é derivado e não existe quando o teste roda. O
+   teste em `app/web/src/estilos/camadas.test.ts` afirma que toda folha declara a ordem antes de
+   qualquer regra, que nada fica fora da camada da folha, e que o React Flow só entra por
+   `externo.css`.
+
+**Números medidos, e não estimados.** A prova foi feita com o Edge sem janela sobre uma página
+sintética com um elemento por seletor do CSS construído, nos três temas, antes e depois:
+
+| Medida | Antes | Depois |
+|---|---|---|
+| Seletores medidos | 2.355 | 2.355 |
+| Seletores com valor final diferente | | **98** |
+| Pares de seletor e propriedade diferentes | | **583**, iguais nos três temas |
+| Tokens com valor diferente | | **0** |
+| Seletores onde `visual-hub.css` perde | 58 | **0** |
+| Pares de propriedade onde `visual-hub.css` perde | 90 (mais 47 por especificidade) | **0** |
+
+Os 58 seletores e 90 pares medidos aqui são menores que os 95 e 181 da seção 1.3 porque a conta
+é mais estrita: só entra o par em que o `visual-hub.css` de fato perderia numa cascata simulada
+com especificidade e ordem, não todo par de seletor que as duas folhas declaram. O `crm.css`
+também mudou entre a medição da seção 1.3 e esta.
+
+As 98 mudanças se distribuem em CRM (22), Site (18), Conexões (11), Studio (11), editor
+compartilhado (10), IDE (8), Criação (4), canvas (3), `global.css` (3), Mapa (1) e 5 derivadas de
+outro seletor da mesma árvore. Nenhuma mudança ficou sem explicação.
+
+**Duas coisas dependiam da ordem acidental** e foram consertadas na camada certa:
+
+- `h1, h2, h3 { text-wrap: balance }` e `p { text-wrap: pretty }` moravam no `visual-hub.css`.
+  Não são valor de tema, e da camada de tema venciam por camada o `white-space: nowrap` de classe
+  de quem trunca título numa linha só. Foram para o `global.css`, na camada base.
+- `.react-flow__controls-button:last-child { border-bottom: none }` era do React Flow. Com ele
+  numa camada abaixo, a borda do `canvas.css` venceria e sobraria um fio no pé da caixa de
+  controles. A regra foi repetida no `canvas.css`.
+
 **Por que primeiro:** enquanto essa ordem for acidental, qualquer token novo entra numa base que
 o bundler pode inverter. Toda etapa seguinte depende desta.
 

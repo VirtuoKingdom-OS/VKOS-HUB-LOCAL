@@ -4,7 +4,7 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Em andamento:** Fase 2b, o CRM subindo para o nível CORE.
+**Em andamento:** Fase 2e, o módulo de mensagens. O servidor fechou em 2026-07-27. Os três painéis são a rodada seguinte.
 
 A pesquisa do design system da Fase 5 fechou em 2026-07-27. O contrato completo está em `05-design-system.md`, com as provas em `provas-design/`. Nenhum arquivo de `app/` foi tocado: a implementação é uma rodada própria, e a Etapa 1 dela é o conserto da ordem da cascata do CSS, que hoje deixa a camada oficial de tema perder em sete telas.
 
@@ -21,7 +21,7 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 2c. Buracos de uso do CRM | fechada | 1.2.0 | 2026-07-27 |
 | 2b. CRM no nível CORE | em andamento | | |
 | 2d. CRM ao vivo | fechada | 1.2.0 | 2026-07-27 |
-| 2e. Mensagens e o chat | pendente | | |
+| 2e. Mensagens e o chat | servidor fechado, tela pendente | 1.2.0 | 2026-07-27 |
 | 3. Verdade do gasto | pendente | | |
 | 4. HUB CORE completo | pendente | | |
 | 5. Design system e nova pele | pesquisa fechada, implementação pendente | | |
@@ -67,6 +67,17 @@ Nota: o conversor Astro continua gerando `netlify.toml` dentro do projeto export
 - O plano previa `transmitirPara` para o CRM. Não é mais o certo: com o CRM no CORE, filtrar por workspace estaria errado. O aviso do CRM é broadcast, e `transmitirPara` foi para onde o vazamento realmente estava.
 - Todo evento de sessão saiu do broadcast: `sessao:evento`, `sessao:status`, `sessao:conferencia` e `sessao:ferramenta` passaram a `transmitirPara`. Antes o stream cru do provedor, com o Cérebro e trechos de arquivo lido, chegava em qualquer aba e o filtro era do frontend. A aba declara o cliente no upgrade e redeclara por mensagem ao trocar, sem derrubar a conexão.
 - Fecha verde: 307 testes no server, 62 na web, dois typechecks e build.
+
+## Fase 2e, o que ficou pronto no servidor
+
+- Módulo `server/src/mensagens/`. Conversas em `app/dados/crm/mensagens/`: `indice.json` para a coluna da esquerda e `conversas/<id>.jsonl`, uma conversa por arquivo, append-only. Dentro da pasta do CRM, com a mesma regra de `VKOS_DADOS_TESTE`, porque conversa é dado do CRM.
+- O modelo nasceu com todos os campos que a integração real exige, do `idExterno` ao `payloadBruto`. Nenhum foi cortado: cada um evita migrar histórico de conversa depois.
+- Conversa não existe sem contato, provado nos dois sentidos: criar sem contato é recusado, e chegar por identificador desconhecido cria o contato no CRM antes de abrir a conversa.
+- Contrato de canal no espelho do contrato de provedor, com o canal `manual` completo. Envio assíncrono, template e webhook cabem no contrato sem estarem implementados, e cada método documenta o que não garante.
+- Atualizar mensagem em arquivo append-only é linha nova com o mesmo id; a leitura colapsa por id e mantém a posição. Marcar como lida não toca na thread.
+- Aviso ao vivo `mensagens:atualizadas`, broadcast, com escopo próprio e sem nenhum texto de mensagem dentro, provado com socket de verdade.
+- Linha do tempo unificada da ficha em `GET /crm/contatos/:id/linha-do-tempo`, view sobre interações e mensagens, sem duplicar dado.
+- Fecha verde: 337 testes no server (30 novos só de mensagens), 65 na web, dois typechecks e build.
 
 ## Achados que já valem para as próximas fases
 

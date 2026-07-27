@@ -1,6 +1,12 @@
 /* Conexoes MCP: cards por servico, tokens locais, tema escuro e claro.
    Toda cor vem dos tokens de global.css. Motion sutil, identidade menta. */
 
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
 .conx-topo-titulo {
   display: flex;
   align-items: center;
@@ -463,3 +469,4 @@
     justify-content: flex-end;
   }
 }
+} /* fim de @layer tela */

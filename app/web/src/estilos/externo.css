@@ -1,0 +1,14 @@
+/* Folha de terceiro: o CSS do React Flow.
+
+   Ela entra na camada "externo", entre a base e as telas. Acima da base porque
+   o reset universal de global.css nao pode zerar a margem e o padding que o
+   React Flow precisa nos seus proprios elementos. Abaixo de tela porque o
+   canvas.css e o mapa.css sobrescrevem as classes .react-flow__* de proposito,
+   e essa sobrescrita nao pode depender de quem o bundler injeta antes.
+
+   Sem camada nenhuma, um arquivo de fora venceria toda a cascata do app, que e
+   como o CSS trata estilo sem camada. */
+
+@layer base, externo, tela, tema;
+
+@import "@xyflow/react/dist/style.css" layer(externo);
