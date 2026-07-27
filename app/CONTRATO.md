@@ -352,7 +352,9 @@ No mesmo enxugamento, os fluxos Post e Stories saíram dos menus de criação (f
 - COMPOSER: seletor de modelo (Opus, Sonnet, Haiku) com o padrão vindo de `GET /api/config`, rótulo honesto de custo relativo (Opus mais caro, Haiku mais barato). No fluxo Carrossel, seletor de estilo alimentado por `GET /api/vkos/modelos-carrossel` (cards pequenos com nome e descrição, opcional, com "deixar a IA escolher" como padrão).
 - Custo total no shell: o rodapé da sidebar mostra o acumulado de `GET /api/custos` (atualiza depois de cada sessão concluída).
 
-## Fronteiras da rodada 5
+## Fronteiras da rodada 5 (histórico: terminal removido em 2026-07-13)
+
+Registro histórico da divisão de tarefas daquela rodada. O terminal descrito aqui (`app/server/src/terminal/`, `app/web/src/componentes/terminal/`, `NoTerminal`, `criarTerminal`, `rotasTerminal`, `wsTerminal`) não existe desde 2026-07-13 (ver "Terminal no canvas (REMOVIDO em 2026-07-13)" acima). Mantido só pra quem for entender a história da rodada:
 
 - Backend de sessões: `app/server/src/sessoes/`, `app/server/src/config/` (novo), `app/server/src/vkos/modelos.ts` (novo, + registro da rota no rotas.ts do vkos). NÃO edita index.ts.
 - Terminal (full-stack): `app/server/src/terminal/` (novo), `app/web/src/componentes/terminal/` (novo), deps em server/package.json e web/package.json. NÃO edita index.ts nem nada do cockpit.
@@ -560,13 +562,17 @@ Decisão registrada em `decisoes/2026-07-26-fim-da-publicacao-integrada.md`. A p
 
 # Otimizações de IA (2026-07-16)
 
-## Modo enxuto (backend: config, provedores, sessões; frontend: sidebar)
+## Modo enxuto (REMOVIDO em 2026-07-26)
 
-- `config-app.json` ganhou `modoEnxuto: boolean` (default false). GET e PUT de /api/config expõem e aceitam o campo.
-- `OpcoesSessaoProvedor` ganhou `instrucoesExtras?: string`. Claude vira `--append-system-prompt`; Codex prefixa o prompt do stdin com o bloco `<regras-da-sessao>...</regras-da-sessao>` e linha em branco (função exportada `montarPromptCodex`, coberta no fixture test).
-- A regra vive em `server/src/sessoes/modo-enxuto.ts` (REGRA_MODO_ENXUTO, destilada do ponytail MIT, crédito no topo).
-- O gerenciador decide na criação: modo ligado e skill diferente de "carrossel" e de "site" recebe a regra. `modoEnxuto` persiste na sessão (campo opcional em tipos.ts) e toda retomada repete a injeção de origem. Sessão antiga sem o campo nunca ganha a regra.
-- Sidebar: linha "Modo enxuto" com switch acima de `.rodape-custo`, estado do GET, gravação otimista com rollback. CSS `.rodape-enxuto` e `.enxuto-switch` em global.css, só tokens.
+O recurso descrito abaixo não existe mais no código (ver decisoes/2026-07-26-fim-da-publicacao-integrada.md e o registro da Fase 1 de amputação em planos/vkos-hub-local-v1/01-fases.md). Sumiram `config-app.json.modoEnxuto`, o campo `modoEnxuto` na sessão, o switch na Sidebar e o módulo inteiro `server/src/sessoes/modo-enxuto.ts`. Fica só como histórico:
+
+- `config-app.json` ganhava `modoEnxuto: boolean` (default false). GET e PUT de /api/config expunham e aceitavam o campo.
+- `OpcoesSessaoProvedor` ganhava `instrucoesExtras?: string`. Claude virava `--append-system-prompt`; Codex prefixava o prompt do stdin com o bloco `<regras-da-sessao>...</regras-da-sessao>` e linha em branco.
+- A regra vivia em `server/src/sessoes/modo-enxuto.ts` (REGRA_MODO_ENXUTO, destilada do ponytail MIT).
+- O gerenciador decidia na criação: modo ligado e skill diferente de "carrossel" e de "site" recebia a regra.
+- Sidebar: linha "Modo enxuto" com switch acima de `.rodape-custo`.
+
+O campo `instrucoesExtras` do contrato de provedor continua existindo, mas hoje serve outra coisa: o resumo agregado do CRM injetado quando o pedido cita a palavra `crm`. O mecanismo de entrega mudou também: `--append-system-prompt` quebrava no Windows sob shell com prompt multilinha, então as instruções extras passaram a viajar pelo stdin nos dois provedores, via `montarPromptComInstrucoes` (server/src/provedores/util.ts).
 
 ## Camada de design v2 (template de site)
 
@@ -623,7 +629,7 @@ Endurecimento de contratos existentes, sem mudança de arquitetura. Ver decisoes
 - Leitura do CRM nunca sobrescreve arquivo existente: crm.json que existe mas não parseia (ou não tem forma de CRM) vai pra quarentena `crm.json.corrompido-<timestamp>` por rename e a rota responde `ErroCrm` 409 legível. Estado inicial só nasce quando o arquivo não existe.
 - Migração e saneamento do CRM usam fallback, nunca descarte: contato sem nome vira "Sem nome", sem coluna cai na primeira coluna, id ausente ganha id novo. Negócio com coluna órfã cai na primeira coluna.
 - A sincronização CRM agenda é serializada por `workspaceId::contatoId` (fila de promessas): operações rápidas no mesmo contato não duplicam evento nem deixam vínculo órfão.
-- `DELETE /workspaces/:id` revoga o refresh token do Google em best effort e apaga `app/dados/workspaces/<id>/` (conexões, CRM, exportações). A pasta VKOS do cliente fica intacta. Contrato HTTP inalterado.
+- `DELETE /workspaces/:id` apaga `app/dados/workspaces/<id>/` (conexões, CRM, exportações). A pasta VKOS do cliente fica intacta. Contrato HTTP inalterado. Desde a remoção da camada Google em 2026-07-26 não existe mais refresh token pra revogar.
 
 ## Exportação fiel
 

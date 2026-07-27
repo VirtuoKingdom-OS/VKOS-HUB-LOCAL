@@ -36,13 +36,13 @@ Fecha quando: o Jesse opera arquivos e conversa com o Claude sem abrir o VS Code
 
 ## Fase 5: conexões (MCP) (entregue em 2026-07-13, validar em uso real)
 
-- Entregue: tela #/conexoes por workspace. GitHub, Netlify, Notion, Google Calendar e Apify disponíveis. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config somente dos habilitados que montam MCP. Os tokens de GitHub e Netlify alimentam a publicação REST de sites; o token da Apify alimenta a busca REST de leads e fica fora das sessões.
+- Entregue: tela #/conexoes por workspace. Desde 2026-07-26 o catálogo só tem Apify: GitHub, Netlify, Notion e Google Calendar foram removidos na versão 1.1.0, junto com a publicação integrada que os tokens de GitHub e Netlify alimentavam. Vercel, Meta e Google Ads não aparecem no catálogo atual. Sessões Claude recebem --mcp-config somente dos habilitados que montam MCP, e hoje nenhuma entrada monta. O token da Apify alimenta a busca REST de leads e fica fora das sessões.
 - Pendência anotada pelo QA: falta ação de "remover token" na tela (desabilitar mantém o segredo no arquivo local).
 Fecha quando: uma sessão usa um MCP conectado pela tela, sem editar JSON na mão.
 
 ## Fase 6: CRM (v2 entregue em 2026-07-16, validar em uso real)
 
-- Entregue: CRM v2 com contatos separados de negócios, migração idempotente dos cartões antigos, linha do tempo de interações, tarefas, próximo contato integrado ao Calendário, eventos compatíveis com Automações e entrada confirmada de leads do Google Maps pela Apify.
+- Entregue: CRM v2 com contatos separados de negócios, migração idempotente dos cartões antigos, linha do tempo de interações, tarefas e entrada confirmada de leads do Google Maps pela Apify. O campo próximo contato segue no cartão, mas desde 2026-07-26 não alimenta mais Calendário nem Automações: os dois foram removidos.
 - A tela #/crm tem Hoje, Quadro, Contatos e Buscar leads. O Quadro move negócios; a lista busca, filtra e ordena fichas; a ficha concentra negócios, interações, tarefas, tags e follow-up. Buscar leads salva toda mineração antes de responder, mantém listas de Minerados e Arquivados e oferece termo, localização, quantidade e enriquecimento de email. A importação confirmada cria Contatos com origem e tag rastreáveis.
 - Sessões cujo pedido cita CRM recebem um resumo agregado do funil e das vozes dos clientes, com telefone e email removidos e regra dura contra publicar dado pessoal.
 - O Mapa interno em #/mapa documenta os módulos como uma rede didática. Seus dados vivem em `interno/`, fora do pacote de cliente, e o item desaparece quando eles não existem.
@@ -59,13 +59,13 @@ Fecha quando: o Jesse cria um carrossel pelo Dashboard e edita no Studio sem toc
 
 - Segunda jornada do Dashboard: wizard em 4 etapas gera site HTML estático por prompt direto (metodologia da skill /site pro texto, principios-visuais.md pro visual), sem tocar nas skills. Ver decisoes/2026-07-14-site-guiado-html-first.md.
 - Tela #/site/<pasta>: viewport com presets Desktop e Mobile, seletor de páginas, abrir em nova aba, atualização ao vivo e ajuste com IA na própria tela.
-- Em 2026-07-15, a TelaSite ganhou publicação direta e independente no GitHub e na Netlify. O código vai completo para um repositório privado e o ZIP estático vai para a Netlify, sem sessão de IA.
+- Em 2026-07-15, a TelaSite ganhou publicação direta e independente no GitHub e na Netlify, sem sessão de IA. Removida na versão 1.1.0 (2026-07-26): no lugar entrou a exportação local, abrir a pasta da peça ou baixar o site pronto em ZIP.
 - Em 2026-07-16, a geração ganhou a camada de design v2 (principios-visuais.md reescrito com leitura de design, cartela de 13 direções e proibições anti-IA, destilado de impeccable, taste-skill, ui-ux-pro-max e astryx) e a TelaSite ganhou o atalho Revisão de design no painel de IA. As sessões utilitárias ganharam o Modo enxuto opcional (economia de tokens, toggle na sidebar, ver decisoes/2026-07-16-modo-enxuto.md). Parte 02 futura: levar a camada de design pro carrossel (entregue no VKOS 2 em 2026-07-16, ver decisoes/2026-07-16-vkos2.md; retrofit pro vkos v1 e cópias de cliente segue em aberto).
-- Em 2026-07-16, o fluxo ganhou um contrato estático único e barreira de deploy. MIME, cache, páginas aninhadas, recursos relativos e URLs limpas funcionam no preview. A geração só conclui com auditoria estrutural válida. GitHub e Netlify só recebem o site depois de conferir todas as páginas em 390 px e 1440 px no navegador local.
+- Em 2026-07-16, o fluxo ganhou um contrato estático único e barreira de deploy. MIME, cache, páginas aninhadas, recursos relativos e URLs limpas funcionam no preview. A geração só conclui com auditoria estrutural válida. GitHub e Netlify só recebiam o site depois de conferir todas as páginas em 390 px e 1440 px no navegador local; desde 2026-07-26 a mesma barreira bloqueia a exportação local, não mais o deploy.
 - QA de gesto real em 2026-07-14: jornada completa aprovada, site gerado avaliado como vendável, regressão do carrossel limpa.
 - Em 2026-07-17, rodada Sites Astro e Design: prompt design-first com declaração obrigatória, biblioteca de 13 estilos concretos propagada com a camada v2 pros workspaces reais, e publicação de multipágina como projeto Astro (conversor determinístico com fallback HTML, motor compartilhado). Ver decisoes/2026-07-17-astro-na-publicacao.md e 2026-07-17-biblioteca-estilos-design-first.md. No mesmo dia o vkos2 estendeu a biblioteca pros demais formatos visuais: stories, carrossel em criação livre (modelo travado continua mandando) e interface de projeto, com a mesma declaração e teste final.
 - Ainda em 2026-07-17, conserto geral do checkup de ponta a ponta (4 auditorias, 30+ achados): dados sagrados (quarentena de crm.json corrompido, migração sem descarte, eventos de negócio, sincronização serializada, exclusão de workspace limpando segredos), publicação fiel (conversor valida cobertura do body e heads, chaves no texto sem quebrar build, conferência unificada, badge honesto), laço de conformidade robusto (nunca preso, exclusão mútua completa, turno interno na transcrição) e camada de tema oficial documentada. Ver decisoes/2026-07-17-dados-sagrados.md e 2026-07-17-camada-tema-oficial.md.
-Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e publica.
+Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e exporta o resultado pronto pra publicar onde quiser.
 
 ## Fase 6.8: Studio de Site (entregue em 2026-07-15, validar em uso real)
 
@@ -75,13 +75,12 @@ Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e publica.
 - QA de gesto real em 2026-07-15 com regressão do Studio de carrossel e do Site Guiado limpas; bug de especificidade corrigido e revalidado no site real.
 Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem tocar em arquivo.
 
-## Fase 6.7: barramento de eventos + Google Calendar (entregue em 2026-07-15, validar em uso real)
+## Fase 6.7: barramento de eventos + Google Calendar (ENCERRADA POR REMOÇÃO em 2026-07-26)
 
-- Barramento de eventos interno com log por workspace, conexão Google Calendar (OAuth pelo app, servidor MCP próprio pras sessões) e tela Automações com regras CRM > agenda, ensaio e histórico. Ver decisoes/2026-07-15-barramento-eventos-google-calendar.md.
-- Tela Calendário (#/calendario, item fixo na sidebar abaixo do CRM), local-first desde 2026-07-15: agenda própria do workspace que funciona sem Google, com visão de mês, criar/editar/excluir evento, e dois toggles: "Sincronizar com CRM" (sempre) e "Sincronizar com Google Calendar" (opcional, pede conexão). Backend em server/src/calendario/.
-- Sincronização CRM > agenda validada com a conta real do Jesse em 2026-07-15: cartão com próximo contato vira compromisso, mantido em dia pelo barramento, no modo local ou no Google. Desconectar o Google agora zera a conexão inteira.
-- QA de gesto real em 2026-07-15: pipeline validado de ponta a ponta sem conta Google; falta o gesto do Jesse (criar credenciais pelo planos/google-calendar/04-setup-google.md, conectar e ver o evento nascer na agenda).
-Fecha quando: um cartão real movido no CRM cria o compromisso na agenda do Google do Jesse.
+- Entregue em 2026-07-15: barramento de eventos interno com log por workspace, conexão Google Calendar (OAuth pelo app, servidor MCP próprio pras sessões), tela Automações com regras CRM > agenda, ensaio e histórico, e tela Calendário local-first sincronizável com o Google. Ver decisoes/2026-07-15-barramento-eventos-google-calendar.md pro histórico completo.
+- Removidos por inteiro na versão 1.1.0 (2026-07-26): a camada Google (OAuth, cliente REST, servidor MCP de agenda), o módulo Automações e a tela Calendário. O campo próximo contato segue no cartão do CRM, mas não alimenta mais nada.
+- O barramento de eventos (server/src/eventos/barramento.ts) continua no código, mas hoje não tem consumidor: fica como log de auditoria e vira base do feed de atividade do Dashboard na Fase 3 (HUB CORE) de planos/vkos-hub-local-v1/01-fases.md, plano separado deste roadmap.
+Fase encerrada por remoção de escopo, não por entrega. Sem critério de fechamento: o recurso que ela descrevia não existe mais no produto.
 
 ## Fase 8: fechamento do MVP local (implementação entregue em 2026-07-15)
 

@@ -12,6 +12,7 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 |---|---|---|---|
 | 0. Fundação do repositório | fechada | 1.0.0 | 2026-07-26 |
 | 1. Amputação | fechada | 1.1.0 | 2026-07-26 |
+| 1.5. Checkup e consertos | fechada | 1.2.0 | 2026-07-26 |
 | 2. Verdade do gasto | pendente | 1.2.0 | |
 | 3. HUB CORE | pendente | 1.3.0 | |
 | 4. Nova pele | pendente | 2.0.0 | |
