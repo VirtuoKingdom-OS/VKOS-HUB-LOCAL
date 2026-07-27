@@ -13,6 +13,79 @@ import test from "node:test";
 
 import { lerEstadoCrmDeArquivo, normalizarEstadoCrm } from "./estado.js";
 
+// Guarda do pior modo de falha que este arquivo ja teve, provado em 2026-07-27.
+// Um crm.json com versao 4, ou sem o campo versao, caia no ramo de migracao da
+// v1: ele le "notas" em vez de "interacoes", forca tarefas vazias e nem olha
+// "negocios". Uma unica leitura destruia o historico e gravava o resultado por
+// cima do original, sem quarentena, porque o arquivo era considerado valido.
+const fixtureVersaoFutura = {
+  versao: 4,
+  colunas: [{ id: "k1", nome: "Conversando", ordem: 0 }],
+  contatos: [{
+    id: "c1",
+    nome: "Padaria Aurora",
+    colunaId: "k1",
+    tags: ["cliente"],
+    interacoes: [
+      { id: "i1", em: "2026-07-01T10:00:00.000Z", tipo: "ligacao", texto: "Fechamos por 4500" },
+      { id: "i2", em: "2026-07-10T10:00:00.000Z", tipo: "reuniao", texto: "Briefing" },
+    ],
+    tarefas: [
+      { id: "t1", texto: "Enviar contrato", feita: false, criadaEm: "2026-07-10T10:00:00.000Z" },
+    ],
+    criadoEm: "2026-06-01T10:00:00.000Z",
+    atualizadoEm: "2026-07-10T10:00:00.000Z",
+  }],
+  negocios: [
+    { id: "n1", titulo: "Site", contatoId: "c1", valorEstimado: 4500, criadoEm: "2026-06-01T10:00:00.000Z", atualizadoEm: "2026-07-01T10:00:00.000Z" },
+  ],
+};
+
+test("versao futura nao e migrada como v1", () => {
+  assert.equal(normalizarEstadoCrm(fixtureVersaoFutura), null);
+});
+
+test("v3 sem o campo versao nao e migrada como v1", () => {
+  const { versao, ...semVersao } = fixtureVersaoFutura;
+  assert.equal(versao, 4);
+  assert.equal(normalizarEstadoCrm(semVersao), null);
+});
+
+test("versao futura vai pra quarentena com o historico intacto", () => {
+  const pasta = mkdtempSync(join(tmpdir(), "crm-versao-"));
+  try {
+    const caminho = join(pasta, "crm.json");
+    const texto = JSON.stringify(fixtureVersaoFutura, null, 2);
+    writeFileSync(caminho, texto, "utf8");
+
+    assert.throws(() => lerEstadoCrmDeArquivo(caminho));
+
+    // O original saiu do lugar em vez de ser sobrescrito por estado vazio.
+    assert.equal(existsSync(caminho), false);
+    const quarentena = readdirSync(pasta).find((n) => n.includes("corrompido"));
+    assert.ok(quarentena, "o original precisa ir pra quarentena");
+
+    // E chegou la inteiro: nenhuma interacao, tarefa ou negocio se perdeu.
+    const preservado = readFileSync(join(pasta, quarentena), "utf8");
+    assert.equal(preservado, texto);
+    const dados = JSON.parse(preservado);
+    assert.equal(dados.contatos[0].interacoes.length, 2);
+    assert.equal(dados.contatos[0].tarefas.length, 1);
+    assert.equal(dados.negocios.length, 1);
+    assert.equal(dados.negocios[0].valorEstimado, 4500);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+});
+
+test("v1 legitima continua migrando, sem falso positivo da guarda", () => {
+  // v1 nao tem "negocios" nem "interacoes": a guarda nao pode barrar ela.
+  const resultado = normalizarEstadoCrm(fixtureV1);
+  assert.ok(resultado, "a v1 precisa continuar sendo migrada");
+  assert.equal(resultado.estado.versao, 3);
+  assert.equal(resultado.estado.contatos.length, 1);
+});
+
 const fixtureV1 = {
   colunas: [
     { id: "novo", nome: "Novo contato", ordem: 0 },

@@ -385,9 +385,34 @@ function estagiosDosNegociosV2(
 }
 
 // Funcao pura exportada para testar a migracao sem tocar nos dados reais.
+// Versao mais nova que este codigo entende. Arquivo acima disso nao e migravel
+// pra tras: ele veio de uma versao futura do Hub e pode ter dado que este codigo
+// nem sabe ler.
+export const VERSAO_CRM_ATUAL = 3;
+
 export function normalizarEstadoCrm(bruto: unknown): ResultadoNormalizacaoCrm | null {
   if (!bruto || typeof bruto !== "object") return null;
   const dados = bruto as Record<string, unknown>;
+
+  // Guarda contra o pior modo de falha que este arquivo ja teve. Antes, versao
+  // desconhecida (4, ou o campo ausente num arquivo v3) caia no ramo v1 la
+  // embaixo, que le "notas" em vez de "interacoes", forca tarefas vazias e nem
+  // olha "negocios". O resultado destruido era gravado por cima do original na
+  // mesma leitura, sem quarentena, porque o arquivo era considerado valido.
+  //
+  // Devolver null joga o arquivo pra quarentena, o mesmo caminho do JSON
+  // quebrado. Perder acesso e recuperavel; perder o historico nao e.
+  const versao = dados.versao;
+  const versaoConhecida = versao === 1 || versao === 2 || versao === 3;
+  const pareceEstruturaNova =
+    Array.isArray(dados.negocios) ||
+    (Array.isArray(dados.contatos) &&
+      dados.contatos.some(
+        (c) => c && typeof c === "object" && "interacoes" in (c as object),
+      ));
+  if (!versaoConhecida && pareceEstruturaNova) return null;
+  if (typeof versao === "number" && versao > VERSAO_CRM_ATUAL) return null;
+
   let colunas = Array.isArray(dados.colunas)
     ? dados.colunas
         .map(saneiaColuna)
