@@ -61,6 +61,36 @@ test("a barreira libera site aprovado", () => {
   assert.doesNotThrow(() => conferirBarreiraQualidade({ valido: true, erros: [] }));
 });
 
+// Maquina sem Chrome nem Edge: a conferencia visual nao roda e o resultado sai
+// com valido false e erros vazio. Bloquear ai deixava a tela dizendo "precisa
+// de correcao" com a lista vazia e o botao morto, sem nada pra corrigir e sem
+// saida nenhuma, porque exportar e o unico caminho de tirar o site do produto.
+test("conferencia que nao rodou nao vira bloqueio sem pendencia", () => {
+  assert.doesNotThrow(() =>
+    conferirBarreiraQualidade({ valido: false, erros: [], verificavel: false }),
+  );
+});
+
+test("conferencia que rodou e reprovou continua bloqueando", () => {
+  assert.throws(
+    () =>
+      conferirBarreiraQualidade({
+        valido: false,
+        erros: ["contraste insuficiente no rodapé"],
+        verificavel: true,
+      }),
+    (erro: unknown) =>
+      erro instanceof ErroPublicacao && erro.message.includes("contraste"),
+  );
+});
+
+test("sem o campo verificavel, o bloqueio antigo vale", () => {
+  assert.throws(
+    () => conferirBarreiraQualidade({ valido: false, erros: ["erro qualquer"] }),
+    (erro: unknown) => erro instanceof ErroPublicacao,
+  );
+});
+
 test("o nome do arquivo baixado vem da pasta da peça", () => {
   assert.equal(
     nomeArquivoExportacao("2026-07-26-site-da-padaria"),

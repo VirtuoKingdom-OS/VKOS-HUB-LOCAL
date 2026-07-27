@@ -431,12 +431,16 @@ export default function TelaSite({ pasta }: Props) {
     setErroExportacao(null);
     setSucessoExportacao(null);
     try {
-      const { modo } = await baixarSite(pasta);
+      const { modo, avisos } = await baixarSite(pasta);
       setExportacao(await obterPublicacao(pasta));
-      setSucessoExportacao(
+      const base =
         modo === "astro"
           ? "Site baixado como projeto Astro compilado."
-          : "Site baixado em HTML puro, pronto pra subir em qualquer hospedagem.",
+          : "Site baixado em HTML puro, pronto pra subir em qualquer hospedagem.";
+      // O motivo do fallback vinha só num evento que ninguém escutava, então o
+      // usuário via "saiu em HTML" sem saber que o Astro foi tentado e falhou.
+      setSucessoExportacao(
+        avisos.length > 0 ? `${base} ${avisos.join(" ")}` : base,
       );
     } catch (erro) {
       setErroExportacao(
@@ -1280,7 +1284,7 @@ function PainelExportacao({
               className="site-exportar-badge"
               title={
                 modoAstro
-                  ? "A navegação e o rodapé viram um layout único, com sitemap e robots."
+                  ? "A navegação e o rodapé viram um layout único. O ZIP leva o site já compilado, com robots.txt, pronto pra arrastar em qualquer hospedagem."
                   : "As páginas saem como estão na pasta, prontas pra qualquer hospedagem."
               }
             >

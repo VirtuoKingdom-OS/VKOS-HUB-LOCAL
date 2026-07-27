@@ -133,7 +133,12 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
 
   // Baixa o site pronto num ZIP. Passa pela mesma barreira de qualidade que
   // barrava o deploy: site reprovado na auditoria nao vira arquivo.
-  app.get<{ Params: { pasta: string } }>(
+  // POST, e nao GET, de proposito. A rota levanta navegador, roda auditoria em
+  // duas viewports e pode disparar npm install e astro build. Em GET, uma tag
+  // <img src> em qualquer site aberto numa aba dispararia tudo isso na maquina
+  // do usuario, porque o guarda de Host aceita a origem local e o navegador
+  // manda a requisicao mesmo sem poder ler a resposta.
+  app.post<{ Params: { pasta: string } }>(
     "/publicacao/:pasta/exportar",
     async (req, resposta) => {
       const alvo = alvoOuResposta(req.params.pasta, resposta);
@@ -151,15 +156,20 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
           resposta.raw.destroy(erro);
         });
 
-        const em = new Date().toISOString();
-        atualizarRegistroPeca(alvo.workspaceId, alvo.pasta, {
-          exportacao: { em, modo: conteudo.modo },
-        });
-        emitir({
-          tipo: "peca:exportada",
-          workspaceId: alvo.workspaceId,
-          em,
-          dados: { pasta: alvo.pasta, modo: conteudo.modo, avisos: conteudo.avisos },
+        // So registra depois que o ZIP saiu inteiro. Registrar antes marcava a
+        // peca como exportada mesmo quando o download morria no meio, e a tela
+        // passava a mostrar "ultima exportacao" de um arquivo que nunca chegou.
+        zip.on("end", () => {
+          const em = new Date().toISOString();
+          atualizarRegistroPeca(alvo.workspaceId, alvo.pasta, {
+            exportacao: { em, modo: conteudo.modo },
+          });
+          emitir({
+            tipo: "peca:exportada",
+            workspaceId: alvo.workspaceId,
+            em,
+            dados: { pasta: alvo.pasta, modo: conteudo.modo, avisos: conteudo.avisos },
+          });
         });
 
         resposta.header("Content-Type", "application/zip");
@@ -170,8 +180,17 @@ export const rotasPublicacao: FastifyPluginAsync = async (app) => {
         // O modo real e os avisos viajam em header: o corpo e o ZIP, e a tela
         // precisa saber se saiu Astro ou HTML puro.
         resposta.header("X-VKOS-Modo-Exportacao", conteudo.modo);
+        if (conteudo.avisos.length > 0) {
+          // Motivo do fallback pra HTML, pra tela poder contar ao usuario.
+          resposta.header(
+            "X-VKOS-Avisos-Exportacao",
+            encodeURIComponent(conteudo.avisos.join(" | ")),
+          );
+        }
         resposta.send(zip);
-        void zip.finalize();
+        // O erro do finalize ja chega no listener de erro acima. Sem este catch
+        // a Promise rejeitada derruba o processo no Node 24.
+        zip.finalize().catch(() => {});
         return resposta;
       } catch (erro) {
         return tratarErro(erro, resposta);

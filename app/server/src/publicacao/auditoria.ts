@@ -164,10 +164,15 @@ export async function conferirPeca(
 export async function auditarSitePublicavel(
   alvo: AlvoPublicacao,
   host?: string,
-): Promise<AuditoriaPublicacao> {
+): Promise<AuditoriaPublicacao & { verificavel: boolean }> {
   const conferencia = await conferirPeca(alvo, { host, usarCache: true });
   return {
     ...conferencia.estrutura,
+    // verificavel diz se a conferencia visual chegou a rodar. Sem navegador no
+    // sistema ela nao roda, e o resultado sai com valido false e erros vazio.
+    // Descartar esse campo aqui transformava "nao deu pra conferir" em "site
+    // reprovado sem motivo", e travava a exportacao sem saida nenhuma.
+    verificavel: conferencia.verificavel,
     valido: conferencia.valido,
     erros: conferencia.erros,
     avisos: conferencia.avisos,
