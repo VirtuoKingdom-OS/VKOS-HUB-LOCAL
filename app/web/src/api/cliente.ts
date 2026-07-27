@@ -495,9 +495,12 @@ export function abrirPastaDaPeca(pasta: string): Promise<{ ok: boolean }> {
 // Baixa o ZIP do site. A barreira de qualidade vive no servidor: reprovado, a
 // resposta vem em JSON com as pendências e nada é baixado. O modo real do
 // pacote volta no header, pra tela não prometer Astro quando saiu HTML puro.
-export async function baixarSite(pasta: string): Promise<{ modo: ModoPublicacao }> {
+export async function baixarSite(
+  pasta: string,
+): Promise<{ modo: ModoPublicacao; avisos: string[] }> {
   const resposta = await fetch(
     `/api/publicacao/${encodeURIComponent(pasta)}/exportar`,
+    { method: "POST" },
   );
   if (!resposta.ok) {
     let mensagem = `Erro ${resposta.status}`;
@@ -516,6 +519,12 @@ export async function baixarSite(pasta: string): Promise<{ modo: ModoPublicacao 
       ?.match(/filename="?([^"]+)"?/)?.[1] ?? `${pasta}.zip`;
   const modo: ModoPublicacao =
     resposta.headers.get("X-VKOS-Modo-Exportacao") === "astro" ? "astro" : "html";
+  // Motivo do fallback, quando houve. Sem isso o usuário via "saiu em HTML" e
+  // nunca descobria que o Astro foi tentado e por que falhou.
+  const bruto = resposta.headers.get("X-VKOS-Avisos-Exportacao");
+  const avisos = bruto
+    ? decodeURIComponent(bruto).split(" | ").filter(Boolean)
+    : [];
 
   const blob = await resposta.blob();
   const url = URL.createObjectURL(blob);
@@ -525,8 +534,9 @@ export async function baixarSite(pasta: string): Promise<{ modo: ModoPublicacao 
   document.body.appendChild(ancora);
   ancora.click();
   ancora.remove();
-  URL.revokeObjectURL(url);
-  return { modo };
+  // Revogar no mesmo tick do click cancela o download em alguns navegadores.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return { modo, avisos };
 }
 
 // Modelos de carrossel do VKOS (templates/carrossel/).

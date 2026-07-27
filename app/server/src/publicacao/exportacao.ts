@@ -26,12 +26,23 @@ import {
 export interface VeredictoAuditoria {
   valido: boolean;
   erros: string[];
+  // Falso quando a conferencia visual nem chegou a rodar, o caso de maquina sem
+  // navegador. Opcional pra aceitar chamador antigo, que sempre conferia.
+  verificavel?: boolean;
 }
 
 // Portao de qualidade. Site reprovado nao exporta, com as pendencias na
 // mensagem, do mesmo jeito que bloqueava o deploy antes.
+//
+// Sem navegador no sistema a conferencia visual nao roda e o resultado chega
+// com valido false e erros vazio. Bloquear ai deixava a pessoa sem saida: a
+// tela dizia "precisa de correcao" com a lista de pendencias vazia e o botao
+// morto, sem nada pra corrigir. Antes isso barrava um deploy opcional; hoje
+// barraria o unico caminho de tirar o site do produto. Entao conferencia que
+// nao rodou libera a exportacao, e quem chama avisa que ela nao rodou.
 export function conferirBarreiraQualidade(auditoria: VeredictoAuditoria): void {
   if (auditoria.valido) return;
+  if (auditoria.verificavel === false) return;
   throw new ErroPublicacao(
     `O site ainda não está pronto para exportar. ${auditoria.erros.join(" ")}`.trim(),
     400,
