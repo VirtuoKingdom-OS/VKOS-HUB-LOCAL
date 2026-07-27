@@ -470,3 +470,60 @@ test("reordenar colunas recusa payload que nao e lista de ids", async () => {
   assert.equal(status, 400);
   assert.match(corpo.erro as string, /lista de ids/i);
 });
+
+// ------------------------------------------------- ultimas interacoes
+
+// Este teste afirma o CONTEUDO do mapa, nao so o formato: com duas interacoes
+// no mesmo contato, o mapa tem que trazer a mais nova, senao o bloco
+// "Esfriando" da tela do dia continua chutando.
+test("GET /crm/interacoes/ultimas traz a interacao mais nova de cada contato", async () => {
+  const a = await criarContato("Contato do lote A");
+  const b = await criarContato("Contato do lote B");
+
+  const antiga = await chamar("POST", `/api/crm/contatos/${a}/interacoes`, {
+    tipo: "ligacao",
+    texto: "Primeiro toque",
+    em: "2026-01-10T10:00:00.000Z",
+  });
+  assert.equal(antiga.status, 201);
+  const nova = await chamar("POST", `/api/crm/contatos/${a}/interacoes`, {
+    tipo: "reuniao",
+    texto: "Segundo toque",
+    em: "2026-03-20T10:00:00.000Z",
+  });
+  assert.equal(nova.status, 201);
+  const doB = await chamar("POST", `/api/crm/contatos/${b}/interacoes`, {
+    tipo: "mensagem",
+    texto: "Unico toque",
+    em: "2026-02-15T10:00:00.000Z",
+  });
+  assert.equal(doB.status, 201);
+
+  const { status, corpo } = await chamar("GET", "/api/crm/interacoes/ultimas");
+  assert.equal(status, 200);
+  const ultimas = corpo.ultimas as Record<string, string>;
+
+  // O contato com duas interacoes tem que trazer a de marco, nao a de janeiro.
+  assert.equal(Date.parse(ultimas[a]), Date.parse("2026-03-20T10:00:00.000Z"));
+  assert.equal(Date.parse(ultimas[b]), Date.parse("2026-02-15T10:00:00.000Z"));
+
+  await chamar("DELETE", `/api/crm/contatos/${a}`);
+  await chamar("DELETE", `/api/crm/contatos/${b}`);
+});
+
+// "ultimas" nao pode ser lido como id de contato pela rota vizinha.
+test("a rota em lote nao colide com /crm/contatos/:id/interacoes", async () => {
+  const { status, corpo } = await chamar("GET", "/api/crm/interacoes/ultimas");
+  assert.equal(status, 200);
+  assert.ok(corpo.ultimas, "a resposta e o mapa, nao a lista de um contato");
+  assert.equal(corpo.interacoes, undefined);
+});
+
+// Contato sem nenhuma interacao simplesmente nao entra no mapa. A tela cai pro
+// palpite dela, em vez de receber uma data falsa do servidor.
+test("contato sem interacao fica de fora do mapa", async () => {
+  const id = await criarContato("Nunca falei com este");
+  const { corpo } = await chamar("GET", "/api/crm/interacoes/ultimas");
+  assert.equal((corpo.ultimas as Record<string, string>)[id], undefined);
+  await chamar("DELETE", `/api/crm/contatos/${id}`);
+});

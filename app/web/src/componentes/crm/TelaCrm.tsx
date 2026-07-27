@@ -24,6 +24,7 @@ import {
   excluirTarefa as apiExcluirTarefa,
   moverContato as apiMoverContato,
   obterCrm,
+  obterUltimasInteracoes,
   registrarInteracao as apiRegistrarInteracao,
   renomearColuna as apiRenomearColuna,
   reordenarColunas as apiReordenarColunas,
@@ -118,25 +119,38 @@ export function TelaCrm() {
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<Alvo | null>(null);
 
+  // O mapa de ultimo toque e util, nao essencial: sem ele a tela ainda abre,
+  // so o bloco "Esfriando" volta a chutar. Por isso ele falha calado, sem
+  // derrubar o carregamento do funil inteiro.
+  const carregarUltimasInteracoes = useCallback(async () => {
+    try {
+      setUltimaInteracao(await obterUltimasInteracoes());
+    } catch {
+      // Segue com o que ja estiver em memoria.
+    }
+  }, []);
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
     try {
       setEstado(await obterCrm());
+      void carregarUltimasInteracoes();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Nao deu pra carregar o CRM.");
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [carregarUltimasInteracoes]);
 
   const sincronizarCrm = useCallback(async () => {
     try {
       setEstado(await obterCrm());
+      void carregarUltimasInteracoes();
     } catch (e) {
       mostrarErro(e, "Os leads entraram, mas não deu pra atualizar o CRM agora.");
     }
-  }, []);
+  }, [carregarUltimasInteracoes]);
 
   useEffect(() => {
     void carregar();

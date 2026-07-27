@@ -223,6 +223,29 @@ export function lerInteracoes(contatoId?: string): Interacao[] {
   return [...filtradas].sort((a, b) => Date.parse(b.em) - Date.parse(a.em));
 }
 
+// Data da ultima interacao de cada contato, num mapa enxuto.
+//
+// A tela do dia precisa disto pra saber quem esfriou. Sem esta leitura em lote
+// o web so tinha duas saidas: uma requisicao por contato, ou chutar pela data
+// de atualizacao do contato. O chute erra sempre pro mesmo lado, faz o contato
+// parecer mais quente do que esta e o some do bloco "Esfriando", que e
+// justamente o bloco que existe pra achar quem foi esquecido.
+//
+// Devolve so a data, nao a interacao inteira: o texto pode ser longo e nada
+// disso aparece na tela do dia.
+export function ultimaInteracaoPorContato(): Record<string, string> {
+  const pasta = pastaAtiva();
+  if (!pasta) return {};
+  const ultima: Record<string, string> = {};
+  for (const item of lerInteracoesDaPasta(pasta)) {
+    const atual = ultima[item.contatoId];
+    if (!atual || Date.parse(item.em) > Date.parse(atual)) {
+      ultima[item.contatoId] = item.em;
+    }
+  }
+  return ultima;
+}
+
 // Historico de estagio, do mais antigo pro mais novo (a ordem em que aconteceu).
 export function lerEstagios(contatoId?: string): RegistroEstagio[] {
   const pasta = pastaAtiva();

@@ -168,6 +168,17 @@ export function moverContato(id: string, colunaId: string, indice?: number): Pro
 
 // A linha do tempo saiu de dentro do contato pro interacoes.jsonl, entao ela e
 // pedida por contato, sob demanda.
+// Data do ultimo toque de cada contato, em uma requisicao so.
+//
+// A tela do dia precisa disto pro bloco "Esfriando". Pedir contato a contato
+// seria uma requisicao por contato, e cair na data de atualizacao do contato
+// faz todo mundo parecer mais quente do que esta. Contato sem interacao nao
+// vem no mapa: quem chama decide o que fazer com a ausencia.
+export async function obterUltimasInteracoes(): Promise<Map<string, string>> {
+  const dados = await pedir<{ ultimas: Record<string, string> }>("/api/crm/interacoes/ultimas");
+  return new Map(Object.entries(dados.ultimas ?? {}));
+}
+
 export async function listarInteracoes(contatoId: string): Promise<Interacao[]> {
   const dados = await pedir<{ interacoes: Interacao[] }>(
     `/api/crm/contatos/${encodeURIComponent(contatoId)}/interacoes`,

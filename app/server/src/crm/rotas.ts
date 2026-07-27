@@ -32,6 +32,7 @@ import {
   removerOrganizacao,
   removerTarefa,
   reordenarColunas,
+  ultimaInteracaoPorContato,
 } from "./estado.js";
 
 // Traduz um ErroCrm em resposta HTTP. Erro inesperado sobe pro handler global.
@@ -102,6 +103,16 @@ export const rotasCrm: FastifyPluginAsync = async (app) => {
   });
 
   // ---------------------------------------------------------- interacoes
+
+  // Data do ultimo toque de cada contato, em uma requisicao so. Fica antes da
+  // rota com :id de proposito, pra "ultimas" nunca ser lido como id.
+  app.get("/crm/interacoes/ultimas", async (_req, resposta) => {
+    try {
+      return { ultimas: ultimaInteracaoPorContato() };
+    } catch (erro) {
+      return responderErro(erro, resposta);
+    }
+  });
 
   app.get("/crm/contatos/:id/interacoes", async (req, resposta) => {
     try {
