@@ -1,0 +1,270 @@
+/* VKOS Hub, camada de token proposta para a Fase 5.
+ *
+ * Prova de conceito. Nao esta em uso. O destino e:
+ *   as escalas (secao "base")  ->  app/web/src/estilos/global.css   dentro de @layer base
+ *   as cores por tema          ->  app/web/src/estilos/visual-hub.css dentro de @layer tema
+ *
+ * Todos os valores de cor foram verificados por script contra a formula do
+ * WCAG 2.2. Sao 48 verificacoes nos tres temas, zero falhas. Ver contraste.md.
+ */
+
+/* A ordem da cascata e DECLARADA, nunca herdada da ordem de carga do bundler.
+   Sem esta linha, o CSS de tela carregado por chunk lazy vence a camada de
+   tema, que e o bug medido em 2026-07-27. */
+@layer base, tela, tema;
+
+/* ==========================================================================
+   BASE: as escalas. Nao mudam por tema.
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* Regua. Trocar --base muda a densidade da interface inteira, sem tocar
+       em nenhum componente. E o mecanismo de scaling do Radix. */
+    --base: 4px;
+
+    /* Espacamento, 8 degraus. Hoje o app tem 42 valores soltos. */
+    --esp-2: calc(var(--base) * 0.5);
+    --esp-4: var(--base);
+    --esp-8: calc(var(--base) * 2);
+    --esp-12: calc(var(--base) * 3);
+    --esp-16: calc(var(--base) * 4);
+    --esp-24: calc(var(--base) * 6);
+    --esp-32: calc(var(--base) * 8);
+    --esp-48: calc(var(--base) * 12);
+
+    /* Familias. O Segoe UI Variable do Windows 11 tem tres cortes opticos
+       reais: Small ate 12px, Text de 13 a 20px, Display acima de 20px. Usar os
+       tres entrega o efeito de optical size da Apple sem embarcar fonte. */
+    --fonte: "Segoe UI Variable Text", "Inter", system-ui, -apple-system,
+      "Segoe UI", Roboto, sans-serif;
+    --fonte-mini: "Segoe UI Variable Small", var(--fonte);
+    --fonte-display: "Segoe UI Variable Display", var(--fonte);
+    --fonte-mono: "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas,
+      monospace;
+
+    /* Tipografia, 7 degraus. Hoje o app tem 24 tamanhos e 16 pesos.
+       Entrelinha em px absoluto e sempre par, no padrao do Radix. */
+    --txt-micro: 11px;        --lh-micro: 14px;      --tr-micro: 0.01em;
+    --txt-legenda: 12px;      --lh-legenda: 16px;    --tr-legenda: 0em;
+    --txt-corpo: 13px;        --lh-corpo: 18px;      --tr-corpo: -0.005em;
+    --txt-leitura: 15px;      --lh-leitura: 22px;    --tr-leitura: -0.01em;
+    --txt-titulo-p: 17px;     --lh-titulo-p: 22px;   --tr-titulo-p: -0.015em;
+    --txt-titulo: 22px;       --lh-titulo: 28px;     --tr-titulo: -0.02em;
+    --txt-display: 28px;      --lh-display: 34px;    --tr-display: -0.025em;
+
+    /* Quatro pesos e so quatro. Os oito pesos intermediarios de hoje (590,
+       620, 650, 660, 680, 720, 730, 760) dependem de fonte variavel que o app
+       nao embarca, e colapsam em silencio fora do Windows 11. */
+    --peso-normal: 400;
+    --peso-medio: 500;
+    --peso-forte: 600;
+    --peso-pesado: 700;
+
+    /* Raio, 5 degraus. Hoje sao 31. O 8px em botao e campo e convergencia
+       entre Linear, Raycast e Notion. */
+    --raio-p: 6px;
+    --raio: 8px;
+    --raio-g: 12px;
+    --raio-gg: 16px;
+    --raio-pilula: 999px;
+
+    /* Movimento, 3 duracoes e 2 curvas. Hoje sao 41 duracoes e 7 curvas. */
+    --mov-rapido: 120ms;
+    --mov-padrao: 200ms;
+    --mov-lento: 320ms;
+    --curva: cubic-bezier(0.32, 0.72, 0, 1);
+    --curva-simetrica: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Empilhamento, 6 niveis. Hoje sao 31 valores literais. */
+    --z-base: 0;
+    --z-fixo: 10;
+    --z-popover: 100;
+    --z-camada: 200;
+    --z-veu: 300;
+    --z-modal: 310;
+    --z-aviso: 400;
+
+    /* Elevacao. Sombra so onde o elemento FLUTUA sobre outro conteudo.
+       Cartao, painel e barra de topo nao tem sombra: a profundidade sai da
+       escada de superficie mais o fio de --linha. Hoje o app tem 117 sombras
+       distintas em 203 declaracoes. */
+    --sombra-popover: 0 4px 12px rgb(var(--scrim-rgb) / 0.18);
+    --sombra-modal: 0 16px 48px rgb(var(--scrim-rgb) / 0.28);
+    --sombra-arrasto: 0 8px 24px rgb(var(--scrim-rgb) / 0.32);
+
+    /* O unico glow que sobra. Deixa de ser fundo de botao e de hover, e vira
+       sinal de sessao viva, que e o unico lugar onde carrega informacao. */
+    --glow-vivo: 0 0 0 3px rgb(var(--menta-rgb) / 0.18);
+
+    /* Foco de teclado. 2px de espessura atende o criterio 2.4.13 do WCAG 2.2,
+       que exige area equivalente a um perimetro de 2px e 3:1 entre o estado
+       focado e o nao focado. */
+    --foco: 2px solid var(--menta);
+    --foco-recuo: 2px;
+  }
+}
+
+/* ==========================================================================
+   TEMA: o valor final de cada cor. Sempre por cima.
+   ========================================================================== */
+
+@layer tema {
+  /* Escuro, o padrao. Grafite neutro, menta de destaque. */
+  :root,
+  :root[data-theme="escuro"] {
+    color-scheme: dark;
+
+    --fundo: #101318;
+    --superficie: #171b21;
+    --superficie-alta: #1e232b;
+    --superficie-flutuante: #262d37;
+    --papel: #ffffff;
+
+    /* Duas bordas com trabalhos diferentes. --linha e decoracao e pode ser
+       sutil. --linha-forte e o unico indicador de um controle, entao o
+       criterio 1.4.11 do WCAG exige 3:1. Medido: 3,01:1 sobre --superficie. */
+    --linha: #2b323c;
+    --linha-forte: #59677c;
+
+    --texto: #f0f3f7;
+    --texto-suave: #b3bcc9;
+    --texto-fraco: #8a94a3;
+
+    --menta: #2fd4a7;
+    --menta-tenue: #1a3131;
+    --menta-linha: #2fd4a7;
+    --sobre-menta: #04231b;
+
+    --alerta: #ff7b7b;
+    --alerta-tenue: #33272c;
+    --alerta-linha: #ff7b7b;
+
+    --aviso: #e8bd6d;
+    --aviso-tenue: #302e2a;
+    --aviso-linha: #e8bd6d;
+
+    --neutro-tenue: #1c2129;
+    --pontos-canvas: #252c35;
+
+    /* Os dois unicos canais que sobram. Todo o resto virou token solido.
+       Hoje o app faz 565 chamadas de rgba(var(--X-rgb), a) com 154
+       combinacoes distintas de cor e alpha, e so o menta tem 49 alphas. */
+    --menta-rgb: 47 212 167;
+    --scrim-rgb: 4 7 10;
+    --veu: rgb(var(--scrim-rgb) / 0.55);
+
+    --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #1d453a, #171d22 100%);
+  }
+
+  /* Dark VKOS, a identidade original. */
+  :root[data-theme="vkos"] {
+    color-scheme: dark;
+
+    --fundo: #08100e;
+    --superficie: #101b17;
+    --superficie-alta: #17251f;
+    --superficie-flutuante: #1e2f28;
+    --papel: #ffffff;
+
+    --linha: #22362f;
+    --linha-forte: #446d5f;
+
+    --texto: #f0f7f4;
+    --texto-suave: #adbfb8;
+    --texto-fraco: #83968f;
+
+    --menta: #21d6a4;
+    --menta-tenue: #123128;
+    --menta-linha: #21d6a4;
+    --sobre-menta: #03211a;
+
+    --alerta: #ff7b7b;
+    --alerta-tenue: #2d2723;
+    --alerta-linha: #ff7b7b;
+
+    --aviso: #f0c674;
+    --aviso-tenue: #2b3022;
+    --aviso-linha: #f0c674;
+
+    --neutro-tenue: #152019;
+    --pontos-canvas: #183128;
+
+    --menta-rgb: 33 214 164;
+    --scrim-rgb: 2 8 6;
+    --veu: rgb(var(--scrim-rgb) / 0.55);
+
+    /* Hoje este gradiente nao tem override no Dark VKOS e cai no valor base,
+       calibrado para uma paleta que nao existe mais. */
+    --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #12362a, #0d1a16 100%);
+  }
+
+  /* Claro. Superficie quase branca, nunca #fff estourado na pagina.
+     O menta escureceu de #078f70 para #03795e: era a unica forma de o rotulo
+     do botao principal passar em 4,5:1. Hoje ele esta em 3,69:1. */
+  :root[data-theme="claro"] {
+    color-scheme: light;
+
+    --fundo: #f2f5f4;
+    --superficie: #fcfdfd;
+    --superficie-alta: #eaefed;
+    --superficie-flutuante: #fcfdfd;
+    --papel: #ffffff;
+
+    --linha: #dce4e1;
+    --linha-forte: #748f84;
+
+    --texto: #141f1b;
+    --texto-suave: #4c5c56;
+    --texto-fraco: #5d6d66;
+
+    --menta: #03795e;
+    --menta-tenue: #e1eeec;
+    --menta-linha: #03795e;
+    --sobre-menta: #ffffff;
+
+    --alerta: #cf3b3b;
+    --alerta-tenue: #f7e8e8;
+    --alerta-linha: #cf3b3b;
+
+    --aviso: #8e6a19;
+    --aviso-tenue: #f0ede4;
+    --aviso-linha: #8e6a19;
+
+    --neutro-tenue: #e9eeec;
+    --pontos-canvas: #d3ddd8;
+
+    --menta-rgb: 3 121 94;
+    --scrim-rgb: 18 29 25;
+    --veu: rgb(var(--scrim-rgb) / 0.35);
+
+    --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #d8f3e9, #f8fbfa 100%);
+  }
+}
+
+/* ==========================================================================
+   Movimento reduzido: substituir, nao apagar.
+   A MDN e explicita: reduce significa remover, reduzir OU SUBSTITUIR. Zerar a
+   duracao de tudo, que e o que o visual-hub.css faz hoje, apaga o sinal de
+   "a IA esta trabalhando" justamente para quem mais precisa dele.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* Movimento de posicao some. Feedback de cor e opacidade fica. */
+    transition-property: opacity, background-color, border-color, color, fill,
+      box-shadow;
+    animation-duration: var(--mov-padrao);
+    scroll-behavior: auto;
+  }
+  [data-mov="pulso"] {
+    animation-name: fade-suave;
+  }
+}
+
+@keyframes fade-suave {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}

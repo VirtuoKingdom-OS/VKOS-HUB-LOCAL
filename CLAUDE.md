@@ -51,7 +51,9 @@ Em decisões estratégicas ele gosta de debater antes de travar. Apresentar opç
 
 Em execução ele quer velocidade e iteração. Quando ele disser "bora torar", é pra construir, não pra planejar mais.
 
-Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. O tema sai de duas camadas: `app/web/src/estilos/global.css` define a base dos tokens e `app/web/src/estilos/visual-hub.css` carrega por último e é a camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
+Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. O tema sai de duas camadas: `app/web/src/estilos/global.css` define a base dos tokens e `app/web/src/estilos/visual-hub.css` deveria fixar o valor final de cada token por tema. Toda cor passa por esses tokens, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
+
+Atenção, e isto é prova de build, não opinião: hoje o `visual-hub.css` NÃO é a última palavra. As folhas de tela são importadas por componente, e as que entram por chunk carregado sob demanda o Vite injeta depois de tudo. Com a mesma especificidade, quem chega por último vence. Enquanto isso não for consertado com `@layer`, não confie na ordem dos arquivos: se um valor de tema precisa vencer, garanta na camada, não no arquivo. O diagnóstico completo e a correção estão em `planos/vkos-hub-local-v1/05-design-system.md`.
 
 ## Código
 

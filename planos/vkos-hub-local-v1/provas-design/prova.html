@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="escuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VKOS Hub, prova do design system</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* Esta folha existe só para a prova. Ela mostra como os 17 componentes ficam
+   quando montados só com os tokens. Nada aqui vai para app/ como está: o
+   destino é virar componente React em componentes/comum/. */
+@layer tela {
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--fundo); color: var(--texto);
+  font-family: var(--fonte);
+  font-size: var(--txt-corpo); line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo); font-weight: var(--peso-normal);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: var(--foco); outline-offset: var(--foco-recuo); }
+
+/* ---- Casca da prova ---------------------------------------------------- */
+.casca { display:flex; min-height:100vh; }
+.lado {
+  width:248px; flex-shrink:0; background:var(--superficie);
+  border-right:1px solid var(--linha); padding:var(--esp-16) var(--esp-12);
+  display:flex; flex-direction:column; gap:var(--esp-4);
+}
+.corpo { flex:1; min-width:0; padding:var(--esp-32); display:flex;
+  flex-direction:column; gap:var(--esp-32); max-width:1080px; }
+.bloco { display:flex; flex-direction:column; gap:var(--esp-12); }
+.linha-demo { display:flex; flex-wrap:wrap; gap:var(--esp-8); align-items:center; }
+.grade { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:var(--esp-16); }
+
+/* ---- Tipografia -------------------------------------------------------- */
+.t-micro { font:var(--peso-forte) var(--txt-micro)/var(--lh-micro) var(--fonte-mini);
+  letter-spacing:var(--tr-micro); text-transform:uppercase; color:var(--texto-fraco); }
+.t-legenda { font-size:var(--txt-legenda); line-height:var(--lh-legenda);
+  letter-spacing:var(--tr-legenda); color:var(--texto-suave); }
+.t-corpo { font-size:var(--txt-corpo); line-height:var(--lh-corpo); }
+.t-leitura { font-size:var(--txt-leitura); line-height:var(--lh-leitura);
+  letter-spacing:var(--tr-leitura); }
+.t-titulo-p { font:var(--peso-forte) var(--txt-titulo-p)/var(--lh-titulo-p) var(--fonte);
+  letter-spacing:var(--tr-titulo-p); }
+.t-titulo { font:var(--peso-forte) var(--txt-titulo)/var(--lh-titulo) var(--fonte-display);
+  letter-spacing:var(--tr-titulo); }
+.t-display { font:var(--peso-pesado) var(--txt-display)/var(--lh-display) var(--fonte-display);
+  letter-spacing:var(--tr-display); }
+
+/* ---- Botao ------------------------------------------------------------- */
+.botao {
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--esp-8);
+  min-height:32px; padding:0 var(--esp-12);
+  font-family:inherit; font-size:var(--txt-corpo); font-weight:var(--peso-forte);
+  letter-spacing:var(--tr-corpo);
+  border:1px solid transparent; border-radius:var(--raio);
+  cursor:pointer; white-space:nowrap;
+  transition:background-color var(--mov-rapido) var(--curva),
+             border-color var(--mov-rapido) var(--curva),
+             color var(--mov-rapido) var(--curva);
+}
+.botao[data-tamanho="p"] { min-height:26px; font-size:var(--txt-legenda); padding:0 var(--esp-8); }
+.botao[data-so-icone] { width:32px; padding:0; }
+.botao:disabled { opacity:.45; cursor:not-allowed; }
+.botao[data-variante="principal"] { background:var(--menta); color:var(--sobre-menta); }
+.botao[data-variante="principal"]:hover:not(:disabled) { filter:brightness(1.08); }
+.botao[data-variante="neutro"] { background:var(--superficie); color:var(--texto);
+  border-color:var(--linha-forte); }
+.botao[data-variante="neutro"]:hover:not(:disabled) { background:var(--superficie-alta); }
+.botao[data-variante="fantasma"] { background:transparent; color:var(--texto-suave); }
+.botao[data-variante="fantasma"]:hover:not(:disabled) { background:var(--neutro-tenue);
+  color:var(--texto); }
+.botao[data-variante="perigo"] { background:transparent; color:var(--alerta);
+  border-color:var(--alerta-linha); }
+.botao[data-variante="perigo"]:hover:not(:disabled) { background:var(--alerta-tenue); }
+
+/* ---- Campo ------------------------------------------------------------- */
+.campo {
+  width:100%; min-height:32px; padding:0 var(--esp-8);
+  font-family:inherit; font-size:var(--txt-corpo); color:var(--texto);
+  background:var(--fundo); border:1px solid var(--linha-forte);
+  border-radius:var(--raio); outline:none;
+  transition:border-color var(--mov-rapido) var(--curva);
+}
+textarea.campo { min-height:72px; padding:var(--esp-8); line-height:var(--lh-corpo);
+  resize:vertical; }
+.campo::placeholder { color:var(--texto-fraco); }
+.campo:focus { border-color:var(--menta); box-shadow:var(--glow-vivo); }
+.campo[aria-invalid="true"] { border-color:var(--alerta-linha); }
+.campo-caixa { display:flex; flex-direction:column; gap:var(--esp-4); max-width:320px; }
+
+/* ---- Superficie e cartao ----------------------------------------------- */
+.superficie { background:var(--superficie); border:1px solid var(--linha);
+  border-radius:var(--raio-g); }
+.cartao { background:var(--superficie); border:1px solid var(--linha);
+  border-radius:var(--raio-g); padding:var(--esp-16);
+  display:flex; flex-direction:column; gap:var(--esp-8);
+  transition:border-color var(--mov-rapido) var(--curva),
+             background-color var(--mov-rapido) var(--curva); }
+.cartao[data-interativa]:hover { background:var(--superficie-alta);
+  border-color:var(--linha-forte); cursor:pointer; }
+.cartao[data-compacto] { padding:var(--esp-12); gap:var(--esp-4); }
+
+/* ---- Chip e selo ------------------------------------------------------- */
+.chip { display:inline-flex; align-items:center; gap:var(--esp-4);
+  min-height:24px; padding:0 var(--esp-8);
+  font-size:var(--txt-legenda); font-weight:var(--peso-medio);
+  color:var(--texto-suave); background:var(--neutro-tenue);
+  border:1px solid var(--linha); border-radius:var(--raio-p); }
+.chip[data-tom="menta"] { color:var(--menta); background:var(--menta-tenue);
+  border-color:var(--menta-linha); }
+.chip[data-tom="alerta"] { color:var(--alerta); background:var(--alerta-tenue);
+  border-color:var(--alerta-linha); }
+.chip[data-tom="aviso"] { color:var(--aviso); background:var(--aviso-tenue);
+  border-color:var(--aviso-linha); }
+.selo { display:inline-flex; align-items:center; gap:var(--esp-4);
+  min-height:20px; padding:0 var(--esp-8);
+  font-size:var(--txt-micro); font-weight:var(--peso-forte);
+  border-radius:var(--raio-pilula); border:1px solid transparent; }
+.selo i { width:6px; height:6px; border-radius:50%; background:currentColor; }
+.selo[data-estado="fila"] { color:var(--texto-fraco); background:var(--neutro-tenue); }
+.selo[data-estado="rodando"] { color:var(--menta); background:var(--menta-tenue);
+  border-color:var(--menta-linha); box-shadow:var(--glow-vivo); }
+.selo[data-estado="rodando"] i { animation:pulsar 1.4s var(--curva-simetrica) infinite; }
+.selo[data-estado="concluida"] { color:var(--menta); background:var(--menta-tenue); }
+.selo[data-estado="erro"] { color:var(--alerta); background:var(--alerta-tenue); }
+@keyframes pulsar { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* ---- Navegacao --------------------------------------------------------- */
+.nav-item { display:flex; align-items:center; gap:var(--esp-8);
+  width:100%; min-height:32px; padding:0 var(--esp-8);
+  font-size:var(--txt-corpo); font-weight:var(--peso-medio);
+  color:var(--texto-suave); background:none; border:1px solid transparent;
+  border-radius:var(--raio); cursor:pointer; text-align:left;
+  transition:background-color var(--mov-rapido) var(--curva),
+             color var(--mov-rapido) var(--curva); }
+.nav-item:hover { background:var(--neutro-tenue); color:var(--texto); }
+.nav-item[aria-current="page"] { color:var(--menta); background:var(--menta-tenue);
+  border-color:var(--menta-linha); font-weight:var(--peso-forte); }
+.nav-item span { margin-left:auto; font-size:var(--txt-micro);
+  font-variant-numeric:tabular-nums; color:var(--texto-fraco); }
+.nav-ponto { width:16px; height:16px; border-radius:var(--raio-p);
+  background:currentColor; opacity:.55; flex-shrink:0; }
+
+/* ---- Grupo segmentado -------------------------------------------------- */
+.grupo { display:inline-flex; gap:2px; padding:2px;
+  background:var(--neutro-tenue); border:1px solid var(--linha);
+  border-radius:var(--raio); }
+.grupo button { min-height:26px; padding:0 var(--esp-12);
+  font-family:inherit; font-size:var(--txt-legenda); font-weight:var(--peso-medio);
+  color:var(--texto-suave); background:none; border:none;
+  border-radius:var(--raio-p); cursor:pointer; }
+.grupo button[aria-selected="true"] { color:var(--texto);
+  background:var(--superficie-flutuante); font-weight:var(--peso-forte); }
+
+/* ---- Interruptor ------------------------------------------------------- */
+.interruptor { display:inline-flex; align-items:center; gap:var(--esp-8);
+  cursor:pointer; font-size:var(--txt-corpo); }
+.interruptor input { position:absolute; opacity:0; width:0; height:0; }
+.trilho { width:36px; height:20px; flex-shrink:0; position:relative;
+  background:var(--fundo); border:1px solid var(--linha-forte);
+  border-radius:var(--raio-pilula);
+  transition:background-color var(--mov-rapido) var(--curva-simetrica),
+             border-color var(--mov-rapido) var(--curva-simetrica); }
+.trilho::after { content:""; position:absolute; top:2px; left:2px;
+  width:14px; height:14px; border-radius:50%; background:var(--texto-fraco);
+  transition:transform var(--mov-rapido) var(--curva-simetrica),
+             background-color var(--mov-rapido) var(--curva-simetrica); }
+.interruptor input:checked + .trilho { background:var(--menta); border-color:var(--menta); }
+.interruptor input:checked + .trilho::after { transform:translateX(16px);
+  background:var(--sobre-menta); }
+.interruptor input:focus-visible + .trilho { outline:var(--foco);
+  outline-offset:var(--foco-recuo); }
+
+/* ---- Faixa ------------------------------------------------------------- */
+.faixa { display:flex; align-items:flex-start; gap:var(--esp-8);
+  padding:var(--esp-12); font-size:var(--txt-corpo);
+  border:1px solid; border-radius:var(--raio); }
+.faixa[data-tom="erro"] { color:var(--alerta); background:var(--alerta-tenue);
+  border-color:var(--alerta-linha); }
+.faixa[data-tom="aviso"] { color:var(--aviso); background:var(--aviso-tenue);
+  border-color:var(--aviso-linha); }
+.faixa[data-tom="info"] { color:var(--texto-suave); background:var(--neutro-tenue);
+  border-color:var(--linha); }
+.faixa[data-tom="sucesso"] { color:var(--menta); background:var(--menta-tenue);
+  border-color:var(--menta-linha); }
+
+/* ---- Estado vazio e carregando ---------------------------------------- */
+.vazio { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:var(--esp-8); padding:var(--esp-48) var(--esp-24); text-align:center;
+  border:1px dashed var(--linha); border-radius:var(--raio-g); }
+.vazio .marca { width:40px; height:40px; border-radius:var(--raio-g);
+  background:var(--menta-tenue); border:1px solid var(--menta-linha); }
+.vazio p { color:var(--texto-suave); max-width:34ch; }
+.giro { width:20px; height:20px; border-radius:50%;
+  border:2px solid var(--linha); border-top-color:var(--menta);
+  animation:girar 800ms linear infinite; }
+@keyframes girar { to { transform:rotate(360deg) } }
+.esqueleto { height:12px; border-radius:var(--raio-p); background:var(--superficie-alta);
+  animation:pulsar 1.6s var(--curva-simetrica) infinite; }
+
+/* ---- Popover e modal --------------------------------------------------- */
+.popover { position:absolute; z-index:var(--z-popover);
+  min-width:180px; padding:var(--esp-4);
+  background:var(--superficie-flutuante); border:1px solid var(--linha);
+  border-radius:var(--raio-g); box-shadow:var(--sombra-popover); }
+.popover button { display:flex; align-items:center; gap:var(--esp-8);
+  width:100%; min-height:30px; padding:0 var(--esp-8);
+  font-family:inherit; font-size:var(--txt-corpo); color:var(--texto);
+  background:none; border:none; border-radius:var(--raio-p);
+  cursor:pointer; text-align:left; }
+.popover button:hover { background:var(--neutro-tenue); }
+dialog { padding:0; border:none; background:none; color:var(--texto); }
+dialog::backdrop { background:var(--veu); }
+.modal { width:min(420px,90vw); padding:var(--esp-24);
+  display:flex; flex-direction:column; gap:var(--esp-12);
+  background:var(--superficie-flutuante); border:1px solid var(--linha);
+  border-radius:var(--raio-gg); box-shadow:var(--sombra-modal); }
+.modal-acoes { display:flex; justify-content:flex-end; gap:var(--esp-8);
+  margin-top:var(--esp-4); }
+
+/* ---- Escada de superficie (a prova da profundidade sem sombra) --------- */
+.escada { display:flex; flex-direction:column; gap:0;
+  border:1px solid var(--linha); border-radius:var(--raio-g); overflow:hidden; }
+.escada div { padding:var(--esp-12); font-size:var(--txt-legenda);
+  border-bottom:1px solid var(--linha); }
+.escada div:last-child { border-bottom:none; }
+.n0 { background:var(--fundo) } .n1 { background:var(--superficie) }
+.n2 { background:var(--superficie-alta) } .n3 { background:var(--superficie-flutuante) }
+
+/* ---- Amostras de token ------------------------------------------------- */
+.amostras { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:var(--esp-8); }
+.amostra { display:flex; flex-direction:column; gap:var(--esp-4); }
+.amostra i { display:block; height:36px; border-radius:var(--raio);
+  border:1px solid var(--linha); }
+.amostra code { font:var(--txt-micro)/var(--lh-micro) var(--fonte-mono);
+  color:var(--texto-fraco); }
+.sep { height:1px; background:var(--linha); }
+}
+</style>
+</head>
+<body>
+<div class="casca">
+
+  <nav class="lado" aria-label="Prova de navegação">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 var(--esp-8) var(--esp-16)">
+      <strong class="t-titulo-p">VKOS <span style="color:var(--menta)">HUB</span></strong>
+      <div class="grupo" role="tablist" aria-label="Tema">
+        <button role="tab" aria-selected="true"  onclick="tema('escuro',this)">Escuro</button>
+        <button role="tab" aria-selected="false" onclick="tema('vkos',this)">VKOS</button>
+        <button role="tab" aria-selected="false" onclick="tema('claro',this)">Claro</button>
+      </div>
+    </div>
+    <p class="t-micro" style="padding:var(--esp-8) var(--esp-8) var(--esp-4)">Trabalho</p>
+    <button class="nav-item" aria-current="page"><i class="nav-ponto"></i>Dashboard</button>
+    <button class="nav-item"><i class="nav-ponto"></i>Cockpit<span>3</span></button>
+    <button class="nav-item"><i class="nav-ponto"></i>CRM<span>128</span></button>
+    <button class="nav-item"><i class="nav-ponto"></i>Conexões</button>
+    <p class="t-micro" style="padding:var(--esp-16) var(--esp-8) var(--esp-4)">Conteúdo</p>
+    <button class="nav-item"><i class="nav-ponto"></i>Peças<span>41</span></button>
+    <button class="nav-item"><i class="nav-ponto"></i>Fontes de dados</button>
+    <div style="margin-top:auto;padding-top:var(--esp-12);border-top:1px solid var(--linha);display:flex;flex-direction:column;gap:var(--esp-8)">
+      <span class="selo" data-estado="rodando" data-mov="pulso"><i></i>2 sessões rodando</span>
+      <p class="t-legenda" style="font-variant-numeric:tabular-nums">Hoje: R$ 4,18</p>
+    </div>
+  </nav>
+
+  <main class="corpo">
+
+    <header class="bloco">
+      <h1 class="t-display">Prova do design system</h1>
+      <p class="t-leitura" style="color:var(--texto-suave);max-width:62ch">
+        Página autônoma, fora de <code>app/</code>. Mostra os componentes montados só com os
+        tokens de <code>tokens.css</code>. Troque de tema no canto para conferir os três.
+      </p>
+    </header>
+
+    <section class="bloco">
+      <p class="t-micro">Tipografia, 7 degraus</p>
+      <div class="superficie" style="padding:var(--esp-16);display:flex;flex-direction:column;gap:var(--esp-8)">
+        <span class="t-display">28px display, saudação do Dashboard</span>
+        <span class="t-titulo">22px título de tela</span>
+        <span class="t-titulo-p">17px título de cartão</span>
+        <span class="t-leitura">15px leitura, markdown da IA e editor</span>
+        <span class="t-corpo">13px corpo, o padrão do app, mesmo tamanho do body do macOS</span>
+        <span class="t-legenda">12px legenda, subtítulo, data e ajuda</span>
+        <span class="t-micro">11px micro, rótulo de seção</span>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Profundidade por camada, sem sombra</p>
+      <div class="escada">
+        <div class="n0">Nível 0, o fundo do app</div>
+        <div class="n1">Nível 1, cartão, sidebar, painel</div>
+        <div class="n2">Nível 2, hover de linha, item selecionado, campo</div>
+        <div class="n3">Nível 3, popover, menu, modal</div>
+      </div>
+      <p class="t-legenda">
+        O degrau entre níveis fica em torno de 1,1:1. É separação percebida, não contraste
+        medido, e por isso o fio de <code>--linha</code> vem junto sempre.
+      </p>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Botão, 4 variantes e 3 tamanhos</p>
+      <div class="linha-demo">
+        <button class="botao" data-variante="principal">Gerar carrossel</button>
+        <button class="botao" data-variante="neutro">Cancelar</button>
+        <button class="botao" data-variante="fantasma">Ver todas</button>
+        <button class="botao" data-variante="perigo">Excluir peça</button>
+        <button class="botao" data-variante="neutro" disabled>Desabilitado</button>
+      </div>
+      <div class="linha-demo">
+        <button class="botao" data-variante="neutro" data-tamanho="p">Baixar tudo</button>
+        <button class="botao" data-variante="neutro" data-so-icone aria-label="Fechar">×</button>
+        <button class="botao" data-variante="principal" data-tamanho="p">Importar</button>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Campo, com a borda que passa em 3:1</p>
+      <div class="linha-demo" style="align-items:flex-start">
+        <label class="campo-caixa">
+          <span class="t-legenda">Nome do cliente</span>
+          <input class="campo" placeholder="Estúdio Aura">
+        </label>
+        <label class="campo-caixa">
+          <span class="t-legenda">Telefone</span>
+          <input class="campo" value="+55 11 99999" aria-invalid="true">
+          <span class="t-legenda" style="color:var(--alerta)">Número incompleto.</span>
+        </label>
+        <label class="campo-caixa">
+          <span class="t-legenda">Pedido</span>
+          <textarea class="campo" placeholder="O que a IA deve fazer"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Selo de estado, chip e interruptor</p>
+      <div class="linha-demo">
+        <span class="selo" data-estado="fila"><i></i>Na fila</span>
+        <span class="selo" data-estado="rodando" data-mov="pulso"><i></i>Rodando</span>
+        <span class="selo" data-estado="concluida"><i></i>Concluída</span>
+        <span class="selo" data-estado="erro"><i></i>Erro</span>
+      </div>
+      <div class="linha-demo">
+        <span class="chip">Instagram</span>
+        <span class="chip" data-tom="menta">Cérebro pronto</span>
+        <span class="chip" data-tom="aviso">2 pendências</span>
+        <span class="chip" data-tom="alerta">Falhou</span>
+        <label class="interruptor">
+          <input type="checkbox" checked><i class="trilho"></i>Aprimorar com IA
+        </label>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Cartão</p>
+      <div class="grade">
+        <article class="cartao" data-interativa>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--esp-8)">
+            <h3 class="t-titulo-p">Carrossel de captação</h3>
+            <span class="t-legenda" style="font-variant-numeric:tabular-nums">27/07</span>
+          </div>
+          <p class="t-legenda">7 páginas, formato 4:5, gerado com Sonnet.</p>
+          <div class="linha-demo" style="margin-top:var(--esp-4)">
+            <button class="botao" data-variante="neutro" data-tamanho="p">Abrir no Studio</button>
+            <button class="botao" data-variante="fantasma" data-tamanho="p">Baixar</button>
+          </div>
+        </article>
+        <article class="cartao" data-interativa>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--esp-8)">
+            <h3 class="t-titulo-p">Site do Estúdio Aura</h3>
+            <span class="selo" data-estado="concluida"><i></i>Aprovado</span>
+          </div>
+          <p class="t-legenda">4 páginas, exportação em Astro liberada.</p>
+          <div class="linha-demo" style="margin-top:var(--esp-4)">
+            <button class="botao" data-variante="principal" data-tamanho="p">Exportar</button>
+            <button class="botao" data-variante="fantasma" data-tamanho="p">Ver site</button>
+          </div>
+        </article>
+        <article class="cartao" data-compacto>
+          <div class="esqueleto" style="width:60%"></div>
+          <div class="esqueleto" style="width:85%"></div>
+          <div class="esqueleto" style="width:40%"></div>
+          <div class="linha-demo" style="margin-top:var(--esp-4)">
+            <span class="giro"></span>
+            <span class="t-legenda">Carregando peças</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Faixa, um componente para as 20 de hoje</p>
+      <div class="faixa" data-tom="erro">O provedor recusou a sessão. Confira o login do Claude.</div>
+      <div class="faixa" data-tom="aviso">O Cérebro está em branco. A criação guiada fica bloqueada.</div>
+      <div class="faixa" data-tom="info">Existe uma criação visual em andamento neste workspace.</div>
+      <div class="faixa" data-tom="sucesso">Site conferido nas duas larguras. Pode exportar.</div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Estado vazio, camadas e grupo</p>
+      <div class="vazio">
+        <div class="marca"></div>
+        <h3 class="t-titulo-p">Nenhuma peça ainda</h3>
+        <p>Crie o primeiro carrossel pelo Dashboard. Ele nasce lendo o Cérebro do cliente ativo.</p>
+        <button class="botao" data-variante="principal">Criar carrossel</button>
+      </div>
+      <div class="linha-demo" style="position:relative;padding-bottom:150px">
+        <div class="grupo" role="tablist">
+          <button role="tab" aria-selected="true">Visualizar</button>
+          <button role="tab" aria-selected="false">Editar</button>
+        </div>
+        <button class="botao" data-variante="neutro" onclick="document.getElementById('m').showModal()">Abrir modal</button>
+        <div class="popover" style="top:44px;left:0">
+          <button>Baixar em PNG</button>
+          <button>Baixar em ZIP</button>
+          <button>Abrir a pasta</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <p class="t-micro">Os tokens de cor deste tema</p>
+      <div class="amostras">
+        <span class="amostra"><i style="background:var(--fundo)"></i><code>--fundo</code></span>
+        <span class="amostra"><i style="background:var(--superficie)"></i><code>--superficie</code></span>
+        <span class="amostra"><i style="background:var(--superficie-alta)"></i><code>--superficie-alta</code></span>
+        <span class="amostra"><i style="background:var(--superficie-flutuante)"></i><code>--superficie-flutuante</code></span>
+        <span class="amostra"><i style="background:var(--linha)"></i><code>--linha</code></span>
+        <span class="amostra"><i style="background:var(--linha-forte)"></i><code>--linha-forte</code></span>
+        <span class="amostra"><i style="background:var(--menta)"></i><code>--menta</code></span>
+        <span class="amostra"><i style="background:var(--menta-tenue)"></i><code>--menta-tenue</code></span>
+        <span class="amostra"><i style="background:var(--alerta)"></i><code>--alerta</code></span>
+        <span class="amostra"><i style="background:var(--alerta-tenue)"></i><code>--alerta-tenue</code></span>
+        <span class="amostra"><i style="background:var(--aviso)"></i><code>--aviso</code></span>
+        <span class="amostra"><i style="background:var(--aviso-tenue)"></i><code>--aviso-tenue</code></span>
+        <span class="amostra"><i style="background:var(--neutro-tenue)"></i><code>--neutro-tenue</code></span>
+        <span class="amostra"><i style="background:var(--texto)"></i><code>--texto</code></span>
+        <span class="amostra"><i style="background:var(--texto-suave)"></i><code>--texto-suave</code></span>
+        <span class="amostra"><i style="background:var(--texto-fraco)"></i><code>--texto-fraco</code></span>
+      </div>
+    </section>
+
+    <div class="sep"></div>
+    <p class="t-legenda" style="padding-bottom:var(--esp-48)">
+      Tudo nesta página usa apenas os tokens. Nenhuma cor, tamanho, raio, sombra ou duração foi
+      escrito à mão fora deles. Ligue movimento reduzido no sistema para conferir que o selo de
+      sessão rodando continua dando sinal, em fade no lugar do pulso.
+    </p>
+
+  </main>
+</div>
+
+<dialog id="m">
+  <form method="dialog" class="modal">
+    <h2 class="t-titulo-p">Excluir esta peça</h2>
+    <p class="t-corpo" style="color:var(--texto-suave)">
+      A pasta e os arquivos gerados vão para a lixeira. Isso não pode ser desfeito pelo Hub.
+    </p>
+    <div class="modal-acoes">
+      <button class="botao" data-variante="neutro" value="nao">Cancelar</button>
+      <button class="botao" data-variante="perigo" value="sim">Excluir</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+function tema(t, botao) {
+  document.documentElement.dataset.theme = t;
+  for (const b of botao.parentElement.children) b.setAttribute("aria-selected", b === botao);
+}
+</script>
+</body>
+</html>

@@ -4,7 +4,9 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Em andamento:** Fase 2b, o CRM subindo para o nível CORE. Em paralelo, a pesquisa do design system da Fase 5.
+**Em andamento:** Fase 2b, o CRM subindo para o nível CORE.
+
+A pesquisa do design system da Fase 5 fechou em 2026-07-27. O contrato completo está em `05-design-system.md`, com as provas em `provas-design/`. Nenhum arquivo de `app/` foi tocado: a implementação é uma rodada própria, e a Etapa 1 dela é o conserto da ordem da cascata do CSS, que hoje deixa a camada oficial de tema perder em sete telas.
 
 A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2, com etapas de 2a a 2e, porque a base estava vazia e reestruturar o dado agora custava zero. O desenho está em `04-crm-e-mensagens.md`.
 
@@ -22,7 +24,7 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 2e. Mensagens e o chat | pendente | | |
 | 3. Verdade do gasto | pendente | | |
 | 4. HUB CORE completo | pendente | | |
-| 5. Design system e nova pele | pesquisa em andamento | | |
+| 5. Design system e nova pele | pesquisa fechada, implementação pendente | | |
 | 6. Studio | pendente | | |
 
 ## Fase 0, o que ficou pronto
@@ -69,4 +71,6 @@ Nota: o conversor Astro continua gerando `netlify.toml` dentro do projeto export
 
 5. **Tipo duplicado é fronteira que não protege nada.** Provado em 2026-07-27 no CRM: o web tinha a própria cópia das entidades, o servidor subiu para a v4 e o typecheck do web continuou verde com a tela quebrada. Onde o web e o servidor falam do mesmo dado, tem que existir uma definição só, e a divergência tem que virar erro de compilação. Vale para o módulo de mensagens e para tudo que vier depois.
 
-6. **Requisição de teste sem afirmar o status engole a falha.** Provado em 2026-07-27: um POST de interação com `tipo` inválido devolveu 400, o teste não conferiu o status e a falha só apareceu três passos adiante, como um `undefined` difícil de ler. Toda chamada de preparação afirma o status, não só a chamada que está sendo testada.
+6. **A camada oficial de tema perde em produção.** Provado no build em 2026-07-27. `visual-hub.css` carrega por último em `main.tsx`, mas as 15 folhas de tela são importadas por componente, e sete delas entram por chunk lazy, que o Vite injeta como `<link>` depois. Mesma especificidade, quem chega depois vence. São 95 seletores e 181 pares de propriedade em que o `visual-hub.css` perde, nas telas Site, Studio, IDE, Conexões, Mapa, CRM e no painel de editor. Quem criar tela nova antes do conserto herda o mesmo bug. O conserto é `@layer base, tela, tema`, uma linha por arquivo, e é a Etapa 1 da Fase 5.
+
+7. **Requisição de teste sem afirmar o status engole a falha.** Provado em 2026-07-27: um POST de interação com `tipo` inválido devolveu 400, o teste não conferiu o status e a falha só apareceu três passos adiante, como um `undefined` difícil de ler. Toda chamada de preparação afirma o status, não só a chamada que está sendo testada.
