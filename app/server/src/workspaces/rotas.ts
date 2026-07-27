@@ -6,6 +6,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 
 import { validarPastaVkos } from "../vkos/estado.js";
 import { gerenciador } from "../sessoes/gerenciador.js";
+import { absorverCustosDeWorkspace } from "../sessoes/custos.js";
 import { invalidarCacheContextos } from "../contextos/armazenamento.js";
 import { ativarPorId, registrarEAtivar } from "./ativacao.js";
 import { criarWorkspaceNovo, ErroWorkspace } from "./clonagem.js";
@@ -103,6 +104,10 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     }
     // Descarta o cache do indice de contextos desse workspace.
     invalidarCacheContextos(id);
+    // Antes de apagar a pasta, o gasto acumulado do cliente vai pro historico do
+    // CORE. Dinheiro gasto nao deixa de ter sido gasto porque a pasta sumiu: o
+    // total geral continua contando. Ver decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md.
+    absorverCustosDeWorkspace(id);
     // Apaga os dados do hub desse workspace: conexoes.json (segredos), crm.json
     // (PII), logs.
     apagarPastaDadosWorkspace(id);

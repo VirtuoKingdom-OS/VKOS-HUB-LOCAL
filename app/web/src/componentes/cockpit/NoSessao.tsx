@@ -585,12 +585,16 @@ function NoSessaoInterno({ id, data }: NodeProps) {
   const temTokens =
     typeof sessao?.tokensEntrada === "number" ||
     typeof sessao?.tokensSaida === "number";
-  // Quebra honesta da entrada: entrada realmente nova e cache (escrita +
-  // leitura). O cache custa cerca de 10x menos, por isso aparece apagado.
+  // Quebra honesta da entrada: entrada realmente nova, cache gravado e cache
+  // lido. Os tres tem precos bem diferentes (a escrita custa mais que a entrada
+  // nova, a leitura custa uma fracao dela), entao cada um aparece sozinho.
   // Sessao antiga sem esses campos cai no formato antigo (total de entrada).
   const temDetalheEntrada = typeof sessao?.tokensEntradaNova === "number";
-  const tokensCache =
-    (sessao?.tokensCacheEscrita ?? 0) + (sessao?.tokensCacheLeitura ?? 0);
+  const cacheGravado = sessao?.tokensCacheEscrita ?? 0;
+  const cacheLido = sessao?.tokensCacheLeitura ?? 0;
+  // Turnos desta sessao que gastaram sem o Hub saber quanto. Enquanto houver, o
+  // custo mostrado e um piso, nao o valor da sessao.
+  const turnosSemCusto = sessao?.turnosSemCusto ?? 0;
 
   const conversaVazia =
     turnos.length === 0 && pendentes.length === 0 && !liveTexto && !rodando;
@@ -969,13 +973,27 @@ function NoSessaoInterno({ id, data }: NodeProps) {
                 <span className="modelo-tag">{modeloExibido}</span>
                 {typeof custoNum === "number" && (
                   <>
-                    {" | "}{custoEstimado ? "~" : ""}${custoNum.toFixed(2)}
+                    {" | "}
+                    {turnosSemCusto > 0 ? "≥ " : ""}
+                    {custoEstimado ? "~" : ""}${custoNum.toFixed(2)}
                     {custoEstimado && (
                       <span
                         className="custo-estimado"
                         title="Valor aproximado, estimado por tabela de preços. Não é a cobrança real."
                       >
                         aproximado
+                      </span>
+                    )}
+                    {turnosSemCusto > 0 && (
+                      <span
+                        className="custo-estimado"
+                        title={
+                          turnosSemCusto === 1
+                            ? "1 turno desta sessão gastou sem preço conhecido. O valor real é maior."
+                            : `${turnosSemCusto} turnos desta sessão gastaram sem preço conhecido. O valor real é maior.`
+                        }
+                      >
+                        incompleto
                       </span>
                     )}
                   </>
@@ -985,7 +1003,8 @@ function NoSessaoInterno({ id, data }: NodeProps) {
                     <>
                       {" | "}
                       {fmtK(sessao?.tokensEntradaNova)} novos,{" "}
-                      <span className="tok-cache">{fmtK(tokensCache)} cache</span>,{" "}
+                      <span className="tok-cache">{fmtK(cacheGravado)} cache grav.</span>,{" "}
+                      <span className="tok-cache">{fmtK(cacheLido)} cache lido</span>,{" "}
                       {fmtK(sessao?.tokensSaida)} saída
                     </>
                   ) : (

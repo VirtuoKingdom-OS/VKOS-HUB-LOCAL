@@ -16,6 +16,7 @@ import type {
   ProcessoSessao,
   ProvedorIA,
   RemoverOuvinte,
+  UsoAcumuladoSessao,
 } from "./contrato.js";
 import { citarArg, montarPromptComInstrucoes } from "./util.js";
 
@@ -64,6 +65,14 @@ interface UsoCodex {
   entradaNova: number;
   saida: number;
   raciocinio: number;
+}
+
+// Estimativa de custo com o sinal de que ela vale. conhecido=false quer dizer
+// que o Hub NAO sabe quanto o turno custou, e nao que ele custou zero.
+export interface EstimativaCusto {
+  custoUsd: number;
+  conhecido: boolean;
+  motivo?: string;
 }
 
 interface CodexLocalizado {
@@ -121,16 +130,62 @@ function extrairUso(valor: unknown): UsoCodex {
   };
 }
 
-export function estimarCustoCodex(modelo: string, valorUso: unknown): number {
+// Estimativa a partir de um uso JA normalizado (o do turno, nunca o acumulado).
+//
+// Modelo fora da tabela de precos nao vale zero: vale desconhecido. Zero calado
+// some do total e ninguem percebe, que e a pior mentira que este numero pode
+// contar. Quem chama propaga o conhecido=false ate a tela.
+export function estimarCustoCodexUso(modelo: string, uso: UsoCodex): EstimativaCusto {
   const preco = localizarPreco(modelo);
-  if (!preco) return 0;
-  const uso = extrairUso(valorUso);
+  if (!preco) {
+    return {
+      custoUsd: 0,
+      conhecido: false,
+      motivo: `O modelo "${modelo || "desconhecido"}" nao esta na tabela de precos do Codex.`,
+    };
+  }
   const custo =
     (uso.entradaNova * preco.entrada +
       uso.entradaCache * preco.entradaCache +
       uso.saida * preco.saida) /
     1_000_000;
-  return Number(custo.toFixed(10));
+  return { custoUsd: Number(custo.toFixed(10)), conhecido: true };
+}
+
+// Estimativa a partir do bloco usage cru. Sem linha de base, entao so vale pro
+// primeiro turno de uma thread. Mantida pelo contrato historico.
+export function estimarCustoCodex(modelo: string, valorUso: unknown): number {
+  return estimarCustoCodexUso(modelo, extrairUso(valorUso)).custoUsd;
+}
+
+// Delta entre o acumulado deste turno e o acumulado do turno anterior.
+// Nunca negativo: se o CLI reiniciar a contagem, o piso e zero.
+export function deltaDeUso(
+  acumulado: UsoCodex,
+  anterior: UsoAcumuladoSessao,
+): UsoCodex {
+  const entradaTotal = Math.max(0, acumulado.entradaTotal - anterior.entradaTotal);
+  const entradaCache = Math.min(
+    entradaTotal,
+    Math.max(0, acumulado.entradaCache - anterior.entradaCache),
+  );
+  return {
+    entradaTotal,
+    entradaCache,
+    entradaNova: Math.max(0, entradaTotal - entradaCache),
+    saida: Math.max(0, acumulado.saida - anterior.saida),
+    raciocinio: Math.max(0, acumulado.raciocinio - anterior.raciocinio),
+  };
+}
+
+// O acumulado do turno vira linha de base do proximo, no formato do contrato.
+function comoLinhaDeBase(uso: UsoCodex): UsoAcumuladoSessao {
+  return {
+    entradaTotal: uso.entradaTotal,
+    entradaCache: uso.entradaCache,
+    saida: uso.saida,
+    raciocinio: uso.raciocinio,
+  };
 }
 
 function erroDoEvento(evento: Record<string, unknown>): string {
@@ -178,6 +233,12 @@ function primeiroCaminho(item: Record<string, unknown>): string {
 }
 
 // Tradutor puro. O teste de fixture o exercita sem iniciar uma sessao paga.
+//
+// MEDIDO em 2026-07-27 (codex-cli 0.144.4): o usage do turn.completed e o
+// ACUMULADO DA THREAD, nao o do turno. Tres turnos "responda so: X" seguidos na
+// mesma thread deram output_tokens 40, 62 e 80, e input_tokens 12411, 24839 e
+// 37284. Somar isso a cada retomada inflava o gasto do Codex de forma composta.
+// Por isso o tradutor recebe a linha de base do turno anterior e emite o DELTA.
 export class TradutorEventosCodex {
   private modelo: string;
   private textosFinais: string[] = [];
@@ -185,9 +246,14 @@ export class TradutorEventosCodex {
   private ferramentasEmitidas = new Set<string>();
   private modoDelta = false;
   private resultadoEmitido = false;
+  // undefined: thread nova, o acumulado E o turno.
+  // objeto: linha de base do turno anterior, subtrai.
+  // null: retomada sem linha de base conhecida, o turno sai sem custo conhecido.
+  private usoAnterior: UsoAcumuladoSessao | null | undefined;
 
-  constructor(modelo: string) {
+  constructor(modelo: string, usoAnterior?: UsoAcumuladoSessao | null) {
     this.modelo = modelo;
+    this.usoAnterior = usoAnterior;
   }
 
   get finalizou(): boolean {
@@ -217,22 +283,45 @@ export class TradutorEventosCodex {
 
     if (tipo === "turn.completed") {
       this.resultadoEmitido = true;
-      const usoCodex = extrairUso(evento["usage"]);
+      const acumulado = extrairUso(evento["usage"]);
+      // Retomada sem linha de base: o acumulado inclui turnos ja contados e o
+      // Hub nao tem como separar. Nao chuta e nao soma nada: declara o turno sem
+      // custo conhecido e devolve a linha de base pra proxima retomada acertar.
+      const semLinhaDeBase = this.usoAnterior === null;
+      const doTurno = semLinhaDeBase
+        ? { entradaTotal: 0, entradaCache: 0, entradaNova: 0, saida: 0, raciocinio: 0 }
+        : this.usoAnterior
+          ? deltaDeUso(acumulado, this.usoAnterior)
+          : acumulado;
+      const estimativa: EstimativaCusto = semLinhaDeBase
+        ? {
+            custoUsd: 0,
+            conhecido: false,
+            motivo:
+              "Retomada de conversa do Codex sem a leitura de uso do turno anterior. " +
+              "O uso que o Codex informa e o acumulado da thread, entao contar de novo inflaria o gasto.",
+          }
+        : estimarCustoCodexUso(this.modelo, doTurno);
       return [
         {
           type: "result",
           subtype: "success",
           result: this.textosFinais.join("\n\n"),
-          total_cost_usd: estimarCustoCodex(this.modelo, evento["usage"]),
+          total_cost_usd: estimativa.custoUsd,
+          custo_conhecido: estimativa.conhecido,
+          ...(estimativa.conhecido ? {} : { motivo_sem_custo: estimativa.motivo ?? "" }),
           usage: {
-            input_tokens: usoCodex.entradaNova,
+            input_tokens: doTurno.entradaNova,
             cache_creation_input_tokens: 0,
-            cache_read_input_tokens: usoCodex.entradaCache,
-            output_tokens: usoCodex.saida,
-            cached_input_tokens: usoCodex.entradaCache,
-            reasoning_output_tokens: usoCodex.raciocinio,
+            cache_read_input_tokens: doTurno.entradaCache,
+            output_tokens: doTurno.saida,
+            cached_input_tokens: doTurno.entradaCache,
+            reasoning_output_tokens: doTurno.raciocinio,
           },
           usage_codex: evento["usage"],
+          // Linha de base pro proximo turno desta mesma thread. O gerenciador
+          // persiste na sessao e devolve na retomada.
+          uso_acumulado: comoLinhaDeBase(acumulado),
           estimado: true,
           provedor: "codex",
         },
@@ -432,7 +521,12 @@ class ProcessoCodex implements ProcessoSessao {
   private timerInatividade: NodeJS.Timeout | null = null;
 
   constructor(opcoes: OpcoesSessaoProvedor) {
-    this.tradutor = new TradutorEventosCodex(opcoes.modelo);
+    // Retomada sem uso anterior conhecido vira null explicito: o tradutor
+    // precisa distinguir "thread nova" de "nao sei o que ja foi contado".
+    this.tradutor = new TradutorEventosCodex(
+      opcoes.modelo,
+      opcoes.retomada ? opcoes.usoAnterior ?? null : undefined,
+    );
     const { binario, usarShell } = localizarCodex();
     const args = montarArgsCodex(opcoes);
 

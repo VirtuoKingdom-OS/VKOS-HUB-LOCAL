@@ -9,7 +9,7 @@ import { basename } from "node:path";
 import { quarentenar } from "../util/quarentena.js";
 
 import type { ConferenciaSite, Sessao, StatusSessao } from "../tipos.js";
-import type { ProcessoSessao } from "../provedores/contrato.js";
+import type { ProcessoSessao, UsoAcumuladoSessao } from "../provedores/contrato.js";
 import {
   conferirSiteParaConformidade,
   hostLocalDoHub,
@@ -30,7 +30,7 @@ import { transmitir, transmitirPara } from "../ws.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { obterConfigApp, obterModeloPadraoDoProvedor } from "../config/estado.js";
 import { anexarTurno, apagarTranscricao } from "./transcricao.js";
-import { registrarResult } from "./custos.js";
+import { registrarResult, registrarTurnoSemMedicao } from "./custos.js";
 import {
   garantirPastaDadosWorkspace,
   listarIdsWorkspaces,
@@ -54,6 +54,10 @@ interface Execucao {
   promptPendente: string;
   // Se true, o proximo spawn usa --resume sessionIdClaude.
   ehResume: boolean;
+  // Marca que o CLI subiu e mandou o init: dai pra frente o turno consome
+  // credito. Sem isso nao da pra distinguir "morreu antes de comecar" (nao
+  // gastou nada) de "morreu no meio" (gastou e ninguem mediu).
+  recebeuInit: boolean;
   // Marca que o result chegou, pra decidir concluida x erro no fim.
   recebeuResult: boolean;
   // Se o result veio como erro da API.
@@ -155,14 +159,154 @@ const REGRA_CONTEXTO_CRM =
 // Le o custo e o sinal de erro de um evento result. Custo de result com erro
 // NAO soma (nem na sessao nem no workspace): so contabiliza turno que deu certo
 // (M10). No Codex o custo ja e estimado, entao um erro tambem nao pode inflar.
+//
+// custoConhecido=false e diferente de custo zero. Vale quando o provedor declara
+// que nao sabe (custo_conhecido: false) ou quando o turno conclui bem sem trazer
+// total_cost_usd numerico. Nesse caso nada e somado ao total em dolar e o turno
+// e contado a parte, pra tela poder dizer que o total virou um piso.
 export function custoDoResult(evento: Record<string, unknown>): {
   custoUsd: number;
   ehErro: boolean;
+  custoConhecido: boolean;
+  motivoSemCusto?: string;
 } {
   const ehErro = evento["is_error"] === true || evento["subtype"] === "error";
+  if (ehErro) {
+    return { custoUsd: 0, ehErro: true, custoConhecido: true };
+  }
+  if (evento["custo_conhecido"] === false) {
+    const motivo = evento["motivo_sem_custo"];
+    return {
+      custoUsd: 0,
+      ehErro: false,
+      custoConhecido: false,
+      motivoSemCusto:
+        typeof motivo === "string" && motivo
+          ? motivo
+          : "O provedor concluiu o turno sem saber informar o custo.",
+    };
+  }
   const bruto = evento["total_cost_usd"];
-  const custoUsd = ehErro || typeof bruto !== "number" ? 0 : bruto;
-  return { custoUsd, ehErro };
+  if (typeof bruto !== "number" || !Number.isFinite(bruto)) {
+    return {
+      custoUsd: 0,
+      ehErro: false,
+      custoConhecido: false,
+      motivoSemCusto: "O turno concluiu sem trazer o custo (total_cost_usd ausente).",
+    };
+  }
+  return { custoUsd: bruto, ehErro: false, custoConhecido: true };
+}
+
+function numeroDe(valor: unknown): number {
+  return typeof valor === "number" && Number.isFinite(valor) ? valor : 0;
+}
+
+// Extrai os tokens de um evento result, com o split honesto: entradaNova (input
+// direto), cacheEscrita (creation), cacheLeitura (read) e saida. entrada e o
+// total das tres entradas, tudo que entra de contexto no modelo.
+//
+// MEDIDO em 2026-07-27 (Claude Code 2.1.220): o bloco `usage` do topo cobre so a
+// ultima iteracao do turno, enquanto `modelUsage` cobre TODAS as chamadas de
+// modelo do turno, e e dele que sai o total_cost_usd. Num turno simples o usage
+// dizia 10 tokens de entrada e 305 de saida, e o modelUsage dizia 532 e 317, com
+// o custo batendo centavo a centavo com o modelUsage. Por isso modelUsage vem
+// primeiro: sem ele, os tokens da tela contavam menos do que o dolar cobrava.
+// Provedor que nao manda modelUsage (Codex) cai no usage, como antes.
+export function extrairTokensDoResult(evento: Record<string, unknown>): {
+  entradaNova: number;
+  cacheEscrita: number;
+  cacheLeitura: number;
+  entrada: number;
+  saida: number;
+} {
+  const doModelo = extrairTokensDeModelUsage(evento["modelUsage"]);
+  const base = doModelo ?? extrairTokensDeUsage(evento["usage"]);
+  return { ...base, entrada: base.entradaNova + base.cacheEscrita + base.cacheLeitura };
+}
+
+// Soma o uso de todos os modelos usados no turno. Devolve null quando o campo
+// nao existe ou nao tem nenhum modelo, pra o chamador cair no usage.
+function extrairTokensDeModelUsage(valor: unknown): {
+  entradaNova: number;
+  cacheEscrita: number;
+  cacheLeitura: number;
+  saida: number;
+} | null {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return null;
+  const modelos = Object.values(valor as Record<string, unknown>).filter(
+    (m): m is Record<string, unknown> => !!m && typeof m === "object",
+  );
+  if (modelos.length === 0) return null;
+  let entradaNova = 0;
+  let cacheEscrita = 0;
+  let cacheLeitura = 0;
+  let saida = 0;
+  for (const m of modelos) {
+    entradaNova += numeroDe(m["inputTokens"]);
+    cacheEscrita += numeroDe(m["cacheCreationInputTokens"]);
+    cacheLeitura += numeroDe(m["cacheReadInputTokens"]);
+    saida += numeroDe(m["outputTokens"]);
+  }
+  return { entradaNova, cacheEscrita, cacheLeitura, saida };
+}
+
+function extrairTokensDeUsage(usage: unknown): {
+  entradaNova: number;
+  cacheEscrita: number;
+  cacheLeitura: number;
+  saida: number;
+} {
+  if (!usage || typeof usage !== "object") {
+    return { entradaNova: 0, cacheEscrita: 0, cacheLeitura: 0, saida: 0 };
+  }
+  const u = usage as Record<string, unknown>;
+  return {
+    entradaNova: numeroDe(u["input_tokens"]),
+    cacheEscrita: extrairCacheEscrita(u),
+    // O dialeto interno normaliza input_tokens como entrada nova. O adaptador do
+    // Codex separa cached_input_tokens em cache_read_input_tokens antes daqui.
+    cacheLeitura:
+      numeroDe(u["cache_read_input_tokens"]) || numeroDe(u["cached_input_tokens"]),
+    saida: numeroDe(u["output_tokens"]),
+  };
+}
+
+// Cache de escrita robusto: usa cache_creation_input_tokens quando for numero.
+// Se nao existir, algumas versoes do CLI trazem cache_creation como objeto
+// aninhado (ephemeral_5m_input_tokens etc): nesse caso soma os numeros do objeto.
+function extrairCacheEscrita(u: Record<string, unknown>): number {
+  const direto = u["cache_creation_input_tokens"];
+  if (typeof direto === "number") {
+    return direto;
+  }
+  const aninhado = u["cache_creation"];
+  if (aninhado && typeof aninhado === "object") {
+    let soma = 0;
+    for (const v of Object.values(aninhado as Record<string, unknown>)) {
+      if (typeof v === "number") {
+        soma += v;
+      }
+    }
+    return soma;
+  }
+  return 0;
+}
+
+// Le a linha de base de uso que o provedor acumulativo devolve no result, pra
+// virar o ponto de partida da proxima retomada da mesma conversa.
+export function usoAcumuladoDoResult(
+  evento: Record<string, unknown>,
+): UsoAcumuladoSessao | undefined {
+  const bruto = evento["uso_acumulado"];
+  if (!bruto || typeof bruto !== "object" || Array.isArray(bruto)) return undefined;
+  const u = bruto as Record<string, unknown>;
+  return {
+    entradaTotal: numeroDe(u["entradaTotal"]),
+    entradaCache: numeroDe(u["entradaCache"]),
+    saida: numeroDe(u["saida"]),
+    raciocinio: numeroDe(u["raciocinio"]),
+  };
 }
 
 // Manda um evento de sessao SO pras abas que declararam o workspace dela.
@@ -285,6 +429,7 @@ export class GerenciadorSessoes {
       processo: null,
       promptPendente: entrada.prompt,
       ehResume: false,
+      recebeuInit: false,
       recebeuResult: false,
       resultComErro: false,
       paradaManual: false,
@@ -331,6 +476,7 @@ export class GerenciadorSessoes {
     const execucao = this.garantirExecucao(id);
     execucao.promptPendente = texto;
     execucao.ehResume = true;
+    execucao.recebeuInit = false;
     execucao.recebeuResult = false;
     execucao.resultComErro = false;
     execucao.paradaManual = false;
@@ -421,7 +567,8 @@ export class GerenciadorSessoes {
         processo: null,
         promptPendente: "",
         ehResume: false,
-        recebeuResult: false,
+        recebeuInit: false,
+      recebeuResult: false,
         resultComErro: false,
         paradaManual: false,
         modeloAlias: "",
@@ -534,6 +681,7 @@ export class GerenciadorSessoes {
     const execucao = this.garantirExecucao(sessao.id);
 
     this.definirStatus(sessao, "iniciando");
+    execucao.recebeuInit = false;
     execucao.recebeuResult = false;
     execucao.resultComErro = false;
 
@@ -569,6 +717,9 @@ export class GerenciadorSessoes {
         // Toda retomada repete a injecao com que a sessao nasceu, pra
         // conversa nao mudar de personalidade no meio.
         instrucoesExtras: montarInstrucoesExtrasSessao(sessao),
+        // Linha de base pro provedor que reporta uso acumulado da conversa.
+        // So faz sentido em retomada; em sessao nova o acumulado E o turno.
+        usoAnterior: execucao.ehResume ? sessao.usoAcumuladoProvedor ?? null : undefined,
       });
     } catch (e) {
       const detalhe = e instanceof Error ? e.message : String(e);
@@ -639,8 +790,16 @@ export class GerenciadorSessoes {
 
       // Custo deste trecho. Result com erro nao soma custo (M10): custoTrecho
       // ja vem 0 nesse caso, entao sessao, transcricao e workspace ficam limpos.
-      const { custoUsd: custoTrecho, ehErro } = custoDoResult(evento);
-      sessao.custoUsd = (sessao.custoUsd ?? 0) + custoTrecho;
+      const {
+        custoUsd: custoTrecho,
+        ehErro,
+        custoConhecido,
+        motivoSemCusto,
+      } = custoDoResult(evento);
+      sessao.custoUsd = (sessao.custoUsd ?? 0) + (custoConhecido ? custoTrecho : 0);
+      if (!custoConhecido) {
+        sessao.turnosSemCusto = (sessao.turnosSemCusto ?? 0) + 1;
+      }
       // Todo custo em dolar e estimativa: o CLI do Claude tambem calcula o
       // total_cost_usd de uma tabela de precos embutida, nao e cobranca real, e
       // aqui a auth e a assinatura, nao chave de API. Entao qualquer trecho bem
@@ -651,7 +810,13 @@ export class GerenciadorSessoes {
       // Tokens deste trecho, ja com o split honesto: entrada nova, cache escrita,
       // cache leitura e saida. tokensEntrada segue sendo o total (soma das tres entradas).
       const { entradaNova, cacheEscrita, cacheLeitura, entrada, saida } =
-        this.extrairTokens(evento["usage"]);
+        extrairTokensDoResult(evento);
+      // Linha de base do proximo turno, pro provedor que reporta uso acumulado
+      // da conversa (Codex). Persiste na sessao pra sobreviver a um restart.
+      const usoAcumulado = usoAcumuladoDoResult(evento);
+      if (usoAcumulado) {
+        sessao.usoAcumuladoProvedor = usoAcumulado;
+      }
       sessao.tokensEntradaNova = (sessao.tokensEntradaNova ?? 0) + entradaNova;
       sessao.tokensCacheEscrita = (sessao.tokensCacheEscrita ?? 0) + cacheEscrita;
       sessao.tokensCacheLeitura = (sessao.tokensCacheLeitura ?? 0) + cacheLeitura;
@@ -669,8 +834,9 @@ export class GerenciadorSessoes {
           papel: "assistente",
           texto: typeof texto === "string" ? texto : "",
           em: new Date().toISOString(),
-          custoUsd: custoTrecho,
+          custoUsd: custoConhecido ? custoTrecho : undefined,
           estimado: custoEstimado,
+          custoDesconhecido: custoConhecido ? undefined : true,
         });
       } else {
         sessao.erro = typeof texto === "string" ? texto : "result com erro";
@@ -680,6 +846,8 @@ export class GerenciadorSessoes {
       // So conta sessao nova quando nao e continuacao e concluiu bem.
       registrarResult(sessao.workspaceId ?? "", {
         custoUsd: custoTrecho,
+        custoConhecido,
+        motivoSemCusto,
         tokensEntradaNova: entradaNova,
         tokensCacheEscrita: cacheEscrita,
         tokensCacheLeitura: cacheLeitura,
@@ -688,6 +856,10 @@ export class GerenciadorSessoes {
         contarSessao: !execucao.ehResume && !ehErro,
         provedor: sessao.provedor,
         estimado: custoEstimado,
+        sessaoId: sessao.id,
+        modelo: sessao.modelo ?? "",
+        ehResume: execucao.ehResume,
+        ehErro,
       });
 
       this.agendarSalvar();
@@ -735,54 +907,6 @@ export class GerenciadorSessoes {
     return "";
   }
 
-  // Extrai os tokens do bloco usage do result, com o split honesto:
-  // entradaNova (input direto), cacheEscrita (creation), cacheLeitura (read) e saida.
-  // entrada e o total das tres entradas, tudo que entra de contexto no modelo.
-  private extrairTokens(usage: unknown): {
-    entradaNova: number;
-    cacheEscrita: number;
-    cacheLeitura: number;
-    entrada: number;
-    saida: number;
-  } {
-    if (!usage || typeof usage !== "object") {
-      return { entradaNova: 0, cacheEscrita: 0, cacheLeitura: 0, entrada: 0, saida: 0 };
-    }
-    const u = usage as Record<string, unknown>;
-    const num = (v: unknown): number => (typeof v === "number" ? v : 0);
-
-    const entradaNova = num(u["input_tokens"]);
-    const cacheEscrita = this.extrairCacheEscrita(u);
-    const cacheLeitura =
-      num(u["cache_read_input_tokens"]) || num(u["cached_input_tokens"]);
-    const saida = num(u["output_tokens"]);
-    // O dialeto interno normaliza input_tokens como entrada nova. O adaptador do
-    // Codex separa cached_input_tokens em cache_read_input_tokens antes daqui.
-    const entrada = entradaNova + cacheEscrita + cacheLeitura;
-    return { entradaNova, cacheEscrita, cacheLeitura, entrada, saida };
-  }
-
-  // Cache de escrita robusto: usa cache_creation_input_tokens quando for numero.
-  // Se nao existir, algumas versoes do CLI trazem cache_creation como objeto
-  // aninhado (ephemeral_5m_input_tokens etc): nesse caso soma os numeros do objeto.
-  private extrairCacheEscrita(u: Record<string, unknown>): number {
-    const direto = u["cache_creation_input_tokens"];
-    if (typeof direto === "number") {
-      return direto;
-    }
-    const aninhado = u["cache_creation"];
-    if (aninhado && typeof aninhado === "object") {
-      let soma = 0;
-      for (const v of Object.values(aninhado as Record<string, unknown>)) {
-        if (typeof v === "number") {
-          soma += v;
-        }
-      }
-      return soma;
-    }
-    return 0;
-  }
-
   // Fecha a sessao: decide status final e sobe a proxima da fila.
   private aoFechar(
     sessao: Sessao,
@@ -791,6 +915,22 @@ export class GerenciadorSessoes {
     stderr: string,
   ): void {
     execucao.processo = null;
+
+    // O turno comecou (o CLI subiu e mandou o init) e o processo morreu sem
+    // mandar o result: queda, timeout ou parada manual no meio. O credito ja foi
+    // consumido e ninguem vai dizer quanto foi. Contar zero seria mentira, entao
+    // vira turno sem medicao e o total do cliente se declara um piso.
+    if (execucao.recebeuInit && !execucao.recebeuResult) {
+      registrarTurnoSemMedicao(sessao.workspaceId ?? "", {
+        sessaoId: sessao.id,
+        provedor: sessao.provedor,
+        modelo: sessao.modelo ?? "",
+        ehResume: execucao.ehResume,
+        motivo: execucao.paradaManual
+          ? "A sessao foi parada com o turno em andamento."
+          : `O processo terminou sem mandar o result (codigo ${codigo ?? "desconhecido"}).`,
+      });
+    }
 
     // Parada manual ja definiu o status. Nao mexe.
     if (execucao.paradaManual) {

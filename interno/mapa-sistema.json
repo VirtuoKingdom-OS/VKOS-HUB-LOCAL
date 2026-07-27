@@ -210,8 +210,8 @@
       "id": "custos",
       "grupo": "dados",
       "nome": "Custos",
-      "resumo": "O placar que mostra quanto as sessões consumiram por cliente e no total.",
-      "descricao": "É o caixa ao lado da operação, registrando cada trabalho concluído. Quando o motor informa o valor real ele é guardado; quando só há uma estimativa, o Hub mostra isso sem fingir precisão.",
+      "resumo": "O placar que mostra quanto as sessões consumiram por cliente e no total, com o que ele não sabe declarado.",
+      "descricao": "É o caixa ao lado da operação, registrando cada trabalho concluído, um lançamento por turno. Quando o motor informa o valor ele é guardado; quando só há estimativa, o Hub diz isso sem fingir precisão; e quando não há como saber o preço, o turno fica contado à parte e o total se apresenta como mínimo, nunca como zero disfarçado. O gasto de um cliente removido continua no total geral: dinheiro gasto não deixa de ter sido gasto porque a pasta sumiu.",
       "conversaCom": [
         "sessoes",
         "workspaces",

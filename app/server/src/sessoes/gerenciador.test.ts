@@ -3,9 +3,11 @@ import test from "node:test";
 
 import {
   custoDoResult,
+  extrairTokensDoResult,
   montarInstrucoesExtrasSessao,
   resolverModeloDaExecucao,
   saneiaSessaoPersistida,
+  usoAcumuladoDoResult,
 } from "./gerenciador.js";
 
 test("sessao nova usa o modelo que esta na execucao", () => {
@@ -76,9 +78,125 @@ test("result com subtype error nao soma custo", () => {
   assert.equal(ehErro, true);
 });
 
-test("custo ausente ou nao numerico vira zero", () => {
-  assert.equal(custoDoResult({}).custoUsd, 0);
-  assert.equal(custoDoResult({ total_cost_usd: "caro" }).custoUsd, 0);
+// Zero calado e a pior mentira que este numero pode contar: some do total e
+// ninguem percebe. Turno que concluiu bem sem custo vira DESCONHECIDO, nao zero.
+test("custo ausente ou nao numerico e desconhecido, nao zero", () => {
+  const semCampo = custoDoResult({});
+  assert.equal(semCampo.custoUsd, 0);
+  assert.equal(semCampo.custoConhecido, false);
+  assert.match(String(semCampo.motivoSemCusto), /total_cost_usd/);
+
+  const naoNumerico = custoDoResult({ total_cost_usd: "caro" });
+  assert.equal(naoNumerico.custoConhecido, false);
+
+  assert.equal(custoDoResult({ total_cost_usd: Number.NaN }).custoConhecido, false);
+});
+
+test("custo valido continua conhecido", () => {
+  assert.equal(custoDoResult({ total_cost_usd: 0.42 }).custoConhecido, true);
+  // Zero de verdade existe e continua sendo zero conhecido.
+  assert.equal(custoDoResult({ total_cost_usd: 0 }).custoConhecido, true);
+});
+
+// Turno com erro nao soma custo (M10) e nao entra na conta de "sem preco": o
+// Hub sabe que ele nao deve entrar no total, isso nao e falta de informacao.
+test("result com erro nao vira turno sem custo conhecido", () => {
+  const comErro = custoDoResult({ total_cost_usd: 0.42, is_error: true });
+  assert.equal(comErro.custoUsd, 0);
+  assert.equal(comErro.custoConhecido, true);
+});
+
+// O provedor pode declarar que nao sabe. O motivo dele chega inteiro na tela.
+test("provedor que declara custo_conhecido false manda o motivo junto", () => {
+  const lido = custoDoResult({
+    total_cost_usd: 0,
+    custo_conhecido: false,
+    motivo_sem_custo: 'O modelo "gpt-9" nao esta na tabela de precos do Codex.',
+  });
+  assert.equal(lido.custoConhecido, false);
+  assert.equal(lido.motivoSemCusto, 'O modelo "gpt-9" nao esta na tabela de precos do Codex.');
+});
+
+// MEDIDO em 2026-07-27 (Claude Code 2.1.220): num turno simples o bloco usage
+// dizia 10 tokens de entrada e 305 de saida, e o modelUsage dizia 532 e 317. O
+// total_cost_usd batia com o modelUsage, entao contar pelo usage mostrava menos
+// token do que o dolar cobrava. Estes sao os numeros reais daquela medicao.
+test("os tokens saem do modelUsage, que e a base do custo em dolar", () => {
+  const tokens = extrairTokensDoResult({
+    usage: {
+      input_tokens: 10,
+      cache_creation_input_tokens: 7123,
+      cache_read_input_tokens: 24196,
+      output_tokens: 305,
+    },
+    modelUsage: {
+      "claude-haiku-4-5-20251001": {
+        inputTokens: 532,
+        outputTokens: 317,
+        cacheReadInputTokens: 24196,
+        cacheCreationInputTokens: 7123,
+        costUSD: 0.0187826,
+      },
+    },
+  });
+  assert.equal(tokens.entradaNova, 532, "o usage subcontava a entrada em 522 tokens");
+  assert.equal(tokens.saida, 317);
+  assert.equal(tokens.cacheEscrita, 7123);
+  assert.equal(tokens.cacheLeitura, 24196);
+  assert.equal(tokens.entrada, 532 + 7123 + 24196);
+});
+
+test("modelUsage com varios modelos soma todos", () => {
+  const tokens = extrairTokensDoResult({
+    modelUsage: {
+      "claude-haiku-4-5": { inputTokens: 100, outputTokens: 20, cacheReadInputTokens: 5 },
+      "claude-sonnet-4-5": { inputTokens: 300, outputTokens: 80, cacheCreationInputTokens: 7 },
+    },
+  });
+  assert.equal(tokens.entradaNova, 400);
+  assert.equal(tokens.saida, 100);
+  assert.equal(tokens.cacheEscrita, 7);
+  assert.equal(tokens.cacheLeitura, 5);
+});
+
+// O Codex nao manda modelUsage. O caminho antigo continua inteiro.
+test("sem modelUsage os tokens saem do usage, com cache_creation aninhado", () => {
+  const tokens = extrairTokensDoResult({
+    usage: {
+      input_tokens: 40,
+      cache_creation: { ephemeral_5m_input_tokens: 10, ephemeral_1h_input_tokens: 90 },
+      cached_input_tokens: 200,
+      output_tokens: 7,
+    },
+  });
+  assert.equal(tokens.entradaNova, 40);
+  assert.equal(tokens.cacheEscrita, 100);
+  assert.equal(tokens.cacheLeitura, 200);
+  assert.equal(tokens.saida, 7);
+  assert.equal(tokens.entrada, 340);
+});
+
+test("result sem usage nenhum devolve tudo zero", () => {
+  assert.deepEqual(extrairTokensDoResult({}), {
+    entradaNova: 0,
+    cacheEscrita: 0,
+    cacheLeitura: 0,
+    entrada: 0,
+    saida: 0,
+  });
+});
+
+// A linha de base do provedor acumulativo tem que atravessar o gerenciador
+// inteira, senao a proxima retomada volta a inflar.
+test("a linha de base de uso do result e lida inteira", () => {
+  assert.deepEqual(
+    usoAcumuladoDoResult({
+      uso_acumulado: { entradaTotal: 24839, entradaCache: 16640, saida: 62, raciocinio: 48 },
+    }),
+    { entradaTotal: 24839, entradaCache: 16640, saida: 62, raciocinio: 48 },
+  );
+  assert.equal(usoAcumuladoDoResult({}), undefined);
+  assert.equal(usoAcumuladoDoResult({ uso_acumulado: "nada" }), undefined);
 });
 
 // A3 + B8: saneamento de sessao persistida.

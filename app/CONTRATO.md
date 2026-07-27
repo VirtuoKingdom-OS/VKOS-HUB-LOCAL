@@ -144,8 +144,21 @@ O prompt vai por stdin. A permissão `padrao` mantém a edição segura do works
 ### Persistência de custo multi-IA
 
 - `Sessao` persiste `provedor`, `estimado?`, custo e tokens. No Codex, `usage.cached_input_tokens` é separado entre entrada nova e cache sem contar a entrada duas vezes.
-- `custos.json` mantém todos os campos legados e acrescenta `provedor`, `estimado`, `tokensCodexEntrada`, `tokensCodexCache` e `tokensCodexSaida`. Arquivo antigo é lido como Claude, custo exato e totais novos zerados.
+- `custos.json` mantém todos os campos legados e acrescenta `provedor`, `estimado`, `tokensCodexEntrada`, `tokensCodexCache`, `tokensCodexSaida` e `turnosSemCusto`. Arquivo antigo é lido como Claude, custo exato e totais novos zerados.
 - `GET /api/custos` acrescenta `estimado` para o workspace ativo e `totalGeralEstimado` para o total geral. Esses campos ficam verdadeiros quando os respectivos totais contêm custo estimado.
+
+### Custo por turno e total declarado como piso (2026-07-27)
+
+Ver `decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md`, que traz as duas medições feitas com os CLIs reais.
+
+- **Quem reporta o quê.** Medido: o Claude reporta `total_cost_usd` e `usage` do TURNO; o Codex reporta o uso ACUMULADO da thread. `OpcoesSessaoProvedor.usoAnterior` carrega a linha de base do turno anterior, com três sentidos: ausente (sessão nova, ou provedor por turno), objeto (o provedor acumulativo subtrai) e `null` (retomada sem linha de base conhecida, o provedor declara o turno sem custo). O result devolve `uso_acumulado`, o gerenciador guarda em `Sessao.usoAcumuladoProvedor` e devolve na retomada seguinte.
+- **Custo desconhecido nunca vira zero.** O result carrega `custo_conhecido: boolean` e `motivo_sem_custo` quando falso. Falso vale para modelo fora da tabela de preços do Codex, retomada de Codex sem linha de base, e turno que concluiu sem `total_cost_usd` numérico. Turno com erro continua fora do total (M10) e NÃO conta como sem preço.
+- **Turno sem medição.** Processo que mandou o `init` e morreu sem `result` conta em `turnosSemCusto`, porque consumiu crédito sem ninguém saber quanto.
+- **`turnosSemCusto`** vive em `custos.json`, em `Sessao` e no histórico do CORE. Enquanto for maior que zero, o total é um PISO: `GET /api/custos` devolve `piso` (cliente ativo) e `totalGeralPiso` (geral), e a tela mostra `≥` com o motivo.
+- **Total geral sobrevive à exclusão.** `app/dados/custos-historico.json` (escopo CORE, respeita `VKOS_DADOS_TESTE`) guarda o acumulado dos clientes já removidos, mais `workspacesRemovidos` e `workspacesSemHistorico`. `DELETE /api/workspaces/:id` chama `absorverCustosDeWorkspace` ANTES de apagar a pasta. Custos ilegíveis não travam a remoção: contam em `workspacesSemHistorico` e o total geral se declara piso.
+- **Lançamento por turno.** `app/dados/workspaces/<id>/custos.jsonl`, append-only por `util/jsonl.ts`, sem rotação. Uma linha por turno com `em`, `sessaoId`, `provedor`, `modelo`, `ehResume`, `ehErro`, `custoConhecido`, `custoUsd`, o split de tokens e `motivoSemCusto`. É o que permite investigar um pulo no total.
+- **Tokens saem do `modelUsage`.** Quando o result traz `modelUsage`, os tokens vêm da soma dele (todas as chamadas de modelo do turno, a mesma base do `total_cost_usd`); sem ele, caem no `usage`. Medido: num turno simples o `usage` dizia 10 tokens de entrada e o `modelUsage` dizia 532.
+- **Cache gravado e cache lido aparecem separados** na Sidebar e no rodapé do nó de sessão. Os preços são bem diferentes e somar os dois escondia isso.
 
 ### Dialeto de eventos congelado
 
@@ -155,8 +168,8 @@ O dialeto interno é o subconjunto abaixo do `stream-json` do Claude. O Claude o
 - Texto parcial: `{ type: "stream_event", event: { type: "content_block_delta", delta: { type: "text_delta", text } } }`. O frontend concatena `text` e marca que recebeu delta.
 - Mensagem consolidada: `{ type: "assistant", message: { content: blocos } }`. Bloco de texto usa `{ type: "text", text }`. O frontend usa estes textos somente quando nenhum delta chegou, para não duplicar a resposta.
 - Ferramenta: dentro do mesmo evento `assistant`, o bloco usa `{ type: "tool_use", name, input }`. O servidor lê `name`. Para o resumo visível, lê `input.file_path` ou `input.command`. Cada bloco também gera a mensagem derivada `{ tipo: "sessao:ferramenta", id, nome, alvo }`.
-- Resultado: `{ type: "result", result, total_cost_usd, usage, is_error?, subtype? }`. `result` é o texto final. `total_cost_usd` é o custo do turno no Claude e a estimativa por tokens no Codex. O Codex também envia `estimado: true` e `provedor: "codex"`. Erro normalizado usa `is_error: true` ou `subtype: "error"` e traz a mensagem em `result`.
-- Tokens do resultado: `usage.input_tokens`, `usage.cache_creation_input_tokens`, `usage.cache_read_input_tokens` e `usage.output_tokens`. Como compatibilidade, a escrita de cache também pode vir em `usage.cache_creation`, objeto cujos valores numéricos são somados.
+- Resultado: `{ type: "result", result, total_cost_usd, custo_conhecido?, motivo_sem_custo?, usage, modelUsage?, uso_acumulado?, is_error?, subtype? }`. `result` é o texto final. `total_cost_usd` é sempre o custo DO TURNO: no Claude vem assim do CLI, no Codex o adaptador subtrai a linha de base antes de estimar. `custo_conhecido: false` significa que o Hub não sabe o custo daquele turno, e `motivo_sem_custo` diz por quê; ausente equivale a `true`. `uso_acumulado` é a linha de base do próximo turno, só do provedor que reporta acumulado. O Codex também envia `estimado: true` e `provedor: "codex"`. Erro normalizado usa `is_error: true` ou `subtype: "error"` e traz a mensagem em `result`.
+- Tokens do resultado: `modelUsage` quando existe (soma de `inputTokens`, `cacheCreationInputTokens`, `cacheReadInputTokens` e `outputTokens` de cada modelo), senão `usage.input_tokens`, `usage.cache_creation_input_tokens`, `usage.cache_read_input_tokens` e `usage.output_tokens`. Como compatibilidade, a escrita de cache também pode vir em `usage.cache_creation`, objeto cujos valores numéricos são somados.
 - Erro de processo: falha de spawn ou do processo usa `ProcessoSessao.aoErro`. Encerramento sem evento `result` vira status `erro` com o `stderr` ou o código de saída. Isso não inventa um evento cru no WebSocket.
 
 O envelope WebSocket continua `{ tipo: "sessao:evento", id, workspaceId, evento }`. `evento` é exatamente o evento do dialeto. Eventos desconhecidos podem ser repassados, mas são ignorados pelo frontend e pelo gerenciador.

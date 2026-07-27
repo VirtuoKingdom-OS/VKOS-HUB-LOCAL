@@ -20,12 +20,7 @@ import {
 } from "./escopo-peca.js";
 import { obterProvedorAtivo } from "../provedores/index.js";
 import { montarResumoCrm } from "../crm/resumo.js";
-import {
-  custosVazios,
-  lerCustos,
-  totalGeralEstimado,
-  totalGeralUsd,
-} from "./custos.js";
+import { custosVazios, lerCustos, totalGeral } from "./custos.js";
 
 const SKILLS_QUE_EXIGEM_CEREBRO = new Set(["carrossel", "site"]);
 const STATUS_EM_EXECUCAO = new Set(["fila", "iniciando", "rodando"]);
@@ -117,19 +112,24 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
     return { sessoes: ativo ? gerenciador.listar(ativo) : [] };
   });
 
-  // Custos acumulados do workspace ativo, mais o total geral somando todos.
+  // Custos acumulados do workspace ativo, mais o total geral somando todos os
+  // clientes do registro E o historico dos ja removidos.
   app.get("/custos", async () => {
     const ativo = idWorkspaceAtivo();
     const base = ativo ? lerCustos(ativo) : custosVazios();
-    const geralUsd = totalGeralUsd();
+    const geral = totalGeral();
     // O valor em dolar e sempre uma estimativa client-side (tabela de precos),
     // nao cobranca real. Marca como estimado sempre que ha gasto, inclusive nos
     // arquivos antigos que gravaram estimado=false antes desta regra.
     return {
       ...base,
       estimado: base.estimado || base.totalUsd > 0,
-      totalGeralUsd: geralUsd,
-      totalGeralEstimado: totalGeralEstimado() || geralUsd > 0,
+      // O total do cliente e um piso quando algum turno gastou sem o Hub saber
+      // quanto. A tela precisa dizer isso em vez de mostrar exatidao que nao tem.
+      piso: base.turnosSemCusto > 0,
+      totalGeralUsd: geral.totalUsd,
+      totalGeralEstimado: geral.estimado || geral.totalUsd > 0,
+      totalGeralPiso: geral.piso,
     };
   });
 

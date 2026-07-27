@@ -72,12 +72,21 @@ export function Sidebar({
   const totalGeralEstimado = custos?.totalGeralEstimado === true;
   // Quebra honesta da entrada acumulada, quando o backend manda os campos novos.
   const temDetalheEntrada = typeof custos?.tokensEntradaNova === "number";
-  const cacheAcum =
-    (custos?.tokensCacheEscrita ?? 0) + (custos?.tokensCacheLeitura ?? 0);
+  // Cache de escrita e cache de leitura têm preços bem diferentes (a escrita
+  // custa mais que a entrada nova, a leitura custa uma fração dela). Somar os
+  // dois num número só escondia essa diferença, então cada um aparece sozinho.
+  const cacheEscrita = custos?.tokensCacheEscrita ?? 0;
+  const cacheLeitura = custos?.tokensCacheLeitura ?? 0;
+  // Turnos que gastaram sem o Hub saber quanto. Enquanto houver, o total é um
+  // piso, e a tela diz isso em vez de mostrar um número com cara de exato.
+  const turnosSemCusto = custos?.turnosSemCusto ?? 0;
+  const totalEhPiso = custos?.piso === true;
+  const totalGeralEhPiso = custos?.totalGeralPiso === true;
   const dicaTokens = custos
     ? temDetalheEntrada
       ? `${(custos.tokensEntradaNova ?? 0).toLocaleString("pt-BR")} de entrada nova, ` +
-        `${cacheAcum.toLocaleString("pt-BR")} de cache, ` +
+        `${cacheEscrita.toLocaleString("pt-BR")} de cache gravado, ` +
+        `${cacheLeitura.toLocaleString("pt-BR")} de cache lido, ` +
         `${custos.tokensSaida.toLocaleString("pt-BR")} de saída em ` +
         `${custos.totalSessoes} sessões`
       : `${custos.tokensEntrada.toLocaleString("pt-BR")} tokens de entrada, ` +
@@ -235,29 +244,41 @@ export function Sidebar({
           className="rodape-custo"
           title={
             temTotalGeral
-              ? `Geral (todos os clientes): ${totalGeralEstimado ? "~" : ""}$${totalGeral.toFixed(2)}. ${dicaTokens}`
+              ? `Geral (todos os clientes, incluindo os já removidos): ${
+                  totalGeralEhPiso ? "no mínimo " : ""
+                }${totalGeralEstimado ? "~" : ""}$${totalGeral.toFixed(2)}. ${dicaTokens}`
               : dicaTokens
           }
         >
           <div className="rodape-custo-linha">
             <span className="rodape-custo-rotulo">Gasto do cliente</span>
             <span className="rodape-custo-valor">
+              {totalEhPiso ? "≥ " : ""}
               {custoEstimado ? "~" : ""}${totalGasto.toFixed(2)}
             </span>
           </div>
           {custoEstimado && (
             <div className="rodape-custo-detalhe">valor aproximado, estimado por tabela de preços</div>
           )}
+          {totalEhPiso && (
+            <div className="rodape-custo-alerta">
+              {turnosSemCusto === 1
+                ? "1 turno gastou sem preço conhecido. O valor real é maior."
+                : `${turnosSemCusto} turnos gastaram sem preço conhecido. O valor real é maior.`}
+            </div>
+          )}
           {temTotalGeral && (
             <div className="rodape-custo-detalhe">
-              Geral, todos os clientes: {totalGeralEstimado ? "~" : ""}${totalGeral.toFixed(2)}
+              Geral, todos os clientes: {totalGeralEhPiso ? "≥ " : ""}
+              {totalGeralEstimado ? "~" : ""}${totalGeral.toFixed(2)}
               {totalGeralEstimado ? ", aproximado" : ""}
             </div>
           )}
           {temDetalheEntrada && (
             <div className="rodape-custo-detalhe">
               {fmtTokens(custos?.tokensEntradaNova)} novos,{" "}
-              <span className="tok-cache">{fmtTokens(cacheAcum)} cache</span>,{" "}
+              <span className="tok-cache">{fmtTokens(cacheEscrita)} cache gravado</span>,{" "}
+              <span className="tok-cache">{fmtTokens(cacheLeitura)} cache lido</span>,{" "}
               {fmtTokens(custos?.tokensSaida)} saída
             </div>
           )}

@@ -41,6 +41,19 @@ export interface Sessao {
   custoUsd?: number;
   // No Codex, o custo e calculado pelos tokens e pela tabela local de precos.
   estimado?: boolean;
+  // Turnos desta sessao que consumiram credito sem o Hub saber quanto (modelo
+  // fora da tabela de precos, retomada sem linha de base, processo morto antes
+  // do result). Enquanto for maior que zero, custoUsd e um piso.
+  turnosSemCusto?: number;
+  // Uso acumulado que o provedor reportou no ultimo turno. Serve de linha de
+  // base pro proximo, no provedor que reporta o acumulado da conversa em vez do
+  // uso do turno (Codex). Persiste pra sobreviver a um restart do servidor.
+  usoAcumuladoProvedor?: {
+    entradaTotal: number;
+    entradaCache: number;
+    saida: number;
+    raciocinio: number;
+  };
   pastaTrabalho: string;
   resultado?: string;
   erro?: string;
@@ -79,6 +92,9 @@ export interface TurnoSessao {
   em: string;
   custoUsd?: number;
   estimado?: boolean;
+  // Turno que consumiu credito sem o Hub saber quanto. custoUsd fica ausente:
+  // mostrar $0,00 aqui seria dizer que o turno foi de graca.
+  custoDesconhecido?: boolean;
   // Turno gerado pelo proprio Hub, nao pelo usuario (ex: a retomada automatica
   // do laco de conformidade de site). A transcricao mostra discreto como
   // "Correcao automatica do Hub" em vez do texto cru de maquina.
