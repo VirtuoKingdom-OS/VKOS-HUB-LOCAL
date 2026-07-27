@@ -4,9 +4,11 @@ Atualizar este arquivo ao abrir e ao fechar cada fase. Quem retoma a rodada lê 
 
 ## Onde estamos
 
-**Em andamento:** Fase 2e, o módulo de mensagens. O servidor fechou em 2026-07-27. Os três painéis são a rodada seguinte.
+**Próxima fase:** Fase 4, o HUB CORE completo. Dashboard com o gasto de IA e projetos ativos, a lista de Workspaces, e Conexões subindo para o nível CORE.
 
-A pesquisa do design system da Fase 5 fechou em 2026-07-27. O contrato completo está em `05-design-system.md`, com as provas em `provas-design/`. Nenhum arquivo de `app/` foi tocado: a implementação é uma rodada própria, e a Etapa 1 dela é o conserto da ordem da cascata do CSS, que hoje deixa a camada oficial de tema perder em sete telas.
+As fases 2 e 3 fecharam em 2026-07-27, na versão 1.3.0. O CRM foi reconstruído por inteiro: modelo v4, subida para o CORE, ao vivo, mensagens e o chat de três painéis. O gasto de IA foi medido com os CLIs de verdade e parou de mentir.
+
+A pesquisa do design system e a Etapa 1 dela (a ordem da cascata) também fecharam. O resto da implementação é a Fase 5, depois do HUB CORE.
 
 A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2, com etapas de 2a a 2e, porque a base estava vazia e reestruturar o dado agora custava zero. O desenho está em `04-crm-e-mensagens.md`.
 
@@ -17,15 +19,35 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 0. Fundação do repositório | fechada | 1.0.0 | 2026-07-26 |
 | 1. Amputação | fechada | 1.1.0 | 2026-07-26 |
 | 1.5. Checkup e consertos | fechada | 1.2.0 | 2026-07-26 |
-| 2a. Modelo do CRM versão 4 | fechada | 1.2.0 | 2026-07-27 |
-| 2c. Buracos de uso do CRM | fechada | 1.2.0 | 2026-07-27 |
-| 2b. CRM no nível CORE | em andamento | | |
-| 2d. CRM ao vivo | fechada | 1.2.0 | 2026-07-27 |
-| 2e. Mensagens e o chat | servidor fechado, tela pendente | 1.2.0 | 2026-07-27 |
-| 3. Verdade do gasto | pendente | | |
+| 2a. Modelo do CRM versão 4 | fechada | 1.3.0 | 2026-07-27 |
+| 2c. Buracos de uso do CRM | fechada | 1.3.0 | 2026-07-27 |
+| 2b. CRM no nível CORE | fechada | 1.3.0 | 2026-07-27 |
+| 2d. CRM ao vivo | fechada | 1.3.0 | 2026-07-27 |
+| 2e. Mensagens e o chat | fechada | 1.3.0 | 2026-07-27 |
+| 3. Verdade do gasto | fechada | 1.3.0 | 2026-07-27 |
+| 5, etapa 1. Ordem da cascata | fechada | 1.3.0 | 2026-07-27 |
 | 4. HUB CORE completo | pendente | | |
 | 5. Design system e nova pele | pesquisa fechada, implementação pendente | | |
 | 6. Studio | pendente | | |
+
+## O que ainda não foi visto por olho humano
+
+Isto não é ressalva de rodapé, é a maior dívida aberta da rodada. Os cinco portões não veem pixel, e duas mudanças grandes mexeram em muita tela:
+
+1. **A ordem da cascata** mudou o valor final de 98 seletores, todos previstos pela medição, nos três temas. Vale a passada em CRM, Site, Studio, Conexões, IDE e no painel do editor.
+2. **O chat de três painéis e a ficha de contato.** A ficha teve 257 linhas extraídas para o `EditorNegocio` compartilhado. O typecheck cobre a costura, nada cobre o layout. Não existe teste de DOM neste projeto.
+
+## Fase 2 e 3, o que ficou pronto
+
+- Modelo do CRM `versao: 4`, com interações e estágios em `.jsonl` append-only. Organização e Orçamento viraram entidades, coluna ganhou tipo semântico, negócio ganhou status e próxima ação.
+- O CRM subiu para o nível CORE. Fusão dos CRMs de cada cliente com procedência preservada, coluna fundida por nome, id repetido desempatado, e nada apagado: a origem vira `.migrado-para-core`.
+- Contato duplicado entre clientes NÃO é fundido automaticamente. A suspeita vira linha em `duplicatas-da-fusao.jsonl` e o dono decide.
+- CRM ao vivo pelo WebSocket, com quatro guardas para a recarga não atropelar quem está digitando.
+- O stream das sessões de IA deixou de ir em broadcast para todas as abas. O servidor decide o escopo agora, não o frontend.
+- Módulo `mensagens/` com canal manual completo e contrato pronto para o WhatsApp. Conversa não existe sem contato.
+- Chat de três painéis como aba do CRM, com o painel de contexto operando negócio e orçamento sem sair da conversa.
+- O gasto de IA: o Codex reportava acumulado da thread e o Hub somava a cada retomada. Custo desconhecido nunca mais aparece como zero. Excluir cliente não apaga mais o gasto histórico.
+- Fecha verde: 361 testes no server, 102 na web, dois typechecks e build.
 
 ## Fase 0, o que ficou pronto
 

@@ -3,6 +3,45 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
 
+## [1.3.0] 2026-07-27
+
+O CRM reconstruído por inteiro, o chat de conversas, e o gasto de IA medido em vez de suposto. A base estava vazia, então reestruturar o dado custou zero agora e custaria migração de risco depois.
+
+### Adicionado
+
+- **Modelo do CRM versão 4.** Interações e histórico de estágio saíram do `crm.json` para arquivos append-only ao lado. Antes, registrar uma interação reescrevia a base de contatos inteira e travava o event loop junto com as sessões de IA e o WebSocket. Organização e Orçamento viraram entidades. Coluna ganhou tipo semântico (aberto, ganho, perdido) e prazo de apodrecimento. Negócio ganhou status, próxima ação, escopo e recorrência. Tarefa saiu de dentro do contato.
+- **O CRM subiu para o nível CORE.** Ele é o funil comercial do dono, não do cliente: nenhum workspace tem CRM. Abre sempre, com ou sem cliente aberto. A fusão preserva a procedência de cada contato, funde coluna por nome, desempata id repetido corrigindo toda referência, e nunca apaga: a origem vira `.migrado-para-core`.
+- **CRM ao vivo.** Duas janelas param de divergir. Aviso leve pelo WebSocket, sem dado de contato dentro, com escopo separado para o funil e para as interações.
+- **Módulo de mensagens com o canal manual completo**, e contrato de canal pronto para o WhatsApp entrar sem reescrita. Conversa não existe sem contato: número desconhecido cria o contato primeiro, senão o Hub vira uma segunda caixa de entrada paralela ao funil.
+- **Chat de três painéis** como aba do CRM. O painel de contexto opera negócio, orçamento, próxima acão e tags sem sair da conversa.
+- **Registro de custo por turno** em `custos.jsonl`, append-only, com sessão, modelo, se foi retomada e o motivo de não ter preço. É a única forma de investigar um pulo no total.
+- Rota que devolve o último toque de todos os contatos numa requisição, para o bloco "Esfriando" parar de chutar.
+
+### Corrigido
+
+- **O Codex reportava o acumulado da thread e o Hub somava a cada retomada.** Medido rodando o CLI: saída de 40, 62 e 80 tokens para três respostas de uma letra. No terceiro turno o Hub contava 74534 tokens de entrada onde o consumo real era 37284. O laço de conformidade de site retoma sozinho até duas vezes, e todo "Ajustar com IA" retoma, então o erro composto era regra, não exceção.
+- **Custo desconhecido aparecia como zero**, que é a pior mentira possível: some do total e ninguém percebe. Modelo fora da tabela de preços, Claude sem valor numérico e processo morto no meio agora contam como turno sem custo conhecido, e a tela mostra o total como piso.
+- **Excluir um cliente apagava o gasto histórico dele.** Agora o gasto é absorvido para o nível CORE antes da pasta sumir.
+- **No Claude, os tokens da tela contavam menos do que o dólar cobrava.** O campo de uso do topo cobre só a última iteração do turno; o valor em dólar sai de outro campo, que cobre todas as chamadas de modelo.
+- **O stream das sessões de IA ia em broadcast para todas as abas**, carregando o Cérebro do cliente e trechos de arquivo lido, e quem filtrava era o frontend. O servidor decide o escopo agora. O elo que faltava só aparece rodando: o frontend não declarava workspace nenhum no upgrade.
+- **A camada oficial de tema não era a última palavra.** Conferido no CSS construído: as folhas de tela venciam por chegarem depois, e as telas carregadas sob demanda são piores, porque o navegador injeta o link delas depois de tudo. Agora são quatro camadas declaradas com `@layer`. Medição com navegador nos três temas: 98 seletores mudaram, todos previstos, e os 58 em que o tema perdia foram a zero.
+- **Telefone duplicava cliente.** A normalização só removia não-dígitos, então o mesmo número em dois formatos virava duas chaves. Agora é E.164, numa regra única do Hub.
+- **A chave técnica do lead morava num campo editável.** Editar "como chegou até você" quebrava a deduplicação em silêncio.
+- **O contador da tela do dia mentia**, porque o corte de dez itens era aplicado antes da contagem. O funil somava ganho, perdido e aberto no mesmo número. O follow-up nunca fechava ao registrar interação. E a ficha perdia o que estava digitado ao apertar Esc.
+- **O apodrecimento por estágio não dispara quando existe próxima ação futura.** É um bug conhecido do Pipedrive, que enche a tela de alerta de gente que já tem reunião marcada.
+- Ícone do aviso de leads usava um token nunca declarado em tema nenhum, então herdava a cor do texto e sumia.
+
+### Segurança
+
+- **A promessa do `SECURITY.md` virou código.** Ele garantia que o resumo do CRM vai para a IA com proibição explícita de publicar dado identificável, e essa instrução não existia no texto injetado. Agora vai no topo, antes do primeiro número, com teste afirmando o texto literal.
+- **O `README.md` prometia que nome nunca chega ao contexto da IA.** Chega: o primeiro nome vai em cada linha de "Vozes dos clientes", de propósito, senão o conselho fica inútil. A documentação passou a dizer a verdade. Telefone e email continuam apagados por limpeza automática. Ver `decisoes/2026-07-27-o-que-a-ia-recebe-do-crm.md`.
+
+### Interno
+
+- **A fronteira de tipos entre web e servidor virou uma definição só.** O web declarava a própria cópia das entidades do CRM, então o servidor subiu para a v4 com o typecheck do web verde e a tela quebrada. Provado: renomear um campo no servidor agora gera 19 erros de compilação, contra zero antes.
+- Teste que provava a função de absorção de custo, mas não que a rota de exclusão a chamava. Função testada que ninguém chama é o mesmo que função quebrada.
+- 361 testes no servidor e 102 na web, contra 139 e 29 quando o repositório nasceu.
+
 ## [1.2.0] 2026-07-26
 
 Checkup de ponta a ponta logo depois da amputação: seis auditorias em paralelo mais teste de fumaça com o servidor no ar. Esta versão é o conserto do que elas acharam. Nada de funcionalidade nova.
