@@ -36,6 +36,32 @@ export function origemPermitida(
   return aceitas.has(origem);
 }
 
+// Le a declaracao de workspace que o cliente manda pelo socket.
+// Devolve o id declarado, "" quando o cliente diz que nao esta em workspace
+// nenhum, e null quando a mensagem nao e uma declaracao (nada a fazer).
+export function lerDeclaracaoDeWorkspace(bruto: unknown): string | null {
+  let texto: string;
+  if (typeof bruto === "string") texto = bruto;
+  else if (bruto instanceof Uint8Array) texto = Buffer.from(bruto).toString("utf8");
+  else if (Array.isArray(bruto)) texto = Buffer.concat(bruto as Uint8Array[]).toString("utf8");
+  else return null;
+
+  // Mensagem gigante nao chega nem a virar JSON: declaracao de workspace e um
+  // id curto, e o cliente nao tem outro motivo pra falar com o servidor aqui.
+  if (texto.length > 1000) return null;
+
+  let mensagem: unknown;
+  try {
+    mensagem = JSON.parse(texto);
+  } catch {
+    return null;
+  }
+  if (!mensagem || typeof mensagem !== "object") return null;
+  const m = mensagem as { tipo?: unknown; workspaceId?: unknown };
+  if (m.tipo !== "workspace") return null;
+  return typeof m.workspaceId === "string" ? m.workspaceId : "";
+}
+
 // Registra o plugin de WebSocket e a rota /ws.
 // Guarda cada conexao nova e limpa quando o cliente cai.
 export async function configurarWs(
@@ -62,6 +88,22 @@ export async function configurarWs(
     if (typeof declarado === "string" && declarado) {
       workspacePorCliente.set(socket, declarado);
     }
+
+    // Redeclaracao em runtime. A aba conecta antes de saber qual cliente esta
+    // ativo (o boot ainda esta buscando a lista) e troca de cliente sem
+    // derrubar a conexao. Sem isto, a declaracao do upgrade congelaria: a aba
+    // que abriu no cliente A e foi pro B pararia de receber o stream da sessao
+    // que ela mesma disparou. Derrubar e reabrir o socket a cada troca custaria
+    // os eventos da janela de reconexao, entao a declaracao anda por mensagem.
+    //
+    // Esta e a UNICA mensagem que o servidor aceita do cliente. Qualquer outra
+    // coisa e ignorada em silencio.
+    socket.on("message", (bruto: unknown) => {
+      const id = lerDeclaracaoDeWorkspace(bruto);
+      if (id === null) return;
+      if (id) workspacePorCliente.set(socket, id);
+      else workspacePorCliente.delete(socket);
+    });
 
     socket.on("close", () => {
       clientes.delete(socket);
@@ -112,10 +154,11 @@ export function transmitir(mensagem: object): void {
 // Envia so pros clientes que declararam estar neste workspace.
 //
 // O transmitir manda pra todo mundo, e o frontend e quem filtra pelo campo
-// workspaceId do payload. Isso e frouxo demais pra dado de cliente: conversa
-// de CRM e mensagem de contato nao podem sair pra uma aba que esta olhando
-// outro workspace, nem depender do frontend se comportar. Aqui o servidor
-// decide, nao o cliente.
+// workspaceId do payload. Isso e frouxo demais pro stream das sessoes de IA:
+// sessao:evento repassa o stream cru do provedor, com o Cerebro do cliente e
+// trechos de arquivo lido. Com broadcast, qualquer aba recebia o stream de
+// qualquer cliente e a unica protecao era o frontend se comportar. Aqui o
+// servidor decide, nao o cliente.
 //
 // Cliente que nao declarou workspace nao recebe. Silencio e o padrao seguro.
 export function transmitirPara(workspaceId: string, mensagem: object): void {

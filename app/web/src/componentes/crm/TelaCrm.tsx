@@ -42,10 +42,13 @@ import {
   type Tarefa,
   type TipoInteracao,
 } from "../../api/crm";
+import { ID_DESTA_ABA, gravando } from "../../api/aba";
+import { usarEstado } from "../../estado/contexto";
 import { ColunaCrm } from "./ColunaCrm";
 import { BuscaLeads } from "./BuscaLeads";
 import { PainelContato } from "./PainelContato";
 import { VisaoHoje, type AcoesDoDia } from "./VisaoHoje";
+import { criarSincronizador, relerLinhaDoTempo, type Recarga } from "./aovivo";
 import {
   contatoCombina,
   precisaResolverFollowUp,
@@ -78,7 +81,23 @@ interface Alvo {
   indice: number;
 }
 
+// De quanto em quanto tempo o CRM ao vivo tenta aplicar a recarga guardada.
+// Vale como espera curta entre um aviso e a leitura (uma rajada de gravacoes
+// vira uma leitura so) e como nova tentativa enquanto a aba estiver ocupada
+// digitando ou gravando.
+const ESPERA_RECARGA = 250;
+
+// A pessoa esta escrevendo dentro do CRM agora. Select e botao nao contam: o
+// que nao pode ser atropelado e texto digitado e ainda nao gravado.
+function editandoNoCrm(tela: HTMLElement | null): boolean {
+  const ativo = document.activeElement;
+  if (!tela || !(ativo instanceof HTMLElement)) return false;
+  if (!tela.contains(ativo)) return false;
+  return ativo.tagName === "INPUT" || ativo.tagName === "TEXTAREA" || ativo.isContentEditable;
+}
+
 export function TelaCrm() {
+  const { avisoCrm } = usarEstado();
   const [estado, setEstado] = useState<EstadoCrm | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -155,6 +174,77 @@ export function TelaCrm() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // ------------------------------------------------------------ ao vivo
+
+  // O CRM assina o WebSocket unico do app pelo contexto (usarEstado), o mesmo
+  // caminho das outras telas. As regras de quando aplicar a recarga estao em
+  // aovivo.ts, que e onde elas podem ser provadas sem DOM.
+  const sincronizador = useMemo(() => criarSincronizador(ID_DESTA_ABA), []);
+  const telaRef = useRef<HTMLElement>(null);
+  const relogioRef = useRef<number | null>(null);
+  const passoRef = useRef<() => void>(() => {});
+  const selecionadoRef = useRef<string | null>(null);
+  selecionadoRef.current = selecionadoId;
+  // Muda quando a linha do tempo da ficha aberta precisa ser relida. A ficha
+  // observa este numero; ele nao remonta o painel, so refaz o fetch de dentro.
+  const [versaoLinhaDoTempo, setVersaoLinhaDoTempo] = useState(0);
+
+  // Recarga de fundo. NUNCA passa por setCarregando: o estado de carregamento
+  // troca a tela inteira pelo aviso "Carregando o CRM...", o que desmontaria a
+  // ficha aberta e levaria junto tudo que estivesse digitado nela. Erro aqui
+  // tambem nao vira faixa vermelha: isto e sincronizacao de fundo, e a proxima
+  // acao do usuario mostra o erro de verdade se o servidor estiver fora.
+  const aplicarRecarga = useCallback(async (recarga: Recarga) => {
+    const tarefas: Promise<unknown>[] = [];
+    if (recarga.funil) {
+      tarefas.push(obterCrm().then(setEstado).catch(() => undefined));
+    }
+    if (recarga.ultimasInteracoes) tarefas.push(carregarUltimasInteracoes());
+    if (relerLinhaDoTempo(recarga, selecionadoRef.current)) {
+      setVersaoLinhaDoTempo((atual) => atual + 1);
+    }
+    await Promise.all(tarefas);
+  }, [carregarUltimasInteracoes]);
+
+  const agendarRecarga = useCallback(() => {
+    if (relogioRef.current !== null) return;
+    relogioRef.current = window.setTimeout(() => {
+      relogioRef.current = null;
+      passoRef.current();
+    }, ESPERA_RECARGA);
+  }, []);
+
+  const passo = useCallback(() => {
+    const recarga = sincronizador.tomar({
+      editando: editandoNoCrm(telaRef.current),
+      gravando: gravando(),
+    });
+    // Adiado: a pendencia continua guardada e a tela tenta de novo quando o
+    // campo liberar. Nada se perde, e nada atropela o que esta sendo escrito.
+    if (!recarga) {
+      if (sincronizador.pendente()) agendarRecarga();
+      return;
+    }
+    void aplicarRecarga(recarga);
+  }, [agendarRecarga, aplicarRecarga, sincronizador]);
+
+  useEffect(() => {
+    passoRef.current = passo;
+  }, [passo]);
+
+  // O aviso que ja estava no contexto quando a tela montou nao vale: o
+  // carregar() da montagem acabou de trazer tudo.
+  const avisoDaMontagem = useRef(avisoCrm);
+  useEffect(() => {
+    if (!avisoCrm || avisoCrm === avisoDaMontagem.current) return;
+    sincronizador.receber(avisoCrm);
+    agendarRecarga();
+  }, [agendarRecarga, avisoCrm, sincronizador]);
+
+  useEffect(() => () => {
+    if (relogioRef.current !== null) window.clearTimeout(relogioRef.current);
+  }, []);
 
   const colunas = useMemo(
     () => (estado ? [...estado.colunas].sort((a, b) => a.ordem - b.ordem) : []),
@@ -775,7 +865,7 @@ export function TelaCrm() {
   const arrastado = arrasto.current;
 
   return (
-    <section className="tela-fluxo crm-tela">
+    <section className="tela-fluxo crm-tela" ref={telaRef}>
       <header className="tela-fluxo-topo crm-topo">
         <div className="crm-topo-titulo">
           <h1>CRM</h1>
@@ -882,6 +972,7 @@ export function TelaCrm() {
           orcamentos={orcamentosDoSelecionado}
           colunas={colunas}
           negocioDestaqueId={negocioDestaqueId}
+          versaoLinhaDoTempo={versaoLinhaDoTempo}
           aoAtualizar={atualizarContato}
           aoMoverEstagio={moverEstagioContato}
           aoRegistrarInteracao={registrarInteracao}

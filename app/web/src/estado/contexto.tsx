@@ -16,6 +16,7 @@ import {
   type ModeloIA,
 } from "../api/cliente";
 import { usarWebSocket } from "../api/websocket";
+import type { AvisoCrm } from "../componentes/crm/aovivo";
 import type {
   Ambiente,
   Contexto,
@@ -45,6 +46,11 @@ interface ValorContexto {
   carregandoInicial: boolean;
   servidorOnline: boolean;
   wsConectado: boolean;
+  // Ultimo aviso de mudanca no CRM. A tela do CRM assina por aqui, pelo mesmo
+  // WebSocket unico do app: cada aviso e um objeto novo, entao um efeito na tela
+  // dispara mesmo quando dois avisos iguais chegam seguidos. Uma segunda
+  // conexao WebSocket so pro CRM criaria duas verdades de reconexao.
+  avisoCrm: AvisoCrm | null;
   ambiente: Ambiente | null;
   estadoVkos: EstadoVkos | null;
   cockpitLiberado: boolean;
@@ -195,6 +201,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const [workspaceAtivo, setWorkspaceAtivo] = useState<string | null>(null);
   const [trocandoWorkspace, setTrocandoWorkspace] = useState(false);
   const [sessoesProntas, setSessoesProntas] = useState(false);
+  const [avisoCrm, setAvisoCrm] = useState<AvisoCrm | null>(null);
   // Espelho do ativo pra ler dentro de closures do WS sem recriar callbacks e
   // pra reivindicar a troca de forma sincrona (evita recarga dupla).
   const workspaceAtivoRef = useRef<string | null>(null);
@@ -660,6 +667,17 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       if (mensagem.tipo === "pecas:atualizadas") {
         void recarregarPecas();
       }
+
+      // O CRM e do CORE: o aviso vale pra qualquer aba, com ou sem cliente
+      // aberto. O contexto so repassa; quem decide quando recarregar (e quando
+      // NAO recarregar, com a ficha aberta e um campo sendo editado) e a tela.
+      if (mensagem.tipo === "crm:atualizado") {
+        setAvisoCrm({
+          escopo: mensagem.escopo,
+          ...(mensagem.contatoId ? { contatoId: mensagem.contatoId } : {}),
+          ...(mensagem.origem ? { origem: mensagem.origem } : {}),
+        });
+      }
     },
     [recarregarSessoes, recarregarPecas, recarregarCustos, aplicarTrocaLocal]
   );
@@ -670,9 +688,13 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const aoReconectar = useCallback(() => {
     void recarregarTudo();
     void recarregarWorkspaces();
+    // O CRM tambem ficou desatualizado em silencio enquanto o socket esteve
+    // fora, e nao da pra saber o que passou: o escopo "tudo" manda reler o
+    // funil, o ultimo toque e a linha do tempo da ficha que estiver aberta.
+    setAvisoCrm({ escopo: "tudo" });
   }, [recarregarTudo, recarregarWorkspaces]);
 
-  usarWebSocket(aoReceber, setWsConectado, aoReconectar);
+  usarWebSocket(aoReceber, setWsConectado, aoReconectar, workspaceAtivo);
 
   // Carga inicial no boot.
   useEffect(() => {
@@ -697,6 +719,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     carregandoInicial,
     servidorOnline,
     wsConectado,
+    avisoCrm,
     ambiente,
     estadoVkos,
     cockpitLiberado,

@@ -14,7 +14,7 @@ A base de CRM está **vazia**: zero contatos, zero negócios. Toda mudança de m
 4. **Orçamento não existe.** O momento mais caro do ciclo cabe num título e num valor.
 5. **A ficha perde o que se digita.** Salva só no blur, e Esc descarta sem aviso.
 6. **O modelo não aguenta chat.** Interações moram dentro do contato, dentro do arquivo de todo mundo. Medido: 16 ms de event loop travado por operação com 500 contatos, e o I/O é síncrono, então congela também as sessões de IA e o WebSocket.
-7. **Nada é ao vivo.** O CRM não assina o WebSocket. Duas abas divergem e só F5 corrige.
+7. **Nada é ao vivo.** O CRM não assina o WebSocket. Duas abas divergem e só F5 corrige. Fechado na etapa 2d.
 
 Dois bugs vivos confirmados: `origem` é rótulo editável **e** chave de deduplicação ao mesmo tempo, então editar quebra o dedupe em silêncio; e a normalização de telefone só remove não-dígitos, então `+55 31 99999-8888` e `(31) 99999-8888` viram chaves diferentes e o mesmo cliente entra duas vezes.
 
@@ -172,7 +172,7 @@ Cada etapa fecha verde nos cinco portões.
 
 **2c. Os buracos de uso.** Follow-up que fecha, snooze, ação inline na tela do dia, apodrecimento por estágio, salvamento visível, Esc que não descarta, undo de exclusão, busca cobrindo telefone e email, teclado no kanban.
 
-**2d. CRM ao vivo.** WebSocket assinado pelo CRM, com `transmitirPara` por escopo em vez de broadcast para todos.
+**2d. CRM ao vivo.** WebSocket assinado pelo CRM. O aviso é notificação, não dado, e o escopo separa o funil do histórico para registrar interação não fazer a tela reler a base inteira. A ideia original era usar `transmitirPara` aqui; com o CRM no CORE isso ficou errado, porque filtraria por um workspace que o CRM não tem mais. O aviso do CRM é broadcast, e `transmitirPara` foi para onde o vazamento realmente estava: o stream das sessões de IA. Ver `decisoes/2026-07-27-crm-ao-vivo-e-escopo-do-stream.md`.
 
 **2e. Mensagens.** Módulo `mensagens/` com contrato de canal, canal `manual` completo, três painéis, e a linha do tempo unificada na ficha.
 

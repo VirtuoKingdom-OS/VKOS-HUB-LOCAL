@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 
+import { avisarCrm } from "../crm/aovivo.js";
 import {
   criarContato,
   lerEstado,
@@ -273,6 +274,12 @@ export const rotasLeads: FastifyPluginAsync = async (app) => {
         throw new ErroLeads("Um dos leads selecionados não existe mais.", 404);
       }
       const resultado = importarLeadsNoCrm(leads, lerEstado().contatos);
+      // Importar lead cria contato no funil, mas por fora das rotas do CRM: o
+      // hook de aviso de la nao alcanca esta rota. Sem esta linha, a aba que
+      // esta com o CRM aberto so veria os leads importados depois de um F5.
+      if (resultado.importados > 0) {
+        avisarCrm({ escopo: "funil", origem: requisicao.headers["x-vkos-aba"] });
+      }
       return { ...resultado, listas: montarListas(workspaceId) };
     } catch (erro) {
       return responderErro(erro, resposta);

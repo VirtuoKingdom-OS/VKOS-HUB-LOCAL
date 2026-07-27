@@ -92,6 +92,7 @@ export function PainelContato({
   orcamentos,
   colunas,
   negocioDestaqueId,
+  versaoLinhaDoTempo,
   aoAtualizar,
   aoMoverEstagio,
   aoRegistrarInteracao,
@@ -115,6 +116,10 @@ export function PainelContato({
   orcamentos: Orcamento[];
   colunas: Coluna[];
   negocioDestaqueId: string | null;
+  // Sobe de um quando outra aba mexeu na linha do tempo DESTE contato. So a
+  // lista de interacoes e relida: os campos da ficha ficam como estao, senao o
+  // que a pessoa esta digitando aqui seria atropelado por uma mudanca de fora.
+  versaoLinhaDoTempo: number;
   aoAtualizar: (id: string, dados: DadosContato) => Promise<Contato>;
   aoMoverEstagio: (id: string, colunaId: string) => Promise<void> | void;
   aoRegistrarInteracao: (id: string, tipo: TipoInteracao, texto: string) => Promise<Interacao>;
@@ -157,9 +162,16 @@ export function PainelContato({
   const originalRef = useRef(original);
   originalRef.current = original;
 
+  // A ficha e remontada por key quando o contato muda, entao esta e a primeira
+  // carga deste contato. Recarga ao vivo nao pisca a lista nem mostra erro: e
+  // sincronizacao de fundo, nao acao do usuario.
+  const primeiraCarga = useRef(true);
+
   useEffect(() => {
     let vivo = true;
-    setCarregandoInteracoes(true);
+    const inicial = primeiraCarga.current;
+    primeiraCarga.current = false;
+    if (inicial) setCarregandoInteracoes(true);
     listarInteracoes(contato.id)
       .then((lista) => {
         if (!vivo) return;
@@ -167,14 +179,14 @@ export function PainelContato({
         aoSaberUltimaInteracao(contato.id, lista[0]?.em);
       })
       .catch((e: unknown) => {
-        if (vivo) salvamento.falhar(e, "Não deu pra carregar a linha do tempo.");
+        if (vivo && inicial) salvamento.falhar(e, "Não deu pra carregar a linha do tempo.");
       })
       .finally(() => {
-        if (vivo) setCarregandoInteracoes(false);
+        if (vivo && inicial) setCarregandoInteracoes(false);
       });
     return () => { vivo = false; };
     // salvamento tem identidade estavel (useRef dentro do hook).
-  }, [aoSaberUltimaInteracao, contato.id, salvamento]);
+  }, [aoSaberUltimaInteracao, contato.id, salvamento, versaoLinhaDoTempo]);
 
   // Diferenca entre o que esta na tela e o que esta gravado.
   const pendencias = useCallback((): DadosContato => {

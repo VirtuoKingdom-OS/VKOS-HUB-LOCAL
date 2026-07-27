@@ -20,7 +20,7 @@ A numeração mudou na rodada de 2026-07-27. O CRM virou uma fase própria, a 2,
 | 2a. Modelo do CRM versão 4 | fechada | 1.2.0 | 2026-07-27 |
 | 2c. Buracos de uso do CRM | fechada | 1.2.0 | 2026-07-27 |
 | 2b. CRM no nível CORE | em andamento | | |
-| 2d. CRM ao vivo | pendente | | |
+| 2d. CRM ao vivo | fechada | 1.2.0 | 2026-07-27 |
 | 2e. Mensagens e o chat | pendente | | |
 | 3. Verdade do gasto | pendente | | |
 | 4. HUB CORE completo | pendente | | |
@@ -58,6 +58,15 @@ Nota: o conversor Astro continua gerando `netlify.toml` dentro do projeto export
 - Buracos de uso fechados: follow-up que resolve ao registrar interação, snooze com quatro presets, ação inline na tela do dia, o contador que mentia, funil separando aberto de ganho e perdido, apodrecimento por estágio que não dispara com próxima ação futura, Esc que salva em vez de descartar, busca cobrindo telefone e email, teclado no kanban e orçamento na ficha.
 - `GET /crm/interacoes/ultimas` devolve o último toque de todos os contatos numa requisição, para o bloco "Esfriando" parar de chutar.
 - Fecha verde: 281 testes no server, 53 na web, dois typechecks e build.
+
+## Fase 2d, o que ficou pronto
+
+- O CRM assina o WebSocket. Toda gravação solta `crm:atualizado`, só notificação, no padrão do `pecas:atualizadas`. Duas abas param de divergir sem F5.
+- O escopo do aviso separa o funil do histórico, então registrar interação não faz a tela reler a base inteira. `origem` é o id da aba que gravou, e ela não recarrega por causa do próprio eco.
+- A recarga fica guardada enquanto a pessoa está escrevendo num campo do CRM ou enquanto a gravação da própria aba está no ar. Adiar nunca perde a pendência, e a recarga de fundo nunca passa pelo estado de carregamento, que desmontaria a ficha aberta com tudo digitado nela.
+- O plano previa `transmitirPara` para o CRM. Não é mais o certo: com o CRM no CORE, filtrar por workspace estaria errado. O aviso do CRM é broadcast, e `transmitirPara` foi para onde o vazamento realmente estava.
+- Todo evento de sessão saiu do broadcast: `sessao:evento`, `sessao:status`, `sessao:conferencia` e `sessao:ferramenta` passaram a `transmitirPara`. Antes o stream cru do provedor, com o Cérebro e trechos de arquivo lido, chegava em qualquer aba e o filtro era do frontend. A aba declara o cliente no upgrade e redeclara por mensagem ao trocar, sem derrubar a conexão.
+- Fecha verde: 307 testes no server, 62 na web, dois typechecks e build.
 
 ## Achados que já valem para as próximas fases
 

@@ -225,4 +225,13 @@ export type MensagemWs =
       workspaceId?: string;
     }
   | { tipo: "pecas:atualizadas" }
+  // O CRM e do CORE, entao o aviso dele vai pra toda aba, sem workspaceId.
+  // Escopo separa o funil (crm.json) do historico (interacoes.jsonl), e origem
+  // e a aba que gravou, pra ela nao recarregar por causa da propria mudanca.
+  | {
+      tipo: "crm:atualizado";
+      escopo: "funil" | "interacoes";
+      contatoId?: string;
+      origem?: string;
+    }
   | { tipo: "workspace:ativado"; id: string };

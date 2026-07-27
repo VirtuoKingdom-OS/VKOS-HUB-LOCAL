@@ -6,6 +6,7 @@
 
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 
+import { avisarCrm, deveAvisar, escopoDaRota } from "./aovivo.js";
 import {
   ErroCrm,
   adicionarNota,
@@ -54,6 +55,19 @@ function idDe(req: FastifyRequest): string {
 }
 
 export const rotasCrm: FastifyPluginAsync = async (app) => {
+  // Toda gravacao bem sucedida do CRM avisa as abas (regras e formato da
+  // mensagem em aovivo.ts). Fica num hook e nao em cada rota de proposito: sao
+  // mais de vinte mutacoes, e a que esquecesse de avisar viraria uma tela
+  // desatualizada em silencio, o bug mais caro de achar.
+  app.addHook("onResponse", async (req, resposta) => {
+    if (!deveAvisar(req.method, resposta.statusCode)) return;
+    avisarCrm({
+      escopo: escopoDaRota(req.routeOptions.url ?? req.url),
+      contatoId: (req.params as { id?: string } | undefined)?.id,
+      origem: req.headers["x-vkos-aba"],
+    });
+  });
+
   // Estado inteiro do funil: colunas, organizacoes,
   // contatos, negocios, orcamentos e tarefas. Interacoes e historico de estagio
   // NAO vem aqui: eles moram em append-only e sao pedidos por contato.

@@ -169,6 +169,12 @@ Ver decisoes/2026-07-27-crm-no-nivel-core.md. Mapa:
 - Evento de CRM sai do barramento com `workspaceId` vazio, que passou a significar escopo CORE. Consequência: evento de CRM não entra em nenhum `eventos.jsonl` por cliente.
 - A tela do CRM perdeu a key por workspace no Shell: trocar de cliente não remonta mais o CRM. Mover a tela para o menu do CORE é fase seguinte.
 
+## DECIDIDO 2026-07-27: CRM ao vivo e escopo do stream no servidor
+Ver decisoes/2026-07-27-crm-ao-vivo-e-escopo-do-stream.md. Mapa:
+- Toda gravação do CRM avisa as abas por WebSocket com `crm:atualizado`, só notificação, no padrão do `pecas:atualizadas`. O escopo separa o funil (`GET /crm`) do histórico (`GET /crm/interacoes/ultimas` mais a linha do tempo do contato citado), e `origem` traz o id da aba que gravou, para ela não recarregar por causa do próprio eco. O envio é broadcast: o CRM é do CORE e não tem workspace para filtrar. Servidor em server/src/crm/aovivo.ts, tela em web/src/componentes/crm/aovivo.ts.
+- A tela do CRM guarda a recarga e só aplica quando não há campo de texto do CRM em foco nem gravação da própria aba no ar. Adiar nunca perde a pendência, e a recarga de fundo nunca passa pelo estado de carregamento, que desmontaria a ficha aberta.
+- Todo evento de sessão (`sessao:evento`, `sessao:status`, `sessao:conferencia`, `sessao:ferramenta`) saiu do broadcast e passou a `transmitirPara`: o servidor entrega só para as abas que declararam aquele cliente. Antes o stream cru do provedor, com o Cérebro e trechos de arquivo lido, ia para toda aba e o filtro era do frontend. A aba declara em `?workspace=<id>` no upgrade e redeclara por mensagem quando troca de cliente, sem derrubar a conexão. `workspace:ativado`, `pecas:atualizadas`, `cerebro:atualizado` e `crm:atualizado` continuam em broadcast.
+
 ## Stack decidida (resumo)
 - Node (Fastify) local + React + Vite + TypeScript no navegador.
 - child_process spawn de `claude -p` ou `codex exec`, por contrato de provedor, com WebSocket pro streaming na tela.

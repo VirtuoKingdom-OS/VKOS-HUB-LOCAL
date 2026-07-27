@@ -10,6 +10,12 @@
 // entidades, sao o formato do que a tela ENVIA, e o servidor aceita coisas que
 // a entidade nao tem (o caso do "empresa", que ele resolve numa Organizacao).
 
+import {
+  CABECALHO_ABA,
+  ID_DESTA_ABA,
+  encerrarGravacao,
+  marcarGravacao,
+} from "./aba";
 import type {
   Coluna,
   Contato,
@@ -110,13 +116,21 @@ export class ErroCrm extends Error {
 
 async function pedir<T>(url: string, opcoes?: RequestInit): Promise<T> {
   let resposta: Response;
-  const cabecalhos = opcoes?.body
-    ? { "Content-Type": "application/json", ...(opcoes.headers ?? {}) }
-    : opcoes?.headers;
+  // Toda gravacao se identifica. O servidor devolve este id como "origem" no
+  // aviso do WebSocket, e e assim que esta aba reconhece o proprio eco.
+  const grava = Boolean(opcoes?.method) && opcoes?.method !== "GET";
+  const cabecalhos = {
+    ...(opcoes?.body ? { "Content-Type": "application/json" } : {}),
+    ...(grava ? { [CABECALHO_ABA]: ID_DESTA_ABA } : {}),
+    ...(opcoes?.headers ?? {}),
+  };
+  if (grava) marcarGravacao();
   try {
     resposta = await fetch(url, { ...opcoes, headers: cabecalhos });
   } catch {
     throw new ErroCrm("Servidor fora do ar.", 0);
+  } finally {
+    if (grava) encerrarGravacao();
   }
   if (!resposta.ok) {
     let mensagem = `Erro ${resposta.status}`;

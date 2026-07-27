@@ -26,7 +26,7 @@ import {
 } from "./conformidade-site.js";
 import { obterProvedorAtivo, obterProvedorDaSessao } from "../provedores/index.js";
 import { prepararPromptEWorkspace } from "../provedores/skills.js";
-import { transmitir } from "../ws.js";
+import { transmitir, transmitirPara } from "../ws.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { obterConfigApp, obterModeloPadraoDoProvedor } from "../config/estado.js";
 import { anexarTurno, apagarTranscricao } from "./transcricao.js";
@@ -163,6 +163,26 @@ export function custoDoResult(evento: Record<string, unknown>): {
   const bruto = evento["total_cost_usd"];
   const custoUsd = ehErro || typeof bruto !== "number" ? 0 : bruto;
   return { custoUsd, ehErro };
+}
+
+// Manda um evento de sessao SO pras abas que declararam o workspace dela.
+//
+// Antes tudo isto saia em broadcast com o workspaceId dentro do payload, e quem
+// filtrava era o frontend. Vale pra sessao:status e sessao:conferencia, e
+// principalmente pro sessao:evento, que repassa o stream cru do provedor: o
+// Cerebro do cliente, o texto da resposta e trechos de arquivo lido. Qualquer
+// aba recebia o stream de qualquer cliente.
+//
+// Sessao sem workspace e dado legado (o campo e opcional no tipo, e toda sessao
+// criada hoje nasce com o workspace ativo). Ela nao pertence a cliente nenhum,
+// entao nao ha escopo pra respeitar e o broadcast segue valendo: melhor uma aba
+// receber um evento que nao e dela do que o cockpit ficar mudo.
+function transmitirDaSessao(sessao: Pick<Sessao, "workspaceId">, mensagem: object): void {
+  if (sessao.workspaceId) {
+    transmitirPara(sessao.workspaceId, mensagem);
+    return;
+  }
+  transmitir(mensagem);
 }
 
 export function montarInstrucoesExtrasSessao(
@@ -453,7 +473,7 @@ export class GerenciadorSessoes {
     if (detalhe) {
       mensagem.detalhe = detalhe;
     }
-    transmitir(mensagem);
+    transmitirDaSessao(sessao, mensagem);
     this.agendarSalvar();
   }
 
@@ -464,7 +484,7 @@ export class GerenciadorSessoes {
     if (!sessao) return;
     sessao.conferenciaSite = conferencia;
     sessao.atualizadaEm = new Date().toISOString();
-    transmitir({
+    transmitirDaSessao(sessao, {
       tipo: "sessao:conferencia",
       id: sessao.id,
       workspaceId: sessao.workspaceId,
@@ -580,7 +600,7 @@ export class GerenciadorSessoes {
 
   // Interpreta um evento do stream-json e repassa cru pro frontend.
   private tratarEvento(sessao: Sessao, execucao: Execucao, evento: Record<string, unknown>): void {
-    transmitir({
+    transmitirDaSessao(sessao, {
       tipo: "sessao:evento",
       id: sessao.id,
       workspaceId: sessao.workspaceId,
@@ -689,7 +709,9 @@ export class GerenciadorSessoes {
       if (b["type"] !== "tool_use") continue;
       const nome = typeof b["name"] === "string" ? b["name"] : "";
       const alvo = this.resumirAlvo(b["input"]);
-      transmitir({
+      // Vai pelo mesmo escopo do stream: o alvo da ferramenta e um caminho de
+      // arquivo ou um comando do cliente, e o frontend nem filtrava este tipo.
+      transmitirDaSessao(sessao, {
         tipo: "sessao:ferramenta",
         id: sessao.id,
         nome,

@@ -1,3 +1,4 @@
+import { CABECALHO_ABA, ID_DESTA_ABA } from "./aba";
 import type { Contato } from "./crm";
 
 export type StatusLead = "minerado" | "arquivado";
@@ -84,7 +85,15 @@ async function pedir<T>(
   try {
     const resposta = await fetch(url, {
       ...opcoes,
-      headers: opcoes.body ? { "Content-Type": "application/json", ...opcoes.headers } : opcoes.headers,
+      headers: {
+        ...(opcoes.body ? { "Content-Type": "application/json" } : {}),
+        // Importar lead grava no CRM. A aba se identifica pelo mesmo cabecalho
+        // das gravacoes do CRM pra nao recarregar por causa do proprio import.
+        ...(opcoes.method && opcoes.method !== "GET"
+          ? { [CABECALHO_ABA]: ID_DESTA_ABA }
+          : {}),
+        ...opcoes.headers,
+      },
       ...(controlador ? { signal: controlador.signal } : {}),
     });
     return await lerResposta<T>(resposta);
