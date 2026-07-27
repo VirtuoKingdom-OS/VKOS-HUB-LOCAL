@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import type { FastifyPluginAsync } from "fastify";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarOuFalhar } from "../util/quarentena.js";
 import {
   garantirPastaDadosWorkspace,
   idWorkspaceAtivo,
@@ -23,17 +24,44 @@ function caminhoCanvasAtivo(): string | null {
   return id ? join(pastaDadosWorkspace(id), "canvas.json") : null;
 }
 
+// Le o canvas cru de um caminho e devolve o texto do jeito que esta no disco
+// (nao reserializa: o blob e opaco e pode ser grande). Arquivo ausente devolve
+// null, em silencio. Arquivo que EXISTE mas nao parseia, ou que parseia sem ser
+// objeto, vai pra quarentena e devolve null.
+//
+// Quarentena e segue com vazio: o layout do cockpit e arrumacao de tela, o
+// usuario refaz. O que nao pode acontecer e o que acontecia antes: o GET
+// devolvia lixo, o frontend desistia de ler, montava um canvas vazio e o PUT
+// seguinte gravava esse vazio por cima. Com a quarentena, o original ja saiu do
+// caminho antes disso. Se nem a quarentena der, isso aqui lanca e o PUT nem
+// chega a rodar.
+//
+// Exportada pra provar o comportamento com fixture temporaria.
+export function lerCanvasDeArquivo(caminho: string): string | null {
+  if (!existsSync(caminho)) return null;
+  let bruto: string;
+  let dados: unknown;
+  try {
+    bruto = readFileSync(caminho, "utf8");
+    dados = JSON.parse(bruto);
+  } catch {
+    quarentenarOuFalhar(caminho, "O layout do cockpit");
+    return null;
+  }
+  if (!dados || typeof dados !== "object" || Array.isArray(dados)) {
+    quarentenarOuFalhar(caminho, "O layout do cockpit");
+    return null;
+  }
+  return bruto;
+}
+
 export const rotasCanvas: FastifyPluginAsync = async (app) => {
   // Devolve o JSON gravado, ou {} se ainda nao existe nada (ou sem workspace).
   app.get("/canvas", async (_req, resposta) => {
-    try {
-      const caminho = caminhoCanvasAtivo();
-      if (caminho && existsSync(caminho)) {
-        const bruto = readFileSync(caminho, "utf8");
-        return resposta.type("application/json").send(bruto);
-      }
-    } catch {
-      // Arquivo ilegivel: devolve vazio em vez de quebrar.
+    const caminho = caminhoCanvasAtivo();
+    const bruto = caminho ? lerCanvasDeArquivo(caminho) : null;
+    if (bruto !== null) {
+      return resposta.type("application/json").send(bruto);
     }
     return {};
   });
@@ -54,8 +82,13 @@ export const rotasCanvas: FastifyPluginAsync = async (app) => {
     if (typeof workspaceId === "string" && workspaceId !== id) {
       return resposta.status(409).send({ erro: "canvas de outro cliente, gravacao recusada" });
     }
+    const caminho = join(pastaDadosWorkspace(id), "canvas.json");
+    // Confere o que ja esta em disco antes de gravar por cima. Se estiver
+    // corrompido, o original vai pra quarentena aqui; se nem isso der certo, o
+    // lerCanvasDeArquivo lanca e a gravacao nao acontece.
+    lerCanvasDeArquivo(caminho);
     garantirPastaDadosWorkspace(id);
-    gravarJsonAtomico(join(pastaDadosWorkspace(id), "canvas.json"), canvas, false);
+    gravarJsonAtomico(caminho, canvas, false);
     return { ok: true };
   });
 };

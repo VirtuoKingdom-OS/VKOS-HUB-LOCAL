@@ -9,6 +9,7 @@ import path from "node:path";
 
 import type { TurnoSessao } from "../tipos.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarOuFalhar } from "../util/quarentena.js";
 import { pastaTranscricoesWorkspace } from "../workspaces/estado.js";
 
 function garantirPasta(workspaceId: string): string {
@@ -23,20 +24,37 @@ function arquivoDe(workspaceId: string, id: string): string {
   return path.join(pastaTranscricoesWorkspace(workspaceId), `${id}.json`);
 }
 
-// Le os turnos de uma sessao. Sem arquivo, retorna lista vazia.
-export function lerTranscricao(workspaceId: string, id: string): TurnoSessao[] {
+// Le os turnos de um caminho. Arquivo ausente vira lista vazia, em silencio
+// (sessao que ainda nao falou nada). Arquivo que EXISTE mas nao parseia, ou que
+// parseia sem ser lista, vai pra quarentena e a sessao recomeca do zero.
+//
+// Quarentena e segue com vazio: a transcricao e um log de exibicao, a sessao
+// precisa continuar gravando os turnos novos mesmo com o arquivo velho ilegivel.
+// O que nao pode e o anexarTurno ler vazio e regravar a conversa inteira com um
+// turno so. Por isso, se a quarentena falhar, isso aqui lanca: o anexarTurno
+// engole o erro e nao grava nada por cima do original.
+//
+// Exportada pra provar o comportamento com fixture temporaria.
+export function lerTranscricaoDeArquivo(caminho: string): TurnoSessao[] {
+  if (!existsSync(caminho)) return [];
+  let bruto: unknown;
   try {
-    if (!workspaceId) return [];
-    const caminho = arquivoDe(workspaceId, id);
-    if (!existsSync(caminho)) {
-      return [];
-    }
-    const bruto = readFileSync(caminho, "utf8");
-    const dados = JSON.parse(bruto);
-    return Array.isArray(dados) ? (dados as TurnoSessao[]) : [];
+    bruto = JSON.parse(readFileSync(caminho, "utf8"));
   } catch {
+    quarentenarOuFalhar(caminho, "A transcricao da sessao");
     return [];
   }
+  if (!Array.isArray(bruto)) {
+    quarentenarOuFalhar(caminho, "A transcricao da sessao");
+    return [];
+  }
+  return bruto as TurnoSessao[];
+}
+
+// Le os turnos de uma sessao. Sem workspace, retorna lista vazia.
+export function lerTranscricao(workspaceId: string, id: string): TurnoSessao[] {
+  if (!workspaceId) return [];
+  return lerTranscricaoDeArquivo(arquivoDe(workspaceId, id));
 }
 
 // Anexa um turno ao arquivo da sessao, criando a pasta se preciso.
@@ -48,7 +66,10 @@ export function anexarTurno(workspaceId: string, id: string, turno: TurnoSessao)
     turnos.push(turno);
     gravarJsonAtomico(arquivoDe(workspaceId, id), turnos);
   } catch {
-    // Falha ao gravar a transcricao nao pode derrubar o gerenciador.
+    // Falha ao gravar a transcricao nao pode derrubar o gerenciador. A leitura
+    // vem antes da gravacao de proposito: se ela lancar (corrompido e sem
+    // quarentena), o gravarJsonAtomico nem chega a rodar e o original fica onde
+    // esta, inteiro.
   }
 }
 

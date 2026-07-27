@@ -3,11 +3,12 @@
 // virou valor/oportunidade opcional preso a um contato, sem estagio proprio. O
 // caminho e resolvido por chamada porque o workspace ativo pode mudar em runtime.
 
-import { existsSync, readFileSync, renameSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { emitir } from "../eventos/barramento.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarOuFalhar } from "../util/quarentena.js";
 import {
   garantirPastaDadosWorkspace,
   idWorkspaceAtivo,
@@ -471,12 +472,11 @@ export function normalizarEstadoCrm(bruto: unknown): ResultadoNormalizacaoCrm | 
   };
 }
 
-// Move o arquivo corrompido pra quarentena com timestamp e devolve o novo
-// caminho. Renomeia, nunca sobrescreve: os dados originais ficam preservados.
+// Move o arquivo corrompido pra quarentena e devolve o novo caminho. A regra
+// mora no util compartilhado desde que os outros modulos passaram a usar a mesma
+// protecao: uma implementacao so, um comportamento so.
 function quarentenar(caminho: string): string {
-  const destino = `${caminho}.corrompido-${Date.now()}`;
-  renameSync(caminho, destino);
-  return destino;
+  return quarentenarOuFalhar(caminho, "O arquivo do CRM");
 }
 
 // Le e normaliza. Arquivo ausente devolve null (o chamador semeia o inicial).

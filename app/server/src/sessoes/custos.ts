@@ -9,6 +9,7 @@ import path from "node:path";
 
 import type { ProvedorIA } from "../tipos.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { quarentenarComErro } from "../util/quarentena.js";
 import {
   garantirPastaDadosWorkspace,
   listarIdsWorkspaces,
@@ -62,45 +63,54 @@ function arquivoDe(workspaceId: string): string {
   return path.join(pastaDadosWorkspace(workspaceId), "custos.json");
 }
 
-// Le o acumulado de um workspace. Arquivo ausente ou corrompido vira tudo zero.
-// Campos do split ausentes no arquivo antigo caem em 0 sem quebrar.
-export function lerCustos(workspaceId: string): CustosAcumulados {
+// Le o acumulado de um caminho. Arquivo ausente vira tudo zero, em silencio
+// (workspace que ainda nao rodou sessao). Arquivo que EXISTE mas nao parseia, ou
+// que parseia sem ser objeto, vai pra quarentena e lanca.
+//
+// Falha fechado de proposito. O gasto acumulado nao se reconstitui: as sessoes
+// que geraram esse total ja foram embora. Comecar zerado faria o proximo result
+// gravar um total de poucos centavos por cima do historico inteiro.
+//
+// Campo a campo segue tolerante: campo ausente ou de tipo errado cai em 0. Isso
+// e retrocompatibilidade (arquivo antigo nao tinha o split), nao corrupcao.
+//
+// Exportada pra provar o comportamento com fixture temporaria.
+export function lerCustosDeArquivo(caminho: string): CustosAcumulados {
+  if (!existsSync(caminho)) return { ...ZERADO };
+  let parseado: unknown;
   try {
-    const arquivo = arquivoDe(workspaceId);
-    if (!existsSync(arquivo)) {
-      return { ...ZERADO };
-    }
-    const bruto = readFileSync(arquivo, "utf8");
-    const parseado = JSON.parse(bruto);
-    // Saneamento defensivo: conteudo que nao e objeto (numero, array, null) e
-    // ignorado com log, sem derrubar o painel de custos. Campo a campo ja cai em 0.
-    if (!parseado || typeof parseado !== "object" || Array.isArray(parseado)) {
-      console.warn(`custos.json malformado no workspace ${workspaceId}: usando zerado.`);
-      return { ...ZERADO };
-    }
-    const dados = parseado as Record<string, unknown>;
-    return {
-      totalUsd: typeof dados.totalUsd === "number" ? dados.totalUsd : 0,
-      totalSessoes: typeof dados.totalSessoes === "number" ? dados.totalSessoes : 0,
-      tokensEntrada: typeof dados.tokensEntrada === "number" ? dados.tokensEntrada : 0,
-      tokensSaida: typeof dados.tokensSaida === "number" ? dados.tokensSaida : 0,
-      tokensEntradaNova: typeof dados.tokensEntradaNova === "number" ? dados.tokensEntradaNova : 0,
-      tokensCacheEscrita:
-        typeof dados.tokensCacheEscrita === "number" ? dados.tokensCacheEscrita : 0,
-      tokensCacheLeitura:
-        typeof dados.tokensCacheLeitura === "number" ? dados.tokensCacheLeitura : 0,
-      provedor: dados.provedor === "codex" ? "codex" : "claude",
-      estimado: dados.estimado === true,
-      tokensCodexEntrada:
-        typeof dados.tokensCodexEntrada === "number" ? dados.tokensCodexEntrada : 0,
-      tokensCodexCache:
-        typeof dados.tokensCodexCache === "number" ? dados.tokensCodexCache : 0,
-      tokensCodexSaida:
-        typeof dados.tokensCodexSaida === "number" ? dados.tokensCodexSaida : 0,
-    };
+    parseado = JSON.parse(readFileSync(caminho, "utf8"));
   } catch {
-    return { ...ZERADO };
+    throw quarentenarComErro(caminho, "O historico de gasto");
   }
+  if (!parseado || typeof parseado !== "object" || Array.isArray(parseado)) {
+    throw quarentenarComErro(caminho, "O historico de gasto");
+  }
+  const dados = parseado as Record<string, unknown>;
+  return {
+    totalUsd: typeof dados.totalUsd === "number" ? dados.totalUsd : 0,
+    totalSessoes: typeof dados.totalSessoes === "number" ? dados.totalSessoes : 0,
+    tokensEntrada: typeof dados.tokensEntrada === "number" ? dados.tokensEntrada : 0,
+    tokensSaida: typeof dados.tokensSaida === "number" ? dados.tokensSaida : 0,
+    tokensEntradaNova: typeof dados.tokensEntradaNova === "number" ? dados.tokensEntradaNova : 0,
+    tokensCacheEscrita:
+      typeof dados.tokensCacheEscrita === "number" ? dados.tokensCacheEscrita : 0,
+    tokensCacheLeitura:
+      typeof dados.tokensCacheLeitura === "number" ? dados.tokensCacheLeitura : 0,
+    provedor: dados.provedor === "codex" ? "codex" : "claude",
+    estimado: dados.estimado === true,
+    tokensCodexEntrada:
+      typeof dados.tokensCodexEntrada === "number" ? dados.tokensCodexEntrada : 0,
+    tokensCodexCache:
+      typeof dados.tokensCodexCache === "number" ? dados.tokensCodexCache : 0,
+    tokensCodexSaida:
+      typeof dados.tokensCodexSaida === "number" ? dados.tokensCodexSaida : 0,
+  };
+}
+
+// Le o acumulado de um workspace.
+export function lerCustos(workspaceId: string): CustosAcumulados {
+  return lerCustosDeArquivo(arquivoDe(workspaceId));
 }
 
 // Soma o total em dolar de todos os workspaces do registro.
@@ -143,7 +153,19 @@ export function registrarResult(
   },
 ): void {
   if (!workspaceId) return;
-  const atual = lerCustos(workspaceId);
+  let atual: CustosAcumulados;
+  try {
+    atual = lerCustos(workspaceId);
+  } catch (erro) {
+    // Rodamos dentro do stream da sessao: lancar aqui derrubaria o gerenciador.
+    // Some com a soma deste result e pronto. Nao gravar e o certo: o arquivo ou
+    // ja esta na quarentena, ou continua inteiro no lugar. Quem grita e o painel
+    // de custos, que le pelo lerCustos e devolve 409.
+    console.warn(
+      `Nao deu pra somar o custo no workspace ${workspaceId}: ${(erro as Error).message}`,
+    );
+    return;
+  }
   atual.totalUsd += entrada.custoUsd;
   atual.tokensEntrada += entrada.tokensEntrada;
   atual.tokensSaida += entrada.tokensSaida;

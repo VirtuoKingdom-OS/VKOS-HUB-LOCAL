@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
+import { ErroDadoCorrompido, quarentenar } from "../util/quarentena.js";
 
 const arquivoAtual = fileURLToPath(import.meta.url);
 const pastaModulo = dirname(arquivoAtual);
@@ -42,6 +43,9 @@ export function ehModeloCodexValido(valor: unknown): valor is string {
 }
 
 let cache: ConfigApp | null = null;
+// Fica verdadeiro quando o arquivo estava corrompido e nao deu pra quarentenar.
+// Enquanto estiver assim, gravar preferencia por cima apagaria o original.
+let gravacaoBloqueada = false;
 
 function garantirPastaDados(): void {
   if (!existsSync(pastaDados)) {
@@ -56,26 +60,48 @@ function configInicial(): ConfigApp {
   };
 }
 
-function carregar(): ConfigApp {
-  if (cache) return cache;
-
+// Le a config de um caminho. Arquivo ausente devolve o inicial, em silencio.
+// Arquivo que EXISTE mas nao parseia, ou que parseia sem ser objeto, vai pra
+// quarentena e devolve o inicial.
+//
+// Quarentena e segue com o padrao, sem lancar: isto e lido no boot e sao
+// preferencias (provedor e modelo). Se lancasse, um config-app.json corrompido
+// impediria o servidor de subir por causa de duas escolhas que o usuario refaz
+// em dois cliques.
+//
+// O podeGravar e o que segura a regra. Quando a quarentena falha e o original
+// continua no lugar, ele volta false e o salvar recusa: preferencia refeita
+// nunca vale apagar um arquivo que talvez ainda de pra recuperar.
+//
+// Campo invalido dentro de um objeto valido nao e corrupcao, e tolerancia: cai
+// no padrao, como sempre caiu (config antiga so tinha modeloPadrao).
+//
+// Exportada pra provar o comportamento com fixture temporaria.
+export function lerConfigAppDeArquivo(caminho: string): {
+  config: ConfigApp;
+  podeGravar: boolean;
+} {
   const inicial = configInicial();
+  if (!existsSync(caminho)) return { config: inicial, podeGravar: true };
+
+  let bruto: unknown;
   try {
-    if (!existsSync(caminhoConfig)) {
-      cache = inicial;
-      return cache;
-    }
+    bruto = JSON.parse(readFileSync(caminho, "utf8"));
+  } catch {
+    return { config: inicial, podeGravar: quarentenar(caminho) !== null };
+  }
+  if (!bruto || typeof bruto !== "object" || Array.isArray(bruto)) {
+    return { config: inicial, podeGravar: quarentenar(caminho) !== null };
+  }
 
-    const dados = JSON.parse(readFileSync(caminhoConfig, "utf8")) as Record<
-      string,
-      unknown
-    >;
-    // Config antiga tinha apenas modeloPadrao. Ele migra para o modelo Claude.
-    const modeloLegado = ehModeloValido(dados.modeloPadrao)
-      ? dados.modeloPadrao
-      : undefined;
+  const dados = bruto as Record<string, unknown>;
+  // Config antiga tinha apenas modeloPadrao. Ele migra para o modelo Claude.
+  const modeloLegado = ehModeloValido(dados.modeloPadrao)
+    ? dados.modeloPadrao
+    : undefined;
 
-    cache = {
+  return {
+    config: {
       ...(ehProvedorValido(dados.provedorPadrao)
         ? { provedorPadrao: dados.provedorPadrao }
         : {}),
@@ -85,14 +111,27 @@ function carregar(): ConfigApp {
       modeloPadraoCodex: ehModeloCodexValido(dados.modeloPadraoCodex)
         ? dados.modeloPadraoCodex.trim()
         : inicial.modeloPadraoCodex,
-    };
-  } catch {
-    cache = inicial;
-  }
+    },
+    podeGravar: true,
+  };
+}
+
+function carregar(): ConfigApp {
+  if (cache) return cache;
+  const lido = lerConfigAppDeArquivo(caminhoConfig);
+  cache = lido.config;
+  gravacaoBloqueada = !lido.podeGravar;
   return cache;
 }
 
 function salvar(config: ConfigApp): void {
+  carregar();
+  if (gravacaoBloqueada) {
+    throw new ErroDadoCorrompido(
+      "As preferencias estao corrompidas e nao deu pra mover o arquivo pra quarentena. Nada foi gravado por cima. Feche quem estiver usando config-app.json e tente de novo.",
+      null,
+    );
+  }
   cache = { ...config };
   garantirPastaDados();
   gravarJsonAtomico(caminhoConfig, {
