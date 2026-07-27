@@ -176,6 +176,15 @@ async function subir(): Promise<void> {
   console.log(`  frontend  ${temFrontend ? "servindo web/dist" : "via Vite (dev na 5173)"}`);
   console.log(`  dados     ${pastaDados}`);
   console.log("  ----------------------------------------");
+  // VKOS_DADOS_TESTE desvia a raiz que o CRM enxerga. Serve pro teste nao
+  // gravar por cima do funil real. Se ela vazar pra um uso normal, o CRM abre
+  // vazio e parece que os contatos sumiram. Avisar aqui troca esse susto por
+  // uma linha visivel na hora de subir.
+  const desvioDeDados = process.env.VKOS_DADOS_TESTE?.trim();
+  if (desvioDeDados) {
+    console.warn(`  ATENCAO: VKOS_DADOS_TESTE esta ligada. O CRM vai ler e gravar em ${desvioDeDados}, nao na pasta de dados acima. Se voce nao esta rodando teste, apague essa variavel de ambiente.`);
+    console.log("");
+  }
   console.log("");
 
   // Encerramento gracioso. Fecha as conexoes e sai limpo.

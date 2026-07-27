@@ -150,10 +150,9 @@
       "grupo": "dados",
       "nome": "Espaços de clientes",
       "resumo": "As gavetas separadas que guardam a identidade e o trabalho de cada cliente.",
-      "descricao": "É um armário com uma gaveta por negócio. Trocar de cliente muda Cérebro, peças, CRM e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu.",
+      "descricao": "É um armário com uma gaveta por negócio. Trocar de cliente muda Cérebro, peças e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu. O CRM não está aqui dentro: o funil comercial é do dono do Hub e vale para todos os clientes ao mesmo tempo.",
       "conversaCom": [
         "cerebro",
-        "crm",
         "pecas",
         "fontes",
         "custos"
@@ -187,8 +186,8 @@
       "id": "crm",
       "grupo": "dados",
       "nome": "CRM",
-      "resumo": "A memória de contatos, organizações, negócios, orçamentos, tarefas, histórico e leads confirmados.",
-      "descricao": "É a caderneta viva do relacionamento comercial: cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. Cada estágio do funil declara se é aberto, ganho ou perdido, então o número do funil para de misturar as três coisas. A empresa do contato é uma Organização de verdade, o negócio guarda status, próxima ação, escopo e recorrência, e o orçamento existe como registro próprio, com validade. O que cresce sem teto saiu do arquivo de todo mundo: interações e histórico de estágio vivem em arquivos que só recebem linha nova, nunca reescrita. Telefone é guardado em formato único, então o mesmo cliente não entra duas vezes, e a chave técnica da origem é separada do rótulo que o usuário edita. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
+      "resumo": "O funil comercial do dono do Hub: contatos, organizações, negócios, orçamentos, tarefas, histórico e leads confirmados.",
+      "descricao": "É a caderneta viva do relacionamento comercial, e ela é uma só. O CRM não pertence a cliente nenhum: é o funil de quem usa o Hub para vender, então ele abre igual com qualquer cliente aberto, ou sem nenhum. Cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. Cada estágio do funil declara se é aberto, ganho ou perdido, então o número do funil para de misturar as três coisas. A empresa do contato é uma Organização de verdade, o negócio guarda status, próxima ação, escopo e recorrência, e o orçamento existe como registro próprio, com validade. O que cresce sem teto saiu do arquivo de todo mundo: interações e histórico de estágio vivem em arquivos que só recebem linha nova, nunca reescrita. Telefone é guardado em formato único, então o mesmo cliente não entra duas vezes, e a chave técnica da origem é separada do rótulo que o usuário edita. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. Os funis que viviam separados dentro de cada cliente foram fundidos num só, uma vez, com a procedência de cada contato preservada; contato repetido não é fundido sozinho, vira uma anotação para o usuário decidir. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
       "conversaCom": [
         "sessoes",
         "barramento",
@@ -273,11 +272,6 @@
       "de": "workspaces",
       "para": "cerebro",
       "rotulo": "separa"
-    },
-    {
-      "de": "workspaces",
-      "para": "crm",
-      "rotulo": "organiza"
     },
     {
       "de": "cerebro",

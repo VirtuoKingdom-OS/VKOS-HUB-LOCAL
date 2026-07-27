@@ -18,11 +18,14 @@ import {
   pastaDadosWorkspace,
 } from "../workspaces/estado.js";
 
-// Evento de dominio: o que aconteceu, em qual workspace, quando e o payload.
+// Evento de dominio: o que aconteceu, em qual escopo, quando e o payload.
 // O tipo e uma string "modulo:acao" (ex: "crm:contato-movido"). O dados carrega
 // o payload especifico do tipo, combinado com cada emissor.
 export interface EventoDominio {
   tipo: string;
+  // Id do cliente de onde o evento saiu. Vazio significa escopo CORE: o evento e
+  // do Hub inteiro, nao de um cliente. O CRM emite assim, porque o funil e do
+  // dono do Hub (ver crm/estado.ts).
   workspaceId: string;
   em: string;
   dados: Record<string, unknown>;
@@ -85,6 +88,9 @@ function entregar(conjunto: Set<Assinante> | undefined, evento: EventoDominio): 
 
 // Anexa uma linha JSON ao log de auditoria do workspace do evento. Falha de
 // escrita nunca derruba a emissao: log honesto no console e segue.
+//
+// Evento de escopo CORE (workspaceId vazio) nao entra em log nenhum: ele nao e
+// de cliente algum, e o log e por cliente. Os assinantes recebem do mesmo jeito.
 function registrarNoLog(evento: EventoDominio): void {
   const id = evento.workspaceId;
   if (!id) return;

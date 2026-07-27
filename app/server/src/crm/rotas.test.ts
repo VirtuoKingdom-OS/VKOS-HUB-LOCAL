@@ -15,15 +15,21 @@ import {
 } from "../workspaces/estado.js";
 import { rotasCrm } from "./rotas.js";
 
-// As rotas do CRM dependem do workspace ativo. O teste registra um workspace
-// proprio, guarda o registro real antes e restaura no fim, pra nao deixar
-// rastro nos dados do usuario.
+// O CRM e unico do Hub e nao depende mais de workspace ativo. O que ainda
+// depende e o carimbo de procedencia do contato, entao o teste registra um
+// workspace proprio, guarda o registro real antes e restaura no fim.
+//
+// O funil em si vai pra uma raiz de dados temporaria (VKOS_DADOS_TESTE): sem
+// isso, o teste gravaria no CRM real do usuario.
 let app: FastifyInstance;
 let workspaceId: string;
+let raizDados: string;
 let registroOriginal: ReturnType<typeof lerRegistro>;
 
 before(async () => {
   registroOriginal = structuredClone(lerRegistro());
+  raizDados = mkdtempSync(join(tmpdir(), "vkos-crm-dados-"));
+  process.env.VKOS_DADOS_TESTE = raizDados;
   const pasta = mkdtempSync(join(tmpdir(), "vkos-crm-rotas-"));
   const workspace = adicionarWorkspace(pasta, "Teste rotas CRM");
   workspaceId = workspace.id;
@@ -37,6 +43,8 @@ after(async () => {
   await app.close();
   const pasta = pastaDadosWorkspace(workspaceId);
   if (existsSync(pasta)) rmSync(pasta, { recursive: true, force: true });
+  rmSync(raizDados, { recursive: true, force: true });
+  delete process.env.VKOS_DADOS_TESTE;
   salvarRegistro(registroOriginal);
 });
 
@@ -526,4 +534,29 @@ test("contato sem interacao fica de fora do mapa", async () => {
   const { corpo } = await chamar("GET", "/api/crm/interacoes/ultimas");
   assert.equal((corpo.ultimas as Record<string, string>)[id], undefined);
   await chamar("DELETE", `/api/crm/contatos/${id}`);
+});
+
+// --------------------------------------------- CRM sem cliente aberto
+
+// O CRM saiu do escopo do cliente e virou o funil do dono do Hub. Sem cliente
+// ativo ele tem que abrir e aceitar escrita, em vez de responder 409.
+test("o CRM abre e aceita contato sem nenhum cliente ativo", async () => {
+  salvarRegistro({ ...lerRegistro(), ativo: null });
+  try {
+    const lido = await chamar("GET", "/api/crm");
+    assert.equal(lido.status, 200);
+    assert.ok(Array.isArray(lido.corpo.contatos));
+
+    const criado = await chamar("POST", "/api/crm/contatos", { nome: "Sem cliente aberto" });
+    assert.equal(criado.status, 201);
+    // Sem cliente aberto nao ha procedencia pra carimbar.
+    assert.equal(criado.corpo.workspaceOrigemId, "");
+
+    // E o contato esta la de verdade na proxima leitura.
+    const depois = await chamar("GET", "/api/crm");
+    const contatos = depois.corpo.contatos as Array<{ id: string }>;
+    assert.equal(contatos.some((c) => c.id === criado.corpo.id), true);
+  } finally {
+    marcarAtivo(workspaceId);
+  }
 });

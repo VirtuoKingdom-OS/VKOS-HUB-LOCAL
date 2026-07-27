@@ -113,6 +113,17 @@ export function idWorkspaceAtivo(): string | null {
   return null;
 }
 
+// Raiz dos dados do hub: app/dados/. E o escopo CORE, do dono do Hub, onde mora
+// o que nao pertence a cliente nenhum (o CRM, por exemplo).
+export function pastaDadosHub(): string {
+  return pastaDados;
+}
+
+// Pasta que guarda os dados de todos os clientes: app/dados/workspaces/.
+export function pastaWorkspacesHub(): string {
+  return pastaWorkspaces;
+}
+
 // Pasta de dados escopada de um workspace: app/dados/workspaces/<id>/.
 export function pastaDadosWorkspace(id: string): string {
   return join(pastaWorkspaces, id);
@@ -213,9 +224,10 @@ export function renomearWorkspace(id: string, nome: string): Workspace | null {
 }
 
 // Apaga a pasta de dados do hub de um workspace (app/dados/workspaces/<id>/):
-// conexoes.json com segredos, crm.json com PII, transcricoes. A pasta
-// VKOS do cliente (workspace.pasta) NUNCA e tocada aqui: e o conteudo dele.
-// Tolerante: pasta ausente nao e erro.
+// conexoes.json com segredos, transcricoes, e o crm.json.migrado-para-core-*
+// que a fusao deixou pra tras (o CRM vivo mora em app/dados/crm/ e nao e tocado
+// aqui). A pasta VKOS do cliente (workspace.pasta) NUNCA e tocada aqui: e o
+// conteudo dele. Tolerante: pasta ausente nao e erro.
 export function apagarPastaDadosWorkspace(id: string): void {
   const pasta = pastaDadosWorkspace(id);
   if (existsSync(pasta)) {

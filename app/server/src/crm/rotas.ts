@@ -1,7 +1,8 @@
 // Rotas REST do CRM v4. Montado sob /api pelo index.ts, com prefixo /crm.
-// O funil de contatos e escopado no workspace ativo (ver estado.ts). Todos os
-// erros de dominio saem no formato { erro: mensagem } com o status certo:
-// 400 payload invalido, 404 id que nao existe, 409 sem workspace ativo.
+// O funil e unico do Hub, no nivel CORE, e abre com ou sem cliente aberto (ver
+// estado.ts). Todos os erros de dominio saem no formato { erro: mensagem } com o
+// status certo: 400 payload invalido, 404 id que nao existe, 409 arquivo do CRM
+// corrompido.
 
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 
@@ -53,7 +54,7 @@ function idDe(req: FastifyRequest): string {
 }
 
 export const rotasCrm: FastifyPluginAsync = async (app) => {
-  // Estado inteiro do funil do workspace ativo: colunas, organizacoes,
+  // Estado inteiro do funil: colunas, organizacoes,
   // contatos, negocios, orcamentos e tarefas. Interacoes e historico de estagio
   // NAO vem aqui: eles moram em append-only e sao pedidos por contato.
   app.get("/crm", async (_req, resposta) => {

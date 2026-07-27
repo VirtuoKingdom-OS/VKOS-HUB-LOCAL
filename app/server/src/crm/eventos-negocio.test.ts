@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -15,11 +15,15 @@ import {
 import { atualizarNegocio, criarContato, criarNegocio, removerNegocio } from "./estado.js";
 
 // M8: negocio criado, atualizado e excluido emitem evento no padrao dos demais.
-// Precisa de um workspace ativo. Registra um workspace de teste com pasta tmpdir,
-// captura o registro original antes e o restaura no fim (cache e disco), pra nao
-// deixar rastro nos dados reais do Jesse.
+//
+// O funil vai pra uma raiz de dados temporaria (VKOS_DADOS_TESTE), pra nao
+// gravar no CRM real. O workspace de teste continua existindo so pelo carimbo de
+// procedencia do contato: o registro original e capturado antes e restaurado no
+// fim, cache e disco.
 test("criar, atualizar e excluir negocio emitem evento com contato e negocio", () => {
   const registroOriginal = structuredClone(lerRegistro());
+  const raizDados = mkdtempSync(join(tmpdir(), "vkos-m8-dados-"));
+  process.env.VKOS_DADOS_TESTE = raizDados;
   const ws = adicionarWorkspace(join(tmpdir(), "vkos-teste-m8"), "Teste M8");
   marcarAtivo(ws.id);
 
@@ -47,7 +51,9 @@ test("criar, atualizar e excluir negocio emitem evento com contato e negocio", (
       ["crm:negocio-criado", "crm:negocio-atualizado", "crm:negocio-excluido"],
     );
     for (const evento of capturados) {
-      assert.equal(evento.workspaceId, ws.id);
+      // O CRM e do dono do Hub, nao do cliente: o evento sai no escopo CORE, com
+      // workspaceId vazio. Carimbar o cliente aberto aqui seria mentira.
+      assert.equal(evento.workspaceId, "");
       const c = evento.dados.contato as { id?: string } | undefined;
       const n = evento.dados.negocio as { id?: string } | undefined;
       assert.equal(c?.id, contato.id);
@@ -57,6 +63,8 @@ test("criar, atualizar e excluir negocio emitem evento com contato e negocio", (
     for (const cancela of cancelas) cancela();
     const pasta = pastaDadosWorkspace(ws.id);
     if (existsSync(pasta)) rmSync(pasta, { recursive: true, force: true });
+    rmSync(raizDados, { recursive: true, force: true });
+    delete process.env.VKOS_DADOS_TESTE;
     salvarRegistro(registroOriginal);
   }
 });

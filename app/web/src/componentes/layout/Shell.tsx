@@ -317,7 +317,10 @@ export function Shell() {
             {telaFixa === "conexoes" && (
               <TelaConexoes key={`cx-${workspaceAtivo}`} />
             )}
-            {telaFixa === "crm" && <TelaCrm key={`crm-${workspaceAtivo}`} />}
+            {/* O CRM nao leva key por workspace: o funil e do dono do Hub, o
+                mesmo em qualquer cliente. Remontar na troca so jogaria fora o
+                que estava aberto na tela, sem trazer dado novo nenhum. */}
+            {telaFixa === "crm" && <TelaCrm />}
             {telaFixa === "mapa" && <TelaMapa />}
           </Suspense>
         )}

@@ -1,9 +1,14 @@
-// Estado do CRM v4, escopado por workspace.
+// Estado do CRM v4, unico do Hub, no nivel CORE.
+//
+// O CRM e o funil comercial do DONO do Hub, nao do cliente: nenhum workspace de
+// cliente tem CRM. Por isso ele vive em app/dados/crm/, existe sempre e abre com
+// ou sem cliente aberto. Antes ele morava em app/dados/workspaces/<id>/ e sumia
+// quando nao havia workspace ativo. O que ficou la sobe na primeira leitura, uma
+// vez so (ver fusao.ts).
 //
 // O CONTATO e o cartao do funil: cada contato tem um estagio (colunaId) e
 // caminha pelo quadro sozinho. Negocio e valor/oportunidade preso a um contato,
-// sem estagio proprio. O caminho e resolvido por chamada porque o workspace
-// ativo pode mudar em runtime.
+// sem estagio proprio.
 //
 // O que fica no crm.json: coisa em pouca quantidade e que muda pouco (colunas,
 // organizacoes, contatos, negocios, orcamentos, tarefas). Continua sendo lido e
@@ -14,7 +19,7 @@
 // a base de contatos inteira, e isso travava o event loop junto com as sessoes
 // de IA e o WebSocket.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 import { emitir } from "../eventos/barramento.js";
@@ -23,10 +28,15 @@ import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { quarentenarOuFalhar } from "../util/quarentena.js";
 import { normalizarTelefone } from "../util/telefone.js";
 import {
-  garantirPastaDadosWorkspace,
   idWorkspaceAtivo,
-  pastaDadosWorkspace,
+  pastaDadosHub,
+  pastaWorkspacesHub,
 } from "../workspaces/estado.js";
+import {
+  NOME_ARQUIVO_CRM,
+  NOME_RECUPERACOES,
+  fundirCrmsDosWorkspaces,
+} from "./fusao.js";
 import {
   anexarEstagios,
   anexarEstagiosSemRepetir,
@@ -84,19 +94,44 @@ export type {
 export { normalizarEstadoCrm } from "./migracao.js";
 export type { ResultadoNormalizacaoCrm } from "./migracao.js";
 
-const NOME_ARQUIVO = "crm.json";
-// Rastro do que a migracao recuperou em vez de descartar. Fica ao lado do
-// crm.json pra o usuario ter onde olhar quando algo aparecer fora do lugar.
-const NOME_RECUPERACOES = "recuperacoes.jsonl";
+// Nomes das pastas dentro de app/dados/.
+const NOME_PASTA = "crm";
+const NOME_PASTA_CLIENTES = "workspaces";
 
-function pastaAtiva(): string | null {
-  const id = idWorkspaceAtivo();
-  return id ? pastaDadosWorkspace(id) : null;
+// Raiz dos dados que o CRM enxerga.
+//
+// VKOS_DADOS_TESTE existe so pro teste apontar pra uma pasta temporaria com o
+// mesmo desenho de app/dados/ (crm/ e workspaces/ dentro). Sem ela, um teste
+// gravaria por cima do funil real e a fusao leria (e renomearia) o crm.json real
+// de um cliente. Lida a cada chamada, nunca na carga do modulo: o teste precisa
+// poder trocar de pasta entre um caso e outro.
+function raizDados(): string {
+  return process.env.VKOS_DADOS_TESTE?.trim() || pastaDadosHub();
 }
 
-function caminhoAtivo(): string | null {
-  const pasta = pastaAtiva();
-  return pasta ? join(pasta, NOME_ARQUIVO) : null;
+// Pasta unica do CRM, no nivel CORE. Nao depende de workspace nenhum, entao
+// existe sempre e o CRM nunca mais responde "abra um cliente".
+function pastaCrm(): string {
+  return join(raizDados(), NOME_PASTA);
+}
+
+// Pasta dos clientes. So a fusao olha pra ca, uma vez so, atras do CRM que ficou
+// pra tras em cada workspace.
+function pastaClientes(): string {
+  const teste = process.env.VKOS_DADOS_TESTE?.trim();
+  return teste ? join(teste, NOME_PASTA_CLIENTES) : pastaWorkspacesHub();
+}
+
+// A pasta so nasce na primeira escrita: leitura de pasta que nao existe ja
+// devolve vazio sozinha.
+function garantirPastaCrm(): string {
+  const pasta = pastaCrm();
+  if (!existsSync(pasta)) mkdirSync(pasta, { recursive: true });
+  return pasta;
+}
+
+function caminhoCrm(): string {
+  return join(pastaCrm(), NOME_ARQUIVO_CRM);
 }
 
 function estadoInicial(): EstadoCrm {
@@ -168,55 +203,45 @@ export function lerEstadoCrmDeArquivo(
 }
 
 function salvar(estado: EstadoCrm): void {
-  const id = idWorkspaceAtivo();
-  if (!id) {
-    throw new ErroCrm("Nenhum cliente ativo. Abra um workspace pra usar o CRM.", 409);
-  }
-  garantirPastaDadosWorkspace(id);
-  gravarJsonAtomico(join(pastaDadosWorkspace(id), NOME_ARQUIVO), estado);
+  gravarJsonAtomico(join(garantirPastaCrm(), NOME_ARQUIVO_CRM), estado);
 }
 
+// O CRM nao e de nenhum cliente: e do dono do Hub. Entao o evento sai com
+// workspaceId vazio, que no barramento significa escopo CORE, o Hub inteiro.
+//
+// Carimbar o workspace ativo seria mentira: o movimento nao e dele, e o log de
+// auditoria daquele cliente receberia contato que nao tem nada a ver com ele.
+// Inventar um workspace "core" seria pior, porque criaria uma pasta de cliente
+// falsa em app/dados/workspaces/. O preco desta escolha e que evento de CRM nao
+// entra em nenhum eventos.jsonl por workspace. Da pra pagar: o historico do CRM
+// ja e permanente e mora no interacoes.jsonl e no estagios.jsonl.
 function emitirCrm(tipo: string, dados: Record<string, unknown>): void {
-  const id = idWorkspaceAtivo();
-  if (!id) return;
-  emitir({ tipo, workspaceId: id, em: new Date().toISOString(), dados });
+  emitir({ tipo, workspaceId: "", em: new Date().toISOString(), dados });
 }
 
 export function lerEstado(): EstadoCrm {
-  const caminho = caminhoAtivo();
-  if (!caminho) return estadoInicial();
-  const existente = lerEstadoCrmDeArquivo(caminho, idWorkspaceAtivo() ?? "");
+  const existente = lerEstadoCrmDeArquivo(caminhoCrm());
   if (existente) return existente;
+  // Primeira leitura do CORE: o que ficou nos workspaces sobe agora, uma vez so.
+  const fundido = fundirCrmsDosWorkspaces(pastaClientes(), garantirPastaCrm());
+  if (fundido) return fundido.estado;
   const inicial = estadoInicial();
   salvar(inicial);
   return inicial;
 }
 
-function lerEstadoMutavel(): EstadoCrm {
-  if (!idWorkspaceAtivo()) {
-    throw new ErroCrm("Nenhum cliente ativo. Abra um workspace pra usar o CRM.", 409);
-  }
-  return lerEstado();
-}
-
-// Pasta do historico do workspace ativo, ja criada. Interacao e estagio sao
-// dado do usuario: falha de escrita sobe, nunca vira log silencioso.
-function pastaHistoricoMutavel(): string {
-  const id = idWorkspaceAtivo();
-  if (!id) {
-    throw new ErroCrm("Nenhum cliente ativo. Abra um workspace pra usar o CRM.", 409);
-  }
-  return garantirPastaDadosWorkspace(id);
+// Pasta do historico, ja criada. Interacao e estagio sao dado do usuario: falha
+// de escrita sobe, nunca vira log silencioso.
+function pastaHistorico(): string {
+  return garantirPastaCrm();
 }
 
 // ------------------------------------------------------------ historico
 
-// Interacoes do workspace ativo, das mais novas pras mais antigas. Filtra por
-// contato quando pedido.
+// Interacoes do funil, das mais novas pras mais antigas. Filtra por contato
+// quando pedido.
 export function lerInteracoes(contatoId?: string): Interacao[] {
-  const pasta = pastaAtiva();
-  if (!pasta) return [];
-  const todas = lerInteracoesDaPasta(pasta);
+  const todas = lerInteracoesDaPasta(pastaCrm());
   const filtradas = contatoId
     ? todas.filter((item) => item.contatoId === contatoId)
     : todas;
@@ -234,10 +259,8 @@ export function lerInteracoes(contatoId?: string): Interacao[] {
 // Devolve so a data, nao a interacao inteira: o texto pode ser longo e nada
 // disso aparece na tela do dia.
 export function ultimaInteracaoPorContato(): Record<string, string> {
-  const pasta = pastaAtiva();
-  if (!pasta) return {};
   const ultima: Record<string, string> = {};
-  for (const item of lerInteracoesDaPasta(pasta)) {
+  for (const item of lerInteracoesDaPasta(pastaCrm())) {
     const atual = ultima[item.contatoId];
     if (!atual || Date.parse(item.em) > Date.parse(atual)) {
       ultima[item.contatoId] = item.em;
@@ -248,9 +271,7 @@ export function ultimaInteracaoPorContato(): Record<string, string> {
 
 // Historico de estagio, do mais antigo pro mais novo (a ordem em que aconteceu).
 export function lerEstagios(contatoId?: string): RegistroEstagio[] {
-  const pasta = pastaAtiva();
-  if (!pasta) return [];
-  const todos = lerEstagiosDaPasta(pasta);
+  const todos = lerEstagiosDaPasta(pastaCrm());
   return contatoId ? todos.filter((item) => item.contatoId === contatoId) : todos;
 }
 
@@ -427,7 +448,7 @@ function resolverOrganizacao(
 }
 
 export function criarOrganizacao(corpo: Record<string, unknown>): Organizacao {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const nome = textoObrigatorio(corpo.nome, "Nome da organizacao");
   const chave = chaveOrganizacao(nome);
   const existente = estado.organizacoes.find(
@@ -455,7 +476,7 @@ export function atualizarOrganizacao(
   id: string,
   corpo: Record<string, unknown>,
 ): Organizacao {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const organizacao = acharOrganizacao(estado, id);
   if ("nome" in corpo) organizacao.nome = textoObrigatorio(corpo.nome, "Nome da organizacao");
   if ("documento" in corpo) {
@@ -476,7 +497,7 @@ export function atualizarOrganizacao(
 
 // Exclui a organizacao. Os contatos dela NAO somem: perdem so o vinculo.
 export function removerOrganizacao(id: string): void {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const organizacao = acharOrganizacao(estado, id);
   const agora = new Date().toISOString();
   for (const contato of estado.contatos) {
@@ -532,7 +553,7 @@ function saneiaDadosLead(valor: unknown): DadosLead | undefined {
 // Grava a entrada do contato numa coluna. Toda mudanca de estagio vira linha,
 // inclusive a primeira, no nascimento da ficha.
 function registrarEstagio(contato: Contato, coluna: Coluna, quando: string): void {
-  anexarEstagios(pastaHistoricoMutavel(), [{
+  anexarEstagios(pastaHistorico(), [{
     id: gerarId("e"),
     contatoId: contato.id,
     colunaId: coluna.id,
@@ -542,7 +563,7 @@ function registrarEstagio(contato: Contato, coluna: Coluna, quando: string): voi
 }
 
 export function criarContato(corpo: Record<string, unknown>): Contato {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const agora = new Date().toISOString();
   const contato: Contato = {
     id: gerarId("c"),
@@ -579,7 +600,7 @@ export function criarContato(corpo: Record<string, unknown>): Contato {
 }
 
 export function atualizarContato(id: string, corpo: Record<string, unknown>): Contato {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const contato = acharContato(estado, id);
   if ("nome" in corpo) contato.nome = textoObrigatorio(corpo.nome, "Nome");
   if ("organizacaoId" in corpo || "empresa" in corpo) {
@@ -643,7 +664,7 @@ export function posicionarNoFunil<T extends { id: string; colunaId: string }>(
 
 // Move um CONTATO de estagio (e, quando pedido, reposiciona na coluna).
 export function moverContato(id: string, corpo: Record<string, unknown>): Contato {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const contato = acharContato(estado, id);
   const colunaId = textoObrigatorio(corpo.colunaId, "Coluna");
   const colunaPara = acharColuna(estado, colunaId);
@@ -676,7 +697,7 @@ export function moverContato(id: string, corpo: Record<string, unknown>): Contat
 // interacoes.jsonl e no estagios.jsonl ficam: append-only nao reescreve o
 // passado, e historico de quem passou pelo funil tem valor proprio.
 export function removerContato(id: string): void {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const contato = acharContato(estado, id);
   const negociosDele = new Set(
     estado.negocios.filter((item) => item.contatoId === id).map((item) => item.id),
@@ -712,7 +733,7 @@ export function registrarInteracao(
   id: string,
   corpo: Record<string, unknown>,
 ): Interacao {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const contato = acharContato(estado, id);
   const agora = new Date().toISOString();
   const interacao: Interacao = {
@@ -725,7 +746,7 @@ export function registrarInteracao(
     texto: textoObrigatorio(corpo.texto, "Interacao", 2000),
     criadaEm: agora,
   };
-  anexarInteracoes(pastaHistoricoMutavel(), [interacao]);
+  anexarInteracoes(pastaHistorico(), [interacao]);
   contato.atualizadoEm = agora;
   salvar(estado);
   emitirCrm("crm:interacao-registrada", { contato, interacao });
@@ -741,7 +762,7 @@ export function adicionarNota(id: string, corpo: Record<string, unknown>): Conta
 // -------------------------------------------------------------- tarefas
 
 export function criarTarefa(corpo: Record<string, unknown>): Tarefa {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const tarefa: Tarefa = {
     id: gerarId("t"),
     texto: textoObrigatorio(corpo.texto, "Tarefa", 500),
@@ -769,7 +790,7 @@ export function criarTarefa(corpo: Record<string, unknown>): Tarefa {
 }
 
 export function atualizarTarefa(id: string, corpo: Record<string, unknown>): Tarefa {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const tarefa = acharTarefa(estado, id);
   if ("texto" in corpo) tarefa.texto = textoObrigatorio(corpo.texto, "Tarefa", 500);
   if ("prazo" in corpo) {
@@ -798,7 +819,7 @@ export function atualizarTarefa(id: string, corpo: Record<string, unknown>): Tar
 }
 
 export function removerTarefa(id: string): void {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const tarefa = acharTarefa(estado, id);
   estado.tarefas = estado.tarefas.filter((item) => item.id !== id);
   salvar(estado);
@@ -869,7 +890,7 @@ function aplicarCamposNegocio(
 }
 
 export function criarNegocio(corpo: Record<string, unknown>): Negocio {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const contatoId = textoObrigatorio(corpo.contatoId, "Contato");
   const contato = acharContato(estado, contatoId);
   const agora = new Date().toISOString();
@@ -889,7 +910,7 @@ export function criarNegocio(corpo: Record<string, unknown>): Negocio {
 }
 
 export function atualizarNegocio(id: string, corpo: Record<string, unknown>): Negocio {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const negocio = acharNegocio(estado, id);
   if ("titulo" in corpo) negocio.titulo = textoObrigatorio(corpo.titulo, "Titulo do negocio");
   if ("contatoId" in corpo) {
@@ -909,7 +930,7 @@ export function atualizarNegocio(id: string, corpo: Record<string, unknown>): Ne
 // Exclui o negocio e os orcamentos dele. Tarefa ligada ao negocio sobrevive e
 // so perde o vinculo: o texto dela e trabalho do usuario.
 export function removerNegocio(id: string): void {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const negocio = acharNegocio(estado, id);
   const contato = estado.contatos.find((item) => item.id === negocio.contatoId);
   estado.negocios = estado.negocios.filter((item) => item.id !== id);
@@ -953,7 +974,7 @@ function aplicarCamposOrcamento(
 }
 
 export function criarOrcamento(corpo: Record<string, unknown>): Orcamento {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const negocioId = textoObrigatorio(corpo.negocioId, "Negocio");
   const negocio = acharNegocio(estado, negocioId);
   const valor = normalizaValor(corpo.valor, "Valor do orcamento");
@@ -978,7 +999,7 @@ export function atualizarOrcamento(
   id: string,
   corpo: Record<string, unknown>,
 ): Orcamento {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const orcamento = acharOrcamento(estado, id);
   if ("negocioId" in corpo) {
     const negocioId = textoObrigatorio(corpo.negocioId, "Negocio");
@@ -1000,7 +1021,7 @@ export function atualizarOrcamento(
 }
 
 export function removerOrcamento(id: string): void {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const orcamento = acharOrcamento(estado, id);
   estado.orcamentos = estado.orcamentos.filter((item) => item.id !== id);
   salvar(estado);
@@ -1017,7 +1038,7 @@ function tipoColuna(valor: unknown): TipoColuna {
 }
 
 export function criarColuna(corpo: Record<string, unknown>): Coluna {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const ordem =
     estado.colunas.reduce((maior, coluna) => Math.max(maior, coluna.ordem), -1) + 1;
   const coluna: Coluna = {
@@ -1035,7 +1056,7 @@ export function criarColuna(corpo: Record<string, unknown>): Coluna {
 
 // Atualiza nome, tipo e o limite de esfriamento de uma coluna.
 export function atualizarColuna(id: string, corpo: Record<string, unknown>): Coluna {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   const coluna = acharColuna(estado, id);
   if ("nome" in corpo) coluna.nome = textoObrigatorio(corpo.nome, "Nome da coluna", 60);
   if ("tipo" in corpo) coluna.tipo = tipoColuna(corpo.tipo);
@@ -1049,7 +1070,7 @@ export function atualizarColuna(id: string, corpo: Record<string, unknown>): Col
 }
 
 export function removerColuna(id: string): void {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   acharColuna(estado, id);
   if (estado.colunas.length <= 1) {
     throw new ErroCrm("O funil precisa de pelo menos uma coluna.", 400);
@@ -1070,7 +1091,7 @@ export function removerColuna(id: string): void {
   salvar(estado);
   if (movidos.length > 0) {
     anexarEstagios(
-      pastaHistoricoMutavel(),
+      pastaHistorico(),
       movidos.map((contato) => ({
         id: gerarId("e"),
         contatoId: contato.id,
@@ -1083,7 +1104,7 @@ export function removerColuna(id: string): void {
 }
 
 export function reordenarColunas(corpo: Record<string, unknown>): Coluna[] {
-  const estado = lerEstadoMutavel();
+  const estado = lerEstado();
   if (!Array.isArray(corpo.ordem) || corpo.ordem.some((item) => typeof item !== "string")) {
     throw new ErroCrm("Envie a ordem como uma lista de ids.", 400);
   }
