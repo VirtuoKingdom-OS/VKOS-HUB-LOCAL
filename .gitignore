@@ -69,3 +69,6 @@ ehthumbs.db
 # Downloads e artefatos de terceiro (ex: ponytail-main.zip). Pasta de rascunho,
 # não é código nosso, não versiona.
 /outros/
+
+# Fotos da conferencia visual (ferramentas/olhar-telas.mjs).
+fotos-telas/

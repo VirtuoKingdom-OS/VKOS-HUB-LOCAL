@@ -34,6 +34,25 @@ npm run build -w web
 
 Teste novo acompanha comportamento novo. Correção de bug entra junto com o teste que teria pegado o bug.
 
+### O portão que os cinco não cobrem
+
+Nenhum dos comandos acima vê um pixel. Eles provam que o código compila, que a lógica está certa e que o pacote sai. Não existe teste de DOM neste projeto.
+
+Por isso, **rodada que mexe em estilo, em navegação ou que cria tela nova roda também a conferência visual**:
+
+```bash
+# de uma janela, com dados descartáveis
+cd app
+VKOS_DADOS_TESTE=/tmp/dados-de-teste VKOS_PORT=4702 npx tsx server/src/index.ts
+
+# de outra
+node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
+```
+
+Ela abre a interface num navegador de verdade, percorre as telas, pega erro de console, tela que não renderiza e rolagem horizontal, e guarda uma foto de cada. Rode nos três temas com `--tema dark-vkos` e `--tema claro`.
+
+Isso não substitui o olho. Guarde as fotos de antes, faça a mudança, gere as de depois e compare. Diferença que você não sabe explicar é regressão até prova em contrário. Detalhes em `ferramentas/LEIA-ME.md`.
+
 ## Git
 
 - **Nunca faça commit, push ou PR sem ordem explícita do Jesse.** Sem exceção.
