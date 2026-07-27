@@ -61,12 +61,20 @@ export interface Custos {
   tokensEntradaNova?: number;
   tokensCacheEscrita?: number;
   tokensCacheLeitura?: number;
-  // Total somado de todos os clientes (workspaces). O totalUsd acima e so do
-  // cliente ativo. Opcional: backend antigo pode nao mandar.
+  // Total somado de todos os clientes (workspaces) mais o historico dos clientes
+  // ja removidos. O totalUsd acima e so do cliente ativo. Opcional: backend
+  // antigo pode nao mandar.
   totalGeralUsd?: number;
   // Um total e estimado quando inclui ao menos uma sessao Codex.
   estimado?: boolean;
   totalGeralEstimado?: boolean;
+  // Turnos que consumiram credito sem o Hub saber quanto (modelo fora da tabela
+  // de precos, retomada sem linha de base, processo morto antes do result).
+  turnosSemCusto?: number;
+  // true quando o total e um PISO, nao o valor exato: ha turno sem custo
+  // conhecido dentro dele. A tela precisa dizer isso, nunca fingir exatidao.
+  piso?: boolean;
+  totalGeralPiso?: boolean;
 }
 
 // Config global. modeloPadrao e o alias legado do modelo Claude.

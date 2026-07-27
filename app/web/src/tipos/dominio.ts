@@ -37,6 +37,10 @@ export interface Sessao {
   tokensEntradaNova?: number;
   tokensCacheEscrita?: number;
   tokensCacheLeitura?: number;
+  // Turnos desta sessao que consumiram credito sem o Hub saber quanto (modelo
+  // fora da tabela de precos, retomada sem linha de base, processo morto antes
+  // do result). Enquanto for maior que zero, custoUsd e um piso.
+  turnosSemCusto?: number;
   // Laco de conformidade de site (pos-geracao). Presente so na geracao guiada de
   // site. Enquanto conferindo/corrigindo, a peca ainda nao entra em "pronta".
   conferenciaSite?: ConferenciaSite;
@@ -55,6 +59,9 @@ export interface TurnoSessao {
   em: string;
   custoUsd?: number;
   estimado?: boolean;
+  // Turno que consumiu credito sem o Hub saber quanto. custoUsd vem ausente:
+  // mostrar $0,00 aqui seria dizer que o turno foi de graca.
+  custoDesconhecido?: boolean;
   // Turno gerado pelo proprio Hub (retomada automatica do laco de conformidade),
   // exibido discreto como "Correcao automatica do Hub".
   interno?: boolean;
@@ -232,6 +239,18 @@ export type MensagemWs =
       tipo: "crm:atualizado";
       escopo: "funil" | "interacoes";
       contatoId?: string;
+      origem?: string;
+    }
+  // Conversa mudou. O aviso NUNCA carrega texto de mensagem: o socket e
+  // broadcast e o conteudo da conversa e o dado mais sensivel do CRM. Aqui vao
+  // id e escopo, e o texto viaja pela rota REST.
+  //
+  // "thread" quer dizer que aquela conversa mudou, e IMPLICA que a lista mudou
+  // junto (previa, ordem, nao lidas). "conversas" e so a lista.
+  | {
+      tipo: "mensagens:atualizadas";
+      escopo: "conversas" | "thread";
+      conversaId?: string;
       origem?: string;
     }
   | { tipo: "workspace:ativado"; id: string };

@@ -82,9 +82,16 @@
       "nome": "CRM",
       "rota": "#/crm",
       "destino": "crm",
-      "resumo": "Funil de contatos e oportunidades.",
-      "descricao": "Kanban onde cada contato é um cartão que caminha pelos estágios, com painel de contato, dados do lead e busca de leads pelo Google Maps. Os negócios são o valor preso a cada contato.",
-      "estados": ["kanban de contatos", "painel do contato", "dados do lead", "busca de leads"],
+      "resumo": "Funil de contatos, conversas e oportunidades.",
+      "descricao": "O funil comercial do dono do Hub, no nível CORE: nenhum workspace de cliente tem CRM. Abre na tela do dia, que responde o que fazer agora. Tem o quadro onde cada contato é um cartão que caminha pelos estágios, a lista de contatos, a busca de leads pelo Google Maps, e as conversas em três painéis. Os negócios são o valor preso a cada contato.",
+      "estados": [
+        "tela do dia",
+        "conversas em três painéis",
+        "kanban de contatos",
+        "painel do contato",
+        "dados do lead",
+        "busca de leads"
+      ],
       "esqueleto": "kanban"
     },
     {

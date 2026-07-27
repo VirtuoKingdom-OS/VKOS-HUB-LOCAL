@@ -1218,11 +1218,18 @@ body.crm-arrastando .crm-cartao {
   font-weight: 700;
   margin-bottom: 7px;
 }
+/* Flex e nao grid: a linha ganhou o botao de "Ganho", que so existe em negocio
+   aberto. Com grade de tres colunas fixas o quarto item caia sozinho numa
+   linha nova, e a lixeira ficava orfa embaixo. */
 .crm-negocio-campos {
-  display: grid;
-  grid-template-columns: 1fr 120px auto;
+  display: flex;
+  align-items: center;
   gap: 7px;
+  flex-wrap: wrap;
 }
+.crm-negocio-campos > input { flex: 1 1 110px; min-width: 0; }
+.crm-negocio-campos > select { flex: 0 1 128px; min-width: 0; }
+.crm-negocio-campos > .crm-excluir-negocio { margin-left: auto; }
 .crm-negocio-linha.status-ganho {
   border-color: rgba(var(--menta-rgb), 0.35);
 }
@@ -1732,7 +1739,6 @@ body.crm-arrastando .crm-cartao {
     white-space: nowrap;
   }
   .crm-campos-grade,
-  .crm-negocio-campos,
   .crm-negocio-acao,
   .crm-orcamento-novo,
   .crm-funil-placar,
@@ -1740,6 +1746,13 @@ body.crm-arrastando .crm-cartao {
   .crm-tarefa-nova {
     grid-template-columns: 1fr;
   }
+  /* A linha do negocio virou flex: em tela estreita ela empilha por
+     flex-direction, nao por grid-template-columns. */
+  .crm-negocio-campos {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crm-negocio-campos > .crm-excluir-negocio { margin-left: 0; }
   .crm-interacao-nova textarea,
   .crm-interacao-nova button,
   .crm-tarefa-nova button {

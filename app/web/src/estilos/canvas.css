@@ -2344,11 +2344,20 @@ body.overlay-aberto .no-cerebro .miolo::after {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
-/* Cache custa cerca de 10x menos, entao aparece mais apagado que o resto. */
+/* Cache de leitura custa cerca de 10x menos, entao aparece mais apagado que o
+   resto. Escrita e leitura ficam separadas: os precos sao bem diferentes. */
 .rodape-custo-detalhe .tok-cache,
 .no-sessao .rodape .tok-cache {
   color: var(--texto-fraco);
   opacity: 0.72;
+}
+/* Aviso de total incompleto: ha turno que gastou sem preco conhecido, entao o
+   numero e um piso. Precisa ser lido, nao decorado: amarelo, nunca vermelho. */
+.rodape-custo-alerta {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--amarelo);
+  letter-spacing: 0.01em;
 }
 
 /* ===== Rodada 7 (onda 2): preview de site ===== */

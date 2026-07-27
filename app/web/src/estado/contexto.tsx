@@ -17,6 +17,7 @@ import {
 } from "../api/cliente";
 import { usarWebSocket } from "../api/websocket";
 import type { AvisoCrm } from "../componentes/crm/aovivo";
+import type { AvisoMensagens } from "../tipos/mensagens";
 import type {
   Ambiente,
   Contexto,
@@ -51,6 +52,11 @@ interface ValorContexto {
   // dispara mesmo quando dois avisos iguais chegam seguidos. Uma segunda
   // conexao WebSocket so pro CRM criaria duas verdades de reconexao.
   avisoCrm: AvisoCrm | null;
+  // Ultimo aviso de mudanca nas conversas, pelo mesmo caminho do avisoCrm. A
+  // tela do chat assina por aqui e decide sozinha o que reler: o contexto so
+  // repassa, porque so a tela sabe qual thread esta aberta e se ha campo sendo
+  // editado no painel de contexto.
+  avisoMensagens: AvisoMensagens | null;
   ambiente: Ambiente | null;
   estadoVkos: EstadoVkos | null;
   cockpitLiberado: boolean;
@@ -202,6 +208,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const [trocandoWorkspace, setTrocandoWorkspace] = useState(false);
   const [sessoesProntas, setSessoesProntas] = useState(false);
   const [avisoCrm, setAvisoCrm] = useState<AvisoCrm | null>(null);
+  const [avisoMensagens, setAvisoMensagens] = useState<AvisoMensagens | null>(null);
   // Espelho do ativo pra ler dentro de closures do WS sem recriar callbacks e
   // pra reivindicar a troca de forma sincrona (evita recarga dupla).
   const workspaceAtivoRef = useRef<string | null>(null);
@@ -678,6 +685,17 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
           ...(mensagem.origem ? { origem: mensagem.origem } : {}),
         });
       }
+
+      // Mesmo caminho do CRM: o aviso vem sem texto de mensagem, so com escopo
+      // e id, e quem decide o que reler e a tela do chat.
+      if (mensagem.tipo === "mensagens:atualizadas") {
+        setAvisoMensagens({
+          tipo: "mensagens:atualizadas",
+          escopo: mensagem.escopo,
+          ...(mensagem.conversaId ? { conversaId: mensagem.conversaId } : {}),
+          ...(mensagem.origem ? { origem: mensagem.origem } : {}),
+        });
+      }
     },
     [recarregarSessoes, recarregarPecas, recarregarCustos, aplicarTrocaLocal]
   );
@@ -692,6 +710,10 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     // fora, e nao da pra saber o que passou: o escopo "tudo" manda reler o
     // funil, o ultimo toque e a linha do tempo da ficha que estiver aberta.
     setAvisoCrm({ escopo: "tudo" });
+    // O mesmo vale pras conversas. Escopo "thread" sem conversaId quer dizer
+    // "nao da pra saber qual mudou": qualquer thread aberta rele, e a lista
+    // junto.
+    setAvisoMensagens({ tipo: "mensagens:atualizadas", escopo: "thread" });
   }, [recarregarTudo, recarregarWorkspaces]);
 
   usarWebSocket(aoReceber, setWsConectado, aoReconectar, workspaceAtivo);
@@ -720,6 +742,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     servidorOnline,
     wsConectado,
     avisoCrm,
+    avisoMensagens,
     ambiente,
     estadoVkos,
     cockpitLiberado,

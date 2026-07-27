@@ -10,12 +10,7 @@
 // entidades, sao o formato do que a tela ENVIA, e o servidor aceita coisas que
 // a entidade nao tem (o caso do "empresa", que ele resolve numa Organizacao).
 
-import {
-  CABECALHO_ABA,
-  ID_DESTA_ABA,
-  encerrarGravacao,
-  marcarGravacao,
-} from "./aba";
+import { apagar, corpo, pedir } from "./rest";
 import type {
   Coluna,
   Contato,
@@ -104,54 +99,9 @@ export interface DadosColuna {
   diasParaEsfriar?: number | null;
 }
 
-export class ErroCrm extends Error {
-  status: number;
-
-  constructor(mensagem: string, status: number) {
-    super(mensagem);
-    this.name = "ErroCrm";
-    this.status = status;
-  }
-}
-
-async function pedir<T>(url: string, opcoes?: RequestInit): Promise<T> {
-  let resposta: Response;
-  // Toda gravacao se identifica. O servidor devolve este id como "origem" no
-  // aviso do WebSocket, e e assim que esta aba reconhece o proprio eco.
-  const grava = Boolean(opcoes?.method) && opcoes?.method !== "GET";
-  const cabecalhos = {
-    ...(opcoes?.body ? { "Content-Type": "application/json" } : {}),
-    ...(grava ? { [CABECALHO_ABA]: ID_DESTA_ABA } : {}),
-    ...(opcoes?.headers ?? {}),
-  };
-  if (grava) marcarGravacao();
-  try {
-    resposta = await fetch(url, { ...opcoes, headers: cabecalhos });
-  } catch {
-    throw new ErroCrm("Servidor fora do ar.", 0);
-  } finally {
-    if (grava) encerrarGravacao();
-  }
-  if (!resposta.ok) {
-    let mensagem = `Erro ${resposta.status}`;
-    try {
-      const corpoErro = (await resposta.json()) as { erro?: string };
-      if (corpoErro.erro) mensagem = corpoErro.erro;
-    } catch {
-      // Mantem a mensagem HTTP quando o corpo nao e JSON.
-    }
-    throw new ErroCrm(mensagem, resposta.status);
-  }
-  return (await resposta.json()) as T;
-}
-
-function corpo(metodo: string, dados: unknown): RequestInit {
-  return { method: metodo, body: JSON.stringify(dados) };
-}
-
-function apagar(url: string): Promise<{ ok: boolean }> {
-  return pedir<{ ok: boolean }>(url, { method: "DELETE" });
-}
+// O erro do CRM e o erro da API: o nome antigo continua exportado porque a tela
+// o conhece por ele, mas a classe e uma so.
+export { ErroApi as ErroCrm } from "./rest";
 
 export function obterCrm(): Promise<EstadoCrm> {
   return pedir<EstadoCrm>("/api/crm");

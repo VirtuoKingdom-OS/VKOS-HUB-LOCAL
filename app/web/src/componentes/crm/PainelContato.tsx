@@ -9,6 +9,10 @@
 // - o que se digita nao se perde mais: Esc salva o que estava pendente antes de
 //   fechar, existe indicacao visivel de "salvo" e o erro aparece DENTRO do
 //   painel, nao atras dele.
+//
+// A edicao de negocio, orcamento e tag saiu daqui pro EditorNegocio.tsx quando o
+// painel de contexto do chat passou a precisar das mesmas tres coisas. Duas
+// copias divergiriam na primeira mudanca de campo.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -21,13 +25,12 @@ import {
   type Interacao,
   type Negocio,
   type Orcamento,
-  type StatusNegocio,
-  type StatusOrcamento,
   type Tarefa,
   type TipoInteracao,
 } from "../../api/crm";
 import { BotaoConfirmar } from "./BotaoConfirmar";
-import { formatarDataHora, formatarReais, isoParaDatetimeLocal } from "./formatos";
+import { EditorTags, LinhaNegocio } from "./EditorNegocio";
+import { formatarDataHora, isoParaDatetimeLocal } from "./formatos";
 import { IconeLixeira, IconeMais, IconeX } from "../comum/Icones";
 
 type ChaveRascunho = "nome" | "empresa" | "telefone" | "email" | "origem" | "proximoContato" | "cadenciaDias";
@@ -48,20 +51,6 @@ const TIPOS: { valor: TipoInteracao; rotulo: string }[] = [
   { valor: "outro", rotulo: "Outro" },
 ];
 
-const STATUS_NEGOCIO: { valor: StatusNegocio; rotulo: string }[] = [
-  { valor: "aberto", rotulo: "Em aberto" },
-  { valor: "ganho", rotulo: "Ganho" },
-  { valor: "perdido", rotulo: "Perdido" },
-];
-
-const STATUS_ORCAMENTO: { valor: StatusOrcamento; rotulo: string }[] = [
-  { valor: "rascunho", rotulo: "Rascunho" },
-  { valor: "enviado", rotulo: "Enviado" },
-  { valor: "aceito", rotulo: "Aceito" },
-  { valor: "recusado", rotulo: "Recusado" },
-  { valor: "expirado", rotulo: "Expirado" },
-];
-
 // Garante um endereco navegavel a partir do site do lead (pode vir sem http).
 function enderecoSite(site: string): string {
   const limpo = site.trim();
@@ -75,13 +64,6 @@ function textoNotaLead(lead: { nota?: number; totalAvaliacoes?: number }): strin
     ? ` (${lead.totalAvaliacoes.toLocaleString("pt-BR")} avaliações)`
     : "";
   return `${lead.nota.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de 5${avaliacoes}`;
-}
-
-function numeroOuNulo(texto: string): number | null {
-  const limpo = texto.replace(",", ".").trim();
-  if (!limpo) return null;
-  const numero = Number(limpo);
-  return Number.isFinite(numero) && numero >= 0 ? numero : null;
 }
 
 export function PainelContato({
@@ -146,7 +128,6 @@ export function PainelContato({
     cadenciaDias: contato.cadenciaDias ? String(contato.cadenciaDias) : "",
   };
   const [rascunho, setRascunho] = useState<Rascunho>(original);
-  const [novaTag, setNovaTag] = useState("");
   const [tipoInteracao, setTipoInteracao] = useState<TipoInteracao>("nota");
   const [textoInteracao, setTextoInteracao] = useState("");
   const [salvandoInteracao, setSalvandoInteracao] = useState(false);
@@ -242,14 +223,6 @@ export function PainelContato({
       Object.assign(recorte, { [chave]: dados[chave as keyof DadosContato] });
     }
     void salvarDados(recorte);
-  }
-
-  function adicionarTag() {
-    const limpo = novaTag.trim();
-    if (!limpo) return;
-    setNovaTag("");
-    if (contato.tags.some((tag) => tag.toLowerCase() === limpo.toLowerCase())) return;
-    void salvarDados({ tags: [...contato.tags, limpo] });
   }
 
   async function enviarInteracao() {
@@ -377,42 +350,7 @@ export function PainelContato({
           <span className="crm-ajuda">
             Com cadência definida, registrar uma interação já reagenda o próximo contato. Sem ela, o follow-up fecha.
           </span>
-          <div className="crm-campo">
-            <span className="crm-rotulo">Tags</span>
-            <div className="crm-tags-lista">
-              {contato.tags.length === 0 && <span className="crm-vazio-inline">Nenhuma tag ainda.</span>}
-              {contato.tags.map((tag) => (
-                <span className="crm-tag crm-tag-editavel" key={tag}>
-                  {tag}
-                  <button
-                    className="crm-tag-x"
-                    onClick={() => void salvarDados({ tags: contato.tags.filter((item) => item !== tag) })}
-                    aria-label={`Remover ${tag}`}
-                    type="button"
-                  >
-                    <IconeX className="" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="crm-tag-nova">
-              <input
-                value={novaTag}
-                onChange={(e) => setNovaTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    adicionarTag();
-                  }
-                }}
-                placeholder="Adicionar tag"
-                maxLength={40}
-              />
-              <button className="botao botao-neutro crm-add-tag" onClick={adicionarTag} disabled={!novaTag.trim()} type="button">
-                <IconeMais className="" />
-              </button>
-            </div>
-          </div>
+          <EditorTags contato={contato} aoSalvar={(dados) => void salvarDados(dados)} />
         </section>
 
         {contato.lead && (
@@ -445,11 +383,13 @@ export function PainelContato({
                 negocio={negocio}
                 orcamentos={orcamentosDe(negocio.id)}
                 destaque={negocio.id === negocioDestaqueId}
-                aoAtualizar={aoAtualizarNegocio}
-                aoExcluir={aoExcluirNegocio}
-                aoCriarOrcamento={aoCriarOrcamento}
-                aoAtualizarOrcamento={aoAtualizarOrcamento}
-                aoExcluirOrcamento={aoExcluirOrcamento}
+                acoes={{
+                  aoAtualizar: aoAtualizarNegocio,
+                  aoExcluir: aoExcluirNegocio,
+                  aoCriarOrcamento,
+                  aoAtualizarOrcamento,
+                  aoExcluirOrcamento,
+                }}
               />
             ))}
           </div>
@@ -580,187 +520,5 @@ function MarcaSalvamento({ estado }: { estado: EstadoSalvamento }) {
     <span className={`crm-marca-salvo${estado === "salvando" ? " ocupado" : ""}`} role="status">
       {estado === "salvando" ? "Salvando..." : "Salvo"}
     </span>
-  );
-}
-
-function LinhaNegocio({
-  negocio,
-  orcamentos,
-  destaque,
-  aoAtualizar,
-  aoExcluir,
-  aoCriarOrcamento,
-  aoAtualizarOrcamento,
-  aoExcluirOrcamento,
-}: {
-  negocio: Negocio;
-  orcamentos: Orcamento[];
-  destaque: boolean;
-  aoAtualizar: (id: string, dados: DadosNegocio) => Promise<Negocio>;
-  aoExcluir: (id: string) => Promise<void>;
-  aoCriarOrcamento: (negocioId: string, valor: number, validoAte?: string) => Promise<Orcamento>;
-  aoAtualizarOrcamento: (id: string, dados: DadosOrcamento) => Promise<Orcamento>;
-  aoExcluirOrcamento: (id: string) => Promise<void>;
-}) {
-  const [titulo, setTitulo] = useState(negocio.titulo);
-  const [valor, setValor] = useState(negocio.valorEstimado === undefined ? "" : String(negocio.valorEstimado));
-  const [proximaAcao, setProximaAcao] = useState(isoParaDatetimeLocal(negocio.proximaAcaoEm));
-  const [proximaAcaoTexto, setProximaAcaoTexto] = useState(negocio.proximaAcaoTexto ?? "");
-
-  function salvarTitulo() {
-    const limpo = titulo.trim();
-    if (!limpo) return setTitulo(negocio.titulo);
-    if (limpo !== negocio.titulo) void aoAtualizar(negocio.id, { titulo: limpo }).catch(() => undefined);
-  }
-
-  function salvarValor() {
-    const numero = numeroOuNulo(valor);
-    if (valor.trim() && numero === null) {
-      return setValor(negocio.valorEstimado === undefined ? "" : String(negocio.valorEstimado));
-    }
-    if (numero !== (negocio.valorEstimado ?? null)) {
-      void aoAtualizar(negocio.id, { valorEstimado: numero }).catch(() => undefined);
-    }
-  }
-
-  function salvarProximaAcao() {
-    if (proximaAcao === isoParaDatetimeLocal(negocio.proximaAcaoEm)) return;
-    void aoAtualizar(negocio.id, { proximaAcaoEm: proximaAcao || null }).catch(() => undefined);
-  }
-
-  function salvarProximaAcaoTexto() {
-    const limpo = proximaAcaoTexto.trim();
-    if (limpo === (negocio.proximaAcaoTexto ?? "")) return;
-    void aoAtualizar(negocio.id, { proximaAcaoTexto: limpo || null }).catch(() => undefined);
-  }
-
-  return (
-    <article className={`crm-negocio-linha${destaque ? " destaque" : ""} status-${negocio.status}`}>
-      <input value={titulo} onChange={(e) => setTitulo(e.target.value)} onBlur={salvarTitulo} aria-label="Título do negócio" maxLength={200} />
-      <div className="crm-negocio-campos">
-        <input value={valor} onChange={(e) => setValor(e.target.value)} onBlur={salvarValor} inputMode="decimal" aria-label="Valor estimado do negócio" placeholder={formatarReais(0)} />
-        <select
-          value={negocio.status}
-          onChange={(e) => void aoAtualizar(negocio.id, { status: e.target.value as StatusNegocio }).catch(() => undefined)}
-          aria-label="Status do negócio"
-        >
-          {STATUS_NEGOCIO.map((item) => <option key={item.valor} value={item.valor}>{item.rotulo}</option>)}
-        </select>
-        <BotaoConfirmar className="crm-excluir-negocio" titulo="Excluir negócio" aviso="Excluir negócio?" aoConfirmar={() => aoExcluir(negocio.id)}>
-          <IconeLixeira className="" />
-        </BotaoConfirmar>
-      </div>
-      <div className="crm-negocio-acao">
-        <label className="crm-campo">
-          <span className="crm-rotulo">Próxima ação</span>
-          <input type="datetime-local" value={proximaAcao} onChange={(e) => setProximaAcao(e.target.value)} onBlur={salvarProximaAcao} />
-        </label>
-        <label className="crm-campo">
-          <span className="crm-rotulo">O que fazer</span>
-          <input value={proximaAcaoTexto} onChange={(e) => setProximaAcaoTexto(e.target.value)} onBlur={salvarProximaAcaoTexto} placeholder="Ex: mandar a proposta" maxLength={300} />
-        </label>
-      </div>
-      <Orcamentos
-        negocioId={negocio.id}
-        orcamentos={orcamentos}
-        aoCriar={aoCriarOrcamento}
-        aoAtualizar={aoAtualizarOrcamento}
-        aoExcluir={aoExcluirOrcamento}
-      />
-    </article>
-  );
-}
-
-// Interface minima de orcamento: criar, ver status e validade, e marcar aceito
-// ou recusado. O momento mais caro do ciclo nao cabia num titulo e num valor.
-function Orcamentos({
-  negocioId,
-  orcamentos,
-  aoCriar,
-  aoAtualizar,
-  aoExcluir,
-}: {
-  negocioId: string;
-  orcamentos: Orcamento[];
-  aoCriar: (negocioId: string, valor: number, validoAte?: string) => Promise<Orcamento>;
-  aoAtualizar: (id: string, dados: DadosOrcamento) => Promise<Orcamento>;
-  aoExcluir: (id: string) => Promise<void>;
-}) {
-  const [criando, setCriando] = useState(false);
-  const [valor, setValor] = useState("");
-  const [validoAte, setValidoAte] = useState("");
-  const [salvando, setSalvando] = useState(false);
-
-  async function criar() {
-    const numero = numeroOuNulo(valor);
-    if (numero === null || salvando) return;
-    setSalvando(true);
-    try {
-      await aoCriar(negocioId, numero, validoAte || undefined);
-      setValor("");
-      setValidoAte("");
-      setCriando(false);
-    } catch {
-      // O painel ja mostra o erro.
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <div className="crm-orcamentos">
-      <div className="crm-orcamentos-topo">
-        <span className="crm-rotulo">Orçamentos</span>
-        <button className="crm-acao-inline" onClick={() => setCriando((atual) => !atual)} aria-expanded={criando} type="button">
-          {criando ? "Cancelar" : "Novo orçamento"}
-        </button>
-      </div>
-
-      {criando && (
-        <div className="crm-orcamento-novo">
-          <label className="crm-campo">
-            <span className="crm-rotulo">Valor (R$)</span>
-            <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" autoFocus />
-          </label>
-          <label className="crm-campo">
-            <span className="crm-rotulo">Válido até</span>
-            <input type="date" value={validoAte} onChange={(e) => setValidoAte(e.target.value)} />
-          </label>
-          <button className="botao botao-neutro crm-botao-compacto" onClick={() => void criar()} disabled={numeroOuNulo(valor) === null || salvando} type="button">
-            {salvando ? "Criando..." : "Criar"}
-          </button>
-        </div>
-      )}
-
-      {orcamentos.length === 0 && !criando && <p className="crm-vazio-inline">Nenhum orçamento ainda.</p>}
-
-      <ul className="crm-orcamentos-lista">
-        {orcamentos.map((orcamento) => (
-          <li className={`crm-orcamento status-${orcamento.status}`} key={orcamento.id}>
-            <span className="crm-orcamento-dados">
-              <b>{formatarReais(orcamento.valor)}</b>
-              <small>
-                {STATUS_ORCAMENTO.find((item) => item.valor === orcamento.status)?.rotulo}
-                {orcamento.validoAte ? ` até ${formatarDataHora(orcamento.validoAte)}` : ""}
-              </small>
-            </span>
-            <span className="crm-orcamento-acoes">
-              <select
-                value={orcamento.status}
-                onChange={(e) => void aoAtualizar(orcamento.id, { status: e.target.value as StatusOrcamento }).catch(() => undefined)}
-                aria-label={`Status do orçamento de ${formatarReais(orcamento.valor)}`}
-              >
-                {STATUS_ORCAMENTO.map((item) => <option key={item.valor} value={item.valor}>{item.rotulo}</option>)}
-              </select>
-              <button className="crm-acao-inline" onClick={() => void aoAtualizar(orcamento.id, { status: "aceito" }).catch(() => undefined)} type="button">Aceito</button>
-              <button className="crm-acao-inline" onClick={() => void aoAtualizar(orcamento.id, { status: "recusado" }).catch(() => undefined)} type="button">Recusado</button>
-              <button className="crm-acao-icone" onClick={() => void aoExcluir(orcamento.id).catch(() => undefined)} aria-label={`Excluir orçamento de ${formatarReais(orcamento.valor)}`} type="button">
-                <IconeLixeira className="" />
-              </button>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

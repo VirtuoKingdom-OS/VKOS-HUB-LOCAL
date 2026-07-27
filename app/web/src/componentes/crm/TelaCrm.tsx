@@ -47,6 +47,7 @@ import { usarEstado } from "../../estado/contexto";
 import { ColunaCrm } from "./ColunaCrm";
 import { BuscaLeads } from "./BuscaLeads";
 import { PainelContato } from "./PainelContato";
+import { TelaConversas } from "./TelaConversas";
 import { VisaoHoje, type AcoesDoDia } from "./VisaoHoje";
 import { criarSincronizador, relerLinhaDoTempo, type Recarga } from "./aovivo";
 import {
@@ -60,7 +61,19 @@ import { formatarDataHora, formatarReais, iniciais } from "./formatos";
 import { IconeMais, IconeX } from "../comum/Icones";
 import "../../estilos/crm.css";
 
-type AbaCrm = "hoje" | "quadro" | "contatos" | "leads";
+// O chat mora DENTRO do CRM, como aba, e nao como tela propria na barra
+// lateral. Conversa nao existe sem contato, e uma caixa de entrada em outro
+// canto da navegacao viraria exatamente a segunda caixa de entrada paralela ao
+// funil que este modulo existe pra curar.
+type AbaCrm = "hoje" | "conversas" | "quadro" | "contatos" | "leads";
+
+const ROTULO_ABA: Record<AbaCrm, string> = {
+  hoje: "Hoje",
+  conversas: "Conversas",
+  quadro: "Quadro",
+  contatos: "Contatos",
+  leads: "Buscar leads",
+};
 type Ordenacao = "nome" | "interacao" | "valor";
 
 interface Arrasto {
@@ -97,7 +110,7 @@ function editandoNoCrm(tela: HTMLElement | null): boolean {
 }
 
 export function TelaCrm() {
-  const { avisoCrm } = usarEstado();
+  const { avisoCrm, avisoMensagens } = usarEstado();
   const [estado, setEstado] = useState<EstadoCrm | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -530,7 +543,9 @@ export function TelaCrm() {
     }
   }, []);
 
-  async function excluirNegocio(id: string) {
+  // useCallback porque esta funcao entra no pacote de acoes que o painel de
+  // contexto do chat recebe memoizado.
+  const excluirNegocio = useCallback(async (id: string) => {
     try {
       await apiExcluirNegocio(id);
       setEstado((anterior) => anterior ? {
@@ -538,12 +553,12 @@ export function TelaCrm() {
         negocios: anterior.negocios.filter((item) => item.id !== id),
         orcamentos: anterior.orcamentos.filter((item) => item.negocioId !== id),
       } : anterior);
-      if (negocioDestaqueId === id) setNegocioDestaqueId(null);
+      setNegocioDestaqueId((atual) => (atual === id ? null : atual));
     } catch (e) {
       mostrarErro(e, "Nao deu pra excluir o negocio.");
       throw e;
     }
-  }
+  }, []);
 
   const criarOrcamento = useCallback(async (
     negocioId: string,
@@ -655,6 +670,34 @@ export function TelaCrm() {
       mostrarErro(e, "Nao deu pra excluir a coluna.");
     }
   }
+
+  // ------------------------------------------------------ acoes do chat
+
+  // Negocio criado de dentro da conversa. So titulo e contato: o resto se
+  // preenche no proprio painel de contexto, sem tirar a pessoa do chat.
+  const criarNegocioRapido = useCallback(async (
+    contatoId: string,
+    titulo: string,
+  ): Promise<Negocio> => {
+    try {
+      const negocio = await apiCriarNegocio({ titulo, contatoId, status: "aberto" });
+      setEstado((anterior) => anterior ? { ...anterior, negocios: [...anterior.negocios, negocio] } : anterior);
+      return negocio;
+    } catch (e) {
+      mostrarErro(e, "Nao deu pra criar o negocio.");
+      throw e;
+    }
+  }, []);
+
+  // As mesmas acoes de negocio e orcamento da ficha do contato, passadas pro
+  // painel de contexto. Uma segunda implementacao divergiria da ficha.
+  const acoesNegocioDoChat = useMemo(() => ({
+    aoAtualizar: atualizarNegocio,
+    aoExcluir: excluirNegocio,
+    aoCriarOrcamento: criarOrcamento,
+    aoAtualizarOrcamento: atualizarOrcamento,
+    aoExcluirOrcamento: excluirOrcamento,
+  }), [atualizarNegocio, atualizarOrcamento, criarOrcamento, excluirNegocio, excluirOrcamento]);
 
   // ------------------------------------------------ acoes da tela do dia
 
@@ -884,9 +927,9 @@ export function TelaCrm() {
       </header>
 
       <nav className="crm-abas" role="tablist" aria-label="Visoes do CRM">
-        {(["hoje", "quadro", "contatos", "leads"] as AbaCrm[]).map((item) => (
+        {(["hoje", "conversas", "quadro", "contatos", "leads"] as AbaCrm[]).map((item) => (
           <button className={aba === item ? "ativa" : ""} onClick={() => setAba(item)} type="button" role="tab" aria-selected={aba === item} key={item}>
-            {item === "hoje" ? "Hoje" : item === "quadro" ? "Quadro" : item === "contatos" ? "Contatos" : "Buscar leads"}
+            {ROTULO_ABA[item]}
           </button>
         ))}
       </nav>
@@ -899,6 +942,20 @@ export function TelaCrm() {
           colunas={colunas}
           ultimaInteracaoPorContato={ultimaInteracaoOuCarimbo}
           acoes={acoesDoDia}
+        />
+      )}
+
+      {aba === "conversas" && (
+        <TelaConversas
+          estado={estado}
+          colunas={colunas}
+          nomeOrganizacao={nomeOrganizacao}
+          avisoMensagens={avisoMensagens}
+          acoesNegocio={acoesNegocioDoChat}
+          aoAtualizarContato={atualizarContato}
+          aoMoverEstagio={moverEstagioContato}
+          aoCriarNegocio={criarNegocioRapido}
+          aoAbrirFicha={(contatoId) => abrirContato(contatoId)}
         />
       )}
 
