@@ -2,10 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
 import { urlArquivoContexto } from "../../api/cliente";
 import type { Contexto, TipoContexto } from "../../tipos/dominio";
+import { Botao } from "../comum/Botao";
 import { EditorContexto } from "../comum/EditorContexto";
 import { Confirmacao, type DadosConfirmacao } from "../comum/Confirmacao";
-import { IconeLapis, IconeLixeira, IconeMais, IconeX } from "../comum/Icones";
-import { IconeBaixar, IconeImagens, IconeLink } from "./icones";
+import {
+  IconeChevron,
+  IconeLapis,
+  IconeLixeira,
+  IconeMais,
+} from "../comum/Icones";
+import { IconeImagens, IconeLink } from "./icones";
 import {
   ehImagem,
   formatarDataHora,
@@ -15,13 +21,15 @@ import {
   ROTULO_FONTE_ARTIGO,
   tituloLink,
 } from "./fontes";
+import "./telas.css";
 
 interface Props {
   tipo: TipoContexto;
   aoVoltar?: () => void;
 }
 
-// Tela de uma fonte de dados: os contextos daquele tipo em cards generosos.
+// Tela de uma fonte de dados: os contextos daquele tipo, um cartao cada. Aqui
+// o cartao e legitimo: objeto repetido, independente, com previa dentro.
 export function TelaFonte({ tipo, aoVoltar }: Props) {
   const { contextos, criarContexto, excluirContexto } = usarEstado();
   const [editando, setEditando] = useState<Contexto | null>(null);
@@ -64,55 +72,62 @@ export function TelaFonte({ tipo, aoVoltar }: Props) {
   }
 
   return (
-    <section className="tela-fluxo">
-      <header className="tela-fluxo-topo tela-fonte-topo">
-        <div>
+    <section className="tela tela-fonte">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
           {aoVoltar && (
-            <button className="botao-voltar-fontes" onClick={aoVoltar}>
-              <span aria-hidden="true">←</span>
+            <Botao
+              variante="fantasma"
+              tamanho="p"
+              className="fonte-voltar"
+              onClick={aoVoltar}
+            >
+              <IconeChevron className="" />
               Fontes de dados
-            </button>
+            </Botao>
           )}
           <h1>{ROTULO_FONTE[tipo]}</h1>
-          <p className="subtitulo">{rotuloContagem}</p>
+          <p>{rotuloContagem}</p>
         </div>
-        <button
-          className="botao botao-principal"
-          onClick={() => setCriando(true)}
-        >
-          <IconeMais className="" />
-          Nova fonte
-        </button>
+        {/* Com a tela vazia, a ação mora no estado vazio: dois "Nova fonte"
+            visíveis ao mesmo tempo seriam duas ações principais na tela. */}
+        {contagem > 0 && (
+          <div className="tela-topo-acoes">
+            <Botao variante="principal" onClick={() => setCriando(true)}>
+              <IconeMais className="" />
+              Nova fonte
+            </Botao>
+          </div>
+        )}
       </header>
 
-      {contagem === 0 ? (
-        <div className="fluxo-vazio">
-          <IconeImagens className="icone-vazio" style={{ width: 40, height: 40 }} />
-          <h2>Nenhuma fonte de {ROTULO_FONTE_ARTIGO[tipo]} ainda</h2>
-          <p>
-            Crie uma fonte pra guardar {ROTULO_FONTE_ARTIGO[tipo]} que suas
-            sessões vão usar como referência.
-          </p>
-          <button
-            className="botao botao-principal"
-            onClick={() => setCriando(true)}
-          >
-            <IconeMais className="" />
-            Nova fonte
-          </button>
-        </div>
-      ) : (
-        <div className="tela-fonte-corpo">
-          {itens.map((contexto) => (
-            <CartaoFonte
-              key={contexto.id}
-              contexto={contexto}
-              aoAbrir={() => setEditando(contexto)}
-              aoExcluir={() => pedirExcluir(contexto)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="tela-corpo">
+        {contagem === 0 ? (
+          <div className="vazio">
+            <IconeImagens className="" />
+            <h2>Nenhuma fonte de {ROTULO_FONTE_ARTIGO[tipo]} ainda</h2>
+            <p>
+              Uma fonte guarda {ROTULO_FONTE_ARTIGO[tipo]} que suas sessões vão
+              usar como referência. Crie a primeira e já preencha.
+            </p>
+            <Botao variante="principal" onClick={() => setCriando(true)}>
+              <IconeMais className="" />
+              Nova fonte
+            </Botao>
+          </div>
+        ) : (
+          <div className="grade-cartoes">
+            {itens.map((contexto) => (
+              <CartaoFonte
+                key={contexto.id}
+                contexto={contexto}
+                aoAbrir={() => setEditando(contexto)}
+                aoExcluir={() => pedirExcluir(contexto)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {criando && (
         <PromptNovaFonte
@@ -137,7 +152,8 @@ export function TelaFonte({ tipo, aoVoltar }: Props) {
   );
 }
 
-// Card de uma fonte: nome, quando foi atualizada, prévia e ações.
+// Cartao de uma fonte: nome, quando foi atualizada, prévia e ações. As ações
+// nascem visíveis, nunca no hover.
 function CartaoFonte({
   contexto,
   aoAbrir,
@@ -150,31 +166,31 @@ function CartaoFonte({
   const atualizada = formatarDataHora(contexto.atualizadaEm);
 
   return (
-    <article className="cartao-fonte">
-      <header className="cartao-fonte-topo">
-        <h3>{contexto.nome}</h3>
-        {atualizada && (
-          <span className="cartao-fonte-data">atualizada em {atualizada}</span>
-        )}
-      </header>
+    <article className="cartao">
+      <h3>{contexto.nome}</h3>
+      {atualizada && (
+        <span className="fonte-data">atualizada em {atualizada}</span>
+      )}
 
-      <div className="cartao-fonte-previa">
+      <div className="fonte-previa">
         <PreviaFonte contexto={contexto} />
       </div>
 
-      <div className="cartao-fonte-acoes">
-        <button className="botao botao-neutro" onClick={aoAbrir}>
+      <div className="fonte-acoes">
+        <Botao variante="neutro" tamanho="p" onClick={aoAbrir}>
           <IconeLapis className="" />
           Abrir
-        </button>
-        <button
-          className="botao-icone-perigo"
+        </Botao>
+        <Botao
+          variante="perigo"
+          tamanho="p"
+          soIcone
           onClick={aoExcluir}
           title="Excluir esta fonte"
           aria-label="Excluir esta fonte"
         >
           <IconeLixeira className="" />
-        </button>
+        </Botao>
       </div>
     </article>
   );
@@ -187,12 +203,12 @@ function PreviaFonte({ contexto }: { contexto: Contexto }) {
       .filter((a) => ehImagem(a.nome, a.tipo))
       .slice(0, 4);
     if (imagens.length === 0) {
-      return <p className="previa-vazia">Sem imagens ainda.</p>;
+      return <p className="fonte-previa-vazia">Sem imagens ainda.</p>;
     }
     return (
-      <div className="previa-imagens">
+      <div className="fonte-previa-imagens">
         {imagens.map((a) => (
-          <div className="previa-mini" key={a.nome}>
+          <div className="fonte-previa-mini" key={a.nome}>
             <img
               src={urlArquivoContexto(contexto.id, a.nome)}
               alt={a.nome}
@@ -207,14 +223,14 @@ function PreviaFonte({ contexto }: { contexto: Contexto }) {
   if (contexto.tipo === "links") {
     const links = parsearLinks(contexto.texto).slice(0, 3);
     if (links.length === 0) {
-      return <p className="previa-vazia">Sem links ainda.</p>;
+      return <p className="fonte-previa-vazia">Sem links ainda.</p>;
     }
     return (
-      <ul className="previa-links">
+      <ul className="fonte-previa-links">
         {links.map((l, i) => (
           <li key={`${l.url}-${i}`}>
             <IconeLink className="" />
-            <span className="previa-link-texto">
+            <span className="fonte-previa-link-texto">
               {l.descricao || tituloLink(l.url)}
             </span>
           </li>
@@ -226,10 +242,10 @@ function PreviaFonte({ contexto }: { contexto: Contexto }) {
   // Texto: primeiras linhas.
   const linhas = primeirasLinhas(contexto.texto, 4);
   if (linhas.length === 0) {
-    return <p className="previa-vazia">Sem texto ainda.</p>;
+    return <p className="fonte-previa-vazia">Sem texto ainda.</p>;
   }
   return (
-    <div className="previa-texto">
+    <div className="fonte-previa-texto">
       {linhas.map((linha, i) => (
         <p key={i}>{linha}</p>
       ))}
@@ -237,7 +253,8 @@ function PreviaFonte({ contexto }: { contexto: Contexto }) {
   );
 }
 
-// Prompt estilizado pra nomear a nova fonte. Esc ou clique fora fecham.
+// Modal pra nomear a nova fonte. Esc ou clique fora fecham. Ele e modal porque
+// EXIGE a decisao antes de continuar: sem nome nao ha fonte pra abrir.
 function PromptNovaFonte({
   tipo,
   aoConfirmar,
@@ -272,50 +289,53 @@ function PromptNovaFonte({
   }
 
   return (
-    <div className="overlay-fonte" onClick={aoFechar}>
+    <div className="veu-modal" onClick={aoFechar}>
       <div
-        className="cartao-prompt"
+        className="modal"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="titulo-nova-fonte"
       >
-        <div className="cartao-prompt-topo">
-          <div className="cartao-prompt-selo">
-            <IconeBaixar className="" style={{ transform: "rotate(180deg)" }} />
-          </div>
-          <h2>Nova fonte de {ROTULO_FONTE_ARTIGO[tipo]}</h2>
-          <button
-            className="botao-fantasma cartao-prompt-x"
-            onClick={aoFechar}
-            aria-label="Fechar"
-          >
-            <IconeX className="" />
-          </button>
+        <div className="modal-topo">
+          <h2 id="titulo-nova-fonte">
+            Nova fonte de {ROTULO_FONTE_ARTIGO[tipo]}
+          </h2>
         </div>
-        <p className="cartao-prompt-ajuda">
-          Dê um nome pra reconhecer essa fonte depois.
-        </p>
-        <input
-          ref={campo}
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void enviar();
-          }}
-          placeholder="Ex: referências da marca"
-          maxLength={80}
-        />
-        <div className="cartao-prompt-acoes">
-          <button className="botao botao-neutro" onClick={aoFechar}>
+        <div className="modal-corpo">
+          <div className="grupo-campo">
+            <label className="rotulo" htmlFor="nome-nova-fonte">
+              Nome da fonte
+            </label>
+            <input
+              className="campo"
+              id="nome-nova-fonte"
+              ref={campo}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void enviar();
+              }}
+              placeholder="Ex: referências da marca"
+              maxLength={80}
+            />
+            <span className="dica">
+              Escolha um nome para reconhecer essa fonte depois.
+            </span>
+          </div>
+        </div>
+        <div className="modal-rodape">
+          <Botao variante="fantasma" onClick={aoFechar}>
             Cancelar
-          </button>
-          <button
-            className="botao botao-principal"
+          </Botao>
+          <Botao
+            variante="principal"
             onClick={() => void enviar()}
             disabled={!nome.trim() || salvando}
+            aria-busy={salvando}
           >
-            {salvando ? "Criando..." : "Criar fonte"}
-          </button>
+            Criar fonte
+          </Botao>
         </div>
       </div>
     </div>

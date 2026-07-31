@@ -1,0 +1,150 @@
+/* ==========================================================================
+   CONEXOES: o motor de IA e um servico externo por secao.
+
+   REDESENHADA na Fase 2 do redesign v2 (2026-07-30).
+
+   O QUE MUDOU, e por que:
+
+   - Sumiu o cartao. A tela inteira era um cartao de motor mais uma grade de
+     cartoes de servico, cada um com um formulario dentro: cartao com
+     formulario dentro e cartao dentro de cartao com passos extras. Agora cada
+     bloco e uma .secao, apoiada direto no plano de trabalho, e a coluna trava
+     em 720px, porque formulario nao se le em linha de 900px.
+   - Os dois motores viraram .opcoes com radio de verdade. O clique passou a
+     valer na hora, sem o "Usar Claude" e depois "Confirmar Claude": trocar o
+     motor padrao nao apaga nada e nao e destrutivo, e o que ele muda de fato
+     esta escrito na faixa que aparece quando o Codex entra.
+   - O interruptor caseiro de 42px saiu e entrou o .interruptor das primitivas.
+     Ao lado dele, um selo diz o estado PARADO: Ligado com o ponto vivo, ou
+     Desligado em neutro. Antes o unico sinal era a cor do trilho.
+   - As tres faixas de estado viraram .faixa das primitivas. O giro do meio da
+     tela virou esqueleto, que diz o formato do que esta chegando.
+
+   O QUE ESTA FOLHA ESCREVE: so o layout que e desta tela. Botao, campo, selo,
+   faixa, opcao, interruptor e esqueleto vem das primitivas.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A SECAO 0 DESTA FOLHA MORREU EM 2026-07-30, na varredura final da Fase 2.
+   Ela devolvia a altura e o raio do campo e do interruptor dentro de
+   ".tela-conexoes", porque o legado.css vestia input, textarea e select POR
+   ELEMENTO na camada tela, e camada tela vence a base onde as primitivas
+   moram, por CAMADA e nao por especificidade: nenhum seletor de primitiva
+   alcancava. O legado.css foi demolido e as cinco regras de remendo sairam
+   com ele. */
+
+/* Espaco entre os blocos internos de uma secao. A .secao das primitivas cuida
+   do espaco ENTRE secoes; aqui e o ritmo de dentro. */
+.tela-conexoes .secao > .faixa,
+.tela-conexoes .secao > .opcoes,
+.tela-conexoes .secao > .conx-descricao,
+.tela-conexoes .secao > .grupo-campo,
+.tela-conexoes .secao > .conx-carregando {
+  margin-bottom: var(--esp-12);
+}
+.tela-conexoes .secao > :last-child {
+  margin-bottom: 0;
+}
+
+/* A descricao da secao entra POR BAIXO do titulo, e nao na ponta direita da
+   mesma linha: la ela ficava a 600px do que explica. */
+.tela-conexoes .secao-topo {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--esp-2);
+}
+
+/* ===== Motor de IA ===== */
+/* Duas opcoes largas: cada uma carrega nome, versao e o selo de deteccao. */
+.conx-motores {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.conx-motores .selo {
+  align-self: flex-start;
+  margin-top: var(--esp-4);
+}
+
+.conx-modelo select {
+  max-width: 420px;
+}
+
+/* ===== Servico externo ===== */
+/* Cada servico e um bloco dentro da secao "Servicos", separado por espaco e um
+   fio. Nao e cartao: cartao com formulario dentro foi exatamente o que esta
+   tela deixou de ser. */
+.conx-servico + .conx-servico {
+  margin-top: var(--esp-24);
+  padding-top: var(--esp-24);
+  border-top: 1px solid var(--linha);
+}
+.conx-servico > * {
+  margin-bottom: var(--esp-12);
+}
+.conx-servico > :last-child {
+  margin-bottom: 0;
+}
+/* O nome do servico e o dado forte do bloco; o selo e o interruptor moram na
+   mesma linha, a direita, porque ligar e a decisao principal daqui. */
+.conx-servico-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+.conx-servico-topo h3 {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.conx-servico-topo .selo {
+  flex: none;
+}
+.conx-ligar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt-p);
+  cursor: pointer;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+
+.conx-descricao {
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  max-width: 68ch;
+}
+
+/* O campo do token e o olho de revelar. O olho fica DENTRO da caixa do campo,
+   e o padding a direita abre espaco pra ele nao cobrir o texto colado. */
+.conx-entrada {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.conx-campo-token {
+  font-family: var(--mono);
+  padding-right: calc(var(--alt-p) + var(--esp-4));
+}
+.conx-olho {
+  position: absolute;
+  right: var(--esp-2);
+}
+.conx-olho svg {
+  width: 16px;
+  height: 16px;
+}
+
+.conx-carregando .esqueleto-linha {
+  height: var(--esp-16);
+}
+} /* fim de @layer tela */

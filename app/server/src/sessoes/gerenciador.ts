@@ -26,7 +26,7 @@ import {
 } from "./conformidade-site.js";
 import { obterProvedorAtivo, obterProvedorDaSessao } from "../provedores/index.js";
 import { prepararPromptEWorkspace } from "../provedores/skills.js";
-import { transmitir, transmitirPara } from "../ws.js";
+import { transmitir, transmitirPara } from "../nucleo/ws.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { obterConfigApp, obterModeloPadraoDoProvedor } from "../config/estado.js";
 import { anexarTurno, apagarTranscricao } from "./transcricao.js";

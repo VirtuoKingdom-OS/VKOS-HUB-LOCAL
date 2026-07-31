@@ -4,7 +4,9 @@ import { INFO_STATUS } from "../../config/status";
 import { obterResumoCore } from "../../api/core";
 import type { ResumoCore, WorkspaceNoCore } from "../../tipos/core";
 import { mensagemDeErro } from "../../util/erros";
+import { Botao } from "../comum/Botao";
 import { IconeAlerta, IconeSeta } from "../comum/Icones";
+import { PainelClientes, PainelCrm, PainelFinancas } from "./PaineisExemplo";
 import {
   ROTULO_ATIVIDADE,
   alturaDaBarra,
@@ -12,12 +14,11 @@ import {
   formatarUsd,
   fraseDaTendencia,
   fraseDoPiso,
-  fraseDosProjetos,
   fraseDosRemovidos,
   lerSerie,
   tempoRelativo,
 } from "./logica";
-import "../../estilos/core.css";
+import "./core.css";
 
 // Quantos workspaces cabem no bloco do Dashboard antes de mandar pra lista.
 const NO_DASHBOARD = 5;
@@ -31,6 +32,10 @@ interface Props {
 // Duas coisas, e so elas: quanto o dono gastou com IA e o que esta acontecendo
 // no negocio dele agora. Nada aqui e do cliente aberto: o CORE nao muda quando
 // se troca de workspace.
+//
+// A estrutura e a da fundacao v2: .tela, uma linha de cabecalho de 56px e um
+// corpo rolante. Cada painel e uma .secao apoiada direto no plano de trabalho,
+// e a unica caixa da tela e a .lista, onde o dado repete.
 export function TelaCore({ aoNavegar }: Props) {
   const { sessoes, custos, workspaces, workspaceAtivo, trocarWorkspace } = usarEstado();
   const [resumo, setResumo] = useState<ResumoCore | null>(null);
@@ -75,40 +80,54 @@ export function TelaCore({ aoNavegar }: Props) {
     [workspaceAtivo, trocarWorkspace, aoNavegar],
   );
 
-  const serie = useMemo(() => lerSerie(resumo?.gasto.porDia ?? []), [resumo]);
   const destaque = useMemo(
     () => (resumo ? resumo.workspaces.slice(0, NO_DASHBOARD) : []),
     [resumo],
   );
 
   return (
-    <section className="tela-core">
-      <div className="core-scroll">
-        <header className="core-cabecalho">
-          <span className="core-nivel">CORE</span>
+    <section className="tela">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
           <h1>Seu negócio</h1>
-          <p className="core-contexto">
-            O nível de cima do Hub. O que você vê aqui não muda quando você troca
-            de workspace.
-          </p>
-        </header>
+          <p>O nível de cima do Hub. Nada aqui muda quando você troca de workspace.</p>
+        </div>
+        <div className="tela-topo-acoes">
+          {/* A unica acao principal da tela. Tudo o que se faz a partir do
+              Dashboard passa por abrir um projeto. */}
+          <Botao variante="principal" onClick={() => aoNavegar("workspaces")}>
+            Abrir workspaces
+          </Botao>
+        </div>
+      </header>
 
+      <div className="tela-corpo">
         {erro && (
-          <div className="core-erro" role="alert">
+          <div className="faixa faixa-alerta core-faixa-erro" role="alert">
             <IconeAlerta className="" />
-            {erro}
+            <div className="faixa-texto">{erro}</div>
           </div>
         )}
 
-        <div className="core-blocos">
-          <section className="core-bloco core-bloco-gasto" aria-label="Gasto com IA">
-            <div className="core-bloco-topo">
+        {/* Enquanto houver painel de exemplo na tela, o Dashboard diz isso uma
+            vez, em texto corrido. Um selo em cada painel repetiria a mesma
+            ressalva cinco vezes. */}
+        <div className="faixa core-nota" role="note">
+          <div className="faixa-texto">
+            Clientes, Finanças e CRM estão com números de demonstração, para
+            desenhar a tela. Gasto com IA e Projetos ativos são reais.
+          </div>
+        </div>
+
+        <div className="core-grade">
+          <section className="secao core-painel" aria-label="Gasto com IA">
+            <div className="secao-topo">
               <h2>Gasto com IA</h2>
-              <span className="core-bloco-marca">estimado</span>
+              <span className="selo">estimado</span>
             </div>
 
             {carregando && !resumo ? (
-              <div className="core-esqueleto" aria-hidden="true" />
+              <div className="esqueleto core-esqueleto" aria-hidden="true" />
             ) : resumo ? (
               <>
                 <p className="core-numero" title={dicaDoGasto(resumo.gasto)}>
@@ -117,7 +136,7 @@ export function TelaCore({ aoNavegar }: Props) {
                     piso: resumo.gasto.piso,
                   })}
                 </p>
-                <p className="core-numero-legenda">
+                <p className="core-legenda">
                   Todos os workspaces, inclusive os já removidos.
                 </p>
 
@@ -144,71 +163,73 @@ export function TelaCore({ aoNavegar }: Props) {
             ) : null}
           </section>
 
-          <section className="core-bloco core-bloco-projetos" aria-label="Projetos ativos">
-            <div className="core-bloco-topo">
+          <section className="secao core-painel" aria-label="Projetos ativos">
+            <div className="secao-topo">
               <h2>Projetos ativos</h2>
               {resumo && resumo.sessoesRodando > 0 && (
-                <span className="core-bloco-pulso">
-                  <span className="core-ponto-vivo" />
+                <span className="selo selo-vivo">
+                  <span className="ponto-vivo" aria-hidden="true" />
                   ao vivo
                 </span>
               )}
             </div>
 
             {carregando && !resumo ? (
-              <div className="core-esqueleto" aria-hidden="true" />
+              <div className="esqueleto core-esqueleto" aria-hidden="true" />
             ) : resumo ? (
               <>
                 <p className="core-numero">
                   {resumo.projetosAtivos}
                   <span className="core-numero-de"> de {resumo.workspaces.length}</span>
                 </p>
-                <p className="core-numero-legenda">
-                  {fraseDosProjetos({
-                    projetosAtivos: resumo.projetosAtivos,
-                    total: resumo.workspaces.length,
-                    sessoesRodando: resumo.sessoesRodando,
-                    janelaAtividadeDias: resumo.janelaAtividadeDias,
-                  })}
+                <p className="core-legenda">
+                  Projetos que trabalharam nos últimos dias.
                 </p>
 
                 {destaque.length === 0 ? (
-                  <div className="core-vazio">
-                    <p>Nenhum workspace ainda.</p>
-                    <button
-                      className="botao botao-principal"
-                      type="button"
-                      onClick={() => aoNavegar("workspaces")}
-                    >
+                  <div className="vazio">
+                    <h3>Nenhum workspace ainda</h3>
+                    <p>
+                      Cada projeto seu vira um workspace, com o Cérebro e as peças
+                      dele. Crie o primeiro para começar.
+                    </p>
+                    <Botao variante="neutro" onClick={() => aoNavegar("workspaces")}>
                       Criar o primeiro
-                    </button>
+                    </Botao>
                   </div>
                 ) : (
-                  <ul className="core-lista">
+                  <div className="lista core-lista">
                     {destaque.map((w) => (
-                      <li key={w.id}>
-                        <LinhaWorkspace
-                          workspace={w}
-                          aoAbrir={() => void abrirWorkspace(w.id)}
-                        />
-                      </li>
+                      <LinhaWorkspace
+                        key={w.id}
+                        workspace={w}
+                        aoAbrir={() => void abrirWorkspace(w.id)}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 )}
 
                 {resumo.workspaces.length > destaque.length && (
-                  <button
+                  <Botao
+                    variante="fantasma"
+                    tamanho="p"
                     className="core-ver-todos"
-                    type="button"
                     onClick={() => aoNavegar("workspaces")}
                   >
                     Ver os {resumo.workspaces.length} workspaces
-                    <IconeSeta className="" />
-                  </button>
+                    <IconeSeta className="core-linha-seta" />
+                  </Botao>
                 )}
               </>
             ) : null}
           </section>
+
+          {/* PAINEIS DE EXEMPLO. Numero nenhum aqui vem do sistema: eles estao
+              na tela pro Jesse decidir se os resumos sao os certos antes de
+              alguem ligar isso em dado real. Pra remover, ver exemplo.ts. */}
+          <PainelClientes aoNavegar={aoNavegar} />
+          <PainelFinancas aoNavegar={aoNavegar} />
+          <PainelCrm aoNavegar={aoNavegar} />
         </div>
       </div>
     </section>
@@ -243,7 +264,8 @@ function Serie({ resumo }: { resumo: ResumoCore }) {
 }
 
 // Uma linha de workspace no Dashboard. Clicar abre o workspace e cai na tela de
-// trabalho dele.
+// trabalho dele. A linha inteira e o alvo, e ela se anuncia parada: superficie,
+// fio e seta ja estao la antes de o mouse chegar.
 export function LinhaWorkspace({
   workspace,
   aoAbrir,
@@ -252,15 +274,16 @@ export function LinhaWorkspace({
   aoAbrir: () => void;
 }) {
   const quando = tempoRelativo(workspace.ultimoTurnoEm ?? workspace.ultimoUso);
+  const rodando = workspace.atividade === "rodando";
   return (
-    <button className="core-linha" type="button" onClick={aoAbrir} title={workspace.pasta}>
-      <span className={`core-linha-estado ${workspace.atividade}`} aria-hidden="true" />
-      <span className="core-linha-texto">
-        <span className="core-linha-nome">
-          {workspace.nome}
-          {workspace.ativo && <span className="core-etiqueta">aberto</span>}
-        </span>
-        <span className="core-linha-sub">
+    <button className="item-lista" type="button" onClick={aoAbrir} title={workspace.pasta}>
+      <span
+        className={`ponto-vivo${rodando ? "" : " parado"}`}
+        aria-hidden="true"
+      />
+      <span className="item-lista-texto">
+        <span className="item-lista-titulo">{workspace.nome}</span>
+        <span className="item-lista-meta">
           {ROTULO_ATIVIDADE[workspace.atividade]}
           {workspace.sessoesRodando > 0 &&
             `, ${workspace.sessoesRodando} ${
@@ -284,6 +307,7 @@ export function LinhaWorkspace({
               piso: workspace.piso,
             })}
       </span>
+      <IconeSeta className="core-linha-seta" />
     </button>
   );
 }

@@ -122,7 +122,9 @@ function NoContainerInterno({ id, data }: NodeProps) {
 
   return (
     <div className={`no-container tipo-${tipo}`}>
-      <Handle type="target" position={Position.Left} />
+      {/* Ancora, nao alca: o contêiner recebe a aresta automatica da sessao que
+          gerou as pecas. Nada se liga nele a mao. */}
+      <Handle type="target" position={Position.Left} isConnectable={false} />
 
       {/* Cabecalho faz os dois: arrastar move o no (area sem nodrag) e o
           clique parado abre a galeria (a guarda de movimento separa os

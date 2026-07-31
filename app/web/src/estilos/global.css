@@ -1,42 +1,33 @@
-/* Identidade VKOS Hub: minimalista, verde-menta, glow sutil, contraste
-   confortavel. Tres temas, escolhidos por data-theme na raiz do documento:
-   "escuro" (o novo padrao, grafite neutro), "claro", e o "vkos" original
-   (que vive aqui no :root, sem data-theme proprio, como base de fallback).
-   Todos os valores de cor passam por estes tokens. Os canais *-rgb existem
-   pra compor alpha: rgba(var(--menta-rgb), 0.3) muda junto com o tema. */
+/* ==========================================================================
+   VKOS HUB, FUNDACAO v2 (2026-07-30). A CAMADA BASE.
 
-/* A ordem das camadas de cascata do Hub, da que perde para a que vence:
+   O que mora aqui, e so isto: o reset, a fonte, as ESCALAS (medida, tipo,
+   peso, raio, movimento, empilhamento, opacidade) e o CONTRATO DE NOME de
+   todo token de cor. Nenhum componente. Nenhuma tela.
 
-   base     este arquivo, o reset, as escalas e o contrato de nome dos tokens
-   externo  o CSS do React Flow, que vem de fora e o app sobrescreve
-   tela     as 16 folhas de tela, que so tratam da sua tela
-   tema     visual-hub.css, o valor final de cada token por tema
+   Onde mora o resto:
+     primitivas.css   os componentes compartilhados (botao, campo, pilula,
+                      aba, faixa, modal, tabela, estado vazio...). Camada base
+                      tambem, importada logo depois desta.
+     visual-hub.css   o VALOR de cada token de cor por tema. Camada tema.
+     canvas.css       o canvas de grafo do Cockpit e do Mapa. Camada tela.
+     componentes/*    a folha de cada tela, ao lado do componente dela.
 
-   A declaracao se repete no topo de toda folha de proposito. A primeira que o
-   navegador ler e a que fixa a ordem, e o bundler nao garante qual folha vem
-   primeiro: telas carregadas sob demanda entram depois de tudo. Com a ordem
-   declarada, nada disso importa mais.
-
-   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+   A ordem da cascata, da que perde pra que vence:
+     base -> externo -> tela -> tema
+   A linha "@layer base, externo, tela, tema;" abre TODA folha do app, antes de
+   qualquer regra. A primeira que o navegador ler e a que fixa a ordem, e as
+   folhas de tela carregam sob demanda: sem essa linha, quem chega depois
+   vence, e a ordem passa a depender de qual tela o usuario abriu primeiro.
+   ========================================================================== */
 @layer base, externo, tela, tema;
 
 @layer base {
-/* A fonte e embarcada, nao vem de CDN nem do sistema.
- *
- * O Hub e local-first: ele roda sem internet, e o dono pode nem ter. Depender
- * de CDN e depender de rede. Depender de fonte do sistema e pior, porque falha
- * em silencio: os pesos intermediarios so existem se a maquina tiver Segoe UI
- * Variable, e onde ela nao esta, a hierarquia inteira achata sem ninguem
- * perceber. O navegador nao avisa.
- *
- * O arquivo e o Inter variavel, 344 KB de woff2, sob SIL Open Font License
- * 1.1, que permite embarcar. A licenca vive ao lado, em
- * src/fontes/LICENSE-Inter.txt. Um arquivo so cobre 400, 500, 600 e 700 de
- * verdade, e o eixo opsz entrega o tamanho optico que a Apple usa, sem
- * precisar de tres familias.
- *
- * Ver decisoes/2026-07-27-a-fonte-embarcada.md.
- */
+/* A fonte e embarcada, nao vem de CDN nem do sistema. O Hub roda local, sem
+   internet garantida. Fonte de sistema falha em silencio: os pesos
+   intermediarios so existem se a maquina tiver a familia certa, e onde ela nao
+   esta a hierarquia inteira achata sem ninguem perceber.
+   Inter variavel, SIL Open Font License 1.1, licenca em src/fontes/. */
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -45,138 +36,26 @@
   src: url("../fontes/InterVariable.woff2") format("woff2-variations");
 }
 
-:root {
-  /* O contrato de nome. Todo token de cor do Hub nasce aqui, com o valor do
-     Dark VKOS, que e a identidade original e serve de base quando data-theme
-     ainda nao foi escolhido. O valor final de cada tema vem do visual-hub.css,
-     na camada tema, que sempre vence esta. */
-
-  /* A escada de superficie. Quatro degraus solidos, nunca transparencia
-     empilhada. E dela que sai a profundidade, nao de sombra. */
-  --fundo: #08100e;
-  --superficie: #101b17;
-  --superficie-alta: #17251f;
-  --superficie-flutuante: #1e2f28;
-  /* O branco que representa papel de site, nao superficie do app. Ele nao
-     acompanha o tema de proposito: e a folha do cliente. */
-  --papel: #ffffff;
-
-  /* Duas bordas, dois trabalhos. --linha e decoracao e pode ser sutil.
-     --linha-forte e o unico indicador de um controle, entao o criterio 1.4.11
-     do WCAG exige 3:1 contra a superficie em que ela se apoia. */
-  --linha: #22362f;
-  --linha-forte: #446d5f;
-
-  --texto: #f0f7f4;
-  --texto-suave: #adbfb8;
-  --texto-fraco: #83968f;
-
-  /* O menta e sinal, nunca decoracao. Ele vive em cinco lugares: botao
-     principal, anel de foco, item de navegacao ativo, indicador de estado e a
-     palavra HUB da marca. Fundo de area nao entra na lista. */
-  --menta: #21d6a4;
-  --menta-tenue: #123128;
-  --menta-linha: #21d6a4;
-  --sobre-menta: #03211a;
-
-  --alerta: #ff7b7b;
-  /* Texto sobre o alerta cheio (botao de excluir). Escuro sobre o vermelho
-     claro dos temas escuros, branco sobre o vermelho fechado do Claro. Sem
-     este token o rotulo ficava em 3,74:1 no Claro, e e o botao onde ler
-     errado apaga alguma coisa. */
-  --sobre-alerta: #2a0d0d;
-  --alerta-tenue: #2d2723;
-  --alerta-linha: #ff7b7b;
-
-  --aviso: #f0c674;
-  --aviso-tenue: #2b3022;
-  --aviso-linha: #f0c674;
-
-  --neutro-tenue: #152019;
-  --pontos-canvas: #183128;
-
-  /* Canais pra alpha. */
-  --menta-rgb: 33, 214, 164;
-  --scrim-rgb: 2, 8, 6;
-  --alerta-rgb: 255, 123, 123;
-  --amarelo-rgb: 240, 198, 116;
-  --fundo-rgb: 8, 16, 14;
-  --painel-rgb: 16, 27, 23;
-  --realce-rgb: 255, 255, 255;
-  --suave-rgb: 173, 191, 184;
-  --fraco-rgb: 131, 150, 143;
-  --veu: rgba(var(--scrim-rgb), 0.55);
-  --overlay-imagem-leve: rgba(var(--scrim-rgb), 0.28);
-  --overlay-imagem-forte: rgba(var(--scrim-rgb), 0.58);
-
-  /* O glow, com disciplina. A identidade da VK tem glow sutil e ele fica. O
-     que muda e onde ele entra. Glow que marca estado vale, glow que so decora
-     nao. Sao tres, e so tres:
-
-       --glow-vivo   o que esta acontecendo agora: sessao rodando, conexao
-                     ligada, passo em andamento. E o unico que pulsa.
-       --glow-foco   o anel de foco de teclado, o realce mais importante da
-                     interface pra quem navega sem mouse.
-       --glow-acao   a acao principal da tela, uma por tela.
-
-     Onde ele nunca entra: superficie grande, texto corrido, borda decorativa,
-     hover de cartao e item selecionado. Ver
-     decisoes/2026-07-27-o-glow-so-marca-estado.md. */
-  --glow-vivo: 0 0 14px rgba(var(--menta-rgb), 0.4);
-  --glow-foco: 0 0 0 3px rgba(var(--menta-rgb), 0.22);
-  --glow-acao: 0 0 20px rgba(var(--menta-rgb), 0.22);
-
-  /* Compostos. */
-  --grad-cerebro: radial-gradient(120% 130% at 50% 0%, #12362a 0%, #10241d 48%, #0d1a16 100%);
-  /* O Inter embarcado vem primeiro. O resto da pilha e so rede de seguranca:
-     se o arquivo nao carregar, a interface ainda abre com uma sem serifa
-     parecida em vez de cair no Times. */
-  --fonte: "Inter", "Segoe UI Variable Text", system-ui, -apple-system,
-    "Segoe UI", Roboto, sans-serif;
-  --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "Consolas", monospace;
-  color-scheme: dark;
-
-  /* Apelidos do nome antigo, pro app inteiro seguir de pe enquanto as folhas
-     migram. Saem na etapa de limpeza. */
-  --fundo-2: var(--superficie);
-  --fundo-3: var(--superficie-alta);
-  --superficie-2: var(--superficie-alta);
-  --borda: var(--linha);
-  --borda-forte: var(--linha-forte);
-  --menta-clara: var(--menta);
-  --menta-escura: var(--sobre-menta);
-  --alerta-suave: var(--alerta);
-  --amarelo: var(--aviso);
-  --glow: var(--glow-acao);
-  --glow-forte: var(--glow-vivo);
-  --confirmar-perigo-fundo: var(--alerta-tenue);
-  --confirmar-perigo-botao: var(--superficie-flutuante);
-  --confirmar-perigo-borda: var(--alerta-linha);
-  --confirmar-perigo-texto: var(--alerta);
-}
-
-/* Os tres temas vivem so no visual-hub.css, na camada tema. Antes cada token
-   de cor era declarado 6 vezes, tres temas vezes duas camadas, e ninguem
-   sabia de cor qual valor valia. Agora o :root acima e o contrato de nome com
-   o valor do Dark VKOS, e o valor final de cada tema vem de um lugar so. */
-
 /* ==========================================================================
-   AS ESCALAS. Nao mudam por tema, entao vivem so aqui, na camada base.
-
-   Antes disto o app tinha 24 tamanhos de fonte, 16 pesos, 42 espacamentos,
-   31 raios, 117 sombras e 41 duracoes. Nao eram escalas, eram decisoes
-   independentes que ninguem consegue manter coerentes a mao.
-
-   Ver planos/vkos-hub-local-v1/05-design-system.md, secao 3.
+   1. AS ESCALAS. Nao mudam por tema, entao vivem so aqui.
    ========================================================================== */
 :root {
-  /* Regua unica. Trocar --base muda a densidade da interface inteira, sem
-     tocar em nenhum componente. E o mecanismo de scaling do Radix, e e o que
-     abre um controle de densidade depois sem refazer nada. */
+  /* --- Regua unica -------------------------------------------------------
+     Todo espaco do sistema deriva daqui. Trocar --base muda a densidade da
+     interface inteira sem tocar em componente nenhum. */
   --base: 4px;
 
-  /* Espacamento, 8 degraus. O 6px sai: ele aparecia 125 vezes e sempre podia
-     ser 4 ou 8. Manter o 6 e manter a porta aberta pro 5, o 7 e o 9. */
+  /* Espacamento, 8 degraus. Quando usar cada um:
+       esp-2   fio entre icone e rotulo colados
+       esp-4   respiro dentro de um controle pequeno
+       esp-8   entre elementos irmaos de um mesmo bloco (o mais usado)
+       esp-12  padding interno de linha de lista, celula de tabela
+       esp-16  padding de painel, distancia entre blocos irmaos
+       esp-24  entre secoes de uma mesma tela
+       esp-32  margem lateral da area de trabalho
+       esp-48  respiro de estado vazio e de tela de foco unico
+     Nao existe 6, nao existe 20, nao existe 40. Abrir um degrau novo abre a
+     porta pro proximo, e a interface volta a ter 42 espacamentos. */
   --esp-2: calc(var(--base) * 0.5);
   --esp-4: var(--base);
   --esp-8: calc(var(--base) * 2);
@@ -186,65 +65,132 @@
   --esp-32: calc(var(--base) * 8);
   --esp-48: calc(var(--base) * 12);
 
-  /* Tipografia, 7 degraus. A escala e apertada de proposito, no espirito do
-     macOS, onde o corpo e 13pt e tudo cabe entre 10 e 26. Entrelinha em px
-     absoluto e sempre par, no padrao do Radix: numero relativo arredonda
-     diferente em cada tamanho. Tracking negativo cresce com o tamanho, e o
-     menor abre um pouco. */
+  /* --- Altura de controle, 3 degraus -------------------------------------
+     A densidade de uma ferramenta se decide AQUI, nao no tamanho da fonte.
+       alt-p  28px  acao dentro de linha de lista, barra de ferramenta, chip
+       alt    32px  O PADRAO. botao, campo, select, aba, item de menu
+       alt-g  40px  a acao principal de uma tela, campo de formulario longo
+     28px passa com folga no criterio 2.5.8 do WCAG 2.2 (alvo de 24px). Abaixo
+     de 28 nao existe controle clicavel neste app. */
+  --alt-p: calc(var(--base) * 7);
+  --alt: calc(var(--base) * 8);
+  --alt-g: calc(var(--base) * 10);
+
+  /* --- Tipografia, 7 degraus --------------------------------------------
+     Um degrau por trabalho, e nenhum a mais. Entrelinha em px absoluto e
+     sempre par: numero relativo arredonda diferente em cada tamanho e a grade
+     de 4px deixa de fechar. Tracking negativo cresce com o tamanho; os dois
+     degraus menores abrem, porque texto miudo fecha sozinho.
+
+       micro     11/16  contagem, carimbo de hora, tag de canto
+       legenda   12/16  rotulo de campo, cabecalho de coluna, metadado
+       corpo     14/20  O PADRAO do app. menu, botao, celula, paragrafo curto
+       leitura   16/24  prosa longa: markdown do Cerebro, descricao de tela
+       titulo-p  18/24  titulo de secao e de cartao
+       titulo    22/28  titulo de tela
+       display   30/36  numero grande de painel, saudacao do inicio
+
+     O PADRAO E 14px, nao 13. Quem usa o Hub nao e desenvolvedor e fica horas
+     aqui: 13px e medida de IDE, e cobra uma atencao que o dono do negocio
+     esta gastando com o negocio. A densidade vem da altura de controle e do
+     espacamento, que sao apertados, nunca de encolher a letra. 14px e o corpo
+     do Primer, do Carbon (body-compact-01), do Atlassian, do Material
+     (body-medium), do Vercel (copy-14) e do Radix (size 2).
+
+     O TRACKING NAO FOI ESCOLHIDO NO OLHO. Ele sai do modelo de metrica
+     dinamica que o proprio Inter publica:
+
+         tracking(z) = -0,0223 + 0,185 * e^(-0,1745 * z)      z = tamanho em px
+
+     A curva cruza o zero em 12px: abaixo disso o certo e ABRIR, acima e
+     FECHAR, e ela satura em -0,0223em, entao passado uns 40px nao adianta
+     mais apertar. Cada valor abaixo e o resultado da formula, arredondado no
+     terceiro decimal. Degrau novo calcula pela formula, nao chuta. */
   --txt-micro: 11px;
-  --lh-micro: 14px;
-  --tr-micro: 0.01em;
+  --lh-micro: 16px;
+  --tr-micro: 0.005em;
   --txt-legenda: 12px;
   --lh-legenda: 16px;
   --tr-legenda: 0em;
-  --txt-corpo: 13px;
-  --lh-corpo: 18px;
-  --tr-corpo: -0.005em;
-  --txt-leitura: 15px;
-  --lh-leitura: 22px;
-  --tr-leitura: -0.01em;
-  --txt-titulo-p: 17px;
-  --lh-titulo-p: 22px;
-  --tr-titulo-p: -0.015em;
+  --txt-corpo: 14px;
+  --lh-corpo: 20px;
+  --tr-corpo: -0.006em;
+  --txt-leitura: 16px;
+  --lh-leitura: 24px;
+  --tr-leitura: -0.011em;
+  --txt-titulo-p: 18px;
+  --lh-titulo-p: 24px;
+  --tr-titulo-p: -0.014em;
   --txt-titulo: 22px;
   --lh-titulo: 28px;
-  --tr-titulo: -0.02em;
-  --txt-display: 28px;
-  --lh-display: 34px;
-  --tr-display: -0.025em;
+  --tr-titulo: -0.018em;
+  --txt-display: 30px;
+  --lh-display: 36px;
+  --tr-display: -0.021em;
 
-  /* Quatro pesos e so quatro. Ver decisoes/2026-07-27-a-fonte-embarcada.md:
-     a fonte agora e embarcada, e o Inter estatico entrega estes quatro cortes
-     de verdade. Peso intermediario (590, 620, 650, 680, 720, 760) nao existe
-     mais, porque colapsa em silencio em quem nao tiver a fonte variavel. */
+  /* --- Peso, 4 degraus ---------------------------------------------------
+       400 texto corrido, descricao, rotulo
+       500 titulo de tela, titulo de secao, rotulo de botao, item de menu
+       600 titulo de cartao, nome proprio, item de menu ativo, coluna de tabela
+       700 SO numero e wordmark. Enfase de dado nao e titulo.
+     Sem peso intermediario (590, 620, 650): eles colapsam em silencio onde a
+     fonte variavel nao carregar. */
   --peso-normal: 400;
   --peso-medio: 500;
   --peso-forte: 600;
   --peso-pesado: 700;
 
-  /* Raio, 5 degraus. O 8px em botao e campo e convergencia entre Linear,
-     Raycast e Notion. O 50% de ponto e avatar e forma, nao raio, e continua
-     literal. */
-  --raio-p: 6px;
-  --raio: 8px;
-  --raio-g: 12px;
-  --raio-gg: 16px;
+  /* --- Raio, 5 degraus ---------------------------------------------------
+     Menor que a versao anterior de proposito. Raio grande le como cartao de
+     marketing; raio pequeno le como instrumento, que e o que isto e.
+       raio-p    4px   chip, selo, miniatura, caixa de selecao
+       raio      6px   O PADRAO. botao, campo, aba, item de menu
+       raio-g    10px  painel, cartao, popover
+       raio-gg   14px  modal, camada de tela cheia
+       raio-pilula     so onde a forma E pilula: contagem, ponto, avatar */
+  --raio-p: 4px;
+  --raio: 6px;
+  --raio-g: 10px;
+  --raio-gg: 14px;
   --raio-pilula: 999px;
 
-  /* Movimento, 3 duracoes e 2 curvas. */
-  --mov-rapido: 120ms;
-  --mov-padrao: 200ms;
-  --mov-lento: 320ms;
-  --curva: cubic-bezier(0.32, 0.72, 0, 1);
-  --curva-simetrica: cubic-bezier(0.4, 0, 0.2, 1);
+  /* --- Movimento, 3 duracoes e 3 curvas ----------------------------------
+       rapido  110ms  feedback direto: hover, foco, pressao, cor
+       padrao  180ms  algo aparece ou some: popover, aba, painel, faixa
+       lento   280ms  algo grande se move: modal, gaveta, camada de tela cheia
 
-  /* Apelido de compatibilidade. O --transicao aparece em 365 lugares e quase
-     todos sao feedback de cor, fundo, borda ou sombra, que e exatamente o que
-     pede a duracao curta. Enquanto os 365 nao virarem --mov-rapido no lugar,
-     ele aponta pra ca. */
+     Nada no Hub passa de 280ms. A regra que decide, e ela e da Atlassian: o
+     que a pessoa dispara dezenas de vezes por dia fica abaixo de 150ms. Num
+     cockpit, isso e quase tudo. Abaixo de uns 70ms le como quebrado, e acima
+     de 400ms a pessoa espera a interface em vez de usar ela.
+
+     SAIDA E MAIS RAPIDA QUE ENTRADA, sempre um degrau abaixo: sair de um
+     popover e trabalho terminado, e esperar a animacao de saida bloqueia o
+     proximo passo. E o que o Primer codifica no proprio token (enter 300ms,
+     exit 200ms).
+
+     AS TRES CURVAS SAO UMA FAMILIA SO, no metodo do Carbon (produtivas):
+       --curva            ENTRADA e resposta a clique. E a padrao com a alca
+                          de entrada zerada: comeca na velocidade maxima e
+                          freia. Tudo que aparece usa esta.
+       --curva-simetrica  IDA E VOLTA continua: pulso, progresso
+                          indeterminado, o que se move e volta pro lugar.
+       --curva-saida      SAIDA. E a padrao com a alca de saida empurrada pra
+                          1: comeca devagar e acelera pra fora do campo.
+     Sem quique e sem elastico em lugar nenhum: quique e expressividade, e
+     numa ferramenta de trabalho ela custa atencao sem devolver informacao. */
+  --mov-rapido: 110ms;
+  --mov-padrao: 180ms;
+  --mov-lento: 280ms;
+  --curva: cubic-bezier(0, 0, 0.38, 0.9);
+  --curva-simetrica: cubic-bezier(0.2, 0, 0.38, 0.9);
+  --curva-saida: cubic-bezier(0.2, 0, 1, 0.9);
+  /* Apelido curto do par mais usado, herdado do sistema anterior. Continua
+     valendo porque aponta pro degrau certo. */
   --transicao: var(--mov-rapido) var(--curva);
 
-  /* Empilhamento, 7 niveis. Nenhum z-index literal fora deste conjunto. */
+  /* --- Empilhamento, 7 niveis --------------------------------------------
+     Nenhum z-index literal fora deste conjunto, em folha nenhuma. */
   --z-base: 0;
   --z-fixo: 10;
   --z-popover: 100;
@@ -253,20 +199,208 @@
   --z-modal: 310;
   --z-aviso: 400;
 
-  /* Elevacao. A profundidade vem da escada de superficie mais o fio de
-     --linha, nunca de sombra. Sombra so onde o elemento FLUTUA de verdade
-     sobre outro conteudo: popover, modal e o que esta sendo arrastado. */
-  --sombra-popover: 0 4px 12px rgba(var(--scrim-rgb), 0.18);
-  --sombra-modal: 0 16px 48px rgba(var(--scrim-rgb), 0.28);
-  --sombra-arrasto: 0 8px 24px rgba(var(--scrim-rgb), 0.32);
+  /* --- Opacidade, 5 degraus ----------------------------------------------
+     Opacidade RANQUEIA a importancia de um elemento inteiro. Ela NUNCA encosta
+     em texto: medido, --texto-fraco a 0.72 cai pra cerca de 3:1 e a trava de
+     cor nao pega, porque mede o token e nao a composicao final na tela.
+     Rotulo que precisa recuar usa peso, tracking ou um token de cor mais
+     fraco. --op-fantasma existe pro que esta fora de foco em canvas denso. */
+  --op-plena: 1;
+  --op-secundaria: 0.72;
+  --op-fraca: 0.5;
+  --op-apagada: 0.32;
+  --op-fantasma: 0.16;
+
+  /* --- Elevacao, 3 sombras e nenhuma a mais ------------------------------
+     A profundidade do Hub vem da escada de superficie mais o fio de --linha.
+     Sombra existe SO onde o elemento flutua de verdade sobre outro conteudo,
+     e a regua e: flutua o que fica parado enquanto o conteudo atras se move.
+     No de grafo acompanha o pan e o zoom, entao e conteudo e nao tem sombra. */
+  --sombra-popover: 0 4px 12px -2px rgba(var(--scrim-rgb), 0.16),
+    0 2px 4px -2px rgba(var(--scrim-rgb), 0.1);
+  --sombra-modal: 0 24px 48px -12px rgba(var(--scrim-rgb), 0.3),
+    0 8px 16px -8px rgba(var(--scrim-rgb), 0.16);
+  --sombra-arrasto: 0 12px 24px -6px rgba(var(--scrim-rgb), 0.28);
+
+  /* --- Familias ---------------------------------------------------------- */
+  --fonte: "Inter", "Segoe UI Variable Text", system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "Consolas", monospace;
 
   /* Foco de teclado. 2px atende o criterio 2.4.13 do WCAG 2.2, que pede area
      equivalente a um perimetro de 2px e 3:1 entre focado e nao focado. */
-  --foco: 2px solid var(--menta);
+  --foco-largura: 2px;
   --foco-recuo: 2px;
+
+  /* Altura do cartao em arraste no quadro do CRM. Lida pelo TypeScript, entao
+     mora numa escala e nao dentro de uma folha de tela. */
+  --crm-altura-arrasto: 72px;
 }
 
-* {
+/* ==========================================================================
+   2. O CONTRATO DE NOME DOS TOKENS DE COR.
+
+   Toda cor do Hub sai daqui. Nenhum componente escreve hex, nunca.
+   Os valores abaixo sao os do tema Claro, que e o padrao e serve de rede de
+   seguranca se data-theme nao estiver na raiz. O valor final de cada tema vem
+   do visual-hub.css, na camada tema, que sempre vence esta.
+
+   A GRAMATICA DE COR DO HUB, em uma frase: a interface e neutra e o conteudo
+   do usuario e a unica coisa colorida na tela. Menta e cor de ESTADO.
+   ========================================================================== */
+:root {
+  /* --- A escada de planos, do fundo pra frente --------------------------
+       --chassi                a moldura do app: barra lateral e barra de topo.
+                               Recuada, pra ela nao competir com o trabalho.
+       --fundo                 o plano de trabalho. O conteudo se apoia AQUI,
+                               direto, sem cartao em volta.
+       --superficie            o bloco que se destaca do plano: painel, cartao,
+                               cabecalho fixo, celula de editor.
+       --superficie-alta       hover, linha selecionada, campo, aba ativa.
+       --superficie-flutuante  popover, menu, modal. So o que flutua. */
+  --chassi: #f1f2f4;
+  --fundo: #f6f7f8;
+  --superficie: #ffffff;
+  --superficie-alta: #eceef1;
+  --superficie-flutuante: #ffffff;
+  /* Branco de papel de site do cliente, nao superficie do app. Nao acompanha
+     o tema de proposito: e a folha do cliente, nao a do Hub. */
+  --papel: #ffffff;
+
+  /* --- Fio, dois trabalhos e duas cores ---------------------------------
+     --linha        separacao e decoracao. Sutil de proposito.
+     --linha-forte  contorno de CONTROLE. Obrigada a 3:1 contra qualquer plano
+                    em que se apoie, pelo criterio 1.4.11 do WCAG. Campo,
+                    botao neutro, caixa de selecao e trilho de interruptor
+                    usam a forte, sem excecao. */
+  --linha: #e4e7ea;
+  --linha-forte: #7a828a;
+
+  /* --- Texto, 3 degraus mais o rotulo de grupo --------------------------
+     --texto        conteudo, titulo, valor
+     --texto-suave  descricao, subtitulo, rotulo de campo
+     --texto-fraco  metadado, dica, placeholder
+     --texto-rotulo SO rotulo de secao que agrupa itens de navegacao. E o
+                    UNICO texto do sistema autorizado abaixo de 4,5:1, no
+                    patamar de contorno (3:1), porque e etiqueta redundante:
+                    quem nao a le continua lendo os proprios itens. Nenhum
+                    outro texto pode citar este par como precedente. */
+  --texto: #14171a;
+  --texto-suave: #4d545b;
+  --texto-fraco: #616970;
+  --texto-rotulo: #7b838b;
+
+  /* --- Menta: a unica voz colorida da interface, e ela fala pouco --------
+     --menta       o corte legivel. Texto e icone de estado, link, valor vivo.
+     --menta-viva  o SINAL: ponto de sessao rodando, barra de progresso,
+                   contorno de conexao ligada. Nunca texto. No Claro ele NAO e
+                   o hex da marca: #2fd4a7 sobre papel da 1,7:1 e some. Sinal
+                   que nao se ve nao sinaliza, entao no Claro o vivo escurece
+                   ate passar em 3:1 e no Escuro ele e o hex da marca.
+     --menta-tenue preenchimento de selo e de linha selecionada.
+     --menta-linha contorno de campo em foco e de item selecionado.
+     --sobre-menta tinta sobre preenchimento menta cheio. */
+  --menta: #00715a;
+  --menta-viva: #0b9776;
+  --menta-tenue: #dff3ec;
+  --menta-linha: #00715a;
+  --sobre-menta: #ffffff;
+
+  /* --- A acao principal --------------------------------------------------
+     Tinta solida, quase preta no Claro e invertendo no Escuro. Uma por tela.
+     Ela e escura e nao menta por um motivo funcional: o Hub mostra o conteudo
+     COLORIDO do usuario o tempo todo (carrossel, site, imagem, galeria). Um
+     botao colorido brigaria com a peca ao lado; tinta solida nunca briga. */
+  --acao: #16191d;
+  --acao-hover: #282d33;
+  --sobre-acao: #ffffff;
+
+  /* --- Semantica de estado ---------------------------------------------- */
+  --alerta: #c32f2f;
+  --sobre-alerta: #ffffff;
+  --alerta-tenue: #fbeaea;
+  --alerta-linha: #c32f2f;
+  --aviso: #8a6100;
+  --aviso-tenue: #f8efdb;
+  --aviso-linha: #8a6100;
+  --neutro-tenue: #eceef1;
+
+  /* --- Canais pra alpha --------------------------------------------------
+     Compor rgba() com o canal do tema faz a transparencia acompanhar a troca
+     de tema. Escrever rgba(0, 0, 0, 0.1) nao acompanha. */
+  --menta-rgb: 0, 113, 90;
+  --menta-viva-rgb: 11, 151, 118;
+  --acao-rgb: 22, 25, 29;
+  --scrim-rgb: 15, 18, 22;
+  --alerta-rgb: 195, 47, 47;
+  --aviso-rgb: 138, 97, 0;
+  --fundo-rgb: 246, 247, 248;
+  --superficie-rgb: 255, 255, 255;
+  --texto-rgb: 20, 23, 26;
+  --suave-rgb: 77, 84, 91;
+  --fraco-rgb: 97, 105, 112;
+
+  /* Veu e sobreposicao de imagem. */
+  --veu: rgba(var(--scrim-rgb), 0.4);
+  --overlay-imagem-leve: rgba(var(--scrim-rgb), 0.28);
+  --overlay-imagem-forte: rgba(var(--scrim-rgb), 0.58);
+
+  /* --- Glow: marca ESTADO, nunca decora ---------------------------------
+     Sao quatro, e so quatro.
+       --glow-vivo    o que esta acontecendo agora. O unico que pulsa.
+       --glow-foco    o anel de foco de teclado.
+       --glow-acao    a acao principal da tela. Uma por tela.
+       --glow-alerta  o anel de foco de um campo que esta invalido. Ele existe
+                      porque o anel de menta num campo com erro diz a coisa
+                      errada: verde le como "ok" ao lado da mensagem de erro.
+     Onde eles nunca entram: superficie grande, texto corrido, borda
+     decorativa, hover de cartao, item selecionado. */
+  --glow-vivo: 0 0 0 3px rgba(var(--menta-viva-rgb), 0.22);
+  --glow-foco: 0 0 0 3px rgba(var(--menta-rgb), 0.22);
+  --glow-acao: 0 1px 2px rgba(var(--scrim-rgb), 0.16);
+  --glow-alerta: 0 0 0 3px rgba(var(--alerta-rgb), 0.22);
+
+  /* --- Canvas de grafo (Cockpit e Mapa) ---------------------------------
+     O canvas tem plano proprio porque ele nao e uma tela: ele e uma janela
+     pra um espaco que se move. Cada tela de grafo inventando as suas cores
+     foi como o Cockpit e o Mapa ficaram com dois cinzas diferentes de ponto.
+
+     --canvas-fundo    o plano do grafo. Um degrau abaixo do trabalho, pra o
+                       no se destacar sem precisar de sombra.
+     --pontos-canvas   a grade. Ela pinta o background de QUEM E o plano de
+                       fundo, nunca um pseudo-elemento fixo de viewport: fixo,
+                       ela vaza por toda superficie translucida e pontilha a
+                       interface inteira. Nos dois temas ela fica entre 25% e
+                       35% de contraste contra o proprio canvas, que e onde
+                       React Flow, tldraw e n8n a colocam.
+     --ligacao         a aresta em repouso.
+     --ligacao-viva    a aresta que esta sendo ARRASTADA agora. Ela e a mesma
+                       cor nos dois temas de proposito: e a unica linha do
+                       canvas que precisa saltar, entao ela nao segue o tema
+                       da aresta parada. E o que o React Flow faz com o
+                       --xy-connectionline-stroke. */
+  --canvas-fundo: #f1f2f4;
+  --pontos-canvas: #cbd0d6;
+  --ligacao: #82898f;
+  --ligacao-viva: #0b9776;
+
+  color-scheme: light;
+
+  /* OS APELIDOS LEGADOS SAIRAM EM 2026-07-30, na varredura final da Fase 2.
+     Eram 22 nomes (--fundo-2, --borda, --menta-clara, --amarelo,
+     --realce-rgb, --confirmar-perigo-*, --pontos-fundo, --grao, --vidro e os
+     demais) que existiam so pra o legado.css e as telas nao migradas
+     continuarem de pe. O legado foi demolido, as 21 folhas migraram, e uma
+     varredura por var(--nome) confirmou zero uso de cada um antes de apagar.
+     NAO reabra esta secao: token novo nasce com o nome do contrato. */
+}
+
+/* ==========================================================================
+   3. O RESET E OS PADROES DE ELEMENTO.
+   ========================================================================== */
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -282,44 +416,99 @@ body {
   background: var(--fundo);
   color: var(--texto);
   font-family: var(--fonte);
-  /* O degrau de leitura da escala. O corpo de 13px so vale depois que cada
-     tela migrar pra escala, senao ele encolhe texto que hoje se apoia em
-     medida fixa em volta. Ver a Etapa 7 do 05-design-system.md. */
-  font-size: var(--txt-leitura);
-  line-height: var(--lh-leitura);
-  letter-spacing: var(--tr-leitura);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
   font-weight: var(--peso-normal);
-  /* O Inter tem eixo optico de verdade. Com isto, texto miudo abre e texto
-     grande aperta sozinho, que e o efeito de optical size da Apple. */
+  /* O Inter tem eixo optico de verdade: texto miudo abre e texto grande
+     aperta sozinho. */
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* Quebra de linha padrao de titulo e paragrafo. Mora aqui, na camada base, e
-   nao na de tema: nao e valor de tema, e um padrao de elemento. Na camada de
-   tema estas duas regras venceriam por camada qualquer "white-space: nowrap"
-   de classe, e todo titulo que hoje trunca numa linha so voltaria a quebrar. */
+/* Quebra de linha de titulo e de paragrafo. Mora na base, nao na camada tema:
+   la venceria por camada qualquer "white-space: nowrap" de quem trunca. */
 h1,
 h2,
 h3 {
   text-wrap: balance;
+  font-weight: var(--peso-medio);
 }
 
 p {
   text-wrap: pretty;
 }
 
+/* O "max-width: 100%" impede imagem de estourar a coluna. Ele NAO pode valer
+   pra svg, e isto custou o canvas inteiro:
+
+   o React Flow desenha cada aresta num <svg> sem width, filho de um <div>
+   .react-flow__edges que e position:absolute e por isso tem largura ZERO de
+   proposito (a aresta escapa pelo overflow: visible, em coordenadas de canvas).
+   Com a regra abaixo pegando svg, aquele max-width virava 100% de zero, o svg
+   ficava com 0 de largura e NENHUMA aresta era pintada. Elas existiam no DOM,
+   respondiam ao hit-test e nem stroke vermelho de 10px aparecia.
+   Medido: era isto que deixava o cockpit e o mapa "todos desconectados".
+
+   Imagem e video continuam contidos. Svg cuida do proprio tamanho. */
+img,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+svg {
+  flex-shrink: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* Numero em tabela, contador e valor de dinheiro alinham por coluna. */
+:where(td, th) {
+  font-variant-numeric: tabular-nums;
+}
+
 ::selection {
-  background: rgba(var(--menta-rgb), 0.3);
+  background: rgba(var(--menta-rgb), 0.22);
   color: var(--texto);
 }
 
-/* Barra de rolagem discreta. O polegar ganha uma borda transparente com
-   background-clip pra parecer mais fino e folgado, e escurece no hover. */
+/* ==========================================================================
+   4. FOCO DE TECLADO.
+   Sempre visivel, em todo controle, nos dois temas. Mouse nao dispara.
+   ========================================================================== */
+:focus-visible {
+  outline: var(--foco-largura) solid var(--menta-linha);
+  outline-offset: var(--foco-recuo);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ==========================================================================
+   5. BARRA DE ROLAGEM.
+   Discreta, mas sempre visivel quando ha o que rolar: numa ferramenta densa a
+   barra e informacao (quanto falta), nao enfeite.
+   ========================================================================== */
 html {
   scrollbar-width: thin;
-  scrollbar-color: var(--borda) transparent;
+  scrollbar-color: var(--linha-forte) transparent;
 }
 ::-webkit-scrollbar {
   width: 12px;
@@ -329,1661 +518,35 @@ html {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--borda);
-  border-radius: 100px;
+  background: var(--linha-forte);
+  border-radius: var(--raio-pilula);
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--borda-forte);
+  background: var(--texto-fraco);
   background-clip: padding-box;
 }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-}
+/* ==========================================================================
+   6. MOVIMENTO REDUZIDO.
 
-/* Foco por teclado: anel de menta discreto, so no :focus-visible (o mouse nao
-   dispara, entao nao polui o clique). Usa outline pra nao brigar com os
-   box-shadow de glow que varios componentes ja tem no estado ativo. */
-:focus-visible {
-  /* O anel e menta cheio, nao menta a 55% de opacidade. O criterio 2.4.13 do
-     WCAG 2.2 pede area equivalente a um perimetro de 2px e 3:1 entre o estado
-     focado e o nao focado, e menta lavado nao entrega nem um nem outro. */
-  outline: var(--foco);
-  outline-offset: var(--foco-recuo);
-}
-:focus:not(:focus-visible) {
-  outline: none;
-}
-/* Campo de texto marca o foco no proprio contorno, com a linha de menta e o
-   halo. Empilhar o outline generico por cima daria dois aneis concentricos. */
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: none;
-  border-color: var(--menta-linha);
-  box-shadow: var(--glow-foco);
-}
+   A regra do Hub: movimento reduzido SUBSTITUI, nao apaga. O deslocamento e a
+   escala somem; a mudanca de cor e de opacidade fica, e o que pulsa vira
+   fade. Quem liga isso continua sabendo que a IA esta trabalhando.
 
-input,
-textarea {
-  font-family: inherit;
-  font-size: inherit;
-  color: var(--texto);
-  background: var(--fundo);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio-p);
-  padding: 10px 12px;
-  outline: none;
-  transition: border-color var(--transicao), box-shadow var(--transicao);
-  width: 100%;
-}
-input::placeholder,
-textarea::placeholder {
-  color: var(--texto-fraco);
-}
-input:focus,
-textarea:focus {
-  border-color: var(--menta);
-  box-shadow: 0 0 0 3px rgba(var(--menta-rgb), 0.14);
-}
-textarea {
-  resize: vertical;
-  min-height: 64px;
-}
-
-/* Botoes base. */
-/* O botao, inteiro na escala de token.
- *
- * Existem 352 elementos <button> nos componentes e so 143 usam esta base: 209
- * botoes, ou 59%, tem estilo proprio. O componente comum/Botao.tsx e a porta
- * de entrada pra essa conta cair. Quem escreve tela nova usa ele, nunca uma
- * classe nova de botao.
- *
- * A altura minima de 32px atende o criterio 2.5.8 do WCAG 2.2, que pede alvo
- * de 24x24px.
- */
-.botao {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--esp-8);
-  min-height: 32px;
-  padding: var(--esp-8) var(--esp-16);
-  border-radius: var(--raio);
-  font-weight: var(--peso-forte);
-  font-size: var(--txt-corpo);
-  line-height: var(--lh-corpo);
-  letter-spacing: var(--tr-corpo);
-  transition: transform var(--transicao), box-shadow var(--transicao),
-    background var(--transicao), border-color var(--transicao),
-    color var(--transicao);
-  white-space: nowrap;
-}
-.botao:active:not(:disabled) {
-  transform: translateY(1px);
-}
-.botao:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-/* Tamanho pequeno: barra de ferramenta, acao dentro de linha de lista. */
-.botao-p {
-  min-height: 26px;
-  padding: var(--esp-4) var(--esp-8);
-  font-size: var(--txt-legenda);
-  line-height: var(--lh-legenda);
-  letter-spacing: var(--tr-legenda);
-}
-/* So icone: quadrado, e o rotulo vive no aria-label. */
-.botao-icone {
-  width: 32px;
-  padding: 0;
-}
-.botao-icone.botao-p {
-  width: 26px;
-}
-.botao-principal {
-  background: var(--menta);
-  color: var(--menta-escura);
-  box-shadow: var(--glow);
-}
-.botao-principal:hover:not(:disabled) {
-  background: var(--menta-clara);
-}
-.botao-neutro {
-  background: var(--superficie-2);
-  color: var(--texto);
-  border: 1px solid var(--linha-forte);
-}
-.botao-neutro:hover:not(:disabled) {
-  border-color: var(--menta);
-  color: var(--menta-clara);
-}
-.botao-perigo {
-  background: transparent;
-  color: var(--alerta-suave);
-  border: 1px solid rgba(var(--alerta-rgb), 0.4);
-}
-.botao-perigo:hover:not(:disabled) {
-  background: rgba(var(--alerta-rgb), 0.12);
-}
-
-/* Controles de imagem compartilhados pelos Studios de carrossel e site. */
-.editor-imagem-controles {
-  display: grid;
-  gap: 10px;
-}
-
-.editor-imagem-preview {
-  width: 100%;
-  max-height: 128px;
-  object-fit: cover;
-  border: 1px solid var(--borda);
-  border-radius: 10px;
-  background: var(--superficie-2);
-}
-
-.editor-imagem-acoes {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: start;
-}
-
-.editor-imagem-troca {
-  position: relative;
-  min-width: 0;
-}
-
-.editor-imagem-principal {
-  width: 100%;
-}
-
-.editor-imagem-excluir {
-  gap: 6px;
-}
-
-.editor-imagem-excluir svg {
-  width: 15px;
-  height: 15px;
-}
-
-.editor-imagem-menu {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  min-width: 230px;
-  padding: 6px;
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  background: var(--superficie);
-  box-shadow: var(--sombra-popover);
-}
-
-.editor-imagem-menu button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px;
-  border: 0;
-  border-radius: 8px;
-  color: var(--texto);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.editor-imagem-menu button:hover:not(:disabled) {
-  background: var(--superficie-2);
-}
-
-.editor-imagem-menu button:disabled {
-  opacity: 0.52;
-  cursor: not-allowed;
-}
-
-.editor-imagem-menu svg {
-  width: 17px;
-  height: 17px;
-  color: var(--menta);
-  flex: 0 0 auto;
-}
-
-.editor-imagem-menu span {
-  display: grid;
-  gap: 2px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.editor-imagem-menu small,
-.editor-imagem-erro {
-  color: var(--texto-suave);
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.editor-imagem-erro {
-  color: var(--alerta);
-  line-height: 1.4;
-}
-
-.galeria-fontes-camada {
-  position: fixed;
-  inset: 0;
-  z-index: 240;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(var(--scrim-rgb), 0.7);
-  animation: entrada-suave 160ms ease both;
-}
-.galeria-fontes-modal {
-  width: min(820px, 100%);
-  max-height: min(760px, calc(100dvh - 48px));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: var(--texto);
-  background: var(--fundo-2);
-  border: 1px solid var(--borda-forte);
-  border-radius: 18px;
-  box-shadow: var(--sombra-forte);
-  animation: entrada-modal 180ms ease both;
-}
-.galeria-fontes-topo,
-.galeria-fontes-topo > div {
-  display: flex;
-  align-items: center;
-}
-.galeria-fontes-topo {
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--borda);
-}
-.galeria-fontes-topo > div {
-  gap: 11px;
-  min-width: 0;
-}
-.galeria-fontes-topo h2 {
-  font-size: 16px;
-}
-.galeria-fontes-topo p {
-  margin-top: 2px;
-  color: var(--texto-fraco);
-  font-size: 12px;
-}
-.galeria-fontes-marca,
-.galeria-fontes-topo > button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.galeria-fontes-marca {
-  width: 38px;
-  height: 38px;
-  color: var(--menta);
-  background: rgba(var(--menta-rgb), 0.1);
-  border: 1px solid rgba(var(--menta-rgb), 0.3);
-  border-radius: 11px;
-}
-.galeria-fontes-topo > button {
-  width: 32px;
-  height: 32px;
-  color: var(--texto-suave);
-  border-radius: 9px;
-}
-.galeria-fontes-topo > button:hover:not(:disabled) {
-  color: var(--menta-clara);
-  background: var(--superficie);
-}
-.galeria-fontes-corpo {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 18px;
-}
-.galeria-fontes-grupo {
-  display: grid;
-  gap: 10px;
-}
-.galeria-fontes-grupo h3 {
-  color: var(--texto-suave);
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.galeria-fontes-grade {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
-}
-.galeria-fontes-grade button {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--texto);
-  text-align: left;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  transition: transform var(--transicao), border-color var(--transicao),
-    background var(--transicao);
-}
-.galeria-fontes-grade button:hover:not(:disabled) {
-  border-color: var(--menta);
-  background: var(--superficie-2);
-}
-.galeria-fontes-grade button:disabled {
-  opacity: 0.58;
-}
-.galeria-fontes-grade img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  background: var(--fundo-3);
-}
-.galeria-fontes-grade span {
-  display: block;
-  padding: 8px 9px;
-  overflow: hidden;
-  color: var(--texto-suave);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.galeria-fontes-vazia {
-  min-height: 240px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--texto-fraco);
-  text-align: center;
-}
-.galeria-fontes-vazia svg {
-  width: 30px;
-  height: 30px;
-}
-.galeria-fontes-erro {
-  padding: 10px 12px;
-  color: var(--alerta-suave);
-  font-size: 12px;
-  background: rgba(var(--alerta-rgb), 0.1);
-  border: 1px solid rgba(var(--alerta-rgb), 0.3);
-  border-radius: 10px;
-}
-
+   Aqui embaixo mora so a rede geral: ela corta trajetoria e encurta duracao
+   sem zerar, pra nenhuma animacao esquecida escapar. Cada animacao que
+   precisa de um substituto proprio declara ele na propria folha.
+   ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .galeria-fontes-camada,
-  .galeria-fontes-modal {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 60ms !important;
+    scroll-behavior: auto !important;
   }
 }
-.botao-fantasma {
-  background: transparent;
-  color: var(--texto-suave);
-  padding: 8px 12px;
 }
-.botao-fantasma:hover:not(:disabled) {
-  color: var(--menta-clara);
-}
-
-/* Animacoes. */
-@keyframes entrada-no {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-@keyframes entrada-suave {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes girar {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes pisca-cursor {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes ponto-pulsa {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.4;
-    transform: scale(0.7);
-  }
-}
-
-/* Estados de tela cheia (splash, servidor fora). */
-.tela-central {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  text-align: center;
-  padding: 24px;
-  animation: entrada-suave 400ms ease both;
-}
-.tela-central h1 {
-  font-size: 22px;
-  font-weight: 700;
-}
-.tela-central p {
-  color: var(--texto-suave);
-  max-width: 420px;
-}
-
-.giro {
-  width: 34px;
-  height: 34px;
-  border: 3px solid var(--borda);
-  border-top-color: var(--menta);
-  border-radius: 50%;
-  animation: girar 900ms linear infinite;
-}
-
-.marca-logo {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  font-size: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.marca-img {
-  width: 22px;
-  height: 22px;
-  display: block;
-  flex-shrink: 0;
-  border-radius: 6px;
-}
-
-/* Badge de status. */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 100px;
-  letter-spacing: 0.02em;
-  border: 1px solid transparent;
-}
-.badge .ponto {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.status-fila {
-  color: var(--texto-suave);
-  background: rgba(var(--suave-rgb), 0.1);
-  border-color: rgba(var(--suave-rgb), 0.25);
-}
-.status-iniciando {
-  color: var(--amarelo);
-  background: rgba(var(--amarelo-rgb), 0.1);
-  border-color: rgba(var(--amarelo-rgb), 0.3);
-}
-.status-rodando {
-  color: var(--menta-clara);
-  background: rgba(var(--menta-rgb), 0.12);
-  border-color: rgba(var(--menta-rgb), 0.4);
-}
-.status-rodando .ponto {
-  animation: ponto-pulsa 1.1s ease-in-out infinite;
-}
-.status-concluida {
-  color: var(--menta);
-  background: rgba(var(--menta-rgb), 0.14);
-  border-color: rgba(var(--menta-rgb), 0.5);
-}
-.status-erro {
-  color: var(--alerta-suave);
-  background: rgba(var(--alerta-rgb), 0.1);
-  border-color: rgba(var(--alerta-rgb), 0.35);
-}
-.status-parada {
-  color: var(--texto-fraco);
-  background: rgba(var(--fraco-rgb), 0.1);
-  border-color: rgba(var(--fraco-rgb), 0.25);
-}
-
-.rotulo-secao {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--texto-fraco);
-}
-
-/* ===== Shell de navegacao: menu lateral e area de conteudo ===== */
-.shell {
-  height: 100%;
-  display: flex;
-}
-
-.sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  height: 100%;
-  background: var(--fundo-2);
-  border-right: 1px solid var(--borda);
-  display: flex;
-  flex-direction: column;
-  padding: 18px 14px 14px;
-}
-.sidebar-marca-bloco {
-  padding: 6px 8px 16px;
-}
-.sidebar-marca {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.sidebar-marca-beta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  padding-left: 32px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--texto-fraco);
-  opacity: 0.75;
-  cursor: default;
-}
-.sidebar-marca-beta-icone {
-  width: 11px;
-  height: 11px;
-  flex-shrink: 0;
-}
-
-/* Casca de carregamento das telas do hub (chunks assincronos). */
-.tela-hub-carregando {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--fundo);
-  color: var(--texto-fraco);
-  font-size: 14px;
-}
-
-/* Alternador de tema: discreto ao lado da marca, ganha cor no hover. */
-.botao-tema {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  color: var(--texto-fraco);
-  border: 1px solid transparent;
-  transition: color var(--transicao), border-color var(--transicao),
-    background var(--transicao);
-}
-.botao-tema:hover {
-  color: var(--menta-clara);
-  border-color: var(--linha-forte);
-  background: var(--superficie);
-}
-
-/* Popover de tema: tres opcoes ancoradas ao botao. Sem backdrop-filter (nunca
-   sobre o canvas animado): superficie solida e sombra discreta bastam. */
-.tema-caixa {
-  position: relative;
-  display: inline-flex;
-}
-.tema-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 70;
-  min-width: 172px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: var(--superficie);
-  border: 1px solid var(--borda-forte);
-  border-radius: var(--raio-p);
-  box-shadow: var(--sombra-popover);
-  animation: entrada-no 160ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-.tema-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 11px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--texto-suave);
-  text-align: left;
-  transition: background var(--transicao), color var(--transicao);
-}
-.tema-menu-item:hover {
-  background: var(--superficie-2);
-  color: var(--texto);
-}
-.tema-menu-item.ativo {
-  color: var(--menta-clara);
-  background: rgba(var(--menta-rgb), 0.12);
-}
-.tema-menu-item svg {
-  flex-shrink: 0;
-  color: var(--menta);
-}
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-/* A navegacao do CORE nao rola: sao cinco itens no maximo. Ela nao pode rolar,
-   porque um ancestral que rola recortaria qualquer coisa que passe da borda. */
-.sidebar-nav-core {
-  flex: none;
-}
-/* A do workspace e a que cresce e rola quando ha muita peca e muita fonte. */
-.sidebar-nav-workspace {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-.sidebar-secao {
-  padding: 16px 12px 6px;
-}
-/* Rotulo de NIVEL (Core e Workspace). E o que deixa obvio em qual camada o
-   usuario esta: o de cima nao muda quando se troca de workspace, o de baixo e
-   todo do projeto aberto. Ver decisoes/2026-07-27-hub-core.md. */
-.sidebar-secao-nivel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 12px 6px;
-}
-.sidebar-secao-nivel::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--borda);
-}
-.sidebar-secao-nivel:first-child {
-  padding-top: 4px;
-}
-/* Subsecao (Conteudo, Fontes de dados) fica dentro do nivel do workspace, entao
-   ela recua pra nao competir com o rotulo de nivel. */
-.sidebar-subsecao {
-  padding-left: 18px;
-}
-
-.item-nav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: var(--raio-p);
-  color: var(--texto-suave);
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
-  transition: background var(--transicao), color var(--transicao),
-    box-shadow var(--transicao);
-}
-.item-nav:hover {
-  background: var(--superficie);
-  color: var(--texto);
-}
-.item-nav.ativo {
-  background: rgba(var(--menta-rgb), 0.12);
-  color: var(--menta-clara);
-  box-shadow: inset 0 0 0 1px rgba(var(--menta-rgb), 0.3),
-    0 0 18px rgba(var(--menta-rgb), 0.12);
-}
-.item-nav svg {
-  flex-shrink: 0;
-}
-.item-nav-rotulo {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.item-nav-contagem {
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 22px;
-  text-align: center;
-  padding: 2px 7px;
-  border-radius: 100px;
-  background: rgba(var(--suave-rgb), 0.12);
-  color: var(--texto-suave);
-  font-variant-numeric: tabular-nums;
-}
-.item-nav.ativo .item-nav-contagem {
-  background: rgba(var(--menta-rgb), 0.18);
-  color: var(--menta-clara);
-}
-
-/* A VKOS-IDE fica ancorada no fim da navegacao: margin-top:auto empurra o bloco
-   pro fundo da area de nav, e a borda superior separa visualmente do resto. */
-.sidebar-nav-fim {
-  margin-top: auto;
-  padding-top: 10px;
-  border-top: 1px solid var(--borda);
-}
-
-/* Rodape de status da sidebar. */
-.sidebar-rodape {
-  border-top: 1px solid var(--borda);
-  margin-top: 4px;
-  padding-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--texto-suave);
-}
-.rodape-linha {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.ponto-luz {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--texto-fraco);
-  flex-shrink: 0;
-}
-.ponto-luz.on {
-  background: var(--menta);
-}
-.ponto-luz.off {
-  background: var(--alerta);
-}
-.rodape-sessoes {
-  margin-left: auto;
-  font-weight: 700;
-  color: var(--menta-clara);
-  font-variant-numeric: tabular-nums;
-}
-.rodape-pasta {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--texto);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Area de conteudo: cockpit sempre montado, telas de fluxo por cima. */
-.shell-conteudo {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-}
-.camada-cockpit {
-  position: absolute;
-  inset: 0;
-}
-
-/* O cockpit fica sempre montado (preserva o canvas e o streaming), mas so
-   aparece quando e a tela ativa. Sem isso, o refresh numa tela pesada (lazy)
-   mostrava o cockpit por baixo enquanto o chunk carregava: o "fantasma". */
-.camada-cockpit.oculta {
-  visibility: hidden;
-}
-
-/* A IDE e uma camada universal. Quando fechada continua montada para preservar
-   o arquivo, o chat e os streams, mas nao participa do foco nem do clique. */
-.camada-ide {
-  position: absolute;
-  inset: 0;
-  z-index: 80;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  visibility: hidden;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(8px);
-  overflow: hidden;
-  transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms;
-}
-.camada-ide.aberta {
-  visibility: visible;
-  opacity: 1;
-  transform: translateY(0);
-  transition-delay: 0s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .camada-ide {
-    transform: none;
-    transition: none;
-  }
-}
-
-.fontes-hub-grade {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
-  width: min(920px, 100%);
-  padding: 32px;
-}
-.fontes-hub-card {
-  min-height: 128px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 22px;
-  color: var(--texto);
-  text-align: left;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: 18px;
-  box-shadow: var(--sombra-suave);
-  animation: entrada-suave 220ms ease both;
-  transition: transform var(--transicao), border-color var(--transicao),
-    box-shadow var(--transicao), background var(--transicao);
-}
-.fontes-hub-card:hover {
-  border-color: rgba(var(--menta-rgb), 0.48);
-  background: var(--superficie-2);
-}
-.fontes-hub-icone {
-  width: 48px;
-  height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--menta-clara);
-  background: rgba(var(--menta-rgb), 0.1);
-  border: 1px solid rgba(var(--menta-rgb), 0.22);
-  border-radius: 14px;
-}
-.fontes-hub-icone svg {
-  width: 22px;
-  height: 22px;
-}
-.fontes-hub-texto {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 6px;
-}
-.fontes-hub-texto strong {
-  font-size: 16px;
-}
-.fontes-hub-texto span {
-  color: var(--texto-suave);
-  font-size: 13px;
-}
-.fontes-hub-seta {
-  color: var(--menta);
-  font-size: 20px;
-  transition: transform var(--transicao);
-}
-.fontes-hub-card:hover .fontes-hub-seta {
-  transform: translateX(3px);
-}
-.botao-voltar-fontes {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0 0 8px;
-  color: var(--texto-suave);
-  font-size: 12px;
-  font-weight: 700;
-  transition: color var(--transicao);
-}
-.botao-voltar-fontes:hover {
-  color: var(--menta-clara);
-}
-
-/* ===== Telas de fluxo (galeria por tipo) ===== */
-.tela-fluxo {
-  position: absolute;
-  inset: 0;
-  background: var(--fundo);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  animation: entrada-suave 220ms ease both;
-}
-.tela-fluxo-topo {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  padding: 26px 32px 18px;
-  border-bottom: 1px solid var(--borda);
-  background: rgba(var(--fundo-rgb), 0.9);
-  backdrop-filter: blur(10px);
-}
-.tela-fluxo-topo h1 {
-  font-size: 22px;
-  font-weight: 700;
-}
-.tela-fluxo-topo .subtitulo {
-  color: var(--texto-suave);
-  font-size: 13px;
-  margin-top: 4px;
-}
-.tela-fluxo-corpo {
-  padding: 24px 32px 48px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-  align-content: start;
-}
-
-.fluxo-vazio {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  text-align: center;
-  padding: 60px 24px;
-  color: var(--texto-suave);
-}
-.fluxo-vazio .icone-vazio {
-  color: var(--texto-fraco);
-  opacity: 0.5;
-}
-.fluxo-vazio h2 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--texto);
-}
-.fluxo-vazio p {
-  max-width: 380px;
-}
-
-/* Card de um pedido. */
-.cartao-peca {
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: border-color var(--transicao), box-shadow var(--transicao),
-    transform var(--transicao);
-  animation: entrada-suave 300ms ease both;
-}
-.cartao-peca:hover {
-  border-color: var(--borda-forte);
-}
-.cartao-peca-topo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  /* Card estreito (grid min 320px) + tema longo + ate 3 botoes de acao nao
-     cabem numa linha so. Sem wrap, o titulo era espremido a quase zero de
-     largura e a coluna de texto quebrado ficava por baixo dos botoes
-     (bug de sobreposicao). Com wrap, os botoes que nao cabem descem pra uma
-     segunda linha, sempre abaixo do titulo, nunca por cima dele. */
-  flex-wrap: wrap;
-  row-gap: 8px;
-}
-.cartao-peca-titulo {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-  flex-wrap: wrap;
-  /* Espaco reservado: o titulo tenta ficar com pelo menos ~160px antes de
-     ceder linha pros botoes, em vez de sumir espremido entre eles. */
-  flex: 1 1 160px;
-}
-.cartao-peca-topo h3 {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.3;
-  min-width: 0;
-  /* Tema longo trunca com "..." numa linha so, em vez de quebrar palavra por
-     palavra numa coluna ilegivel. */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-.cartao-peca-data {
-  font-size: 11px;
-  color: var(--texto-fraco);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.cartao-peca-vazio {
-  font-size: 13px;
-  color: var(--texto-fraco);
-}
-
-.tira-imagens {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-.miniatura {
-  flex-shrink: 0;
-  width: 96px;
-  height: 120px;
-  padding: 0;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--borda);
-  background: var(--fundo);
-  transition: border-color var(--transicao), transform var(--transicao);
-}
-.miniatura:hover {
-  border-color: var(--menta);
-}
-.miniatura img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.cartao-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.cartao-links .botao {
-  padding: 8px 14px;
-  font-size: 13px;
-}
-
-.lista-arquivos {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.lista-arquivos li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--texto-suave);
-}
-.lista-arquivos svg {
-  color: var(--texto-fraco);
-  flex-shrink: 0;
-}
-
-/* Visor de imagem ampliada nas telas de fluxo. */
-.visor {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: rgba(var(--scrim-rgb), 0.92);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-  animation: entrada-suave 180ms ease both;
-}
-.visor img {
-  max-width: 86vw;
-  max-height: 86vh;
-  border-radius: 12px;
-  box-shadow: var(--sombra-modal);
-}
-.visor-fechar,
-.visor-nav {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  color: var(--texto);
-  transition: border-color var(--transicao), color var(--transicao);
-}
-.visor-fechar:hover,
-.visor-nav:hover {
-  border-color: var(--menta);
-  color: var(--menta-clara);
-}
-.visor-fechar {
-  top: 24px;
-  right: 24px;
-}
-.visor-nav.esq {
-  left: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.visor-nav.dir {
-  right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.visor-contador {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: var(--texto-suave);
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  padding: 6px 14px;
-  border-radius: 100px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Baixar a imagem atual de dentro do visor. */
-.visor-baixar {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 100px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  color: var(--texto);
-  font-size: 13px;
-  font-weight: 600;
-  transition: border-color var(--transicao), color var(--transicao),
-    box-shadow var(--transicao);
-}
-.visor-baixar:hover {
-  border-color: var(--menta);
-  color: var(--menta-clara);
-}
-
-/* ===== Fluxos de imagem: cards empilhados e generosos ===== */
-.tela-fluxo-corpo.empilhado {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 960px;
-  margin: 0 auto;
-  width: 100%;
-  gap: 24px;
-}
-.cartao-peca.grande {
-  padding: 22px 24px;
-  gap: 18px;
-}
-
-/* Card condensado (rodada 14): so no filtro "Todos" da galeria unificada
-   (TelaGalerias passa a prop, cockpit e telas de fluxo por tipo nao). Tira de
-   paginas menor e mais densa, card mais baixo, pra caber varias pecas na
-   mesma tela sem a rolagem virar a unica forma de ver o conjunto. */
-.cartao-peca.condensado.grande {
-  padding: 14px 16px;
-  gap: 10px;
-}
-.cartao-peca.condensado .tira-imagens.grande {
-  gap: 8px;
-}
-.cartao-peca.condensado .tira-imagens.grande .miniatura {
-  width: 84px;
-  height: 106px;
-}
-.botao-baixar-tudo {
-  padding: 8px 14px;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-/* Excluir geracao: discreto no repouso, vermelho quando armado. O tamanho do
-   botao NUNCA muda ao armar (o aviso flutua por cima), senao o layout desloca
-   e o clique de confirmacao erra o alvo. */
-.botao-excluir-peca {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 10px;
-  font-size: 13px;
-  flex-shrink: 0;
-  background: transparent;
-  border: 1px solid rgba(var(--realce-rgb), 0.1);
-  border-radius: 10px;
-  color: rgba(var(--realce-rgb), 0.45);
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-.botao-excluir-peca svg {
-  width: 15px;
-  height: 15px;
-}
-.botao-excluir-peca:hover {
-  color: var(--alerta);
-  border-color: rgba(var(--alerta-rgb), 0.4);
-}
-.botao-excluir-peca.armado {
-  color: var(--alerta);
-  border-color: rgba(var(--alerta-rgb), 0.55);
-  background: rgba(var(--alerta-rgb), 0.1);
-}
-.botao-excluir-peca.apagando {
-  opacity: 0.6;
-  cursor: default;
-}
-/* Balao de confirmacao: flutua acima do botao, fora do fluxo do layout.
-   E CLICAVEL: fica dentro do botao, entao clicar nele confirma (o clique
-   sobe pro onClick do botao). pointer-events none aqui ja causou bug real:
-   o usuario clica no aviso achando que e o botao de confirmar, e nada. */
-.botao-excluir-peca .aviso-confirmar {
-  position: absolute;
-  /* Abre pra BAIXO: a lixeira fica no topo do card, e pra cima o balao sai da
-     area de rolagem e some (bug real relatado no primeiro card da lista). */
-  top: calc(100% + 8px);
-  right: 0;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  color: var(--confirmar-perigo-texto);
-  background: var(--confirmar-perigo-fundo);
-  border: 1px solid var(--confirmar-perigo-borda);
-  box-shadow: var(--sombra-modal);
-  pointer-events: auto;
-  cursor: pointer;
-  z-index: 30;
-  animation: surgir-aviso 0.12s ease-out;
-}
-.botao-excluir-peca .aviso-confirmar:hover {
-  background: var(--confirmar-perigo-botao);
-  border-color: rgba(var(--alerta-rgb), 0.85);
-  color: var(--confirmar-perigo-texto);
-}
-@keyframes surgir-aviso {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Miniatura com botao de baixar no hover. */
-.miniatura-caixa {
-  position: relative;
-  flex-shrink: 0;
-}
-/* Na galeria e nas telas de fluxo, os slides QUEBRAM em varias linhas em vez
-   de rolar na horizontal. A rolagem horizontal cortava o ultimo slide num
-   corte seco, sem dar pista de que dava pra rolar: parecia layout quebrado.
-   Quebrando linha, todos os slides aparecem, nada fica cortado. */
-.tira-imagens.grande {
-  flex-wrap: wrap;
-  overflow-x: visible;
-  gap: 12px;
-  padding-bottom: 6px;
-}
-.tira-imagens.grande .miniatura {
-  width: 150px;
-  height: 190px;
-}
-.baixar-mini {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(var(--fundo-rgb), 0.82);
-  border: 1px solid var(--borda);
-  color: var(--texto);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity var(--transicao), transform var(--transicao),
-    border-color var(--transicao), color var(--transicao);
-  backdrop-filter: blur(4px);
-}
-.baixar-mini svg {
-  width: 16px;
-  height: 16px;
-}
-.miniatura-caixa:hover .baixar-mini,
-.baixar-mini:focus-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-.baixar-mini:hover {
-  border-color: var(--menta);
-  color: var(--menta-clara);
-}
-
-/* ===== Rodada 12: miniaturas vivas de carrossel fonteHtml (mesmo principio
-   do MiniaturaSite, a pagina isolada escalada com transform:scale). ===== */
-.miniatura-pagina {
-  padding: 0;
-}
-.miniatura-pagina-caixa {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: var(--fundo);
-}
-.miniatura-pagina-frame {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border: 0;
-  transform-origin: top left;
-  pointer-events: none;
-}
-
-/* Editar um carrossel fonteHtml, ao lado do baixar tudo no cabecalho do card. */
-.botao-editar-peca {
-  padding: 8px 14px;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-/* Pagina HTML ampliada no visor: mesma moldura da imagem, o iframe interno e
-   escalado em JS pro tamanho real do slide caber na tela. */
-.visor-pagina-html {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-  box-shadow: var(--sombra-modal);
-  background: var(--fundo);
-}
-.visor-pagina-html.carregando {
-  width: 360px;
-  height: 450px;
-}
-.visor-pagina-html-frame {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border: 0;
-  transform-origin: top left;
-}
-
-/* Empilha baixar PNG, baixar zip e editar no canto do visor de peca fonteHtml.
-   Mesmo estilo do visor-baixar, um por linha. */
-.visor-acoes-html {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  z-index: 5;
-}
-.visor-acoes-html .visor-baixar {
-  position: static;
-}
-
-/* ===== Telas de fonte (fontes de dados por tipo) ===== */
-.tela-fonte-topo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.tela-fonte-corpo {
-  padding: 24px 32px 48px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-  align-content: start;
-}
-
-.cartao-fonte {
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  transition: border-color var(--transicao), box-shadow var(--transicao),
-    transform var(--transicao);
-  animation: entrada-suave 300ms ease both;
-}
-.cartao-fonte:hover {
-  border-color: var(--borda-forte);
-}
-.cartao-fonte-topo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.cartao-fonte-topo h3 {
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.3;
-  word-break: break-word;
-}
-.cartao-fonte-data {
-  font-size: 11px;
-  color: var(--texto-fraco);
-  font-variant-numeric: tabular-nums;
-}
-.cartao-fonte-previa {
-  flex: 1;
-  min-height: 84px;
-}
-
-/* Prévia de texto: primeiras linhas. */
-.previa-texto {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 13px;
-  color: var(--texto-suave);
-  line-height: 1.5;
-}
-.previa-texto p {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Prévia de imagens: até 4 miniaturas. */
-.previa-imagens {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-.previa-mini {
-  aspect-ratio: 1;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--borda);
-  background: var(--fundo);
-}
-.previa-mini img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* Prévia de links: primeiros itens. */
-.previa-links {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.previa-links li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--texto-suave);
-}
-.previa-links svg {
-  color: var(--menta);
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-}
-.previa-link-texto {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.previa-vazia {
-  font-size: 13px;
-  color: var(--texto-fraco);
-}
-
-.cartao-fonte-acoes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid var(--borda);
-  padding-top: 14px;
-}
-.cartao-fonte-acoes .botao {
-  flex: 1;
-  padding: 9px 14px;
-  font-size: 13px;
-}
-.botao-icone-perigo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: var(--raio-p);
-  background: transparent;
-  border: 1px solid rgba(var(--alerta-rgb), 0.35);
-  color: var(--alerta-suave);
-  transition: background var(--transicao), border-color var(--transicao);
-}
-.botao-icone-perigo:hover {
-  background: rgba(var(--alerta-rgb), 0.12);
-  border-color: rgba(var(--alerta-rgb), 0.55);
-}
-
-/* ===== Prompt de nova fonte ===== */
-.overlay-fonte {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: rgba(var(--scrim-rgb), 0.72);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  animation: entrada-suave 160ms ease both;
-}
-.cartao-prompt {
-  width: 100%;
-  max-width: 420px;
-  background: var(--superficie);
-  border: 1px solid var(--borda-forte);
-  border-radius: var(--raio);
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: entrada-no 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-.cartao-prompt-topo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.cartao-prompt-selo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(var(--menta-rgb), 0.14);
-  color: var(--menta);
-  flex-shrink: 0;
-}
-.cartao-prompt-topo h2 {
-  flex: 1;
-  font-size: 16px;
-  font-weight: 700;
-}
-.cartao-prompt-x {
-  padding: 6px;
-  flex-shrink: 0;
-}
-.cartao-prompt-ajuda {
-  font-size: 13px;
-  color: var(--texto-suave);
-}
-.cartao-prompt-acoes {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 4px;
-}
-} /* fim de @layer base */

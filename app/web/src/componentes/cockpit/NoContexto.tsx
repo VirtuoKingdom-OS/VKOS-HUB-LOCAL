@@ -376,7 +376,8 @@ function NoContextoInterno({ id, data }: NodeProps) {
       </div>
       <div className="add-link">
         <input
-          className="nodrag url-nova"
+          className="nodrag campo campo-p url-nova"
+          aria-label="Endereço do link"
           placeholder="Cole a url"
           value={urlNova}
           onChange={(e) => setUrlNova(e.target.value)}
@@ -385,7 +386,8 @@ function NoContextoInterno({ id, data }: NodeProps) {
           }}
         />
         <input
-          className="nodrag desc-nova"
+          className="nodrag campo campo-p desc-nova"
+          aria-label="Descrição do link"
           placeholder="Descrição (opcional)"
           value={descNova}
           onChange={(e) => setDescNova(e.target.value)}
@@ -434,7 +436,7 @@ function NoContextoInterno({ id, data }: NodeProps) {
   return (
     <>
       <NodeResizer
-        color="var(--menta)"
+        color="var(--linha-forte)"
         isVisible
         minWidth={260}
         minHeight={180}
@@ -454,7 +456,8 @@ function NoContextoInterno({ id, data }: NodeProps) {
           <span className={`marca-contexto ${marcaClasse}`}>{marcaIcone}</span>
           {editando ? (
             <input
-              className="nodrag campo-nome"
+              className="nodrag campo campo-p campo-nome"
+              aria-label="Nome do contexto"
               autoFocus
               value={nomeRascunho}
               onChange={(e) => setNomeRascunho(e.target.value)}
@@ -505,7 +508,8 @@ function NoContextoInterno({ id, data }: NodeProps) {
             renderLinks()
           ) : (
             <textarea
-              className="nodrag nowheel campo-notas"
+              className="nodrag nowheel campo campo-notas"
+              aria-label="Notas do contexto"
               placeholder="Escreva notas ou cole texto aqui."
               value={texto}
               onChange={(e) => aoMudarTexto(e.target.value)}

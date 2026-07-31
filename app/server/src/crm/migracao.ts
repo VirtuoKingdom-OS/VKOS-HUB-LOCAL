@@ -25,6 +25,7 @@ import {
   colunasPadrao,
   gerarId,
   ordenarColunas,
+  saneiaDadosFormulario,
   tipoColunaPeloNome,
   type Coluna,
   type Contato,
@@ -321,6 +322,8 @@ function saneiaContato(
   if (cadencia !== undefined) contato.cadenciaDias = cadencia;
   const lead = saneiaLead(bruto.lead);
   if (lead) contato.lead = lead;
+  const formulario = saneiaDadosFormulario(bruto.formulario);
+  if (formulario) contato.formulario = formulario;
   if (bruto.arquivado === true) contato.arquivado = true;
   return contato;
 }

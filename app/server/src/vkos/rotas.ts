@@ -33,7 +33,7 @@ import { salvarAnexoPeca } from "./anexoPeca.js";
 import { ErroPaginaSite, gravarPaginaSite } from "./paginaSite.js";
 import { ErroRender, renderizarPaginas } from "./render.js";
 import { limparBuildAstro, PASTA_BUILD } from "../publicacao/astro/conversor.js";
-import { transmitir } from "../ws.js";
+import { transmitir } from "../nucleo/ws.js";
 import { registrarEAtivar } from "../workspaces/ativacao.js";
 import { lerSkills } from "./skills.js";
 import { contarSlides, extrairDataTema, lerPecas, reinstalarObservador } from "./pecas.js";

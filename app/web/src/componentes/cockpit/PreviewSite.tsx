@@ -4,6 +4,7 @@ import { usarEstado } from "../../estado/contexto";
 import type { Peca } from "../../tipos/dominio";
 import { formatarTema, nomePagina } from "../telas/fluxos";
 import { IconeLapis, IconeSeta, IconeX } from "../comum/Icones";
+import { irParaPeca } from "../layout/rotas";
 
 // Dimensoes de viewport presetadas. Mobile costuma caber quase inteiro;
 // desktop encolhe pra caber na area limitada do painel.
@@ -168,7 +169,7 @@ export function PreviewSite({ pasta, paginaInicial, aoFechar }: Props) {
           <div className="barra-preview">
             {paginas.length > 1 && (
               <select
-                className="select-pagina"
+                className="campo campo-p select-pagina"
                 value={pagina}
                 onChange={(e) => setPagina(e.target.value)}
                 title="Escolher a página"
@@ -224,7 +225,7 @@ export function PreviewSite({ pasta, paginaInicial, aoFechar }: Props) {
                   className="abrir-nova-aba editar-site-preview"
                   onClick={() => {
                     aoFechar();
-                    window.location.hash = "#/site/" + encodeURIComponent(pasta);
+                    irParaPeca("site", pasta);
                   }}
                   title="Abrir no editor de site"
                 >

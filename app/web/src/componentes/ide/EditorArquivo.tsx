@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
-import { IconeArquivo, IconeCheck } from "../comum/Icones";
+import { Botao } from "../comum/Botao";
+import { IconeAlerta, IconeArquivo, IconeCheck } from "../comum/Icones";
 
 interface Props {
   caminho: string | null;
@@ -13,8 +14,8 @@ interface Props {
 }
 
 // Editor de texto simples: textarea mono com coluna de numeros de linha
-// sincronizada no scroll. Ctrl+S salva. Indicador de sujo e salvo no topo.
-// Sem dependencia de editor pesado nesta fase (contrato da rodada 10).
+// sincronizada no scroll. Ctrl+S salva, e o botao Salvar faz o mesmo pra quem
+// nao sabe do atalho: quem usa o Hub nao e desenvolvedor.
 export function EditorArquivo({
   caminho,
   valor,
@@ -59,9 +60,13 @@ export function EditorArquivo({
 
   if (!caminho) {
     return (
-      <div className="ide-editor-vazio">
-        <IconeArquivo className="" style={{ width: 34, height: 34, opacity: 0.5 }} />
-        <p>Escolha um arquivo na árvore pra abrir aqui.</p>
+      <div className="vazio">
+        <IconeArquivo className="" />
+        <h2>Nenhum arquivo aberto</h2>
+        <p>
+          Escolha um arquivo na árvore ao lado para ler e editar aqui. O que
+          você salvar vale na hora, direto no disco.
+        </p>
       </div>
     );
   }
@@ -72,28 +77,39 @@ export function EditorArquivo({
         <span className="ide-editor-caminho" title={caminho}>
           {caminho}
         </span>
-        <span className="ide-editor-estado">
-          {salvando ? (
-            <span className="ide-estado-salvando">Salvando...</span>
-          ) : sujo ? (
-            <span className="ide-estado-sujo">
-              <span className="ide-ponto-sujo" />
-              Não salvo
-            </span>
-          ) : (
-            <span className="ide-estado-salvo">
-              <IconeCheck className="" />
-              Salvo
-            </span>
-          )}
-        </span>
+        {sujo ? (
+          <span className="selo selo-aviso">Não salvo</span>
+        ) : (
+          <span className="ide-editor-salvo">
+            <IconeCheck className="" />
+            Salvo
+          </span>
+        )}
+        <Botao
+          tamanho="p"
+          onClick={aoSalvar}
+          disabled={!sujo || salvando}
+          aria-busy={salvando}
+          title="Salvar o arquivo, ou Ctrl+S"
+        >
+          Salvar
+        </Botao>
       </header>
 
-      {erro && <div className="ide-editor-erro">{erro}</div>}
+      {erro && (
+        <div className="faixa faixa-alerta ide-editor-erro" role="alert">
+          <IconeAlerta className="" />
+          <div className="faixa-texto">{erro}</div>
+        </div>
+      )}
 
       {carregando ? (
-        <div className="ide-editor-carregando">
-          <span className="giro" />
+        <div className="ide-editor-carregando" aria-hidden="true">
+          <div className="esqueleto esqueleto-linha" />
+          <div className="esqueleto esqueleto-linha" />
+          <div className="esqueleto esqueleto-linha" />
+          <div className="esqueleto esqueleto-linha" />
+          <div className="esqueleto esqueleto-linha" />
         </div>
       ) : (
         <div className="ide-editor-area">
@@ -107,6 +123,7 @@ export function EditorArquivo({
           <textarea
             ref={refArea}
             className="ide-textarea"
+            aria-label={`Conteúdo de ${caminho}`}
             value={valor}
             spellCheck={false}
             wrap="off"

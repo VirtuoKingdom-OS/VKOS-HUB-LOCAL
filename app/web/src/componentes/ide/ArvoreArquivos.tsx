@@ -4,6 +4,7 @@ import type { NoIde } from "../../api/ide";
 import { mensagemDeErro } from "../../util/erros";
 import { MenuContexto, type ItemMenu } from "../comum/MenuContexto";
 import {
+  IconeAlerta,
   IconeArquivo,
   IconeLixeira,
   IconeMais,
@@ -223,7 +224,7 @@ export function ArvoreArquivos({
           )}
         </span>
         <input
-          className="ide-no-input"
+          className="campo campo-p ide-no-input"
           autoFocus
           value={nomeNovo}
           placeholder={criando.tipo === "pasta" ? "nome da pasta" : "nome do arquivo"}
@@ -246,12 +247,23 @@ export function ArvoreArquivos({
     const armado = confirmando === no.caminho;
 
     return (
-      <div key={no.caminho}>
+      <div key={no.caminho} className="ide-no-linha">
         <div
           className={`ide-no${selecionado ? " ativo" : ""}${armado ? " armado" : ""}`}
+          role="button"
+          tabIndex={editando ? -1 : 0}
+          aria-expanded={ehPasta ? aberto : undefined}
+          aria-current={selecionado ? "true" : undefined}
           style={{ paddingLeft: 8 + profundidade * 14 }}
           onClick={() => {
             if (editando) return;
+            if (ehPasta) alternar(no.caminho);
+            else aoAbrir(no.caminho);
+          }}
+          onKeyDown={(e) => {
+            if (editando) return;
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
             if (ehPasta) alternar(no.caminho);
             else aoAbrir(no.caminho);
           }}
@@ -269,7 +281,7 @@ export function ArvoreArquivos({
           </span>
           {editando ? (
             <input
-              className="ide-no-input"
+              className="campo campo-p ide-no-input"
               autoFocus
               value={nomeRen}
               onClick={(e) => e.stopPropagation()}
@@ -325,7 +337,12 @@ export function ArvoreArquivos({
         setMenu({ x: e.clientX, y: e.clientY, no: null });
       }}
     >
-      {erro && <div className="ide-arvore-erro">{erro}</div>}
+      {erro && (
+        <div className="faixa faixa-alerta ide-arvore-erro" role="alert">
+          <IconeAlerta className="" />
+          <div className="faixa-texto">{erro}</div>
+        </div>
+      )}
       {itens.map((no) => renderNo(no, 0))}
       {linhaCriar("", 0)}
       {itens.length === 0 && !criando && (

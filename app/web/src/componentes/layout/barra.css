@@ -1,0 +1,414 @@
+/* A CASCA DO HUB: barra lateral, area de conteudo e as camadas que cobrem ela.
+   Refeita na Fase 2 do redesign v2 (2026-07-30), sobre a fundacao nova.
+
+   O QUE MUDOU, e por que. A casca inteira morava no legado.css, partida em dois
+   trechos que se sobrescreviam (um vindo do global.css antigo, outro do
+   visual-hub.css antigo). Item de menu selecionado era preenchimento menta com
+   glow, o que gastava a unica voz colorida do sistema em navegacao parada; o
+   item media 40px de altura e a barra tinha 248px de largura, entao a moldura
+   comia tela antes de qualquer trabalho comecar.
+
+   AGORA: a moldura recua pro --chassi, o item de menu tem a altura padrao de
+   controle (32px), e selecionado se le por superficie mais um fio a esquerda em
+   --acao, a mesma gramatica do .item-lista das primitivas. O menta so aparece
+   no ponto de conexao viva e na contagem de sessoes em voo.
+
+   Tudo da casca mora aqui. Linha nova de barra nasce nesta folha. */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e as telas carregam sob demanda. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. A CASCA
+   ========================================================================== */
+.shell {
+  height: 100%;
+  display: flex;
+  background: var(--fundo);
+}
+
+/* Area de conteudo: o cockpit fica sempre montado, as telas cobrem por cima. */
+.shell-conteudo {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--fundo);
+}
+
+.camada-cockpit {
+  position: absolute;
+  inset: 0;
+}
+
+/* O cockpit fica montado (preserva o canvas e o streaming) mas so aparece
+   quando e a tela ativa. Sem isso, o refresh numa tela pesada mostrava o
+   cockpit por baixo enquanto o chunk carregava: o "fantasma". */
+.camada-cockpit.oculta {
+  visibility: hidden;
+}
+
+/* A IDE e uma camada universal. Fechada, continua montada pra preservar o
+   arquivo e os streams, mas nao participa do foco nem do clique. */
+.camada-ide {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-camada);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-16);
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(var(--esp-8));
+  overflow: hidden;
+  transition: opacity var(--mov-padrao) var(--curva),
+    transform var(--mov-padrao) var(--curva),
+    visibility 0s linear var(--mov-padrao);
+}
+
+.camada-ide.aberta {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition-delay: 0s;
+}
+
+/* Movimento reduzido SUBSTITUI: o deslocamento some, a troca de opacidade
+   fica, e a camada continua se anunciando ao abrir. */
+@media (prefers-reduced-motion: reduce) {
+  .camada-ide {
+    transform: none;
+  }
+}
+
+/* Casca de carregamento das telas que entram por import dinamico. */
+.tela-hub-carregando {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-fixo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fundo);
+  color: var(--texto-fraco);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+}
+
+/* ==========================================================================
+   2. A BARRA LATERAL
+
+   Ela e MOLDURA, entao usa o --chassi e recua: quem manda na tela e o trabalho
+   ao lado. 240px e o ponto onde o nome de workspace mais longo do registro
+   ainda cabe sem cortar.
+   ========================================================================== */
+.sidebar {
+  width: 240px;
+  flex: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--esp-12) var(--esp-8) var(--esp-8);
+  background: var(--chassi);
+  border-right: 1px solid var(--linha);
+}
+
+/* ===== Marca ===== */
+.sidebar-marca-bloco {
+  flex: none;
+  padding: 0 var(--esp-4) var(--esp-16);
+}
+
+.sidebar-marca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+}
+
+/* "Versao Beta" e nota permanente, nao evento: sem triangulo, sem cor de
+   alerta. Ela alinha com o wordmark, embaixo dele. */
+.sidebar-marca-beta {
+  display: block;
+  margin-top: var(--esp-2);
+  padding-left: calc(var(--esp-24) + var(--esp-8));
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--tr-micro);
+  color: var(--texto-fraco);
+  cursor: default;
+}
+
+/* ===== Alternador de tema =====
+   Ele veste .botao .botao-fantasma .botao-icone .botao-p das primitivas: aqui
+   so mora a ancora do popover. */
+.tema-caixa {
+  position: relative;
+  display: inline-flex;
+}
+
+.barra-tema-menu {
+  top: calc(100% + var(--esp-4));
+  right: 0;
+  min-width: 160px;
+}
+
+/* O item escolhido se marca por peso e pelo tique, nunca por cor: a regra do
+   menta e falar so do que esta vivo, e tema escolhido nao esta acontecendo. */
+.barra-tema-menu .menu-item[aria-checked="true"] {
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+}
+.barra-tema-menu .menu-item svg {
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== Voltar pro CORE =====
+   Um comando quieto, no topo da barra do workspace. Sair do projeto e o gesto
+   mais importante desta barra, entao ele nasce visivel e com alvo inteiro. */
+.sidebar-voltar-core {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  width: 100%;
+  min-height: var(--alt);
+  margin-bottom: var(--esp-8);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio);
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-medio);
+  text-align: left;
+  transition: background var(--transicao), color var(--transicao);
+}
+.sidebar-voltar-core:hover {
+  background: var(--superficie-alta);
+  color: var(--texto);
+}
+.sidebar-voltar-seta {
+  width: 14px;
+  height: 14px;
+  transform: rotate(180deg);
+}
+
+/* ===== Navegacao ===== */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0;
+}
+
+/* A area que rola e a unica que cede altura. Ela e o que impede a barra de
+   sufocar num notebook baixo: o rodape e a marca ficam inteiros e o menu
+   ganha barra de rolagem. */
+.sidebar-nav-rolante {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* O rotulo de grupo veste .rotulo-grupo das primitivas. Aqui so mora o espaco
+   que separa um grupo do anterior. */
+.sidebar-secao {
+  display: flex;
+  align-items: center;
+  padding: var(--esp-16) var(--esp-8) var(--esp-4);
+}
+.sidebar-secao:first-child {
+  padding-top: 0;
+}
+/* Subgrupo dentro do workspace (Conteudo, Fontes de dados): mesmo tratamento,
+   sem recuo extra. Recuo de indentacao em rotulo de 11px so desalinha a
+   coluna dos icones. */
+.sidebar-subsecao {
+  padding-top: var(--esp-12);
+}
+
+/* O ITEM DE MENU. Altura de controle padrao (32px), tinta suave parado, e
+   selecionado por superficie mais fio a esquerda em --acao, exatamente como
+   .item-lista. O preenchimento menta com glow que ele tinha antes gastava a
+   voz colorida do sistema numa lista parada. */
+.item-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  width: 100%;
+  min-height: var(--alt);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio);
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-medio);
+  text-align: left;
+  transition: background var(--transicao), color var(--transicao),
+    box-shadow var(--transicao);
+}
+.item-nav svg {
+  width: 16px;
+  height: 16px;
+}
+.item-nav:hover {
+  background: var(--superficie-alta);
+  color: var(--texto);
+}
+.item-nav.ativo {
+  background: var(--superficie-alta);
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+.item-nav-rotulo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A VKOS-IDE fica ancorada no fim da navegacao: ela e ferramenta do dono, nao
+   item de projeto. */
+.sidebar-nav-fim {
+  margin-top: auto;
+  padding-top: var(--esp-8);
+}
+
+/* ==========================================================================
+   3. O RODAPE DA BARRA
+   ========================================================================== */
+.sidebar-rodape {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  margin-top: var(--esp-8);
+  padding: var(--esp-8) var(--esp-8) 0;
+  border-top: 1px solid var(--linha);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.rodape-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--esp-24);
+}
+
+/* POR QUE ESTE PONTO NAO E O .ponto-vivo DAS PRIMITIVAS: o ponto-vivo pulsa, e
+   pulso e evento. Aqui o estado e permanente (o Claude esta instalado, o canal
+   ao vivo esta ligado), e um pulso perpetuo no rodape ensina a ignorar pulso,
+   e ai o da sessao em voo nao e mais lido. Mesma cor, sem animacao. */
+.ponto-luz {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--raio-pilula);
+  background: var(--texto-fraco);
+}
+.ponto-luz.on {
+  background: var(--menta-viva);
+}
+.ponto-luz.off {
+  background: var(--alerta);
+}
+
+/* Contagem de sessoes. O menta so pinta quando ha sessao viva de verdade:
+   pintado sempre, ele dizia "acontecendo agora" com 0 de 5 rodando. */
+.rodape-sessoes {
+  margin-left: auto;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+.rodape-sessoes.vivo {
+  color: var(--menta);
+}
+
+/* ===== Gasto do projeto aberto =====
+   Um dado forte por bloco: o valor vem primeiro, com tratamento de numero, e o
+   rotulo corre depois dele como frase normal. Com o numero na frente, o rotulo
+   quebra onde couber sem levar o dado junto. */
+.rodape-projeto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  margin-top: var(--esp-4);
+}
+.rodape-projeto-linha {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--esp-8);
+}
+.rodape-projeto-valor {
+  flex: none;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rodape-projeto-rotulo {
+  min-width: 0;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+/* O alerta de piso nunca sai: ele e o que impede o numero de parecer exato
+   quando nao e. Fica subordinado ao valor, nunca ao lado dele. */
+.rodape-projeto-ressalva {
+  margin-top: var(--esp-2);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  color: var(--aviso);
+}
+.rodape-projeto-pasta {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   4. TELA BAIXA
+   Aperta a MOLDURA, nunca o conteudo. O que sai e folga, nunca informacao: a
+   pasta ja aparece inteira na dica do bloco de gasto e no seletor de workspace.
+   ========================================================================== */
+@media (max-height: 780px) {
+  .sidebar {
+    padding-top: var(--esp-8);
+  }
+  .sidebar-marca-bloco {
+    padding-bottom: var(--esp-8);
+  }
+  .sidebar-secao {
+    padding-top: var(--esp-12);
+  }
+}
+
+@media (max-height: 660px) {
+  .sidebar-marca-beta {
+    display: none;
+  }
+  .rodape-projeto-pasta {
+    display: none;
+  }
+}
+
+} /* fim de @layer tela */

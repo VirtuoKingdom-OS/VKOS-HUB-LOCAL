@@ -5,7 +5,10 @@ import { mensagemDeErro } from "../../util/erros";
 import type { TurnoSessao } from "../../tipos/dominio";
 import { IconeCerebro, IconeRaio, IconeSeta, IconeX } from "../comum/Icones";
 import { Markdown } from "../comum/Markdown";
-import "../../estilos/cerimonia.css";
+import { promptComDocumento, type DocumentoCerebro } from "./cerebroDocumento";
+import "./cerimonia.css";
+
+export type { DocumentoCerebro };
 
 // Titulo fixo da sessao da cerimonia: e por ele que a gente reencontra uma
 // entrevista em andamento ao reabrir a tela (a sessao vive no backend).
@@ -15,6 +18,9 @@ interface Props {
   aoFechar: () => void;
   // Chamado no fim feliz: fecha a cerimonia e abre o popover de fluxos.
   aoCriarFluxo: () => void;
+  // Quando vem preenchido, a cerimonia comeca sozinha lendo este documento em
+  // vez de esperar o clique em "Começar a entrevista".
+  documento?: DocumentoCerebro | null;
 }
 
 // A cerimonia de abertura de um cliente novo: a entrevista guiada que preenche
@@ -22,7 +28,7 @@ interface Props {
 // VKOS (que ja sabe conduzir uma pergunta por vez e nunca inventar dado); por
 // cima e uma conversa em tela cheia, acolhedora, sem cara de formulario.
 // Fechar no meio nao perde nada: a sessao segue no backend e reabrir retoma.
-export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
+export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
   const {
     sessoes,
     streams,
@@ -117,21 +123,39 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [turnos, pendentes, respostaViva]);
 
-  const comecar = useCallback(async () => {
-    setComecando(true);
-    setErro(null);
-    try {
-      await criarSessao({
-        titulo: TITULO_CERIMONIA,
-        prompt: "/instalar",
-        skill: "instalar",
-      });
-    } catch (e) {
-      setErro(mensagemDeErro(e));
-    } finally {
-      setComecando(false);
-    }
-  }, [criarSessao]);
+  const comecar = useCallback(
+    async (doc?: DocumentoCerebro | null) => {
+      setComecando(true);
+      setErro(null);
+      try {
+        await criarSessao({
+          titulo: TITULO_CERIMONIA,
+          prompt: doc ? promptComDocumento(doc.caminho) : "/instalar",
+          skill: "instalar",
+        });
+      } catch (e) {
+        setErro(mensagemDeErro(e));
+      } finally {
+        setComecando(false);
+      }
+    },
+    [criarSessao]
+  );
+
+  // Cerimonia semeada por documento: dispara sozinha, uma vez so. O guarda e
+  // um ref e nao o estado da sessao de proposito, porque entre o clique e a
+  // sessao aparecer na lista existe uma janela de ida e volta ao servidor, e
+  // sem ele o efeito abriria duas entrevistas na mesma gota.
+  //
+  // Nao dispara se ja existe uma entrevista em andamento: quem parou no meio
+  // volta pra conversa dele, e nao pra uma segunda que apagaria o caminho
+  // andado. Nesse caso o documento fica no anexo, disponivel pra pessoa citar.
+  const disparouDocumento = useRef(false);
+  useEffect(() => {
+    if (!documento || disparouDocumento.current || sessao) return;
+    disparouDocumento.current = true;
+    void comecar(documento);
+  }, [documento, sessao, comecar]);
 
   const enviar = useCallback(async () => {
     const texto = mensagem.trim();
@@ -185,7 +209,31 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
           </button>
         </header>
 
-        {!conversaComecou ? (
+        {!conversaComecou && documento ? (
+          // A entrevista semeada por documento ja esta a caminho: nao ha botao
+          // pra clicar. O que a tela deve nesse instante e dizer o que esta
+          // acontecendo e com qual arquivo, senao ela e so uma espera muda.
+          <div className="cerimonia-intro">
+            <div className="cerimonia-selo">
+              <IconeCerebro className="" />
+            </div>
+            <h2>Lendo o seu documento</h2>
+            <p>
+              O Hub está lendo <strong>{documento.nome}</strong> e montando o
+              Cérebro com o que estiver escrito lá. Em seguida ele mostra o que
+              conseguiu preencher e pergunta só o que ficou faltando.
+            </p>
+            {erro ? (
+              <div className="cerimonia-erro">{erro}</div>
+            ) : (
+              <div className="cerimonia-digitando">
+                <span />
+                <span />
+                <span />
+              </div>
+            )}
+          </div>
+        ) : !conversaComecou ? (
           <div className="cerimonia-intro">
             <div className="cerimonia-selo">
               <IconeCerebro className="" />
@@ -198,7 +246,7 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
               sair com a cara do negócio. Leva uns 10 minutos.
             </p>
             <button
-              className="botao botao-principal cerimonia-comecar"
+              className="botao botao-principal botao-g cerimonia-comecar"
               onClick={() => void comecar()}
               disabled={comecando}
             >
@@ -220,7 +268,10 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
               carrossel, site e página nasce lendo esse documento. Você pode
               revisar e ajustar o Cérebro quando quiser, pelo nó no canvas.
             </p>
-            <button className="botao botao-principal cerimonia-comecar" onClick={aoCriarFluxo}>
+            <button
+              className="botao botao-principal botao-g cerimonia-comecar"
+              onClick={aoCriarFluxo}
+            >
               <IconeRaio className="" />
               Criar o primeiro fluxo
             </button>
@@ -262,6 +313,8 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
             <div className="cerimonia-envio">
               <input
                 ref={refCampo}
+                className="campo campo-g"
+                aria-label="Sua resposta"
                 value={mensagem}
                 placeholder={rodando ? "Espere a pergunta..." : "Responda aqui"}
                 disabled={rodando || enviando}
@@ -271,7 +324,8 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo }: Props) {
                 }}
               />
               <button
-                className="botao botao-principal cerimonia-enviar"
+                className="botao botao-principal botao-g botao-icone cerimonia-enviar"
+                aria-label="Enviar resposta"
                 onClick={() => void enviar()}
                 disabled={rodando || enviando || !mensagem.trim()}
                 title="Enviar"

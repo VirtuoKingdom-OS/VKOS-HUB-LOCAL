@@ -1,0 +1,494 @@
+/* ==========================================================================
+   A PECA: o cartao de uma geracao e o visor que amplia ela.
+
+   ESCRITA NA VARREDURA FINAL da Fase 2 do redesign v2 (2026-07-30), quando o
+   legado.css foi demolido. Estes dois componentes (pecas/CartaoPeca e
+   pecas/Lightbox) eram os ultimos moradores do legado: nenhuma das ondas
+   anteriores podia leva-los, porque eles nao pertencem a uma tela so. Tres
+   donos usam os dois: a tela de um fluxo, a galeria unificada e a galeria de
+   um conteiner do Cockpit.
+
+   A REGRA QUE MANDA AQUI. Esta e a superficie mais colorida do app inteiro: o
+   que aparece nela e o carrossel, o post e o site DO USUARIO. Entao a moldura
+   e acromatica de ponta a ponta. Nenhum menta, nenhum realce, nenhum fio
+   colorido. O que separa uma peca da outra e um fio de --linha e o espaco.
+
+   O QUE MUDOU EM RELACAO AO LEGADO, e o motivo de cada coisa:
+
+   - O cartao passou a compor a primitiva .cartao. Antes ele reescrevia fundo,
+     fio, raio e transicao por conta propria, com --raio de 8px e sombra no
+     hover. Cartao parado no fluxo da pagina nao flutua, entao nao tem sombra:
+     numa galeria com trinta cartoes, trinta sombras suaves nao leem como
+     trinta planos, leem como sujeira uniforme.
+   - O TITULO DA PECA CAIU DE 15px/700 PRA --txt-corpo/600. Peso 700 e enfase
+     de dado, e o tema de um carrossel e um nome, nao um numero.
+   - O BOTAO DE BAIXAR A MINIATURA NASCE VISIVEL. No legado ele era
+     "opacity: 0" ate o mouse chegar: acao que so aparece no hover nao existe
+     pro teclado, nao existe pro toque, e some pra quem nao sabe que ela esta
+     ali. Agora ele e um alvo de 28px, parado, com superficie e fio proprios.
+   - A MINIATURA NAO FICA MAIS MENTA NO HOVER. O fio sobe pra --linha-forte. O
+     menta so diz o que esta VIVO, e uma imagem parada nao esta viva.
+   - "Abrir" do cartao de site deixou de ser .botao-principal. Sao ate trinta
+     cartoes na mesma tela: trinta acoes principais nao e uma acao principal.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. O CARTAO DE UMA GERACAO
+
+   Ele compoe .cartao das primitivas (superficie, fio, raio, transicao) e
+   escreve aqui so o proprio layout.
+   ========================================================================== */
+.cartao-peca {
+  gap: var(--esp-12);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+
+/* Peca de imagem: a tira de slides pede mais respiro que uma lista de
+   arquivos, entao o cartao abre. */
+.cartao-peca.grande {
+  padding: var(--esp-16);
+  gap: var(--esp-16);
+}
+
+/* Condensado: so no filtro "Todos" da galeria unificada, onde o objetivo e
+   caber varias pecas na mesma tela sem a rolagem virar a unica forma de ver o
+   conjunto. */
+.cartao-peca.condensado.grande {
+  padding: var(--esp-12);
+  gap: var(--esp-8);
+}
+
+.cartao-peca-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  /* Cartao estreito (coluna de 320px) mais tema longo mais ate tres acoes nao
+     cabem numa linha so. Sem wrap, o titulo era espremido a quase zero de
+     largura e a coluna de texto quebrado ficava POR BAIXO dos botoes. Com
+     wrap, o que nao cabe desce, sempre abaixo do titulo. */
+  flex-wrap: wrap;
+  row-gap: var(--esp-8);
+}
+
+.cartao-peca-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-8);
+  min-width: 0;
+  flex-wrap: wrap;
+  /* O titulo reserva ~160px antes de ceder a linha pros botoes, em vez de
+     sumir espremido entre eles. */
+  flex: 1 1 160px;
+}
+
+.cartao-peca-topo h3 {
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  /* Tema longo trunca numa linha so, em vez de quebrar palavra por palavra
+     numa coluna ilegivel. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* As acoes do cartao andam juntas: elas quebram pra segunda linha em bloco, e
+   nunca ficam em pontas opostas dela. */
+.cartao-peca-acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+.cartao-peca-data {
+  flex: none;
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--tr-micro);
+  color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cartao-peca-vazio {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* Peca sem imagem: os arquivos do pedido, um por linha. */
+.lista-arquivos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.lista-arquivos li {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+.lista-arquivos svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--texto-fraco);
+}
+
+/* Peca de site sem miniatura: um botao por pagina. */
+.cartao-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+}
+
+/* ==========================================================================
+   2. A TIRA DE SLIDES
+
+   Os slides QUEBRAM em varias linhas em vez de rolar na horizontal: a rolagem
+   cortava o ultimo slide num corte seco, sem dar pista de que dava pra rolar,
+   e parecia layout quebrado.
+   ========================================================================== */
+.tira-imagens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+}
+
+.tira-imagens.grande {
+  gap: var(--esp-12);
+}
+
+.miniatura-caixa {
+  position: relative;
+  flex: none;
+}
+
+.miniatura {
+  flex: none;
+  display: block;
+  width: 96px;
+  height: 120px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  cursor: pointer;
+  transition: border-color var(--transicao);
+}
+
+/* O fio sobe pro contorno de controle. Menta aqui seria decoracao: a
+   miniatura nao esta viva, ela so esta debaixo do mouse. */
+.miniatura:hover {
+  border-color: var(--linha-forte);
+}
+
+.miniatura img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tira-imagens.grande .miniatura {
+  width: 150px;
+  height: 190px;
+}
+
+.cartao-peca.condensado .tira-imagens.grande .miniatura {
+  width: 84px;
+  height: 106px;
+}
+
+/* Baixar UM slide. NASCE VISIVEL, no canto da miniatura, com superficie e fio
+   proprios: e a diferenca entre uma acao que existe e uma que a pessoa
+   descobre por acidente. */
+.baixar-mini {
+  position: absolute;
+  top: var(--esp-4);
+  right: var(--esp-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--alt-p);
+  height: var(--alt-p);
+  color: var(--texto-suave);
+  background: var(--superficie);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  transition: color var(--transicao), background var(--transicao);
+}
+
+.baixar-mini:hover {
+  color: var(--texto);
+  background: var(--superficie-alta);
+}
+
+.baixar-mini svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Miniatura viva de uma pagina de carrossel HTML: a propria pagina isolada,
+   escalada com transform. Papel branco em qualquer tema, porque e a folha do
+   CLIENTE e ela nao acompanha o tema do Hub. */
+.miniatura-pagina {
+  padding: 0;
+}
+
+.miniatura-pagina-caixa {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--papel);
+}
+
+.miniatura-pagina-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   3. EXCLUIR UMA GERACAO
+
+   Confirmacao em dois cliques: o primeiro arma (fica vermelho, com um balao
+   por baixo), o segundo apaga. O botao NUNCA muda de tamanho ao armar, senao
+   o layout desloca e o segundo clique erra o alvo.
+   ========================================================================== */
+.botao-excluir-peca {
+  position: relative;
+  flex: none;
+}
+
+.botao-excluir-peca:hover:not(:disabled) {
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+}
+
+.botao-excluir-peca svg {
+  width: 14px;
+  height: 14px;
+}
+
+.botao-excluir-peca.armado {
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+  border-color: var(--alerta-linha);
+}
+
+.botao-excluir-peca.apagando {
+  cursor: progress;
+}
+
+/* O balao flutua sobre o conteudo abaixo do botao, entao ele leva sombra de
+   popover. Ele abre PRA BAIXO: a lixeira fica no topo do cartao, e pra cima o
+   balao saia da area de rolagem e sumia.
+
+   Ele e CLICAVEL de proposito: vive dentro do botao, entao clicar nele
+   confirma. "pointer-events: none" aqui ja causou bug real, a pessoa clicava
+   no aviso achando que era o botao de confirmar, e nada acontecia. */
+.botao-excluir-peca .aviso-confirmar {
+  position: absolute;
+  top: calc(100% + var(--esp-4));
+  right: 0;
+  z-index: var(--z-popover);
+  padding: var(--esp-4) var(--esp-8);
+  border-radius: var(--raio-p);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  white-space: nowrap;
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+  border: 1px solid var(--alerta-linha);
+  box-shadow: var(--sombra-popover);
+  cursor: pointer;
+  animation: surgir-ancorado var(--mov-rapido) var(--curva) both;
+}
+
+/* ==========================================================================
+   4. O VISOR: uma peca ampliada em tela cheia
+
+   Ele e camada de verdade: fica parado enquanto o resto da tela some por
+   baixo do veu. Os controles dele flutuam sobre a imagem do usuario, entao
+   levam superficie flutuante, fio de controle e --sombra-modal, que e o que
+   garante que o botao continue legivel sobre uma foto clara ou escura.
+   ========================================================================== */
+.visor {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-veu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-48);
+  background: var(--veu);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+
+.visor img {
+  max-width: 86vw;
+  max-height: 86vh;
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-modal);
+}
+
+.visor-fechar,
+.visor-nav {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--alt-g);
+  height: var(--alt-g);
+  color: var(--texto);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-modal);
+  transition: background var(--transicao), border-color var(--transicao);
+}
+
+.visor-fechar:hover,
+.visor-nav:hover {
+  background: var(--superficie-alta);
+}
+
+.visor-fechar {
+  top: var(--esp-24);
+  right: var(--esp-24);
+}
+
+.visor-nav.esq {
+  left: var(--esp-24);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.visor-nav.dir {
+  right: var(--esp-24);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.visor-contador {
+  position: absolute;
+  bottom: var(--esp-24);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--esp-4) var(--esp-12);
+  color: var(--texto-suave);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-pilula);
+  box-shadow: var(--sombra-modal);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Baixar de dentro do visor. Mesma gramatica de um .botao-neutro, so que
+   flutuando sobre a peca. */
+.visor-baixar {
+  position: absolute;
+  top: var(--esp-24);
+  left: var(--esp-24);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-12);
+  color: var(--texto);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-modal);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-medio);
+  /* Duas destas tres acoes sao <a> e uma e <button>, lado a lado na mesma
+     coluna: sem isto, so as duas primeiras saiam sublinhadas. */
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--transicao);
+}
+
+.visor-baixar:hover {
+  background: var(--superficie-alta);
+}
+
+.visor-baixar svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+/* Peca HTML tem tres acoes (PNG, zip, editar): elas empilham no mesmo canto,
+   uma por linha. */
+.visor-acoes-html {
+  position: absolute;
+  top: var(--esp-24);
+  left: var(--esp-24);
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  /* Elas esticam ate a largura da maior: tres botoes empilhados com bordas
+     ragged leem como tres coisas soltas, e nao como um grupo de acoes. */
+  align-items: stretch;
+  gap: var(--esp-8);
+}
+
+.visor-acoes-html .visor-baixar {
+  position: static;
+  justify-content: flex-start;
+}
+
+/* Pagina HTML ampliada: mesma moldura da imagem. O iframe interno e escalado
+   em JS pro tamanho real do slide caber na tela. */
+.visor-pagina-html {
+  position: relative;
+  overflow: hidden;
+  background: var(--papel);
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-modal);
+}
+
+.visor-pagina-html.carregando {
+  width: 360px;
+  height: 450px;
+}
+
+.visor-pagina-html-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+}
+
+/* MOVIMENTO REDUZIDO: esta folha nao escreve @keyframes proprio. As tres
+   entradas daqui (cartao, visor e balao) usam "surgir" e "surgir-ancorado" de
+   primitivas.css, e la as duas ja sao REDEFINIDAS sem transform dentro do
+   bloco de movimento reduzido: o elemento continua aparecendo, so que sem
+   subir. Substituir e o contrato; apagar nao e. */
+}

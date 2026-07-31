@@ -2,15 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import * as ide from "../../api/ide";
 import type { RespostaArvore } from "../../api/ide";
 import { mensagemDeErro } from "../../util/erros";
-import { IconeChevron, IconeX } from "../comum/Icones";
+import { Botao } from "../comum/Botao";
+import { IconeAlerta, IconeChevron, IconeX } from "../comum/Icones";
 import { ArvoreArquivos } from "./ArvoreArquivos";
 import { EditorArquivo } from "./EditorArquivo";
 import { ChatIde } from "./ChatIde";
 import { usarJanelaIde } from "./usarJanelaIde";
-import "../../estilos/ide.css";
+import "./ide.css";
 
-// Ícone de recarregar: uma seta circular. Gira enquanto recarrega.
-function IconeRecarregar({ className }: { className?: string }) {
+// Ícone de recarregar: uma seta circular.
+function IconeRecarregar() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -21,7 +22,7 @@ function IconeRecarregar({ className }: { className?: string }) {
       strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      aria-hidden="true"
     >
       <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8" />
       <path d="M20 4v4h-4" />
@@ -31,11 +32,42 @@ function IconeRecarregar({ className }: { className?: string }) {
   );
 }
 
+function IconeMinimizar({ minimizada }: { minimizada: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      {minimizada ? (
+        <rect x="3" y="3" width="10" height="10" rx="1.5" />
+      ) : (
+        <path d="M3 11.5h10" />
+      )}
+    </svg>
+  );
+}
+
 type AbaCompacta = "arquivos" | "editor" | "conversa";
 
-// Painel da VKOS-IDE: arvore de arquivos, editor e chat, tudo escopado na pasta
-// do cliente ativo. Em telas compactas uma navegacao local exibe uma coluna por
-// vez, sem empurrar o restante do painel para fora da viewport.
+const AREAS: Array<[AbaCompacta, string]> = [
+  ["arquivos", "Arquivos"],
+  ["editor", "Editor"],
+  ["conversa", "Conversa"],
+];
+
+// Painel da VKOS-IDE: arvore de arquivos, editor e chat, tudo escopado na RAIZ
+// DO PROJETO desde 2026-07-27. Antes era a pasta do cliente ativo, e a IDE
+// mostrava cerebro/ e marca/ de um workspace em vez do projeto.
+// Ver docs/decisoes/2026-07-27-a-ide-abre-o-projeto.md.
+//
+// Em janela apertada uma navegacao local exibe uma area por vez, sem empurrar
+// o restante do painel para fora da viewport.
 export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
   const janela = usarJanelaIde();
   const [arvore, setArvore] = useState<RespostaArvore | null>(null);
@@ -166,89 +198,98 @@ export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
         onPointerCancel={janela.aoPointerCancel}
         onDoubleClick={janela.recentralizar}
       >
-        <strong>VKOS-IDE</strong>
+        <span className="ide-barra-nome">VKOS-IDE</span>
         <div className="ide-barra-acoes">
-          <button
-            type="button"
-            className="ide-barra-botao ide-minimizar"
+          <Botao
+            variante="fantasma"
+            tamanho="p"
+            soIcone
+            className="ide-minimizar"
             onClick={janela.alternarMinimizacao}
-            title={janela.minimizada ? "Restaurar a IDE" : "Minimizar para o chat"}
-            aria-label={janela.minimizada ? "Restaurar a IDE" : "Minimizar para o chat"}
+            title={janela.minimizada ? "Restaurar a IDE" : "Minimizar para a conversa"}
+            aria-label={janela.minimizada ? "Restaurar a IDE" : "Minimizar para a conversa"}
           >
-            {janela.minimizada ? (
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <rect x="3" y="3" width="10" height="10" rx="1.5" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M3 11.5h10" />
-              </svg>
-            )}
-          </button>
+            <IconeMinimizar minimizada={janela.minimizada} />
+          </Botao>
           {aoFechar && (
-            <button
-              type="button"
-              className="ide-barra-botao"
+            <Botao
+              variante="fantasma"
+              tamanho="p"
+              soIcone
               onClick={aoFechar}
               title="Fechar a IDE"
               aria-label="Fechar a IDE"
             >
               <IconeX className="" />
-            </button>
+            </Botao>
           )}
         </div>
       </header>
+
       <div className="ide-corpo">
-        <nav className="ide-mobile-topo" aria-label="Áreas da IDE">
-          {([
-            ["arquivos", "Arquivos"],
-            ["editor", "Editor"],
-            ["conversa", "Conversa"],
-          ] as Array<[AbaCompacta, string]>).map(([id, rotulo]) => (
-            <button
-              type="button"
-              key={id}
-              className={abaCompacta === id ? "ativo" : ""}
-              aria-pressed={abaCompacta === id}
-              onClick={() => {
-                setAbaCompacta(id);
-                if (id === "conversa") setChatRecolhido(false);
-              }}
-            >
-              {rotulo}
-            </button>
-          ))}
-        </nav>
+        <div className="ide-navegacao">
+          <div className="segmentado" role="group" aria-label="Áreas da IDE">
+            {AREAS.map(([id, rotulo]) => (
+              <button
+                type="button"
+                key={id}
+                className="segmento"
+                aria-pressed={abaCompacta === id}
+                onClick={() => {
+                  setAbaCompacta(id);
+                  if (id === "conversa") setChatRecolhido(false);
+                }}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div
           className={`ide-coluna-arvore${
             abaCompacta === "arquivos" ? " compacta-ativa" : ""
           }`}
         >
-        <header className="ide-arvore-topo">
-          <span className="ide-arvore-base" title={arvore?.base}>
-            {arvore?.base ?? "Arquivos"}
-          </span>
-          <button
-            className="ide-botao-recarregar"
-            title="Recarregar a árvore"
-            onClick={() => void recarregarArvore()}
-            disabled={carregandoArvore}
-          >
-            <IconeRecarregar className={carregandoArvore ? "girando" : ""} />
-          </button>
-        </header>
-        {erroArvore ? (
-          <div className="ide-arvore-erro">{erroArvore}</div>
-        ) : (
-          <ArvoreArquivos
-            itens={arvore?.itens ?? []}
-            arquivoAberto={arquivoAberto}
-            aoAbrir={(c) => void abrirArquivo(c)}
-            aoMudou={() => void recarregarArvore()}
-            aoExcluir={aoExcluir}
-            aoRenomear={aoRenomear}
-          />
-        )}
+          <header className="ide-arvore-topo">
+            <span className="ide-arvore-base" title={arvore?.base}>
+              {arvore?.base ?? "Arquivos"}
+            </span>
+            <Botao
+              variante="fantasma"
+              tamanho="p"
+              soIcone
+              title="Recarregar a árvore"
+              aria-label="Recarregar a árvore"
+              aria-busy={carregandoArvore}
+              onClick={() => void recarregarArvore()}
+              disabled={carregandoArvore}
+            >
+              {!carregandoArvore && <IconeRecarregar />}
+            </Botao>
+          </header>
+          {erroArvore ? (
+            <div className="faixa faixa-alerta ide-arvore-erro" role="alert">
+              <IconeAlerta className="" />
+              <div className="faixa-texto">{erroArvore}</div>
+            </div>
+          ) : carregandoArvore && !arvore ? (
+            <div className="ide-arvore-carregando" aria-hidden="true">
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+            </div>
+          ) : (
+            <ArvoreArquivos
+              itens={arvore?.itens ?? []}
+              arquivoAberto={arquivoAberto}
+              aoAbrir={(c) => void abrirArquivo(c)}
+              aoMudou={() => void recarregarArvore()}
+              aoExcluir={aoExcluir}
+              aoRenomear={aoRenomear}
+            />
+          )}
         </div>
 
         <div
@@ -274,16 +315,20 @@ export function TelaIde({ aoFechar }: { aoFechar?: () => void }) {
           }`}
         >
           {!janela.minimizada && (
-            <button
-              className="ide-chat-toggle"
+            <Botao
+              variante="neutro"
+              tamanho="p"
+              soIcone
+              className="ide-chat-pegador"
               title={chatRecolhido ? "Abrir a conversa" : "Recolher a conversa"}
+              aria-label={chatRecolhido ? "Abrir a conversa" : "Recolher a conversa"}
               onClick={() => setChatRecolhido((v) => !v)}
             >
               <IconeChevron
                 className=""
                 style={{ transform: chatRecolhido ? "rotate(180deg)" : "none" }}
               />
-            </button>
+            </Botao>
           )}
           {chatRecolhido && !janela.minimizada ? (
             <span className="ide-chat-rotulo-vert">Conversa</span>

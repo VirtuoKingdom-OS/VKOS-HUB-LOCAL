@@ -67,8 +67,8 @@ export function PainelPecas() {
             grupos.map((grupo) => (
               <div className="grupo-pecas" key={grupo.tipo}>
                 <div className="titulo-grupo">
-                  <span className="rotulo-secao">{ROTULO_TIPO[grupo.tipo]}</span>
-                  <span className="badge status-fila">{grupo.itens.length}</span>
+                  <span className="rotulo-grupo">{ROTULO_TIPO[grupo.tipo]}</span>
+                  <span className="contagem">{grupo.itens.length}</span>
                 </div>
                 <div className="grade-pecas">
                   {grupo.itens.flatMap((peca) =>

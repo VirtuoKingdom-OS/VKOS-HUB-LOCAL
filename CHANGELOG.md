@@ -23,7 +23,7 @@ A nova pele. Redesenho em etapas, cada uma deixando o app funcionando, com confe
 
 ### O que ficou de fora
 
-O redesenho parou numa etapa fechada. Faltam os componentes de campo, chip, selo e superfície; a camada de modal sobre `<dialog>`, que é o que resolve a prisão de foco que hoje não existe em véu nenhum; a passada tela a tela com o corpo de texto menor; e a limpeza dos apelidos de token. A tabela de estado está no topo de `planos/vkos-hub-local-v1/05-design-system.md`.
+O redesenho parou numa etapa fechada. Faltam os componentes de campo, chip, selo e superfície; a camada de modal sobre `<dialog>`, que é o que resolve a prisão de foco que hoje não existe em véu nenhum; a passada tela a tela com o corpo de texto menor; e a limpeza dos apelidos de token. A tabela de estado está no topo de `docs/planos/vkos-hub-local-v1/05-design-system.md`.
 
 ## [1.4.0] 2026-07-27
 
@@ -98,7 +98,7 @@ O CRM reconstruído por inteiro, o chat de conversas, e o gasto de IA medido em 
 ### Segurança
 
 - **A promessa do `SECURITY.md` virou código.** Ele garantia que o resumo do CRM vai para a IA com proibição explícita de publicar dado identificável, e essa instrução não existia no texto injetado. Agora vai no topo, antes do primeiro número, com teste afirmando o texto literal.
-- **O `README.md` prometia que nome nunca chega ao contexto da IA.** Chega: o primeiro nome vai em cada linha de "Vozes dos clientes", de propósito, senão o conselho fica inútil. A documentação passou a dizer a verdade. Telefone e email continuam apagados por limpeza automática. Ver `decisoes/2026-07-27-o-que-a-ia-recebe-do-crm.md`.
+- **O `README.md` prometia que nome nunca chega ao contexto da IA.** Chega: o primeiro nome vai em cada linha de "Vozes dos clientes", de propósito, senão o conselho fica inútil. A documentação passou a dizer a verdade. Telefone e email continuam apagados por limpeza automática. Ver `docs/decisoes/2026-07-27-o-que-a-ia-recebe-do-crm.md`.
 
 ### Interno
 
@@ -127,8 +127,8 @@ Checkup de ponta a ponta logo depois da amputação: seis auditorias em paralelo
 
 ### Documentação
 
-- `contexto/arquitetura.md`, `contexto/roadmap.md`, `app/CONTRATO.md` e `interno/resumo-contexto.md` reconciliados com o código real. Eles são lidos no início de toda sessão e ainda descreviam Automações, Calendário, camada Google, os quatro conectores e a publicação integrada como recursos ativos. Seção removida agora leva marcador explícito em vez de sumir, para quem lê entender que foi de propósito.
-- Checkup completo registrado em `planos/vkos-hub-local-v1/03-checkup-2026-07-26.md`, com evidência de arquivo e linha.
+- `docs/contexto/arquitetura.md`, `docs/contexto/roadmap.md`, `app/CONTRATO.md` e `interno/resumo-contexto.md` reconciliados com o código real. Eles são lidos no início de toda sessão e ainda descreviam Automações, Calendário, camada Google, os quatro conectores e a publicação integrada como recursos ativos. Seção removida agora leva marcador explícito em vez de sumir, para quem lê entender que foi de propósito.
+- Checkup completo registrado em `docs/planos/vkos-hub-local-v1/03-checkup-2026-07-26.md`, com evidência de arquivo e linha.
 
 ### Qualidade
 
@@ -145,7 +145,7 @@ Amputação. O produto perde a superfície que existia, custava manutenção e n
 - **Automações.** Regras que nunca foram escritas na operação real.
 - **Calendário** e toda a camada Google, incluindo o servidor MCP próprio e o fluxo OAuth.
 - **Conectores GitHub, Netlify, Notion e Google Calendar.** O catálogo de conexões ficou só com a Apify, que alimenta a busca de leads.
-- **Publicação integrada de sites.** Ver `decisoes/2026-07-26-fim-da-publicacao-integrada.md`.
+- **Publicação integrada de sites.** Ver `docs/decisoes/2026-07-26-fim-da-publicacao-integrada.md`.
 
 ### Adicionado
 
@@ -154,7 +154,7 @@ Amputação. O produto perde a superfície que existia, custava manutenção e n
 
 ### Corrigido
 
-- **Instrução extra de sessão chegava truncada, em silêncio.** O contexto agregado do CRM e a regra de sessão iam como argumento `--append-system-prompt`. Em máquina onde o Claude é disparado por shell, o caso da instalação por npm ou do fallback pelo PATH, o `cmd.exe` cortava na primeira quebra de linha: dos 2078 caracteres chegavam 13, e `--mcp-config` e `--allowedTools` sumiam junto, sem erro e com código de saída 0. Agora as instruções vão pelo stdin nos dois provedores. Ver `decisoes/2026-07-26-instrucoes-extras-por-stdin.md`.
+- **Instrução extra de sessão chegava truncada, em silêncio.** O contexto agregado do CRM e a regra de sessão iam como argumento `--append-system-prompt`. Em máquina onde o Claude é disparado por shell, o caso da instalação por npm ou do fallback pelo PATH, o `cmd.exe` cortava na primeira quebra de linha: dos 2078 caracteres chegavam 13, e `--mcp-config` e `--allowedTools` sumiam junto, sem erro e com código de saída 0. Agora as instruções vão pelo stdin nos dois provedores. Ver `docs/decisoes/2026-07-26-instrucoes-extras-por-stdin.md`.
 - **Teste que passaria com o código apagado.** O teste do contexto do CRM afirmava só os marcadores em volta, nunca o conteúdo injetado. Agora afirma o conteúdo.
 
 ### Mantido de propósito
@@ -259,7 +259,7 @@ A primeira versão que um estranho consegue instalar e usar sozinho. A v1 provav
 
 - Nenhuma credencial de IA passa pelo Hub: o login acontece pelo programa oficial do motor escolhido.
 - Dados do CRM entram no contexto da IA apenas de forma agregada, sem telefone nem e-mail, com proibição explícita de publicar dado identificável.
-- Material interno (`interno/`, `contexto/`, `decisoes/`, `planos/`) fica fora do pacote de cliente por construção.
+- Material interno (`interno/`, `docs/contexto/`, `docs/decisoes/`, `docs/planos/`) fica fora do pacote de cliente por construção.
 
 ### Qualidade
 

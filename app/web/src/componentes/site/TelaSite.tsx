@@ -40,7 +40,12 @@ import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import { PainelSite } from "./PainelSite";
 import { AnexosAjuste, blocoDeAnexos } from "../comum/AnexosAjuste";
 import { IconeSeta, IconeGaleria, IconeRaio, IconeX, IconeOlho, IconeLapis } from "../comum/Icones";
-import "../../estilos/site.css";
+// A moldura de edição (barra de topo, palco, coluna lateral, inspetor) é
+// compartilhada com os outros dois ambientes e mora em editor.css. O import é
+// explícito de propósito: vir de carona pelo PainelSite escondia a dependência.
+import "../editor/editor.css";
+import "./site.css";
+import { irParaTela } from "../layout/rotas";
 
 interface Props {
   // Subpasta da peca (um segmento decodificado), ex "2026-07-14-tema-curto".
@@ -608,7 +613,7 @@ export default function TelaSite({ pasta }: Props) {
       mesmaOrigem = false;
     }
     if (window.history.length > 1 && mesmaOrigem) window.history.back();
-    else window.location.hash = "#/dashboard";
+    else irParaTela("dashboard");
   }, []);
 
   // ===== Guarda de estado sujo. Executa a acao pendente depois de resolver.
@@ -695,11 +700,10 @@ export default function TelaSite({ pasta }: Props) {
         if (!alvo) throw new Error("Não encontrei a seção pedida nessa página.");
         const inicio = Date.now();
         setInicioAjusteImagem(inicio);
-        await geracaoImagemAjuste.gerar(
+        const recusa = await geracaoImagemAjuste.gerar(
           pasta,
           {
             contexto: [
-              `Pedido do usuário: ${texto}`,
               `Página: ${nomeAmigavel(pagina)}`,
               alvo.innerText || alvo.textContent || "",
             ].join(". "),
@@ -707,7 +711,16 @@ export default function TelaSite({ pasta }: Props) {
               aplicarImagemEmSecaoSite(pagina, pasta, texto, caminhoRelativo),
           },
           modeloPadrao,
+          // O que o usuário escreveu manda sobre o texto raspado da seção.
+          texto,
         );
+        // Pedido recusado: o motivo volta na mão. Sem isso a recusa saía muda e
+        // a tela esperava para sempre por uma sessão que nunca nasceu.
+        if (recusa) {
+          setAjustando(false);
+          setInicioAjusteImagem(null);
+          setErroAjuste(recusa);
+        }
       } catch (erro) {
         setAjustando(false);
         setInicioAjusteImagem(null);
@@ -822,15 +835,22 @@ export default function TelaSite({ pasta }: Props) {
   // ===== Guard: peca inexistente ou sem previews (e ja carregou) => erro.
   if (!carregandoPeca && (!peca || peca.previews.length === 0)) {
     return (
-      <section className="tela-site tela-site-erro">
-        <div className="site-erro-caixa">
-          <IconeGaleria className="site-erro-icone" />
-          <h1>Site não encontrado</h1>
+      <section className="tela tela-site tela-site-erro">
+        <div className="vazio">
+          <IconeGaleria className="" />
+          <h2>Site não encontrado</h2>
           <p>
             Esta peça não existe mais ou ainda não tem páginas pra mostrar. Volte
             pro Dashboard e escolha outra.
           </p>
-          <a className="botao botao-principal" href="#/dashboard">
+          <a
+            className="botao botao-principal"
+            href="/dashboard"
+            onClick={(e) => {
+              e.preventDefault();
+              irParaTela("dashboard");
+            }}
+          >
             Voltar pro Dashboard
           </a>
         </div>
@@ -845,43 +865,53 @@ export default function TelaSite({ pasta }: Props) {
   const editando = modo === "editar";
 
   return (
-    <section className="tela-site">
-      <header className="site-topo">
-        <div className="site-topo-esq">
-          <button className="site-voltar" onClick={() => pedirAcao({ tipo: "sair" })} title="Voltar">
+    <section className="tela tela-site">
+      <header className="tela-topo ed-topo">
+        <div className="ed-identidade">
+          <button
+            className="botao botao-icone botao-neutro site-voltar"
+            onClick={() => pedirAcao({ tipo: "sair" })}
+            title="Voltar"
+            aria-label="Voltar"
+          >
             <IconeSeta className="" />
           </button>
           <div className="site-titulo">
             <h1 title={nome}>{nome}</h1>
-            {editando ? (
-              <span className="site-sub site-sub-estado">
-                <span className={`site-ponto${estadoEd.naoSalvo ? " sujo" : ""}`} />
-                {estadoEd.naoSalvo ? "Não salvo" : "Tudo salvo"}
-              </span>
-            ) : (
-              pagina && <span className="site-sub">{nomeAmigavel(pagina)}</span>
-            )}
+            {!editando && pagina && <span className="site-sub">{nomeAmigavel(pagina)}</span>}
           </div>
+          {/* No modo Editar o estado da gravação vira palavra, ao lado do nome,
+              como nos outros dois editores. */}
+          {editando && (
+            <span
+              className={estadoEd.naoSalvo ? "selo selo-aviso" : "selo"}
+              role="status"
+              aria-live="polite"
+            >
+              {estadoEd.naoSalvo ? "Não salvo" : "Tudo salvo"}
+            </span>
+          )}
         </div>
 
-        <div className="site-acoes">
-          {/* Toggle Visualizar | Editar, segmentado (padrao da casa). */}
-          <div className="site-modo" role="tablist" aria-label="Modo da tela">
+        <div className="tela-topo-acoes">
+          {/* Visualizar ou Editar: escolha única entre opções curtas, então é
+              o segmentado das primitivas. Em pílula de menta, este controle era
+              a peça mais colorida da barra, ao lado de uma página que já tem a
+              cor do cliente. */}
+          <div className="segmentado" role="group" aria-label="Modo da tela">
             <button
-              className={`site-modo-btn${!editando ? " ativo" : ""}`}
+              className="segmento"
               onClick={() => pedirAcao({ tipo: "ver" })}
-              role="tab"
-              aria-selected={!editando}
+              aria-pressed={!editando}
             >
               <IconeOlho className="" />
               Visualizar
             </button>
             <button
-              className={`site-modo-btn${editando ? " ativo" : ""}`}
+              className="segmento"
               onClick={entrarEditar}
               disabled={!pagina}
-              role="tab"
-              aria-selected={editando}
+              aria-pressed={editando}
             >
               <IconeLapis className="" />
               Editar
@@ -903,7 +933,7 @@ export default function TelaSite({ pasta }: Props) {
 
           {!editando && (
             <button
-              className={`botao botao-neutro${exportarAberto ? " ativo" : ""}`}
+              className="botao botao-neutro"
               onClick={() => {
                 setPainelAberto(false);
                 setExportarAberto((aberto) => !aberto);
@@ -917,11 +947,14 @@ export default function TelaSite({ pasta }: Props) {
           )}
 
           {/* Ajustar com IA existe nos dois modos. No Editar troca com o painel
-              de propriedades; no Visualizar abre a faixa lateral. */}
+              de propriedades; no Visualizar abre a faixa lateral. Ele é a ação
+              principal só no modo Visualizar, onde não existe Salvar: uma ação
+              escura por tela, sempre. */}
           <button
-            className={`botao ${painelAberto ? "botao-neutro" : editando ? "botao-neutro" : "botao-principal"}`}
+            className={`botao ${editando || painelAberto ? "botao-neutro" : "botao-principal"}`}
             onClick={() => setPainelAberto((v) => !v)}
             title="Ajustar o site com IA"
+            aria-expanded={painelAberto}
           >
             <IconeRaio className="" />
             Ajustar com IA
@@ -932,24 +965,32 @@ export default function TelaSite({ pasta }: Props) {
               className="botao botao-principal"
               onClick={() => void salvarEd()}
               disabled={!estadoEd.naoSalvo || salvandoEd}
+              aria-busy={salvandoEd}
               title="Salvar (Ctrl+S)"
             >
-              {salvandoEd ? "Salvando..." : "Salvar"}
+              {salvandoEd ? "Salvando" : "Salvar"}
             </button>
           )}
         </div>
       </header>
 
       {peca?.site?.valido === false && (
-        <div className="site-exportar-auditoria site-pendencias" role="alert">
-          <strong>O site está de pé. A conferência achou pendências que bloqueiam a exportação:</strong>
-          <ul>
-            {peca.site.erros.slice(0, 4).map((item) => <li key={item}>{item}</li>)}
-          </ul>
-          {peca.site.erros.length > 4 && (
-            <p>Há mais {peca.site.erros.length - 4} pendência(s) na conferência.</p>
-          )}
-          <p>Resolva pelo Ajustar com IA ou pelo modo Editar.</p>
+        <div className="site-faixa">
+          <div className="faixa faixa-aviso" role="alert">
+            <div className="faixa-texto">
+              <strong>
+                O site está de pé. A conferência achou pendências que bloqueiam a
+                exportação:
+              </strong>
+              <ul className="site-exportar-lista">
+                {peca.site.erros.slice(0, 4).map((item) => <li key={item}>{item}</li>)}
+              </ul>
+              {peca.site.erros.length > 4 && (
+                <p>Há mais {peca.site.erros.length - 4} pendência(s) na conferência.</p>
+              )}
+              <p>Resolva pelo Ajustar com IA ou pelo modo Editar.</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -968,7 +1009,13 @@ export default function TelaSite({ pasta }: Props) {
         />
       )}
 
-      {editando && erroEd && <div className="site-erro-barra">{erroEd}</div>}
+      {editando && erroEd && (
+        <div className="site-faixa">
+          <div className="faixa faixa-alerta" role="alert">
+            <div className="faixa-texto">{erroEd}</div>
+          </div>
+        </div>
+      )}
 
       <div className="site-corpo">
         {editando ? (
@@ -994,13 +1041,14 @@ export default function TelaSite({ pasta }: Props) {
           />
         ) : (
           <div className="site-palco">
-            <div className="site-barra">
+            <div className="barra-ferramentas site-barra">
               {paginas.length > 1 && (
                 <select
-                  className="site-select-pagina"
+                  className="campo campo-p site-select-pagina"
                   value={pagina}
                   onChange={(e) => setPagina(e.target.value)}
                   title="Escolher a página"
+                  aria-label="Escolher a página"
                 >
                   {paginas.map((u) => (
                     <option key={u} value={u}>
@@ -1010,15 +1058,17 @@ export default function TelaSite({ pasta }: Props) {
                 </select>
               )}
 
-              <div className="site-presets">
+              <div className="segmentado" role="group" aria-label="Largura do preview">
                 <button
-                  className={`site-preset-btn${preset === "desktop" ? " ativo" : ""}`}
+                  className="segmento"
+                  aria-pressed={preset === "desktop"}
                   onClick={() => setPreset("desktop")}
                 >
                   Desktop
                 </button>
                 <button
-                  className={`site-preset-btn${preset === "mobile" ? " ativo" : ""}`}
+                  className="segmento"
+                  aria-pressed={preset === "mobile"}
                   onClick={() => setPreset("mobile")}
                 >
                   Mobile
@@ -1050,7 +1100,7 @@ export default function TelaSite({ pasta }: Props) {
                 </div>
               )}
               {pagina && (
-                <span className="site-selo">
+                <span className="selo site-medida">
                   {dim.largura}x{dim.altura}, {pct}%
                 </span>
               )}
@@ -1059,22 +1109,24 @@ export default function TelaSite({ pasta }: Props) {
         )}
 
         {painelAberto && (
-          <aside className="site-ajuste">
-            <header className="site-ajuste-topo">
-              <div className="site-ajuste-titulo">
+          <aside className="ed-lateral site-ajuste" aria-label="Ajustar com IA">
+            <header className="ed-lateral-topo">
+              <h2>
                 <IconeRaio className="site-ajuste-icone" />
-                <h2>Ajustar com IA</h2>
-              </div>
+                Ajustar com IA
+              </h2>
+              {/* Nunca ganha disabled, nem durante o ajuste: é a saída. */}
               <button
-                className="site-ajuste-fechar"
+                className="botao botao-p botao-icone botao-fantasma"
                 onClick={() => setPainelAberto(false)}
                 title="Fechar"
+                aria-label="Fechar"
               >
                 <IconeX className="" />
               </button>
             </header>
 
-            <div className="site-ajuste-corpo">
+            <div className="ed-lateral-corpo">
               {/* Atalho pronto: Revisão de design. Preset do fluxo de ajuste. */}
               <button
                 className="site-revisao"
@@ -1089,18 +1141,20 @@ export default function TelaSite({ pasta }: Props) {
                 <span className="site-revisao-desc">{DESCRICAO_REVISAO_DESIGN}</span>
               </button>
 
-              <label className="site-ajuste-rotulo" htmlFor="site-pedido">
-                O que você quer mudar?
-              </label>
-              <textarea
-                id="site-pedido"
-                className="site-ajuste-campo"
-                value={pedido}
-                onChange={(e) => setPedido(e.target.value)}
-                placeholder="Ex: troque o texto do topo, deixe o botão do WhatsApp mais visível, mude a cor de fundo pra um tom mais escuro."
-                disabled={ajustando}
-                rows={5}
-              />
+              <div className="grupo-campo">
+                <label className="rotulo" htmlFor="site-pedido">
+                  O que você quer mudar?
+                </label>
+                <textarea
+                  id="site-pedido"
+                  className="campo site-ajuste-campo"
+                  value={pedido}
+                  onChange={(e) => setPedido(e.target.value)}
+                  placeholder="Ex: troque o texto do topo, deixe o botão do WhatsApp mais visível, mude a cor de fundo pra um tom mais escuro."
+                  disabled={ajustando}
+                  rows={5}
+                />
+              </div>
 
               <AnexosAjuste
                 pasta={pasta}
@@ -1109,35 +1163,40 @@ export default function TelaSite({ pasta }: Props) {
                 desabilitado={ajustando}
               />
 
-              <span className="site-ajuste-rotulo">Modelo</span>
-              <div className="site-modelos">
-                {modelos.map((m) => (
-                  <button
-                    key={m.alias}
-                    className={`site-modelo-btn${modelo === m.alias ? " ativo" : ""}`}
-                    onClick={() => {
-                      modeloTocadoRef.current = true;
-                      setModelo(m.alias);
-                    }}
-                    disabled={ajustando}
-                    title={m.observacaoCusto}
-                  >
-                    {m.rotulo}
-                  </button>
-                ))}
-              </div>
-              <p className="site-ajuste-nota">
-                Comece pelo econômico. Se o resultado não convencer, repita o
-                pedido num modelo maior.
-              </p>
-
-              {ajustando && (
-                <div className="site-ajuste-progresso" aria-label="Ajustando o site">
-                  <div className="site-ajuste-progresso-barra" />
+              <div className="grupo-campo">
+                <span className="rotulo" id="site-rotulo-modelo">
+                  Modelo
+                </span>
+                <div className="segmentado" role="group" aria-labelledby="site-rotulo-modelo">
+                  {modelos.map((m) => (
+                    <button
+                      key={m.alias}
+                      className="segmento"
+                      aria-pressed={modelo === m.alias}
+                      onClick={() => {
+                        modeloTocadoRef.current = true;
+                        setModelo(m.alias);
+                      }}
+                      disabled={ajustando}
+                      title={m.observacaoCusto}
+                    >
+                      {m.rotulo}
+                    </button>
+                  ))}
                 </div>
-              )}
+                <span className="dica">
+                  Comece pelo econômico. Se o resultado não convencer, repita o
+                  pedido num modelo maior.
+                </span>
+              </div>
+
+              {/* O sinal de trabalho em curso é o giro mais a frase que diz em
+                  qual fase o ajuste está. Ele diz mais que uma barra sem
+                  porcentagem, e o giro das primitivas já tem o substituto de
+                  movimento reduzido declarado onde ele consegue valer. */}
               {ajustando && (
-                <p className="site-ajuste-nota">
+                <p className="ed-trabalhando" role="status">
+                  <span className="girinho" />
                   {faseAjuste === "conferindo"
                     ? "A IA terminou. O Hub está conferindo o site antes de liberar."
                     : faseAjuste === "corrigindo"
@@ -1147,26 +1206,29 @@ export default function TelaSite({ pasta }: Props) {
               )}
               {ajusteFeito && !ajustando && (
                 ajusteComPendencias ? (
-                  <p className="site-ajuste-erro">
+                  <p className="ed-erro" role="status">
                     O site foi atualizado, mas a conferência ainda achou pendências.
                     Veja a lista no topo da tela antes de exportar.
                   </p>
                 ) : (
-                  <p className="site-ajuste-ok">
+                  <p className="ed-ok" role="status">
                     Pronto. O site foi atualizado e passou na conferência.
                   </p>
                 )
               )}
               {erroAjuste && !ajustando && (
-                <p className="site-ajuste-erro">{erroAjuste}</p>
+                <p className="ed-erro" role="alert">
+                  {erroAjuste}
+                </p>
               )}
 
               <button
-                className="botao botao-principal site-ajuste-enviar"
+                className="botao botao-principal ed-enviar"
                 onClick={solicitarAjuste}
                 disabled={ajustando || pedido.trim() === "" || !modelo}
+                aria-busy={ajustando}
               >
-                {ajustando ? "Ajustando..." : "Ajustar"}
+                {ajustando ? "Ajustando" : "Ajustar"}
               </button>
             </div>
           </aside>
@@ -1175,20 +1237,23 @@ export default function TelaSite({ pasta }: Props) {
 
       {/* ===== Aviso de conflito externo (modo Editar, edicao nao salva). ===== */}
       {editando && conflito && (
-        <div className="site-conflito">
-          <div className="site-conflito-texto">
+        <div className="faixa faixa-aviso site-conflito" role="alert">
+          <div className="faixa-texto site-conflito-texto">
             <strong>O site mudou por fora.</strong>
             <span>
               Alguma coisa reescreveu esta página enquanto você editava. Recarregar
               descarta suas edições não salvas.
             </span>
           </div>
-          <div className="site-conflito-acoes">
-            <button className="botao botao-fantasma" onClick={() => setConflito(false)}>
+          <div className="faixa-acoes">
+            <button
+              className="botao botao-p botao-fantasma"
+              onClick={() => setConflito(false)}
+            >
               Manter as minhas
             </button>
             <button
-              className="botao botao-neutro"
+              className="botao botao-p botao-neutro"
               onClick={() => {
                 setConflito(false);
                 setRecargaEd((x) => x + 1);
@@ -1202,24 +1267,33 @@ export default function TelaSite({ pasta }: Props) {
 
       {/* ===== Confirmacao de estado sujo. ===== */}
       {confirmar && (
-        <div className="site-confirm-scrim" onMouseDown={() => setConfirmar(null)}>
-          <div className="site-confirm" onMouseDown={(e) => e.stopPropagation()}>
-            <h3>
-              {confirmar.tipo === "pagina"
-                ? "Trocar de página sem salvar?"
-                : confirmar.tipo === "sair"
-                ? "Sair da tela sem salvar?"
-                : confirmar.tipo === "ajustar"
-                ? "Salvar antes de ajustar com IA?"
-                : "Sair do modo Editar sem salvar?"}
-            </h3>
-            <p>
-              {confirmar.tipo === "ajustar"
-                ? "A IA ajusta o site a partir do que está salvo no disco. Salve suas edições pra ela trabalhar em cima delas."
-                : "As mudanças que você fez nesta página ainda não foram salvas."}
-            </p>
-            <div className="site-confirm-acoes">
-              <button className="botao botao-fantasma" onClick={() => setConfirmar(null)}>
+        <div className="veu-modal" onMouseDown={() => setConfirmar(null)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <header className="modal-topo">
+              <h2>
+                {confirmar.tipo === "pagina"
+                  ? "Trocar de página sem salvar?"
+                  : confirmar.tipo === "sair"
+                  ? "Sair da tela sem salvar?"
+                  : confirmar.tipo === "ajustar"
+                  ? "Salvar antes de ajustar com IA?"
+                  : "Sair do modo Editar sem salvar?"}
+              </h2>
+            </header>
+            <div className="modal-corpo">
+              <p>
+                {confirmar.tipo === "ajustar"
+                  ? "A IA ajusta o site a partir do que está salvo no disco. Salve suas edições pra ela trabalhar em cima delas."
+                  : "As mudanças que você fez nesta página ainda não foram salvas."}
+              </p>
+            </div>
+            <div className="modal-rodape">
+              <button className="botao botao-neutro" onClick={() => setConfirmar(null)}>
                 Cancelar
               </button>
               {confirmar.tipo !== "ajustar" && (
@@ -1231,9 +1305,10 @@ export default function TelaSite({ pasta }: Props) {
                 className="botao botao-principal"
                 onClick={() => void confirmarSalvando()}
                 disabled={salvandoEd}
+                aria-busy={salvandoEd}
               >
                 {salvandoEd
-                  ? "Salvando..."
+                  ? "Salvando"
                   : confirmar.tipo === "ajustar"
                   ? "Salvar e continuar"
                   : "Salvar"}
@@ -1274,79 +1349,85 @@ function PainelExportacao({
 
   return (
     <aside className="site-exportar" aria-label="Exportar site">
-      <header className="site-exportar-topo">
-        <div>
-          <span className="site-exportar-selo"><IconeExportar /></span>
-          <div>
-            <h2>Exportar site</h2>
-            <p>O site pronto sai daqui pro seu computador, sem conta e sem créditos de IA.</p>
-            <span
-              className="site-exportar-badge"
-              title={
-                modoAstro
-                  ? "A navegação e o rodapé viram um layout único. O ZIP leva o site já compilado, com robots.txt, pronto pra arrastar em qualquer hospedagem."
-                  : "As páginas saem como estão na pasta, prontas pra qualquer hospedagem."
-              }
-            >
-              {modoAstro ? "Sai como projeto Astro compilado" : "Sai em HTML puro"}
-            </span>
-          </div>
+      <header className="ed-lateral-topo">
+        <div className="ed-lateral-topo-texto">
+          <h2>Exportar site</h2>
+          <p>
+            {modoAstro
+              ? "Sai como projeto Astro compilado"
+              : "Sai em HTML puro"}
+          </p>
         </div>
-        <button className="site-exportar-fechar" onClick={aoFechar} aria-label="Fechar exportação">
+        <button
+          className="botao botao-p botao-icone botao-fantasma"
+          onClick={aoFechar}
+          aria-label="Fechar exportação"
+        >
           <IconeX className="" />
         </button>
       </header>
 
       {carregando && !estado ? (
-        <div className="site-exportar-carregando">Conferindo todas as páginas em desktop e celular...</div>
+        <div className="site-exportar-carregando" role="status">
+          Conferindo todas as páginas em desktop e celular
+        </div>
       ) : (
         <div className="site-exportar-corpo">
           {estado && !aprovado && (
-            <div className="site-exportar-auditoria" role="alert">
-              <strong>O site precisa de correção antes de sair daqui.</strong>
-              <ul>
-                {estado.auditoria.erros.map((item) => <li key={item}>{item}</li>)}
-              </ul>
+            <div className="faixa faixa-alerta" role="alert">
+              <div className="faixa-texto">
+                <strong>O site precisa de correção antes de sair daqui.</strong>
+                <ul className="site-exportar-lista">
+                  {estado.auditoria.erros.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
             </div>
           )}
           {estado && estado.auditoria.avisos.length > 0 && (
-            <div className="site-exportar-avisos">
-              <strong>Avisos da conferência:</strong>
-              <ul>
-                {estado.auditoria.avisos.map((item) => <li key={item}>{item}</li>)}
-              </ul>
+            <div className="faixa faixa-aviso">
+              <div className="faixa-texto">
+                <strong>Avisos da conferência:</strong>
+                <ul className="site-exportar-lista">
+                  {estado.auditoria.avisos.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
             </div>
           )}
 
-          <section className="site-exportar-gesto">
-            <div>
-              <h3>Abrir pasta</h3>
-              <p>Mostra os arquivos da peça no explorador deste computador.</p>
+          {/* Os dois gestos são SEÇÕES, não cartões: o painel já é uma
+              superfície flutuante, e um cartão aqui dentro seria cartão dentro
+              de cartão. */}
+          <section className="secao site-exportar-gesto">
+            <div className="secao-topo">
+              <h2>Abrir pasta</h2>
             </div>
+            <p>Mostra os arquivos da peça no explorador deste computador.</p>
             <button
-              className="botao botao-neutro site-exportar-acao"
+              className="botao botao-neutro"
               onClick={aoAbrirPasta}
               disabled={exportando !== null}
+              aria-busy={exportando === "pasta"}
             >
               <IconePasta />
-              {exportando === "pasta" ? "Abrindo..." : "Abrir pasta"}
+              {exportando === "pasta" ? "Abrindo" : "Abrir pasta"}
             </button>
           </section>
 
-          <section className="site-exportar-gesto">
-            <div>
-              <h3>Baixar site</h3>
-              <p>Um ZIP com o site pronto pra subir em qualquer hospedagem.</p>
+          <section className="secao site-exportar-gesto">
+            <div className="secao-topo">
+              <h2>Baixar site</h2>
             </div>
+            <p>Um ZIP com o site pronto pra subir em qualquer hospedagem.</p>
             {ultima && (
               <span className="site-exportar-ultima">
                 Última exportação em {formatarDataExportacao(ultima.em)}
               </span>
             )}
             <button
-              className="botao botao-principal site-exportar-acao"
+              className="botao botao-principal"
               onClick={aoBaixar}
               disabled={exportando !== null || !aprovado}
+              aria-busy={exportando === "zip"}
               title={
                 aprovado
                   ? "Baixar o ZIP do site"
@@ -1354,17 +1435,25 @@ function PainelExportacao({
               }
             >
               <IconeExportar />
-              {exportando === "zip" ? "Preparando o ZIP..." : "Baixar site"}
+              {exportando === "zip" ? "Preparando o ZIP" : "Baixar site"}
             </button>
             {!aprovado && estado && (
-              <span className="site-exportar-travado">
+              <span className="dica">
                 Baixar fica travado enquanto a conferência apontar pendências.
               </span>
             )}
           </section>
 
-          {erro && <p className="site-exportar-erro" role="alert">{erro}</p>}
-          {sucesso && <p className="site-exportar-sucesso" role="status">{sucesso}</p>}
+          {erro && (
+            <p className="faixa faixa-alerta" role="alert">
+              {erro}
+            </p>
+          )}
+          {sucesso && (
+            <p className="faixa faixa-boa" role="status">
+              {sucesso}
+            </p>
+          )}
         </div>
       )}
     </aside>
@@ -1526,13 +1615,14 @@ const PalcoEditor = forwardRef<HandleEditor, PalcoEditorProps>(function PalcoEdi
   return (
     <>
       <div className="site-palco">
-        <div className="site-barra">
+        <div className="barra-ferramentas site-barra">
           {paginas.length > 1 && (
             <select
-              className="site-select-pagina"
+              className="campo campo-p site-select-pagina"
               value={pagina}
               onChange={(e) => aoPedirTrocarPagina(e.target.value)}
               title="Escolher a página"
+              aria-label="Escolher a página"
             >
               {paginas.map((u) => (
                 <option key={u} value={u}>
@@ -1542,26 +1632,29 @@ const PalcoEditor = forwardRef<HandleEditor, PalcoEditorProps>(function PalcoEdi
             </select>
           )}
 
-          <div className="site-presets">
+          <div className="segmentado" role="group" aria-label="Largura do preview">
             <button
-              className={`site-preset-btn${preset === "desktop" ? " ativo" : ""}`}
+              className="segmento"
+              aria-pressed={preset === "desktop"}
               onClick={() => aoTrocarPreset("desktop")}
             >
               Desktop
             </button>
             <button
-              className={`site-preset-btn${preset === "mobile" ? " ativo" : ""}`}
+              className="segmento"
+              aria-pressed={preset === "mobile"}
               onClick={() => aoTrocarPreset("mobile")}
             >
               Mobile
             </button>
           </div>
 
-          <div className="site-zoom">
+          <div className="segmentado" role="group" aria-label="Zoom">
             {ZOOMS.map((z) => (
               <button
                 key={z.id}
-                className={`site-zoom-btn${zoom === z.id ? " ativo" : ""}`}
+                className="segmento"
+                aria-pressed={zoom === z.id}
                 onClick={() => setZoom(z.id)}
               >
                 {z.rotulo}
@@ -1594,21 +1687,23 @@ const PalcoEditor = forwardRef<HandleEditor, PalcoEditorProps>(function PalcoEdi
               }}
             />
           </div>
-          <span className="site-selo">
+          <span className="selo site-medida">
             {dim.largura}x{dim.altura}, {pct}%
           </span>
           {!motor.pronto && (
-            <div className="site-carregando">
-              <div className="giro" />
-              <span>Abrindo o editor...</span>
+            <div className="ed-carregando" role="status">
+              <span className="girinho" />
+              <span>Abrindo o editor</span>
             </div>
           )}
           {/* Veu de travamento: durante o ajuste com IA o canvas nao recebe
               cliques (o veu fica por cima) e mostra o estado claro. */}
           {travado && (
-            <div className="site-editor-travado">
-              <div className="giro" />
-              <span>A IA está ajustando o site. Aguarde.</span>
+            <div className="ed-travado" role="status">
+              <div className="ed-travado-caixa">
+                <span className="girinho" />
+                <span>A IA está ajustando o site. Aguarde.</span>
+              </div>
             </div>
           )}
         </div>

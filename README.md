@@ -39,7 +39,7 @@ WORKSPACE                 O nível do trabalho. Um por cliente ou marca.
 
 O CORE é onde se controla. O Workspace é onde se produz. Dado de um Workspace nunca vaza para outro.
 
-Detalhe técnico completo em [contexto/arquitetura.md](contexto/arquitetura.md). O mapa vivo dos módulos e das ligações entre eles fica em [interno/mapa-sistema.json](interno/mapa-sistema.json).
+Detalhe técnico completo em [docs/contexto/arquitetura.md](docs/contexto/arquitetura.md). O mapa vivo dos módulos e das ligações entre eles fica em [interno/mapa-sistema.json](interno/mapa-sistema.json).
 
 ## Rodando
 
@@ -75,14 +75,14 @@ app/                  O produto
 ├── server/           Fastify + TypeScript
 └── web/              React + Vite
 
-contexto/             O contexto vivo, lido antes de agir
+docs/contexto/             O contexto vivo, lido antes de agir
 ├── visao.md          O que é o produto e para quem
 ├── arquitetura.md    Como o app é construído por dentro
 ├── roadmap.md        As fases, em ordem
 └── ecossistema.md    O produto VKOS e o posicionamento da VK
 
-decisoes/             Uma decisão de produto ou técnica por arquivo
-planos/               Planos de rodada, apagados depois de executados
+docs/decisoes/             Uma decisão de produto ou técnica por arquivo
+docs/planos/               Planos de rodada, apagados depois de executados
 interno/              Material interno: mapa do sistema
 ```
 
@@ -90,9 +90,9 @@ Fora do versionamento: `app/dados/` (dados e credenciais do usuário), `VKOS/` e
 
 ## Como o trabalho acontece
 
-1. **Rodada grande começa por um plano.** Uma pasta em `planos/` com visão, arquitetura e execução, auditada antes de executar. Depois de fechada, a pasta é apagada.
-2. **Toda decisão vira registro.** Um arquivo curto em `decisoes/AAAA-MM-DD-titulo.md` com contexto, decisão e por quê. Antes de reabrir um debate, conferir se já existe decisão.
-3. **O contexto se mantém vivo.** Quando uma fase fecha ou a arquitetura muda, o arquivo correspondente em `contexto/` é atualizado na linha certa. Mudança que altera módulo, tela ou fluxo também atualiza `interno/mapa-sistema.json`.
+1. **Rodada grande começa por um plano.** Uma pasta em `docs/planos/` com visão, arquitetura e execução, auditada antes de executar. Depois de fechada, a pasta é apagada.
+2. **Toda decisão vira registro.** Um arquivo curto em `docs/decisoes/AAAA-MM-DD-titulo.md` com contexto, decisão e por quê. Antes de reabrir um debate, conferir se já existe decisão.
+3. **O contexto se mantém vivo.** Quando uma fase fecha ou a arquitetura muda, o arquivo correspondente em `docs/contexto/` é atualizado na linha certa. Mudança que altera módulo, tela ou fluxo também atualiza `interno/mapa-sistema.json`.
 4. **Nada de commit sem ordem.** Commit, push e PR só acontecem por pedido explícito.
 
 ## Princípios que não se negociam
@@ -100,7 +100,7 @@ Fora do versionamento: `app/dados/` (dados e credenciais do usuário), `VKOS/` e
 1. **Local-first.** Nenhum dado do usuário sai da máquina dele. Sem backend hospedado, sem telemetria.
 2. **A credencial é do usuário.** O Hub nunca recebe nem guarda token de IA. O login acontece pelo programa oficial do motor.
 3. **Dado do usuário é sagrado.** Arquivo existente nunca é sobrescrito às cegas. Na dúvida, quarentena com data. Migração usa valor padrão, nunca descarta registro.
-4. **Dado pessoal de cliente não vira conteúdo.** O que a IA recebe do CRM é agregado: contagem por estágio, valor somado, follow-up atrasado. Das conversas vai o primeiro nome do contato, senão o conselho não faz sentido, e o texto passa por uma limpeza que apaga telefone e email. Telefone e email completos nunca entram nesse contexto. Ver `decisoes/2026-07-27-o-que-a-ia-recebe-do-crm.md`.
+4. **Dado pessoal de cliente não vira conteúdo.** O que a IA recebe do CRM é agregado: contagem por estágio, valor somado, follow-up atrasado. Das conversas vai o primeiro nome do contato, senão o conselho não faz sentido, e o texto passa por uma limpeza que apaga telefone e email. Telefone e email completos nunca entram nesse contexto. Ver `docs/decisoes/2026-07-27-o-que-a-ia-recebe-do-crm.md`.
 5. **Geração é verificada, não confiada.** Auditoria determinística antes de dar por pronto.
 6. **Funciona para leigo total, de fábrica.** Se exige configuração ou vocabulário técnico, ainda não está pronto.
 

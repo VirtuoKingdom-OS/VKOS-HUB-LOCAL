@@ -5,6 +5,7 @@ import type { ModeloIA } from "../../api/cliente";
 import type { AnexoAjuste } from "../../tipos/dominio";
 import { formatarTema } from "../telas/fluxos";
 import { usarMotorEdicao } from "../editor/motor";
+import { corDoTema } from "../editor/tema";
 import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import { PainelPropriedades } from "./PainelPropriedades";
 import { PainelAjusteCarrossel } from "./PainelAjusteCarrossel";
@@ -21,8 +22,9 @@ import {
 } from "../comum/Icones";
 import { Confirmacao } from "../comum/Confirmacao";
 import { AtalhosStudio } from "./AtalhosStudio";
-import "../../estilos/editor.css";
-import "../../estilos/studio.css";
+import "../editor/editor.css";
+import "./studio.css";
+import { irParaTela } from "../layout/rotas";
 
 interface Props {
   // Subpasta da peca (um segmento decodificado), ex "2026-07-14-tema-curto".
@@ -142,10 +144,19 @@ export function TelaStudio({ pasta }: Props) {
       s.id = "vkos-ed-layout";
       doc.head.appendChild(s);
     }
+    // A GOTEIRA ENTRE AS PÁGINAS PRECISA SER PINTADA AQUI, com o valor literal
+    // do token. Medido: com `background: transparent` no html e no body, o
+    // Chromium continua pintando o canvas do iframe de BRANCO, e no tema
+    // Escuro a peça aparecia dentro de uma faixa branca que não era da peça
+    // nem do plano de trabalho do Studio. O documento do iframe não enxerga
+    // var(), então a cor vem resolvida do :root do Hub, pelo mesmo caminho da
+    // instrumentação do motor. Ver editor/tema.ts.
+    const fundo = corDoTema("--fundo", "#f6f7f8");
     s.textContent =
+      `html{background:${fundo} !important;}` +
       "body{margin:0 !important;display:flex !important;flex-direction:row !important;" +
       "align-items:flex-start !important;gap:56px !important;padding:64px !important;" +
-      "width:max-content !important;background:transparent !important;}" +
+      `width:max-content !important;background:${fundo} !important;}` +
       ".slide{flex:0 0 auto !important;margin:0 !important;" +
       "box-shadow:0 14px 44px rgba(0,0,0,0.30) !important;}";
   }, []);
@@ -253,6 +264,21 @@ export function TelaStudio({ pasta }: Props) {
     return () => ro.disconnect();
   }, [medir]);
 
+  // O layout injetado carrega o valor LITERAL de --fundo, então ele não se
+  // atualiza sozinho na troca de tema: reinjeta, do mesmo jeito que o motor faz
+  // com a cor do contorno de seleção.
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      const doc = getDoc();
+      if (doc) injetarLayout(doc);
+    });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => obs.disconnect();
+  }, [injetarLayout]);
+
   // Roda do mouse na area do canvas fora do iframe (padding, fundo) tambem rola
   // as paginas na horizontal. Dentro do iframe, o motor liga o mesmo handler.
   useEffect(() => {
@@ -308,24 +334,43 @@ export function TelaStudio({ pasta }: Props) {
     setAjusteConcluido(false);
     setAjustandoIa(true);
     if (anexosAjuste.length === 0 && pedidoCriaImagem(pedido)) {
-      const inicio = Date.now();
-      const pagina = paginaPedida(pedido, focoRef.current, motor.paginas);
-      const doc = getDoc();
-      const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
-      setInicioAjusteImagem(inicio);
-      await geracaoImagemAjuste.gerar(
-        pasta,
-        {
-          contexto: [
-            `Pedido do usuário: ${pedido}`,
-            `Página ${pagina + 1} de ${motor.paginas}`,
-            slide?.innerText || slide?.textContent || "",
-          ].join(". "),
-          aplicar: (caminhoRelativo) =>
-            motor.adicionarImagemFundoPagina(pagina, caminhoRelativo),
-        },
-        modeloPadrao,
-      );
+      // Try/catch igual ao do TelaSite: sem ele, qualquer falha aqui deixava o
+      // "ajustandoIa" ligado pra sempre, com o veu por cima do canvas.
+      try {
+        const inicio = Date.now();
+        const pagina = paginaPedida(pedido, focoRef.current, motor.paginas);
+        const doc = getDoc();
+        const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
+        setInicioAjusteImagem(inicio);
+        const recusa = await geracaoImagemAjuste.gerar(
+          pasta,
+          {
+            contexto: [
+              `Página ${pagina + 1} de ${motor.paginas}`,
+              slide?.innerText || slide?.textContent || "",
+            ].join(". "),
+            aplicar: (caminhoRelativo) =>
+              motor.adicionarImagemFundoPagina(pagina, caminhoRelativo),
+          },
+          modeloPadrao,
+          // O que o usuário escreveu no painel manda sobre o texto da página.
+          pedido,
+        );
+        // Pedido recusado (Codex desligado, geração já em curso): antes isso
+        // saía mudo e a tela esperava para sempre por uma sessão que nunca
+        // nasceu. Agora o motivo volta na mão e destrava aqui mesmo.
+        if (recusa) {
+          setAjustandoIa(false);
+          setInicioAjusteImagem(null);
+          setErroAjuste(recusa);
+        }
+      } catch (erro) {
+        setAjustandoIa(false);
+        setInicioAjusteImagem(null);
+        setErroAjuste(
+          erro instanceof Error ? erro.message : "Não foi possível preparar a imagem.",
+        );
+      }
       return;
     }
     try {
@@ -434,7 +479,7 @@ export function TelaStudio({ pasta }: Props) {
       mesmaOrigem = false;
     }
     if (window.history.length > 1 && mesmaOrigem) window.history.back();
-    else window.location.hash = "#/galerias";
+    else irParaTela("galerias");
   }
   function tentarSair() {
     if (motor.naoSalvo) setConfirmando(true);
@@ -468,6 +513,13 @@ export function TelaStudio({ pasta }: Props) {
         return;
       }
       if (e.key === "Escape") {
+        // A galeria de fontes e a janela de descrição da imagem fecham no
+        // Escape sozinhas. Sem esta guarda o mesmo gesto fechava a janela E
+        // limpava a seleção do canvas atrás dela, e a seleção era justamente a
+        // imagem que a pessoa ia trocar.
+        if (document.querySelector(".galeria-fontes-camada, .descricao-imagem-camada")) {
+          return;
+        }
         if (confirmarExclusao) {
           setConfirmarExclusao(null);
         } else if (confirmando) {
@@ -476,6 +528,10 @@ export function TelaStudio({ pasta }: Props) {
           setMenuBaixar(false);
         } else if (ajuda) {
           setAjuda(false);
+        } else if (painelIa) {
+          // O painel de IA entrou nesta fila. Faltar aqui deixava o Escape sem
+          // efeito sobre ele, e com o botao do header travado nao sobrava saida.
+          setPainelIa(false);
         } else if (motor.selecao) {
           e.stopPropagation();
           motor.limparSelecao();
@@ -485,7 +541,7 @@ export function TelaStudio({ pasta }: Props) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [motor.naoSalvo, salvando, confirmando, menuBaixar, motor.selecao, confirmarExclusao, ajuda]);
+  }, [motor.naoSalvo, salvando, confirmando, menuBaixar, motor.selecao, confirmarExclusao, ajuda, painelIa]);
 
   // ===== Aviso de "Salvo": aparece na gravacao e some sozinho. Salvar aqui e
   // rapido (arquivo local), e o guia do NN/g diz pra nao mostrar spinner abaixo
@@ -517,15 +573,22 @@ export function TelaStudio({ pasta }: Props) {
   // ===== Guard: peca inexistente ou sem fonteHtml (e ja carregou) => erro.
   if (!carregandoPeca && (!peca || !peca.fonteHtml)) {
     return (
-      <section className="tela-studio tela-studio-erro">
-        <div className="studio-erro-caixa">
-          <IconeGaleria className="studio-erro-icone" />
-          <h1>Peça não encontrada</h1>
+      <section className="tela tela-studio tela-studio-erro">
+        <div className="vazio">
+          <IconeGaleria className="" />
+          <h2>Peça não encontrada</h2>
           <p>
             Esta peça não existe mais ou não é um carrossel editável. Volte pras
             Galerias para escolher outra.
           </p>
-          <a className="botao botao-principal" href="#/galerias">
+          <a
+            className="botao botao-principal"
+            href="/galerias"
+            onClick={(e) => {
+              e.preventDefault();
+              irParaTela("galerias");
+            }}
+          >
             Ir pras Galerias
           </a>
         </div>
@@ -538,34 +601,34 @@ export function TelaStudio({ pasta }: Props) {
   const encPasta = encodeURIComponent(pasta);
 
   return (
-    <section className="tela-studio">
-      <header className="studio-topo">
-        <div className="studio-topo-esq">
-          <button className="studio-voltar" onClick={tentarSair} title="Voltar">
+    <section className="tela tela-studio">
+      <header className="tela-topo ed-topo">
+        <div className="ed-identidade">
+          <button
+            className="botao botao-icone botao-neutro studio-voltar"
+            onClick={tentarSair}
+            title="Voltar"
+            aria-label="Voltar"
+          >
             <IconeSeta className="" />
           </button>
-          <div className="studio-titulo">
-            <h1 title={nome}>{nome}</h1>
-            {/* Estado da gravação em um lugar só, ao lado do nome: o padrão do
-                Google Docs e do Canva. Antes o único sinal era o sumiço do
-                ponto, e nada dizia que tinha dado certo. */}
-            <span className="studio-estado" role="status" aria-live="polite">
-              {salvando ? (
-                <span className="studio-estado-txt">Salvando...</span>
-              ) : motor.naoSalvo ? (
-                <>
-                  <span className="studio-ponto-salvar" title="Alterações não salvas" />
-                  <span className="studio-estado-txt">Não salvo</span>
-                </>
-              ) : avisoSalvo ? (
-                <span className="studio-estado-txt studio-estado-ok">Salvo</span>
-              ) : null}
-            </span>
-          </div>
+          <h1 title={nome}>{nome}</h1>
+          {/* Estado da gravação em um lugar só, ao lado do nome: o padrão do
+              Google Docs e do Canva. Ele é sempre uma PALAVRA, nunca só um
+              ponto colorido, porque ponto sozinho não diz o que aconteceu. */}
+          <span className="studio-estado" role="status" aria-live="polite">
+            {salvando ? (
+              <span className="selo">Salvando</span>
+            ) : motor.naoSalvo ? (
+              <span className="selo selo-aviso">Não salvo</span>
+            ) : avisoSalvo ? (
+              <span className="selo">Salvo</span>
+            ) : null}
+          </span>
         </div>
 
-        <div className="studio-acoes">
-          <div className="studio-historico">
+        <div className="tela-topo-acoes">
+          <div className="ed-par">
             <button
               className="botao botao-fantasma botao-icone"
               onClick={motor.desfazer}
@@ -603,14 +666,22 @@ export function TelaStudio({ pasta }: Props) {
                 setMenuBaixar((v) => !v);
               }}
               title="Baixar"
+              aria-haspopup="menu"
+              aria-expanded={menuBaixar}
             >
               <IconeArquivo className="" />
               Baixar
               <IconeChevron className="studio-baixar-seta" />
             </button>
             {menuBaixar && (
-              <div className="studio-baixar-menu" onMouseDown={(e) => e.stopPropagation()}>
+              <div
+                className="popover menu studio-baixar-menu"
+                role="menu"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
                 <button
+                  className="menu-item"
+                  role="menuitem"
                   onClick={() => {
                     setMenuBaixar(false);
                     baixar(`/api/vkos/pecas/${encPasta}/png/${foco + 1}`);
@@ -620,6 +691,8 @@ export function TelaStudio({ pasta }: Props) {
                   PNG da página {foco + 1}
                 </button>
                 <button
+                  className="menu-item"
+                  role="menuitem"
                   onClick={() => {
                     setMenuBaixar(false);
                     baixar(`/api/vkos/pecas/${encPasta}/png-zip`);
@@ -632,11 +705,23 @@ export function TelaStudio({ pasta }: Props) {
             )}
           </div>
 
+          {/* Sem disabled: este botao e a porta de entrada E de saida do painel
+              de IA. Desabilitado enquanto a IA trabalha, ele fechava a unica
+              saida junto com a do painel. Mesmo desenho do TelaSite. */}
+          {/* Uma acao escura por tela, e nela e o Salvar: e a que tem
+              consequencia. Este aqui abre e fecha um painel, entao ele e
+              neutro, e o estado aberto se marca com a mesma gramatica de
+              "selecionado" do resto do app, nao com o peso da acao principal. */}
+          {/* Sem disabled: este botão é a porta de entrada E de saída do painel
+              de IA. Desabilitado enquanto a IA trabalha, ele fechava a única
+              saída junto com a do painel. O estado aberto se lê pelo
+              aria-expanded e pelo painel na tela, não por uma pintura de
+              menta: a única ação escura desta tela é o Salvar. */}
           <button
-            className={`botao ${painelIa ? "botao-neutro" : "botao-principal"}`}
+            className="botao botao-neutro"
             onClick={() => setPainelIa((aberto) => !aberto)}
-            disabled={ajustandoIa}
             title="Ajustar este carrossel com IA"
+            aria-expanded={painelIa}
           >
             <IconeRaio className="" />
             Ajustar com IA
@@ -646,24 +731,31 @@ export function TelaStudio({ pasta }: Props) {
             className="botao botao-principal"
             onClick={() => void salvarWrap()}
             disabled={!motor.naoSalvo || salvando || ajustandoIa}
+            aria-busy={salvando}
             title="Salvar (Ctrl+S)"
           >
-            {salvando ? "Salvando..." : "Salvar"}
+            {salvando ? "Salvando" : "Salvar"}
           </button>
         </div>
       </header>
 
-      {erro && <div className="studio-erro-barra">{erro}</div>}
+      {erro && (
+        <div className="studio-faixa">
+          <div className="faixa faixa-alerta" role="alert">
+            <div className="faixa-texto">{erro}</div>
+          </div>
+        </div>
+      )}
 
       <div className="studio-corpo">
         <div className="studio-canvas" ref={refCanvas} onScroll={aoRolar}>
           <div
-            className="studio-palco"
+            className="ed-palco studio-palco"
             style={{ width: conteudo.w * escala, height: conteudo.h * escala }}
           >
             <iframe
               ref={refIframe}
-              className="studio-frame"
+              className="ed-frame"
               src={src}
               title={nome}
               style={{
@@ -690,14 +782,14 @@ export function TelaStudio({ pasta }: Props) {
           </div>
 
           {!motor.pronto && (
-            <div className="studio-carregando">
-              <div className="giro" />
-              <span>Abrindo o estúdio...</span>
+            <div className="ed-carregando" role="status">
+              <span className="girinho" />
+              <span>Abrindo o estúdio</span>
             </div>
           )}
         </div>
 
-        {painelIa ? (
+        {painelIa && (
           <PainelAjusteCarrossel
             pasta={pasta}
             pedido={pedidoIa}
@@ -713,35 +805,56 @@ export function TelaStudio({ pasta }: Props) {
             aoAjustar={solicitarAjuste}
             aoFechar={() => setPainelIa(false)}
           />
-        ) : (
-          <PainelPropriedades
-            motor={motor}
-            foco={foco}
-            pecaPasta={pasta}
-            aplicarTodas={aplicarTodas}
-            aoAlternarTodas={() => setAplicarTodas((v) => !v)}
-            aoPedirExcluir={setConfirmarExclusao}
-          />
         )}
+        {/* Escondido, nunca desmontado. Antes era um ternario: abrir o painel de
+            IA arrancava este painel da arvore e matava em silencio uma geracao
+            de imagem que estivesse em voo pelo botao "Gerar outra com IA". */}
+        <PainelPropriedades
+          oculto={painelIa}
+          motor={motor}
+          foco={foco}
+          pecaPasta={pasta}
+          aplicarTodas={aplicarTodas}
+          aoAlternarTodas={() => setAplicarTodas((v) => !v)}
+          aoPedirExcluir={setConfirmarExclusao}
+        />
 
         {ajustandoIa && (
-          <div className="studio-ajuste-travado">
-            <div className="giro" />
-            <span>A IA está ajustando este carrossel. Aguarde.</span>
+          <div className="ed-travado studio-travado" role="status">
+            {/* O aviso mora numa caixa, nao solto no veu: sobre o scrim a cor
+                de texto do sistema perdia contraste no tema Claro, justo na
+                unica frase que a tela mostra naquele momento. */}
+            <div className="ed-travado-caixa">
+              <span className="girinho" />
+              <span>A IA está ajustando este carrossel. Aguarde.</span>
+              {/* A saida de emergencia do veu. Nao cancela a sessao: so devolve
+                  a tela pro usuario quando a espera passou do razoavel. Sem
+                  ela, o canvas ficava coberto sem nenhuma porta. */}
+              <button
+                className="botao botao-neutro"
+                onClick={() => {
+                  setAjustandoIa(false);
+                  setInicioAjusteImagem(null);
+                }}
+              >
+                Continuar editando
+              </button>
+            </div>
           </div>
         )}
 
         {/* Barra flutuante: pagina em foco e zoom (padrao Figma/Canva). */}
-        <div className="studio-barra">
+        <div className="ed-flutuante">
           <span className="studio-barra-pagina">
             Página {foco + 1} / {motor.paginas}
           </span>
-          <span className="studio-barra-sep" />
-          <div className="studio-zoom">
+          <span className="ed-flutuante-sep" />
+          <div className="segmentado" role="group" aria-label="Zoom">
             {ZOOMS.map((z) => (
               <button
                 key={z.id}
-                className={`studio-zoom-btn${zoom === z.id ? " ativo" : ""}`}
+                className="segmento"
+                aria-pressed={zoom === z.id}
                 onClick={() => setZoom(z.id)}
               >
                 {z.rotulo}
@@ -774,12 +887,22 @@ export function TelaStudio({ pasta }: Props) {
       )}
 
       {confirmando && (
-        <div className="studio-confirm-scrim" onMouseDown={() => setConfirmando(false)}>
-          <div className="studio-confirm" onMouseDown={(e) => e.stopPropagation()}>
-            <h3>Sair com alterações não salvas?</h3>
-            <p>As mudanças que você fez neste carrossel serão perdidas.</p>
-            <div className="studio-confirm-acoes">
-              <button className="botao botao-fantasma" onClick={() => setConfirmando(false)}>
+        <div className="veu-modal" onMouseDown={() => setConfirmando(false)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sair com alterações não salvas?"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <header className="modal-topo">
+              <h2>Sair com alterações não salvas?</h2>
+            </header>
+            <div className="modal-corpo">
+              <p>As mudanças que você fez neste carrossel serão perdidas.</p>
+            </div>
+            <div className="modal-rodape">
+              <button className="botao botao-neutro" onClick={() => setConfirmando(false)}>
                 Cancelar
               </button>
               <button className="botao botao-perigo" onClick={sair}>
@@ -794,23 +917,34 @@ export function TelaStudio({ pasta }: Props) {
       )}
 
       {confirmarAjuste && (
-        <div className="studio-confirm-scrim" onMouseDown={() => setConfirmarAjuste(false)}>
-          <div className="studio-confirm" onMouseDown={(e) => e.stopPropagation()}>
-            <h3>Salvar antes de ajustar com IA?</h3>
-            <p>
-              A IA trabalha sobre o carrossel salvo no disco. Salve suas edições para ela
-              receber a versão mais recente desta peça.
-            </p>
-            <div className="studio-confirm-acoes">
-              <button className="botao botao-fantasma" onClick={() => setConfirmarAjuste(false)}>
+        <div className="veu-modal" onMouseDown={() => setConfirmarAjuste(false)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Salvar antes de ajustar com IA?"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <header className="modal-topo">
+              <h2>Salvar antes de ajustar com IA?</h2>
+            </header>
+            <div className="modal-corpo">
+              <p>
+                A IA trabalha sobre o carrossel salvo no disco. Salve suas edições
+                para ela receber a versão mais recente desta peça.
+              </p>
+            </div>
+            <div className="modal-rodape">
+              <button className="botao botao-neutro" onClick={() => setConfirmarAjuste(false)}>
                 Cancelar
               </button>
               <button
                 className="botao botao-principal"
                 onClick={() => void salvarEAjustar()}
                 disabled={salvando}
+                aria-busy={salvando}
               >
-                {salvando ? "Salvando..." : "Salvar e continuar"}
+                {salvando ? "Salvando" : "Salvar e continuar"}
               </button>
             </div>
           </div>

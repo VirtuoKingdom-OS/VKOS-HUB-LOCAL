@@ -1,0 +1,1075 @@
+/* ==========================================================================
+   O CRM. Refeito na Fase 2 do redesign v2 (2026-07-30).
+
+   ESTA ERA A FOLHA MAIS DENSA DO APP: 2244 linhas, e quase tudo dentro dela
+   era reinvencao. O CRM tinha campo de busca proprio, pilula propria, cartao
+   proprio, faixa de aviso propria, aba propria, tabela propria e cinco estados
+   vazios diferentes. Agora ela tem menos de um terco disso, porque tudo isso
+   virou composicao das primitivas.
+
+   O QUE MUDOU, e por que:
+
+   1. CARTAO DENTRO DE CARTAO ACABOU. A coluna do quadro era um cartao com
+      cartoes dentro, e a ficha do contato era um cartao com secoes-cartao
+      dentro. Agora o cartao do funil e a UNICA caixa do quadro, e a ficha se
+      apoia em .secao, que e titulo, fio e espaco.
+   2. O MENTA CALOU. Pilula menta na aba ativa, preenchimento menta na opcao
+      escolhida, barra menta no funil e selo menta de temperatura sairam. A aba
+      ativa e fio de tinta; a linha selecionada e superficie mais fio; a barra
+      do funil e --linha-forte, porque ela e DADO e nao estado vivo. O menta so
+      aparece no ponto vivo e na janela aberta do chat.
+   3. TODA ACAO NASCE VISIVEL. Mover coluna, ajustar, excluir e expandir lead
+      so existiam no hover: nao existiam pro teclado nem pro toque.
+   4. DENSIDADE DE FERRAMENTA. Linha de 36px, coluna alinhada, cartao do funil
+      de duas linhas em vez de tres. O que se ganha e altura de tela, que e o
+      que falta em quem usa isto por horas.
+
+   Aqui mora SO o que e layout do CRM. Cor, altura, raio, peso e movimento vem
+   das primitivas.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A SECAO 0 DESTA FOLHA MORREU EM 2026-07-30, na varredura final da Fase 2.
+   Ela devolvia a escala de campo, caixa, select e titulo dentro de
+   ".crm-tela", porque o legado.css vestia "input, textarea, select" por
+   SELETOR DE ELEMENTO na camada tela, e camada vence especificidade: todo
+   campo do CRM saia com 40px de altura e 10px de raio, e a caixa de selecao
+   de 16px virava um retangulo de 40px de alto. O legado.css foi demolido, a
+   causa morreu, e as 17 regras de remendo sairam junto. Quem manda no campo
+   agora e .campo, em primitivas.css, como sempre deveria ter sido. */
+
+/* ==========================================================================
+   1. A CASCA DA TELA
+   ========================================================================== */
+
+/* A barra de abas fica logo abaixo do cabecalho, na mesma superficie dele e
+   alinhada na mesma coluna de 24px do titulo e do conteudo. */
+.crm-abas {
+  flex: none;
+  padding: 0 var(--esp-24);
+  background: var(--superficie);
+}
+
+/* A busca do topo. Ela nao encolhe abaixo do que cabe um nome inteiro. */
+.crm-busca {
+  width: 260px;
+}
+.crm-busca > .campo {
+  width: 100%;
+  min-height: var(--alt-p);
+  padding-right: var(--esp-32);
+}
+.crm-busca-limpar {
+  position: absolute;
+  right: 0;
+}
+
+/* A faixa de erro da tela mora entre as abas e o conteudo, alinhada na coluna
+   do corpo: erro solto no topo obriga a procurar de onde ele veio. */
+.crm-faixa-erro {
+  flex: none;
+  padding: var(--esp-12) var(--esp-24) 0;
+}
+.crm-faixa-bloco {
+  margin-bottom: var(--esp-16);
+}
+
+/* O esqueleto de uma linha de lista: o formato do que vem, no lugar onde ele
+   vem. Ele substitui o "Carregando o CRM..." centralizado, que nao dizia nada
+   sobre o que estava chegando. */
+.crm-esqueleto-linha {
+  display: block;
+  width: 100%;
+  height: var(--esp-16);
+}
+
+/* ==========================================================================
+   2. PECAS QUE O CRM INTEIRO USA
+   ========================================================================== */
+
+/* Iniciais da pessoa. E identidade, nao decoracao: com trinta linhas iguais na
+   tela, a inicial e o que o olho pega antes de ler o nome. */
+.crm-avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--alt-p);
+  height: var(--alt-p);
+  border-radius: var(--raio-pilula);
+  background: var(--neutro-tenue);
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+}
+.crm-avatar-g {
+  width: var(--alt-g);
+  height: var(--alt-g);
+  font-size: var(--txt-corpo);
+}
+
+/* Ausencia de dado dita em uma frase, no lugar onde o dado estaria. */
+.crm-vazio-inline {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+
+.crm-resultados {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Filtro de barra de ferramenta: rotulo em cima, controle embaixo, os dois
+   colados, pra a barra inteira caber numa faixa so. */
+.crm-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  min-width: 0;
+}
+.crm-filtro-busca {
+  flex: 1;
+  max-width: 320px;
+}
+
+/* Numero grande de painel. Ele pesa 600 e nao 700: 700 e da .contagem e do
+   wordmark, e o tamanho ja da o salto que separa o valor do rotulo. */
+.crm-numero {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+.crm-numero-rotulo {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.crm-placar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-16) var(--esp-32);
+  margin-bottom: var(--esp-16);
+}
+.crm-placar-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+/* Barra de proporcao. Ela e DADO, entao a tinta e --linha-forte: menta aqui
+   dizia "vivo" sobre uma contagem parada. */
+.crm-barra {
+  flex: none;
+  width: 96px;
+  height: var(--esp-4);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie-alta);
+  overflow: hidden;
+}
+.crm-barra > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--linha-forte);
+}
+
+/* Lista de definicao compacta: rotulo em cima do valor, em colunas. */
+.crm-dados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--esp-8) var(--esp-16);
+}
+.crm-dados dt {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+.crm-dados dd {
+  color: var(--texto);
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   3. HOJE
+   ========================================================================== */
+
+/* No bloco do dia a contagem anda COLADA no titulo, e a descricao e que vai
+   pra direita: com o titulo esticado, o numero caia a um palmo do nome dele e
+   lia como parte da frase seguinte. */
+.crm-hoje .secao-topo h2 {
+  flex: none;
+}
+.crm-hoje .secao-topo p {
+  margin-left: auto;
+}
+
+/* A lista do dia deixa o overflow escapar porque o menu de adiar e ancorado
+   dentro dela. Com o overflow: hidden da primitiva, o popover era recortado na
+   borda da lista. Item de lista nao tem raio, entao nada vaza por canto. */
+.crm-hoje .lista {
+  overflow: visible;
+}
+
+.crm-item-dia {
+  gap: var(--esp-8);
+}
+.crm-item-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--alt-p);
+  height: var(--alt-p);
+  cursor: pointer;
+}
+/* Marca de item sem caixa de selecao. Ela ocupa a mesma coluna da caixa, pra o
+   texto de todas as linhas comecar no mesmo lugar. */
+.crm-item-marca {
+  flex: none;
+  width: var(--alt-p);
+  height: var(--alt-p);
+  background:
+    radial-gradient(circle at 50% 50%, var(--linha-forte) 2px, transparent 0);
+}
+.crm-item-quando {
+  flex: none;
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.crm-item-quando.atrasado {
+  color: var(--alerta);
+  font-weight: var(--peso-medio);
+}
+
+.crm-adiar {
+  position: relative;
+  display: inline-flex;
+}
+.crm-adiar-menu {
+  top: calc(100% + var(--esp-4));
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 160px;
+}
+
+.crm-ver-todos {
+  margin-top: var(--esp-8);
+}
+
+.crm-funil-linha {
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   4. QUADRO
+
+   A coluna NAO e mais um cartao. Ela e um titulo, um fio e uma pilha: o cartao
+   do contato e a unica caixa aqui dentro.
+   ========================================================================== */
+.crm-quadro {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--esp-16);
+  padding: var(--esp-16) var(--esp-24) var(--esp-24);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.crm-coluna {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-height: 0;
+  /* A coluna do quadro NAO e cartao: sem caixa, sem fundo, sem fio em volta.
+     O que separa uma coluna da outra e o espaco entre elas e o fio embaixo do
+     titulo. */
+}
+
+.crm-coluna-topo {
+  flex: none;
+  padding: 0 0 var(--esp-8);
+  border-bottom: 1px solid var(--linha);
+}
+.crm-coluna-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt-p);
+}
+.crm-coluna-nome {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  color: var(--texto);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-coluna-input {
+  flex: 1;
+  min-width: 0;
+}
+.crm-coluna-total {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-variant-numeric: tabular-nums;
+}
+.crm-coluna-acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  margin-top: var(--esp-2);
+}
+.crm-coluna-ajustes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  margin-top: var(--esp-8);
+  padding: var(--esp-8);
+  background: var(--superficie-alta);
+  border-radius: var(--raio);
+}
+.crm-coluna-ajustes > .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+.crm-chevron-direita {
+  transform: rotate(180deg);
+}
+
+.crm-coluna-corpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  padding-top: var(--esp-12);
+  overflow-y: auto;
+}
+.crm-coluna-vazia {
+  padding: var(--esp-12) 0;
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+
+.crm-coluna-nova {
+  width: 200px;
+  padding-top: var(--esp-8);
+}
+.crm-nova-coluna-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.crm-nova-coluna-acoes {
+  display: flex;
+  gap: var(--esp-4);
+}
+.crm-add-coluna {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* O cartao do contato. Ele NAO flutua: fica parado no fluxo da coluna, entao
+   nao tem sombra. A unica excecao e o fantasma do arraste, la embaixo. */
+.crm-cartao {
+  gap: var(--esp-8);
+  padding: var(--esp-8) var(--esp-12);
+}
+.crm-cartao.selecionado {
+  background: var(--superficie-alta);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+/* Enquanto arrasta, o cartao original vira o buraco de onde ele saiu. */
+.crm-cartao.arrastando {
+  opacity: var(--op-apagada);
+}
+.crm-cartao-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-width: 0;
+}
+.crm-cartao-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.crm-cartao-nome {
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-cartao-empresa {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-cartao-valor {
+  flex: none;
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+}
+.crm-cartao-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+}
+
+/* Onde o cartao vai cair. Ele e um vazio da altura do que esta sendo
+   arrastado, pra a coluna nao pular quando o alvo muda de lugar. */
+.crm-placeholder {
+  flex: none;
+  height: var(--crm-altura-arrasto);
+  border-radius: var(--raio-g);
+  background: var(--superficie-alta);
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
+}
+
+/* O fantasma segue o ponteiro: ele E o unico elemento do CRM que flutua sobre
+   conteudo em movimento, e por isso e o unico com sombra. */
+.crm-fantasma {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-camada);
+  pointer-events: none;
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-arrasto);
+}
+body.crm-arrastando {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* ==========================================================================
+   5. CONTATOS (tabela)
+   ========================================================================== */
+.crm-contatos {
+  display: flex;
+  flex-direction: column;
+}
+/* A caixa da tabela e quem rola, pra o cabecalho grudar no topo dela e nao no
+   topo da tela inteira. */
+.crm-tabela-caixa {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+}
+.crm-tabela tbody tr {
+  cursor: pointer;
+}
+.crm-ordenar {
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+.crm-ordenar:hover {
+  color: var(--texto);
+}
+.crm-tabela-pessoa {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+.crm-tabela-pessoa b {
+  font-weight: var(--peso-forte);
+}
+.crm-tabela-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+}
+.crm-tabela-negocios {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--esp-4);
+}
+.crm-tabela-negocios b {
+  font-weight: var(--peso-forte);
+}
+.crm-tabela-negocios small {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+}
+
+/* ==========================================================================
+   6. FORMULARIO E BUSCAR LEADS
+
+   As duas portas de entrada de lead. O Formulario continua sendo LISTA
+   COMPACTA com expandir, por pedido explicito do Jesse: nome, negocio, tempo,
+   temperatura, WhatsApp, Importar e o chevron, tudo numa linha, e o que
+   qualifica embaixo, so quando se pede.
+   ========================================================================== */
+.crm-subabas {
+  margin-bottom: var(--esp-12);
+}
+.crm-form-nota {
+  margin: calc(var(--esp-8) * -1) 0 var(--esp-12);
+}
+.crm-form-filtros {
+  align-items: flex-end;
+}
+
+.crm-form-item {
+  display: flex;
+  flex-direction: column;
+}
+.crm-form-item + .crm-form-item {
+  border-top: 1px solid var(--linha);
+}
+.crm-form-item.marcado,
+.crm-lead.marcado {
+  background: var(--superficie-alta);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+.crm-form-linha {
+  gap: var(--esp-8);
+}
+/* O chevron aponta pra BAIXO quando ha coisa escondida e pra CIMA quando ela
+   esta aberta. O icone nasce apontando pra esquerda. */
+.crm-form-expandir {
+  transition: transform var(--transicao);
+}
+.crm-form-expandir svg {
+  transform: rotate(-90deg);
+  transition: transform var(--transicao);
+}
+.crm-form-item.aberto .crm-form-expandir svg {
+  transform: rotate(90deg);
+}
+
+/* Quente nao ganha cor propria, ganha peso: um selo cheio no meio de selos
+   tenues salta, e nao gasta o orcamento de cor da casa. */
+.crm-temp-quente {
+  background: var(--acao);
+  color: var(--sobre-acao);
+}
+.crm-temp-morno {
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
+}
+
+.crm-form-detalhe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-16);
+  padding: var(--esp-12) var(--esp-12) var(--esp-16);
+  background: var(--superficie-alta);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+.crm-form-bloco h3 {
+  margin-bottom: var(--esp-4);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto-suave);
+}
+.crm-form-dores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+  list-style: none;
+}
+
+/* A barra de selecao gruda no pe da area rolante. A acao principal da aba mora
+   aqui, e ela e a UNICA tinta escura da tela quando aparece. */
+.crm-barra-selecao {
+  position: sticky;
+  bottom: calc(var(--esp-24) * -1);
+  z-index: var(--z-fixo);
+  display: flex;
+  align-items: center;
+  gap: var(--esp-12);
+  margin: var(--esp-16) calc(var(--esp-24) * -1) calc(var(--esp-24) * -1);
+  padding: var(--esp-12) var(--esp-24);
+  background: var(--superficie);
+  border-top: 1px solid var(--linha);
+  font-variant-numeric: tabular-nums;
+}
+.crm-barra-selecao > span:first-child {
+  flex: 1;
+  color: var(--texto-suave);
+}
+
+/* Formulario para em 720px: campo de 900px de largura obriga o olho a viajar
+   da etiqueta ate o valor. */
+.crm-leads-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--esp-12) var(--esp-16);
+  align-items: start;
+  max-width: 720px;
+}
+.crm-leads-form > .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+.crm-leads-campo-principal {
+  grid-column: 1 / -1;
+}
+.crm-leads-email {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+  min-height: var(--alt);
+  padding: 0;
+}
+.crm-leads-email > span {
+  display: flex;
+  flex-direction: column;
+}
+.crm-leads-email small {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+.crm-leads-buscar {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.crm-lead-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-width: 0;
+}
+/* Lead traz muito metadado: aqui a linha ganha altura em vez de cortar em
+   reticencias, porque endereco e email sao o que a pessoa vai usar. */
+.crm-leads-lista .item-lista {
+  align-items: flex-start;
+}
+.crm-leads-lista .item-lista-meta {
+  white-space: normal;
+}
+
+/* ==========================================================================
+   7. A FICHA DO CONTATO
+
+   Painel lateral. Ele FLUTUA sobre a tela (fica parado enquanto o conteudo
+   atras continua la), entao aqui a sombra e legitima.
+   ========================================================================== */
+.crm-painel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-camada);
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  background: var(--superficie);
+  border-left: 1px solid var(--linha);
+  box-shadow: var(--sombra-modal);
+}
+
+.crm-painel-topo {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-12);
+  padding: var(--esp-12) var(--esp-16);
+  border-bottom: 1px solid var(--linha);
+}
+.crm-painel-titulo {
+  flex: 1;
+  min-width: 0;
+}
+.crm-painel-titulo h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-painel-topo-acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+/* O estado do salvamento e texto, nao icone: "Salvo" e "Salvando" nao se
+   confundem, e um icone sozinho aqui exigia decorar o que ele quer dizer. */
+.crm-marca-salvo {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+.crm-marca-salvo.ocupado {
+  color: var(--texto-suave);
+}
+.crm-painel-erro {
+  flex: none;
+  margin: var(--esp-12) var(--esp-16) 0;
+}
+
+.crm-painel-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--esp-16);
+}
+.crm-painel-corpo > .grupo-campo + .secao {
+  margin-top: var(--esp-24);
+}
+.crm-painel-pe {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--esp-12) var(--esp-16);
+  border-top: 1px solid var(--linha);
+}
+
+.crm-campos-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--esp-12);
+  margin-top: var(--esp-16);
+}
+.crm-campos-grade > .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+.crm-ajuda {
+  display: block;
+  margin-top: var(--esp-8);
+}
+.crm-ajuda + .grupo-campo {
+  margin-top: var(--esp-16);
+}
+.crm-resposta-aberta {
+  margin-top: var(--esp-12);
+}
+.crm-resposta-aberta h3 {
+  margin-bottom: var(--esp-2);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto-suave);
+}
+.crm-lead-ficha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--esp-8) var(--esp-16);
+}
+.crm-lead-ficha dt {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+.crm-lead-ficha dd {
+  overflow-wrap: anywhere;
+}
+
+/* --- Interacoes --------------------------------------------------------- */
+.crm-interacao-nova {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--esp-8);
+  margin-bottom: var(--esp-12);
+}
+.crm-interacao-tipo-campo {
+  width: auto;
+}
+.crm-interacao-nova > textarea {
+  grid-column: 2;
+  grid-row: 1;
+}
+.crm-interacao-nova > .botao {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.crm-linha-tempo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  list-style: none;
+}
+.crm-interacao {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--esp-2) var(--esp-8);
+  align-items: center;
+}
+.crm-interacao > time {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+.crm-interacao > p {
+  grid-column: 1 / -1;
+  color: var(--texto);
+  white-space: pre-wrap;
+}
+
+/* --- Tarefas ------------------------------------------------------------ */
+.crm-tarefa-nova {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+  margin-bottom: var(--esp-12);
+}
+.crm-tarefa-nova > .campo:first-child {
+  flex: 1;
+  min-width: 160px;
+}
+.crm-tarefa-prazo {
+  width: auto;
+}
+.crm-tarefa-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  cursor: pointer;
+}
+.crm-tarefa.feita .crm-tarefa-texto > span {
+  color: var(--texto-fraco);
+  text-decoration: line-through;
+}
+
+/* --- Tags --------------------------------------------------------------- */
+.crm-tags-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-4);
+  min-height: var(--alt-p);
+}
+.crm-tag-editavel {
+  padding-right: var(--esp-2);
+}
+.crm-tag-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--texto-fraco);
+}
+.crm-tag-x:hover {
+  color: var(--alerta);
+}
+.crm-tag-x svg {
+  width: 10px;
+  height: 10px;
+}
+.crm-tag-nova {
+  display: flex;
+  gap: var(--esp-4);
+  margin-top: var(--esp-4);
+}
+
+/* ==========================================================================
+   8. NEGOCIO E ORCAMENTO
+
+   Repetem numa colecao, entao aqui cartao e o certo. Eles vivem dentro de uma
+   .secao, que nao e caixa: nao ha cartao dentro de cartao.
+   ========================================================================== */
+.crm-negocios-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.crm-negocio {
+  gap: var(--esp-12);
+}
+.crm-negocio.destaque {
+  background: var(--superficie-alta);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+.crm-negocio-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-4);
+}
+.crm-negocio-titulo {
+  flex: 1;
+  min-width: 140px;
+  font-weight: var(--peso-forte);
+}
+.crm-negocio-valor {
+  width: 100px;
+  font-variant-numeric: tabular-nums;
+}
+.crm-negocio-status {
+  width: auto;
+}
+.crm-negocio-acao {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--esp-8);
+}
+.crm-negocio-acao > .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+
+.crm-orcamentos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  padding-top: var(--esp-8);
+  border-top: 1px solid var(--linha);
+}
+.crm-orcamentos-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+}
+.crm-orcamento-novo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--esp-8);
+}
+.crm-orcamento-novo > .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+.crm-orcamentos-lista .item-lista {
+  flex-wrap: wrap;
+}
+.crm-orcamento-status {
+  width: auto;
+}
+
+/* ==========================================================================
+   9. CONFIRMACAO EM DOIS CLIQUES
+
+   O botao nao muda de tamanho ao armar: se ele crescesse, o layout deslocaria
+   e o segundo clique erraria o alvo. O aviso sai por cima, ancorado.
+   ========================================================================== */
+.crm-confirmar {
+  position: relative;
+}
+.crm-confirmar.armado {
+  color: var(--alerta);
+  border-color: var(--alerta-linha);
+}
+.crm-aviso-confirmar {
+  position: absolute;
+  bottom: calc(100% + var(--esp-4));
+  right: 0;
+  z-index: var(--z-popover);
+  padding: var(--esp-4) var(--esp-8);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--alerta-linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-popover);
+  color: var(--alerta);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+  animation: surgir-ancorado var(--mov-padrao) var(--curva) both;
+}
+.crm-excluir-contato {
+  gap: var(--esp-4);
+}
+
+/* ==========================================================================
+   10. MODAIS DO CRM
+   ========================================================================== */
+.crm-modal-titulo {
+  flex: 1;
+  min-width: 0;
+}
+.crm-modal-titulo h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+}
+.crm-modal-aviso {
+  margin-top: var(--esp-16);
+}
+.modal-corpo > .dica {
+  display: block;
+  margin-top: var(--esp-8);
+}
+
+/* Busca de contato com sugestao. O popover e ancorado no campo, e o corpo do
+   modal rola: por isso ele nasce colado no campo, e nao no fim da lista. */
+.crm-autocomplete {
+  position: relative;
+}
+.crm-autocomplete-lista {
+  top: calc(100% + var(--esp-4));
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.crm-contato-escolhido {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  margin-top: var(--esp-4);
+  padding: var(--esp-4) var(--esp-8);
+  background: var(--superficie-alta);
+  border-radius: var(--raio);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+
+/* ==========================================================================
+   11. TELA BAIXA
+
+   O que sai e folga da moldura, nunca informacao.
+   ========================================================================== */
+@media (max-height: 780px) {
+  .crm-quadro {
+    padding-block: var(--esp-8) var(--esp-16);
+  }
+  .crm-painel-topo,
+  .crm-painel-pe {
+    padding-block: var(--esp-8);
+  }
+}
+
+/* ==========================================================================
+   12. MOVIMENTO REDUZIDO
+
+   Substitui, nao apaga: o detalhe do lead continua aparecendo e o aviso de
+   confirmacao continua saindo, so que sem subir. O chevron continua girando,
+   porque rotacao no lugar nao e deslocamento na tela.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .crm-form-detalhe,
+  .crm-aviso-confirmar {
+    animation-name: none;
+  }
+}
+}

@@ -6,7 +6,7 @@ Fonte da verdade entre os módulos do app. Quem constrói um módulo segue este 
 
 Cockpit web local. Backend Node (Fastify) na porta **4600**. Frontend React + Vite (dev na 5173 com proxy pro 4600). O backend abre a pasta de um VKOS instalado, orquestra sessões Claude Code ou Codex em paralelo e serve as peças geradas. Uma cópia de referência do VKOS pode existir em `../vkos` (relativa à pasta `app/`) apenas para desenvolvimento e nunca entra no pacote do usuário.
 
-Identidade visual do app: minimalista, verde-menta como destaque (menta real dos temas #2fd4a7) e contraste confortável. A interface funciona nos temas Escuro, Dark VKOS e Claro. O tema vem de duas camadas: `web/src/estilos/global.css` é a base dos tokens e `web/src/estilos/visual-hub.css` carrega por último, camada oficial que fixa o valor final de cada token por tema. Toda cor passa por esses tokens. UI inteira em português brasileiro.
+Identidade visual do app: redesign v2 desde 2026-07-30 (ver docs/decisoes/2026-07-30-redesign-v2-fundacao.md, que revogou o sistema de 2026-07-27). A interface é acromática e o conteúdo do usuário é a única coisa colorida na tela; o menta da marca tem um emprego só, dizer o que está vivo. Dois temas, Claro e Escuro. O contrato completo mora em `docs/planos/redesign-v2/00-fundacao.md`; a implementação vem de `web/src/estilos/global.css` (base e escalas), `primitivas.css` (a camada de componentes) e `visual-hub.css` (o valor final de cada token por tema). Toda cor passa por token e as travas em `web/src/estilos/*.test.ts` são executáveis. UI inteira em português brasileiro.
 
 ## Pastas e propriedade (quem escreve onde)
 
@@ -45,7 +45,7 @@ No pacote Windows, `Instalar VKOS Hub.cmd` exige Node.js 20 ou mais recente. Qua
 ### VKOS (ponte)
 - `GET /api/vkos` responde `EstadoVkos`: pasta ativa, se é válida, se o Cérebro está preenchido, total de skills. No pacote final, a pasta `VKOS/` ao lado de `app/` é registrada e ativada automaticamente no boot.
 - `POST /api/vkos` body `{ caminho }`: valida (tem `cerebro/cerebro.md` e `.claude/skills/`), persiste e responde `EstadoVkos`. Erro 400 se inválida.
-- `GET /api/vkos/cerebro` responde `{ texto, caminho, atualizadoEm, conteudo, preenchido }`. `texto` é o documento completo; `conteudo` é alias legado de `texto`; `atualizadoEm` é o mtime em ISO. 404 se o arquivo não existe. Heurística de preenchido: o conteúdo não tem campos em branco do tipo `✍️`.
+- `GET /api/vkos/cerebro` responde `{ texto, caminho, atualizadoEm, conteudo, preenchido }`. `texto` é o documento completo; `conteudo` é alias legado de `texto`; `atualizadoEm` é o mtime em ISO. 404 se o arquivo não existe. Heurística de preenchido, desde 2026-07-31: o Cérebro está preenchido quando NENHUM bloco `## ` está vazio, e um bloco está vazio quando não tem nenhuma linha além de título, separador, linha em branco e linhas com o marcador `✍️`. Um marcador solto dentro de um bloco respondido (um detalhe pendente) não derruba mais o Cérebro inteiro. Conteúdo vazio nunca conta como preenchido, e Cérebro escrito fora do template (sem nenhum `## `) cai na regra antiga, a ausência de marcador. Ver `docs/decisoes/2026-07-31-um-lapis-nao-apaga-o-cerebro.md`.
 - `PUT /api/vkos/cerebro` body `{ texto }`: grava o cerebro.md (atômico, backup automático em `cerebro/.backup-cerebro-<carimbo>.md` antes da primeira gravação de cada boot). 413 acima de 512 KB. Responde o mesmo shape do GET e transmite `{ tipo: "cerebro:atualizado" }`.
 - `POST /api/anexos` body `{ nome, conteudoBase64 }`: salva anexo do composer em `materiais/cockpit/anexos/<AAAA-MM-DD>/` na pasta do VKOS. Extensões: png, jpg, jpeg, webp, gif, svg, md, txt, pdf, csv, json. Limite 15 MB. Responde 201 `{ caminhoRelativo }` (relativo à pasta do VKOS, barras normais). Erros 400/413.
 - `POST /api/vkos/pecas/:pasta/anexo` body `{ nome, conteudoBase64 }`: salva material do Ajustar com IA em `conteudo/<peça>/anexos/`. Aceita as mesmas extensões do composer, limita a 15 MB e responde 201 `{ caminhoRelativo: "anexos/<nome>" }`. Nome inválido, extensão recusada e peça ausente retornam 400 ou 404; tamanho acima do limite retorna 413.
@@ -53,7 +53,7 @@ No pacote Windows, `Instalar VKOS Hub.cmd` exige Node.js 20 ou mais recente. Qua
 - `GET /api/vkos/pecas` responde `{ pecas: Peca[] }`. Escaneia `conteudo/*/` na pasta do VKOS. Inferência de tipo: `instagram/*.png` é carrossel, `post/*.png` (ou `instagram-post/*.png`) é post, `instagram-stories/*.png` (ou `stories/*.png`) é stories (tudo legado), `carrossel.html` na raiz da subpasta é carrossel HTML-first (`fonteHtml: true`, `paginas` = total de `.slide`, previews `/pecas-html/<pasta>/pagina/<n>`), `.html` restante é site, `.md` é texto, resto é outro. Peça de site acrescenta `site: { valido, erros, avisos }`; previews incluem páginas HTML da raiz e de subpastas, com `index.html` primeiro.
 - `GET /pecas/*` (sem prefixo /api): serve arquivo estático de dentro de `conteudo/` da pasta VKOS escolhida. Sanitizar: nunca servir fora de `conteudo/`.
 
-### Carrossel HTML-first (rodada 12, ver decisoes/2026-07-14-carrossel-html-first.md)
+### Carrossel HTML-first (rodada 12, ver docs/decisoes/2026-07-14-carrossel-html-first.md)
 - `GET /pecas-html/:pasta/pagina/:n` (sem /api): serve o carrossel.html com `<base>` injetada e script que isola a página n (o body fica do tamanho exato do slide, pro front medir e escalar).
 - `GET /pecas/*` serve a árvore estática da peça com MIME correto, `Cache-Control: no-cache` e `X-Content-Type-Options: nosniff`. Diretório com `index.html` é servido como URL limpa.
 - `GET /pecas-edicao/*` serve a mesma árvore para o Studio, mas troca temporariamente o tipo dos scripts por um tipo inerte. O motor restaura os tipos originais na serialização, sem executar JavaScript dentro do editor.
@@ -149,7 +149,7 @@ O prompt vai por stdin. A permissão `padrao` mantém a edição segura do works
 
 ### Custo por turno e total declarado como piso (2026-07-27)
 
-Ver `decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md`, que traz as duas medições feitas com os CLIs reais.
+Ver `docs/decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md`, que traz as duas medições feitas com os CLIs reais.
 
 - **Quem reporta o quê.** Medido: o Claude reporta `total_cost_usd` e `usage` do TURNO; o Codex reporta o uso ACUMULADO da thread. `OpcoesSessaoProvedor.usoAnterior` carrega a linha de base do turno anterior, com três sentidos: ausente (sessão nova, ou provedor por turno), objeto (o provedor acumulativo subtrai) e `null` (retomada sem linha de base conhecida, o provedor declara o turno sem custo). O result devolve `uso_acumulado`, o gerenciador guarda em `Sessao.usoAcumuladoProvedor` e devolve na retomada seguinte.
 - **Custo desconhecido nunca vira zero.** O result carrega `custo_conhecido: boolean` e `motivo_sem_custo` quando falso. Falso vale para modelo fora da tabela de preços do Codex, retomada de Codex sem linha de base, e turno que concluiu sem `total_cost_usd` numérico. Turno com erro continua fora do total (M10) e NÃO conta como sem preço.
@@ -195,7 +195,7 @@ Carrossel, Post e Stories rodam TODOS o mesmo motor (a skill `/carrossel`): muda
 
 # Extensão 2026-07-11: imersão, nós de contexto e canvas persistido
 
-Decisões registradas em `decisoes/2026-07-11-imersao-e-menu-proprio.md` e `decisoes/2026-07-11-nos-de-contexto-e-economia-de-tokens.md`.
+Decisões registradas em `docs/decisoes/2026-07-11-imersao-e-menu-proprio.md` e `docs/decisoes/2026-07-11-nos-de-contexto-e-economia-de-tokens.md`.
 
 ## Propriedade nova
 
@@ -247,7 +247,7 @@ Regras: anexo NUNCA entra inline no prompt, só a referência da pasta. O Céreb
 
 # Extensão rodada 3 (2026-07-11): tipos de nó e navegação lateral
 
-Decisão registrada em `decisoes/2026-07-11-tipos-de-no-e-navegacao-lateral.md`.
+Decisão registrada em `docs/decisoes/2026-07-11-tipos-de-no-e-navegacao-lateral.md`.
 
 ## Contexto tipificado (backend)
 
@@ -288,7 +288,7 @@ A linha de material passa a indicar o tipo:
 
 # Extensão rodada 4 (2026-07-11): visão viva, downloads e links
 
-Decisão registrada em `decisoes/2026-07-11-cockpit-visao-viva-downloads-e-links.md`.
+Decisão registrada em `docs/decisoes/2026-07-11-cockpit-visao-viva-downloads-e-links.md`.
 
 ## Tipo links (backend, módulo contextos)
 
@@ -330,7 +330,7 @@ Decisão registrada em `decisoes/2026-07-11-cockpit-visao-viva-downloads-e-links
 
 # Extensão rodada 5 (2026-07-11): conversa, custos, modelos e terminal
 
-Decisão registrada em `decisoes/2026-07-11-cockpit-conversacional-custos-e-terminal.md`.
+Decisão registrada em `docs/decisoes/2026-07-11-cockpit-conversacional-custos-e-terminal.md`.
 IMPORTANTE nesta rodada: NENHUM agente edita `app/server/src/index.ts`. Cada módulo exporta seus plugins e anota no retorno; a integração final registra tudo.
 
 ## Modelo e tokens por sessão (backend, módulo sessoes)
@@ -354,7 +354,7 @@ Quando o usuário escolher um modelo de carrossel, o prompt ganha o sufixo: `/ca
 
 ## Terminal no canvas (REMOVIDO em 2026-07-13)
 
-O módulo terminal (PTY no backend, xterm no front, nó no canvas) foi removido por inteiro no enxugamento da reestruturação (ver decisoes/2026-07-13-reestruturacao-vkos-hub.md). Não existem mais `app/server/src/terminal/`, `app/web/src/componentes/terminal/`, as rotas `/api/terminais`, o WS `/ws/terminal/:id`, nem as dependências `@lydell/node-pty`, `@xterm/xterm` e `@xterm/addon-fit`. Nós tipo `terminal` e arestas `aresta-terminal` salvos em canvas antigos são descartados na carga (migração silenciosa).
+O módulo terminal (PTY no backend, xterm no front, nó no canvas) foi removido por inteiro no enxugamento da reestruturação (ver docs/decisoes/2026-07-13-reestruturacao-vkos-hub.md). Não existem mais `app/server/src/terminal/`, `app/web/src/componentes/terminal/`, as rotas `/api/terminais`, o WS `/ws/terminal/:id`, nem as dependências `@lydell/node-pty`, `@xterm/xterm` e `@xterm/addon-fit`. Nós tipo `terminal` e arestas `aresta-terminal` salvos em canvas antigos são descartados na carga (migração silenciosa).
 
 No mesmo enxugamento, os fluxos Post e Stories saíram dos menus de criação (flag `oculto` em config/fluxos.ts). Sessões e peças antigas desses tipos continuam renderizando.
 
@@ -386,13 +386,13 @@ Registro histórico da divisão de tarefas daquela rodada. O terminal descrito a
 
 # Extensão rodada 8 (2026-07-12): workspaces multi-cliente (múltiplos Cérebros)
 
-Decisão registrada em `decisoes/2026-07-12-multiplos-cerebros-workspaces.md`.
+Decisão registrada em `docs/decisoes/2026-07-12-multiplos-cerebros-workspaces.md`.
 
 O Jesse é prestador de serviço e gerencia N clientes. Um workspace por cliente, cada workspace é uma pasta VKOS completa. As skills leem `cerebro/cerebro.md` relativo ao cwd, então o isolamento vem da pasta. O estado do app, antes global em `app/dados/`, passa a ser escopado por workspace em `app/dados/workspaces/<id>/`.
 
 ## Propriedade nova
 
-- `app/server/src/workspaces/`: módulo de workspaces. Exporta `rotasWorkspaces` (montado sob `/api`). Arquivos: `estado.ts` (registro + resolvedores de caminho, módulo folha), `ativacao.ts` (troca de workspace ativo), `migracao.ts`, `clonagem.ts` (cliente novo), `rotas.ts`.
+- `app/server/src/workspaces/`: módulo de workspaces. Exporta `rotasWorkspaces` (montado sob `/api`). Arquivos: `estado.ts` (registro + resolvedores de caminho, módulo folha), `ativacao.ts` (troca de workspace ativo), `pastas.ts` (onde as pastas de workspace moram, e o slug do nome), `migracao.ts`, `migracaoPastas.ts` (mudança de casa das pastas soltas na raiz), `clonagem.ts` (cliente novo), `rotas.ts`.
 - `tipos.ts`: `Sessao` ganhou `workspaceId?: string`.
 
 ## Registro
@@ -408,8 +408,8 @@ Convenção de resposta: as rotas que criam, ativam ou renomeiam um workspace re
 - `POST /api/workspaces` body `{ pasta, nome? }`: valida a pasta como VKOS (mesma do `POST /vkos`: tem `cerebro/cerebro.md` e `.claude/skills/`), recusa pasta já registrada (400), registra, ATIVA e responde `{ workspace, workspaces, ativo }`. `nome` default: último segmento da pasta.
 - `POST /api/workspaces/:id/ativar`: aponta a pasta VKOS ativa (via `definirPastaVkos`, religa o watcher de peças), atualiza `ultimoUso` e `ativo`, transmite `{ tipo: "workspace:ativado", id }` pelo WebSocket, responde `{ workspace, workspaces, ativo }`. 404 se o id não existe.
 - `PATCH /api/workspaces/:id` body `{ nome }`: renomeia e responde `{ workspace, workspaces, ativo }`. 400 sem nome, 404 se não existe.
-- `DELETE /api/workspaces/:id`: remove SÓ do registro e responde `{ workspaces, ativo }`. NUNCA apaga a pasta VKOS do cliente nem a pasta de dados `app/dados/workspaces/<id>` (fica órfã em disco de propósito). Antes de remover do registro, para e remove do gerenciador todas as sessões daquele workspace (nada de processo de IA rodando invisível) e invalida o cache de contextos dele. 400 se for o workspace ativo, 404 se não existe.
-- `POST /api/workspaces/novo` body `{ nome, pastaDestino }`: cria um cliente novo clonando a ESTRUTURA do ativo. Copia `.claude/`, `templates/`, `identidade/` e uma lista branca de arquivos de raiz (`CLAUDE.md`, `LEIA.md`, `LEIA-ME.md`, `README.md`, `package.json`, `package-lock.json`, `.gitignore`), nada além. NÃO copia `node_modules/`, `conteudo/`, `materiais/` nem `.git/`. O `cerebro/cerebro.md` do novo nasce em branco: só os títulos de seção (linhas com `#`) do cérebro ativo, com o corpo trocado por `✍️`. Para o `node_modules`: tenta uma junction do Windows apontando pro do ativo; se falhar, segue e devolve `avisos: ["rode npm install na pasta nova"]`. Valida `pastaDestino`: absoluta, e não existente ou vazia. Registra e ativa. Responde `{ workspace, workspaces, ativo, avisos }`.
+- `DELETE /api/workspaces/:id`: remove do registro e responde `{ workspaces, ativo }`. NUNCA apaga a pasta VKOS do cliente. A pasta de dados do hub `app/dados/workspaces/<id>/` É apagada (segredos e PII), desde a decisão `2026-07-17-dados-sagrados.md` item 3. Antes de remover do registro, para e remove do gerenciador todas as sessões daquele workspace (nada de processo de IA rodando invisível), invalida o cache de contextos dele e absorve o gasto acumulado no histórico do CORE. 400 se for o workspace ativo, 404 se não existe.
+- `POST /api/workspaces/novo` body `{ nome, pastaDestino? }`: cria um cliente novo clonando a ESTRUTURA do ativo. `pastaDestino` é OPCIONAL. Ausente ou vazia, o servidor monta o destino sozinho: `<raiz do projeto>/workspaces/<slug do nome>` (slug em `workspaces/pastas.ts`: NFD sem acento, minúscula, o que não é letra ou número vira hífen, e nome que viraria slug vazio cai em `workspace`). Informada, o caminho escolhido é respeitado inteiro, como válvula de escape. Copia `.claude/`, `templates/`, `identidade/` e uma lista branca de arquivos de raiz (`CLAUDE.md`, `LEIA.md`, `LEIA-ME.md`, `README.md`, `package.json`, `package-lock.json`, `.gitignore`), nada além. NÃO copia `node_modules/`, `conteudo/`, `materiais/` nem `.git/`. O `cerebro/cerebro.md` do novo nasce em branco: só os títulos de seção (linhas com `#`) do cérebro ativo, com o corpo trocado por `✍️`. Para o `node_modules`: tenta uma junction do Windows apontando pro do ativo; se falhar, segue e devolve `avisos: ["rode npm install na pasta nova"]`. Valida o destino: absoluto, e não existente ou vazio. Destino montado pelo servidor que já existe cheio responde 400 "Ja existe um workspace com esse nome", não "a pasta destino precisa estar vazia". Registra e ativa. Responde `{ workspace, workspaces, ativo, avisos }`.
 
 ## Compatibilidade
 
@@ -435,12 +435,13 @@ Convenção de resposta: as rotas que criam, ativam ou renomeiam um workspace re
 - Sem pasta VKOS configurada: não migra o legado. Depois da migração, `garantirWorkspaceIntegrado()` registra e ativa `VKOS/` ao lado de `app/` quando ainda não existe workspace. O seletor de pasta não faz parte da primeira execução do cliente.
 - Nunca apaga dado, só move. Rodar o boot de novo depois da migração não duplica nem move nada (o `workspaces.json` já existe).
 - O carregamento das sessões deixou de ser no construtor do gerenciador: `index.ts` chama `gerenciador.inicializar()` depois da migração, pra o registro já estar pronto.
+- Desde 2026-07-27, logo depois dela e ANTES de `garantirWorkspaceIntegrado()`, roda `migrarPastasParaRaizWorkspaces()`: move pra `<raiz do projeto>/workspaces/` as pastas de workspace registradas que estejam DIRETAMENTE na raiz do projeto. Nunca move o VKOS integrado (o `integrado.ts` o procura por caminho ao lado de `app/`) nem pasta guardada fora da raiz. Move com `renameSync`, que preserva a junction de `node_modules`; NUNCA cai pra cópia recursiva (copiar junction duplica ou segue o link). Rename que falha vira aviso no console e a pasta fica onde está, o boot nunca quebra por isso. Depois de mover, religa as junctions de `node_modules` que apontavam pras pastas antigas, atualiza o campo `pasta` no registro e, se o workspace movido for o ativo, o `pastaVkos` do `config.json`. Idempotente por disco: o que já está dentro de `workspaces/` não está mais diretamente na raiz.
 
 ---
 
 # Rodada 10 (2026-07-13): VKOS-IDE, Conexões MCP e CRM (fases 4, 5 e 6)
 
-Quatro agentes em paralelo. Cada um e dono EXCLUSIVO dos seus arquivos. Regras gerais: português brasileiro, NUNCA travessão nem o caractere de ponto centrado, frase curta, toda cor via tokens de tema de `web/src/estilos/global.css` (o app tem os temas Escuro, Dark VKOS e Claro, tudo precisa funcionar nos três), escrita de estado em disco sempre atômica via `server/src/util/gravarJson.ts`, caminhos de arquivo SEMPRE sanitizados (resolve + startsWith na base, nunca aceitar `..`). Ninguém toca em: vkos/.claude/skills/carrossel/SKILL.md, estado/contexto.tsx (exceto onde dito), api/cliente.ts, tipos/dominio.ts, index.ts do server (a integração final registra as rotas), Shell.tsx e Sidebar.tsx (integração final).
+Quatro agentes em paralelo. Cada um e dono EXCLUSIVO dos seus arquivos. Regras gerais: português brasileiro, NUNCA travessão nem o caractere de ponto centrado, frase curta, toda cor via tokens de tema de `web/src/estilos/global.css` (o app tem os temas Claro, o padrão, e Escuro, tudo precisa funcionar nos dois), escrita de estado em disco sempre atômica via `server/src/util/gravarJson.ts`, caminhos de arquivo SEMPRE sanitizados (resolve + startsWith na base, nunca aceitar `..`). Ninguém toca em: vkos/.claude/skills/carrossel/SKILL.md, estado/contexto.tsx (exceto onde dito), api/cliente.ts, tipos/dominio.ts, index.ts do server (a integração final registra as rotas), Shell.tsx e Sidebar.tsx (integração final).
 
 ## Sessões: extensões (dono: agente IDE-backend)
 
@@ -505,6 +506,19 @@ Arquivos: `server/src/crm/` (novo), `web/src/componentes/crm/` (novo), `web/src/
 - A comparação remove tudo que não é dígito do telefone e também confere `origem: "google-maps:<placeId>"`. Assim, um lead sem telefone não é importado duas vezes. Contato novo recebe essa origem, tag `google-maps` e a data normal de criação do CRM.
 - O token fica em `app/dados/conexoes.json` (escopo CORE), mascarado nas respostas do catálogo e ausente de logs. `buscarLeads(termo, opcoes?, fetchImpl?)` não recebe mais workspace: a conta é do dono. A mineração (`leads.json`) continua por workspace. O teste de conexão usa `GET /v2/users/me` e não dispara o Actor.
 
+## Leads do formulário do site (2026-07-29)
+
+Ver `docs/decisoes/2026-07-29-leads-do-formulario-do-site.md`. A porta inbound do funil, par simétrico da mineração acima.
+
+- O backend vive em `server/src/formulario/`. Ele lê a tabela `public.leads` de um projeto Supabase pela REST do PostgREST, sem SDK e sem dependência nova.
+- Conexão `supabase` no catálogo, com dois campos: `url` (público) e `chaveServico` (segredo). A `service_role` passa por cima do RLS, então ela **nunca** chega no navegador: só `formulario/supabase.ts` a lê, e o frontend fala com `/api/formulario`. `POST /api/conexoes/supabase/testar` faz `GET /rest/v1/leads?select=id&limit=1`, porque a pergunta que importa é "esta chave lê a tabela", não "a chave é válida": a chave `anon` passaria na segunda e devolveria lista vazia pra sempre.
+- **Não há cache local.** Diferente do `leads.json`, onde cada busca na Apify se paga. Ler o Supabase é de graça e a tabela é a fonte da verdade do que chegou.
+- `GET /api/formulario/leads` responde `{ novos, noFunil, temMais }`. A divisão sai do `crm.json` local, pela `chaveExterna` `formulario-site:<uuid>` e pelo telefone E.164, **nunca** do `status` do Supabase. Teto de 500 por leitura; `temMais: true` quando estourou, e a tela avisa em vez de fingir que acabou.
+- `POST /api/formulario/importar` recebe `{ ids: string[] }` (teto 200) e responde `{ importados, duplicados, contatos, idsImportados, avisoStatus?, listas }`. O contato nasce com `origem: "Formulário do site"`, `chaveExterna`, tags `["formulario-site", "lead-<temperatura>"]` e o retrato em `contato.formulario`. A frase do campo `negocio` não vira Organizacao: é descrição, não razão social.
+- Depois de importar, o servidor faz `PATCH` marcando `status: "contatado"` no Supabase. Isso é **cortesia**, nunca controle: a falha vira `avisoStatus` e jamais desfaz uma importação, porque o contato já está no disco e a `chaveExterna` já impede a duplicata.
+- A rota de importação repete `avisarCrm({ escopo: "funil" })`, como a de leads: ela grava no CRM por fora de `crm/rotas.ts` e o hook de aviso de lá não a alcança.
+- `Contato.formulario` (`DadosFormulario`) é separado de `Contato.lead`: duas origens, perguntas diferentes. `gatilho` e `tentativas` aceitam 2000 caracteres, contra 300 do resto. O `utm` do formulário não é guardado. **O saneador vive em `crm/modelo.ts`, num lugar só**, porque `criarContato` e `saneiaContato` reconstroem o contato campo a campo e um campo conhecido só por um deles some na leitura seguinte, sem erro.
+
 ## Mapa do sistema interno
 
 - `GET /api/mapa` lê `interno/mapa-sistema.json` a cada chamada. Arquivo válido responde `{ disponivel: true, mapa }`; ausente ou inválido responde `{ disponivel: false }`.
@@ -518,12 +532,12 @@ Registra rotas novas no index.ts, adiciona as três telas no Shell/Sidebar com r
 
 # Rodada 11 (2026-07-14): temas, mensagens, modelo na IDE
 
-Feito pelo orquestrador: fix das posicoes dos containers no reload (Cockpit.tsx, restauracao reaplica posicao salva nos nos derivados), Vercel removida do catalogo (decisoes/2026-07-14-vercel-fora-do-catalogo.md), componente comum/Markdown.tsx (react-markdown + remark-gfm, estilos em estilos/markdown.css), seletor de modelo e markdown no ChatIde.
+Feito pelo orquestrador: fix das posicoes dos containers no reload (Cockpit.tsx, restauracao reaplica posicao salva nos nos derivados), Vercel removida do catalogo (docs/decisoes/2026-07-14-vercel-fora-do-catalogo.md), componente comum/Markdown.tsx (react-markdown + remark-gfm, estilos em estilos/markdown.css), seletor de modelo e markdown no ChatIde.
 
 ## Temas e polimento (dono: agente Temas)
 
 Arquivos: global.css, index.html, Sidebar.tsx, ide.css, conexoes.css, crm.css, workspaces.css.
-Tres temas (decisoes/2026-07-14-tres-temas.md): :root segue sendo o Dark VKOS (base), :root[data-theme="escuro"] e o padrao novo (grafite neutro #16181d, menta de destaque), :root[data-theme="claro"] mantido. localStorage "vkos-tema": claro | escuro | vkos, padrao "escuro". Popover de tres opcoes na sidebar (.tema-menu). Polimento: :focus-visible global, scrollbar, hover e motion sutil.
+Tres temas (docs/decisoes/2026-07-14-tres-temas.md): :root segue sendo o Dark VKOS (base), :root[data-theme="escuro"] e o padrao novo (grafite neutro #16181d, menta de destaque), :root[data-theme="claro"] mantido. localStorage "vkos-tema": claro | escuro | vkos, padrao "escuro". Popover de tres opcoes na sidebar (.tema-menu). Polimento: :focus-visible global, scrollbar, hover e motion sutil.
 
 ## Mensagens apresentaveis (dono: agente Mensagens)
 
@@ -553,7 +567,7 @@ QA (3o Opus): todos os itens passaram, zero erros de console. Rolagem de bloco d
 
 ## Exportação local de sites (2026-07-26)
 
-Decisão registrada em `decisoes/2026-07-26-fim-da-publicacao-integrada.md`. A publicação integrada no GitHub e na Netlify saiu do produto. A geração, o preview, o modo Editar, o conversor Astro e a auditoria continuam intactos: eles deixaram de servir o deploy e passaram a servir a exportação.
+Decisão registrada em `docs/decisoes/2026-07-26-fim-da-publicacao-integrada.md`. A publicação integrada no GitHub e na Netlify saiu do produto. A geração, o preview, o modo Editar, o conversor Astro e a auditoria continuam intactos: eles deixaram de servir o deploy e passaram a servir a exportação.
 
 - `server/src/publicacao/` é o módulo determinístico da exportação. Estado em `app/dados/workspaces/<id>/publicacoes.json`, hoje só com `exportacao: { em, modo }` por pasta de peça. Entradas antigas de github e netlify são descartadas na leitura, sem migração.
 - `GET /api/publicacao/:pasta` responde `{ registro, auditoria, modoPrevisto, nomeArquivo }`. A auditoria combina a verificação estrutural com a inspeção real de todas as páginas em 390 px e 1440 px, rolagem completa, modo sem JavaScript e `prefers-reduced-motion`. O resultado fica em cache por até 2 minutos, vinculado à versão exata dos arquivos da peça, para manter o painel responsivo sem reutilizar resultado obsoleto.
@@ -578,7 +592,7 @@ Decisão registrada em `decisoes/2026-07-26-fim-da-publicacao-integrada.md`. A p
 
 ## Modo enxuto (REMOVIDO em 2026-07-26)
 
-O recurso descrito abaixo não existe mais no código (ver decisoes/2026-07-26-fim-da-publicacao-integrada.md e o registro da Fase 1 de amputação em planos/vkos-hub-local-v1/01-fases.md). Sumiram `config-app.json.modoEnxuto`, o campo `modoEnxuto` na sessão, o switch na Sidebar e o módulo inteiro `server/src/sessoes/modo-enxuto.ts`. Fica só como histórico:
+O recurso descrito abaixo não existe mais no código (ver docs/decisoes/2026-07-26-fim-da-publicacao-integrada.md e o registro da Fase 1 de amputação em docs/planos/vkos-hub-local-v1/01-fases.md). Sumiram `config-app.json.modoEnxuto`, o campo `modoEnxuto` na sessão, o switch na Sidebar e o módulo inteiro `server/src/sessoes/modo-enxuto.ts`. Fica só como histórico:
 
 - `config-app.json` ganhava `modoEnxuto: boolean` (default false). GET e PUT de /api/config expunham e aceitavam o campo.
 - `OpcoesSessaoProvedor` ganhava `instrucoesExtras?: string`. Claude virava `--append-system-prompt`; Codex prefixava o prompt do stdin com o bloco `<regras-da-sessao>...</regras-da-sessao>` e linha em branco.
@@ -593,7 +607,7 @@ O campo `instrucoesExtras` do contrato de provedor continua existindo, mas hoje 
 - `templates/site/principios-visuais.md` reescrito (352 linhas): leitura de design, cartela de 13 direções, regras de execução, proibições absolutas, teste final e o contrato de marcação do Studio. Referência em `vkos/`, cópias nos workspaces registrados. Crédito no topo (impeccable Apache 2.0, taste-skill MIT, ui-ux-pro-max MIT, temas do astryx MIT).
 - `promptSite.ts`: só a linha que descreve o arquivo mudou (agora manda declarar a leitura e a direção no início).
 - Padrão de reveal invertido pro seguro: o JS adiciona `js-anima` no html e só aí o CSS esconde; sem JS a página nasce visível.
-- Desde 2026-07-17, prompt design-first e biblioteca de estilos (decisoes/2026-07-17-biblioteca-estilos-design-first.md): o bloco 1 do prompt obriga ler cerebro, principios-visuais, `templates/design/cartela.md` (20 direções) e `templates/design/estilos/indice.md` (13 estilos concretos com nomes neutros), escolher UMA direção e UM estilo, declarar em até 3 linhas no início e aplicar o sistema inteiro sem citar marca de origem. Visual personalizado: cores do usuário só nos tokens de cor, tipografia/spacing/motion do estilo. Regras técnicas compactas no fim, com os marcadores do multipágina. Contraste 4.5:1 exigido explicitamente pra texto secundário (nota, legenda, rodapé) e media query de reduced-motion obrigatória. Camada propagada pra ojessegomes, estudio-aura, vkos e vkos2, com skills site v2, /revisar-design e /refinar.
+- Desde 2026-07-17, prompt design-first e biblioteca de estilos (docs/decisoes/2026-07-17-biblioteca-estilos-design-first.md): o bloco 1 do prompt obriga ler cerebro, principios-visuais, `templates/design/cartela.md` (20 direções) e `templates/design/estilos/indice.md` (13 estilos concretos com nomes neutros), escolher UMA direção e UM estilo, declarar em até 3 linhas no início e aplicar o sistema inteiro sem citar marca de origem. Visual personalizado: cores do usuário só nos tokens de cor, tipografia/spacing/motion do estilo. Regras técnicas compactas no fim, com os marcadores do multipágina. Contraste 4.5:1 exigido explicitamente pra texto secundário (nota, legenda, rodapé) e media query de reduced-motion obrigatória. Camada propagada pra ojessegomes, estudio-aura, vkos e vkos2, com skills site v2, /revisar-design e /refinar.
 
 ## Revisão de design (TelaSite)
 
@@ -636,7 +650,7 @@ O campo `instrucoesExtras` do contrato de provedor continua existindo, mas hoje 
 
 # Conserto geral (2026-07-17)
 
-Endurecimento de contratos existentes, sem mudança de arquitetura. Ver decisoes/2026-07-17-dados-sagrados.md e 2026-07-17-camada-tema-oficial.md.
+Endurecimento de contratos existentes, sem mudança de arquitetura. Ver docs/decisoes/2026-07-17-dados-sagrados.md e 2026-07-17-camada-tema-oficial.md.
 
 ## Dados sagrados
 
@@ -664,7 +678,7 @@ Endurecimento de contratos existentes, sem mudança de arquitetura. Ver decisoes
 
 # Camadas no editor e modo econômico (2026-07-20)
 
-Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
+Ver docs/decisoes/2026-07-20-camadas-e-modo-economico.md.
 
 ## Editor de carrossel: hit-test geométrico, camadas e imagem própria
 
@@ -683,7 +697,7 @@ Ver decisoes/2026-07-20-camadas-e-modo-economico.md.
 
 ## Manipulação direta no Studio (2026-07-27)
 
-Ver `decisoes/2026-07-27-manipulacao-direta-no-studio.md`. Contrato técnico:
+Ver `docs/decisoes/2026-07-27-manipulacao-direta-no-studio.md`. Contrato técnico:
 
 - `Historico<T>` em `editor/nucleo.ts` substitui `PilhaSnapshots`. `registrar(snap)` empilha o estado de ANTES e zera o refazer; `desfazer(atual)` e `refazer(atual)` recebem o estado corrente e devolvem o que restaurar; `descartarUltimo()` para ação que não mudou nada; `limpar()`. Limite 50 nos dois motores. `temDesfazer`/`temRefazer` alimentam os botões. Cada motor decide o que o snapshot guarda (corpo mais vars de tema no carrossel, documento inteiro no site) e como restaura; `restaurar` re-seleciona pelo `data-vk` guardado antes de trocar o innerHTML. Salvar continua zerando as duas pilhas.
 - `MotorEdicao` ganhou `refazer()`, `podeRefazer`, `duplicarSelecionado()` e `salvoEm` (instante da última gravação, 0 antes da primeira). `MotorSite` ganhou `refazer()` e `podeRefazer`. `OpcoesMotor` ganhou `aoPedirExcluir?: () => void`: o motor nunca apaga por tecla, ele avisa quem monta a tela, que abre a mesma confirmação do botão do painel.
@@ -752,14 +766,14 @@ Ver `decisoes/2026-07-27-manipulacao-direta-no-studio.md`. Contrato técnico:
 
 ## Mensagens: conversas do CRM, servidor (2026-07-27)
 
-Módulo novo `server/src/mensagens/`, dono de tudo dentro. Etapa 2e do plano `planos/vkos-hub-local-v1/04-crm-e-mensagens.md`. Esta rodada é só servidor: os três painéis são a rodada seguinte.
+Módulo novo `server/src/mensagens/`, dono de tudo dentro. Etapa 2e do plano `docs/planos/vkos-hub-local-v1/04-crm-e-mensagens.md`. Esta rodada é só servidor: os três painéis são a rodada seguinte.
 
 ### Armazenamento
 
 - `app/dados/crm/mensagens/indice.json` guarda a lista de conversas (a coluna da esquerda) e `app/dados/crm/mensagens/conversas/<id>.jsonl` guarda uma conversa por arquivo, append-only. Fica dentro da pasta do CRM porque conversa é dado do CRM, e por isso respeita `VKOS_DADOS_TESTE` pela mesma função: `pastaCrm()` passou a ser exportada de `crm/estado.ts` e é a única regra sobre onde o dado do CRM mora.
 - Reusa `util/jsonl.ts` (leitura tolerante e append), `util/gravarJson.ts` (índice atômico), `util/quarentena.ts` (índice corrompido sai do lugar com os bytes intactos e a rota responde 409) e `util/telefone.ts` (E.164). Nenhuma segunda versão de nada disso.
 - Linha corrompida no `.jsonl` custa uma mensagem, não a conversa: ela é pulada, contada e devolvida em `linhasInvalidas`.
-- Atualizar mensagem é gravar uma LINHA NOVA E COMPLETA com o mesmo `id`, preservando `enviadaEm` e `criadaEm`. A leitura colapsa por id, a última linha vence e a posição da primeira é mantida. É o que vai deixar o canal real mudar status por callback sem reescrever arquivo. Ver `decisoes/2026-07-27-conversa-append-only-e-atualizacao-por-linha-nova.md`.
+- Atualizar mensagem é gravar uma LINHA NOVA E COMPLETA com o mesmo `id`, preservando `enviadaEm` e `criadaEm`. A leitura colapsa por id, a última linha vence e a posição da primeira é mantida. É o que vai deixar o canal real mudar status por callback sem reescrever arquivo. Ver `docs/decisoes/2026-07-27-conversa-append-only-e-atualizacao-por-linha-nova.md`.
 - Id de conversa é `cv-<uuid>` e passa por `ehIdSeguro` antes de virar caminho de arquivo. Id que não serve como nome de arquivo responde 404, nunca lê fora da pasta.
 
 ### Modelo
@@ -805,7 +819,7 @@ Módulo novo `server/src/mensagens/`, dono de tudo dentro. Etapa 2e do plano `pl
 
 ## HUB CORE, os dois níveis (2026-07-27, Fase 4)
 
-Ver `decisoes/2026-07-27-hub-core.md` e `decisoes/2026-07-27-conexoes-no-nivel-core.md`.
+Ver `docs/decisoes/2026-07-27-hub-core.md` e `docs/decisoes/2026-07-27-conexoes-no-nivel-core.md`.
 
 ### Navegação
 

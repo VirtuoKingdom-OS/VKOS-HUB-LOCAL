@@ -6,6 +6,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { Sessao, TurnoSessao } from "../tipos.js";
 import { lerCerebro } from "../vkos/cerebro.js";
 import { obterPastaVkos } from "../vkos/estado.js";
+import { raizProjeto } from "../util/raizProjeto.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { gerenciador } from "./gerenciador.js";
 import { skillPassaPelaConferencia } from "./conformidade-site.js";
@@ -27,6 +28,16 @@ const STATUS_EM_EXECUCAO = new Set(["fila", "iniciando", "rodando"]);
 
 export function skillExigeCerebro(skill: unknown): boolean {
   return typeof skill === "string" && SKILLS_QUE_EXIGEM_CEREBRO.has(skill);
+}
+
+// A sessao roda na raiz da instalacao em vez da pasta do workspace?
+//
+// Só o chat da VKOS-IDE pede isso, pra conversar sobre os mesmos arquivos que a
+// arvore dela mostra. A comparacao e exata de proposito: qualquer outro valor
+// cai na pasta do workspace, que e o escopo fechado. Escopo nao se abre por
+// engano de digitacao.
+export function ehEscopoProjeto(escopo: unknown): boolean {
+  return escopo === "projeto";
 }
 
 // Uma sessao de site com o laco de conformidade ainda rodando (conferindo ou
@@ -177,6 +188,11 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
       permissao?: string;
       escopoPeca?: EscopoPecaSolicitado;
       pastaAlvo?: string;
+      // "projeto" faz a sessao rodar na raiz da instalacao em vez da pasta do
+      // workspace. Quem usa e o chat da VKOS-IDE, pra conversar sobre os mesmos
+      // arquivos que a arvore dela mostra. Sem isto, a IDE listava o projeto e a
+      // IA respondia sobre outra pasta, o que e pior que nao ter a IDE.
+      escopo?: string;
     };
 
     let prompt = typeof corpo.prompt === "string" ? corpo.prompt.trim() : "";
@@ -224,7 +240,14 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
       return resposta.code(400).send({ erro: "nenhum workspace ativo" });
     }
 
-    let pastaTrabalho = pasta;
+    const escopoProjeto = ehEscopoProjeto(corpo.escopo);
+    if (escopoProjeto && corpo.escopoPeca !== undefined) {
+      return resposta.code(400).send({
+        erro: "escopo de projeto nao aceita escopoPeca junto.",
+      });
+    }
+
+    let pastaTrabalho = escopoProjeto ? raizProjeto() : pasta;
     let skill = corpo.skill;
     // Peca de site ajustada com IA tambem passa pela conferencia. A pasta vem do
     // escopo ja resolvido e confinado pelo servidor, nunca do corpo HTTP.

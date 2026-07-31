@@ -36,7 +36,7 @@ Apple. Isso quer dizer coisas concretas, não "limpo e bonito":
 1. **Olhe o que existe antes de propor.** Leia os componentes reais, os estilos reais e as telas reais. Proposta que ignora o código existente é retrabalho.
 2. **Pesquise fundo.** Antes de decidir escala tipográfica, grid, densidade ou motion, busque referência real e recente. Cite de onde veio. Não invente número redondo por gosto.
 3. **Use a skill `impeccable`** para trabalho de interface. Ela existe para isso.
-4. **Decida e registre.** Toda escolha estrutural vira decisão em `decisoes/AAAA-MM-DD-titulo.md`, com contexto, decisão e por quê.
+4. **Decida e registre.** Toda escolha estrutural vira decisão em `docs/decisoes/AAAA-MM-DD-titulo.md`, com contexto, decisão e por quê.
 5. **Prove.** Rode o app, olhe a tela em 390px e em 1440px, confira todos os temas, confira com movimento reduzido. Não entregue no escuro.
 
 ## Portão de qualidade

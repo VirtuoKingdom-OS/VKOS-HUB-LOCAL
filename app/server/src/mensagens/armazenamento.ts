@@ -22,7 +22,7 @@
 // id e a ultima linha vence, mantendo a posicao da primeira. E assim que o
 // canal real vai poder mudar "na-fila" pra "entregue" por callback sem
 // reescrever arquivo e sem migrar formato. Ver
-// decisoes/2026-07-27-conversa-append-only-e-atualizacao-por-linha-nova.md.
+// docs/decisoes/2026-07-27-conversa-append-only-e-atualizacao-por-linha-nova.md.
 //
 // Quem grava a versao nova mantem id, enviadaEm e criadaEm da original: a
 // mensagem e a mesma, so o status dela mudou. Trocar essas datas moveria a

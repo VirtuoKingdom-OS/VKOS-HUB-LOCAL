@@ -14,7 +14,7 @@
 // lista tambem. O caminho contrario nao vale, entao mudar status de conversa
 // nao faz thread aberta nenhuma reler.
 
-import { transmitir } from "../ws.js";
+import { transmitir } from "../nucleo/ws.js";
 
 // A regra de "isto mudou alguma coisa?" e a mesma do CRM, entao mora la e e
 // reusada aqui. Duas copias divergiriam no primeiro metodo novo.

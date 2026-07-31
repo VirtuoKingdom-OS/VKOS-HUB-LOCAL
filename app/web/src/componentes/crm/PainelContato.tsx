@@ -263,13 +263,13 @@ export function PainelContato({
   return (
     <aside className="crm-painel" role="dialog" aria-modal="false" aria-label={`Ficha de ${contato.nome}`}>
       <header className="crm-painel-topo">
-        <div>
-          <span className="crm-painel-sobre">Ficha completa</span>
+        <div className="crm-painel-titulo">
+          <span className="rotulo">Ficha completa</span>
           <h2>{contato.nome}</h2>
         </div>
         <div className="crm-painel-topo-acoes">
           <MarcaSalvamento estado={salvamento.estado} />
-          <button className="crm-painel-fechar" onClick={aoFechar} aria-label="Fechar" type="button">
+          <button className="botao botao-p botao-icone botao-fantasma" onClick={aoFechar} aria-label="Fechar" type="button">
             <IconeX className="" />
           </button>
         </div>
@@ -278,16 +278,19 @@ export function PainelContato({
       {/* O erro fica DENTRO do painel. Na faixa da tela ele aparecia atras do
           painel em tela estreita, e o usuario nunca sabia por que nao salvou. */}
       {salvamento.erro && (
-        <p className="crm-painel-erro" role="alert">
-          {salvamento.erro}
-          <button onClick={salvamento.limpar} aria-label="Fechar aviso" type="button"><IconeX className="" /></button>
-        </p>
+        <div className="faixa faixa-alerta crm-painel-erro" role="alert">
+          <div className="faixa-texto">{salvamento.erro}</div>
+          <div className="faixa-acoes">
+            <button className="botao botao-p botao-icone botao-fantasma" onClick={salvamento.limpar} aria-label="Fechar aviso" type="button"><IconeX className="" /></button>
+          </div>
+        </div>
       )}
 
       <div className="crm-painel-corpo">
-        <div className="crm-painel-estagio">
-          <span className="crm-rotulo">Estágio no funil</span>
+        <label className="grupo-campo">
+          <span className="rotulo">Estágio no funil</span>
           <select
+            className="campo"
             value={contato.colunaId}
             onChange={(e) => void aoMoverEstagio(contato.id, e.target.value)}
             aria-label="Estágio do contato no funil"
@@ -296,13 +299,14 @@ export function PainelContato({
               <option key={coluna.id} value={coluna.id}>{coluna.nome}</option>
             ))}
           </select>
-        </div>
+        </label>
 
-        <section className="crm-painel-secao">
-          <h3>Contato</h3>
-          <label className="crm-campo crm-campo-nome">
-            <span className="crm-rotulo">Nome</span>
+        <section className="secao">
+          <div className="secao-topo"><h2>Contato</h2></div>
+          <label className="grupo-campo">
+            <span className="rotulo">Nome</span>
             <input
+              className="campo"
               value={rascunho.nome}
               onChange={(e) => definir("nome", e.target.value)}
               onBlur={() => salvarCampo("nome")}
@@ -311,9 +315,10 @@ export function PainelContato({
           </label>
           <div className="crm-campos-grade">
             {CAMPOS.map(({ chave, rotulo, dica, tipo }) => (
-              <label className="crm-campo" key={chave}>
-                <span className="crm-rotulo">{rotulo}</span>
+              <label className="grupo-campo" key={chave}>
+                <span className="rotulo">{rotulo}</span>
                 <input
+                  className="campo"
                   type={tipo ?? "text"}
                   value={rascunho[chave]}
                   onChange={(e) => definir(chave, e.target.value)}
@@ -325,18 +330,20 @@ export function PainelContato({
             ))}
           </div>
           <div className="crm-campos-grade">
-            <label className="crm-campo">
-              <span className="crm-rotulo">Próximo contato</span>
+            <label className="grupo-campo">
+              <span className="rotulo">Próximo contato</span>
               <input
+                className="campo"
                 type="datetime-local"
                 value={rascunho.proximoContato}
                 onChange={(e) => definir("proximoContato", e.target.value)}
                 onBlur={() => salvarCampo("proximoContato")}
               />
             </label>
-            <label className="crm-campo">
-              <span className="crm-rotulo">Falar a cada (dias)</span>
+            <label className="grupo-campo">
+              <span className="rotulo">Falar a cada (dias)</span>
               <input
+                className="campo"
                 type="number"
                 min={1}
                 max={3650}
@@ -347,15 +354,15 @@ export function PainelContato({
               />
             </label>
           </div>
-          <span className="crm-ajuda">
+          <span className="dica crm-ajuda">
             Com cadência definida, registrar uma interação já reagenda o próximo contato. Sem ela, o follow-up fecha.
           </span>
           <EditorTags contato={contato} aoSalvar={(dados) => void salvarDados(dados)} />
         </section>
 
         {contato.lead && (
-          <section className="crm-painel-secao">
-            <h3>Dados do lead</h3>
+          <section className="secao">
+            <div className="secao-topo"><h2>Dados do lead</h2></div>
             <dl className="crm-lead-ficha">
               {contato.lead.categoria && <div><dt>Categoria</dt><dd>{contato.lead.categoria}</dd></div>}
               {contato.lead.endereco && <div><dt>Endereço</dt><dd>{contato.lead.endereco}</dd></div>}
@@ -368,10 +375,46 @@ export function PainelContato({
           </section>
         )}
 
-        <section className="crm-painel-secao">
-          <div className="crm-secao-topo">
-            <h3>Negócios</h3>
-            <button className="botao botao-neutro crm-botao-compacto" onClick={() => aoAbrirNovoNegocio(contato.id)} type="button">
+        {/* Quem chegou pelo formulário do site respondeu 9 perguntas de
+            qualificação. Elas ficam aqui inteiras: importar não pode perder o
+            que a pessoa contou, e é isso que serve na hora de ligar pra ela. */}
+        {contato.formulario && (
+          <section className="secao">
+            <div className="secao-topo"><h2>Respostas do formulário</h2></div>
+            <dl className="crm-lead-ficha">
+              {contato.formulario.negocio && <div><dt>O negócio</dt><dd>{contato.formulario.negocio}</dd></div>}
+              {contato.formulario.temperatura && <div><dt>Temperatura</dt><dd>{contato.formulario.temperatura}</dd></div>}
+              {contato.formulario.faturamento && <div><dt>Faturamento</dt><dd>{contato.formulario.faturamento}</dd></div>}
+              {contato.formulario.investimento && <div><dt>Investimento</dt><dd>{contato.formulario.investimento}</dd></div>}
+              {contato.formulario.decisao && <div><dt>Decisão</dt><dd>{contato.formulario.decisao}</dd></div>}
+              {contato.formulario.papelMarketing && <div><dt>Marketing hoje</dt><dd>{contato.formulario.papelMarketing}</dd></div>}
+              {contato.formulario.dores && contato.formulario.dores.length > 0 && (
+                <div><dt>O que trava</dt><dd>{contato.formulario.dores.join(", ")}</dd></div>
+              )}
+              {contato.formulario.horario && <div><dt>Melhor horário</dt><dd>{contato.formulario.horario}</dd></div>}
+              {contato.formulario.recebidoEm && <div><dt>Chegou em</dt><dd>{formatarDataHora(contato.formulario.recebidoEm)}</dd></div>}
+            </dl>
+            {/* Resposta aberta ganha parágrafo, não linha de tabela: cortar
+                estes dois em reticências apagaria o melhor do formulário. */}
+            {contato.formulario.gatilho && (
+              <div className="crm-resposta-aberta">
+                <h3>O que fez procurarem agora</h3>
+                <p>{contato.formulario.gatilho}</p>
+              </div>
+            )}
+            {contato.formulario.tentativas && (
+              <div className="crm-resposta-aberta">
+                <h3>O que já tentaram</h3>
+                <p>{contato.formulario.tentativas}</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="secao">
+          <div className="secao-topo">
+            <h2>Negócios</h2>
+            <button className="botao botao-p botao-neutro" onClick={() => aoAbrirNovoNegocio(contato.id)} type="button">
               <IconeMais className="" /> Novo negócio
             </button>
           </div>
@@ -395,21 +438,24 @@ export function PainelContato({
           </div>
         </section>
 
-        <section className="crm-painel-secao">
-          <h3>Interações</h3>
+        <section className="secao">
+          <div className="secao-topo"><h2>Interações</h2></div>
           <div className="crm-interacao-nova">
-            <select value={tipoInteracao} onChange={(e) => setTipoInteracao(e.target.value as TipoInteracao)} aria-label="Tipo da interação">
+            <select className="campo campo-p crm-interacao-tipo-campo" value={tipoInteracao} onChange={(e) => setTipoInteracao(e.target.value as TipoInteracao)} aria-label="Tipo da interação">
               {TIPOS.map((tipo) => <option key={tipo.valor} value={tipo.valor}>{tipo.rotulo}</option>)}
             </select>
             <textarea
+              className="campo"
               value={textoInteracao}
               onChange={(e) => setTextoInteracao(e.target.value)}
               placeholder="O que aconteceu neste contato?"
               rows={2}
               maxLength={2000}
             />
-            <button className="botao botao-principal crm-botao-compacto" onClick={() => void enviarInteracao()} disabled={!textoInteracao.trim() || salvandoInteracao} type="button">
-              {salvandoInteracao ? "Salvando..." : "Registrar interação"}
+            {/* O rotulo NAO some enquanto salva: trocar ele por um giro apaga a
+                informacao de qual acao esta em curso. */}
+            <button className="botao botao-p botao-neutro" onClick={() => void enviarInteracao()} disabled={!textoInteracao.trim() || salvandoInteracao} aria-busy={salvandoInteracao || undefined} type="button">
+              Registrar interação
             </button>
           </div>
           <ol className="crm-linha-tempo">
@@ -417,7 +463,7 @@ export function PainelContato({
             {!carregandoInteracoes && interacoes.length === 0 && <li className="crm-vazio-inline">Nenhuma interação ainda.</li>}
             {interacoes.map((interacao) => (
               <li className="crm-interacao" key={interacao.id}>
-                <span className="crm-interacao-tipo">{TIPOS.find((tipo) => tipo.valor === interacao.tipo)?.rotulo}</span>
+                <span className="selo">{TIPOS.find((tipo) => tipo.valor === interacao.tipo)?.rotulo}</span>
                 <time>{formatarDataHora(interacao.em)}</time>
                 <p>{interacao.texto}</p>
               </li>
@@ -425,40 +471,45 @@ export function PainelContato({
           </ol>
         </section>
 
-        <section className="crm-painel-secao">
-          <h3>Tarefas</h3>
+        <section className="secao">
+          <div className="secao-topo"><h2>Tarefas</h2></div>
           <div className="crm-tarefa-nova">
-            <input value={textoTarefa} onChange={(e) => setTextoTarefa(e.target.value)} placeholder="Ex: enviar orçamento" maxLength={500} />
-            <input type="datetime-local" value={prazoTarefa} onChange={(e) => setPrazoTarefa(e.target.value)} aria-label="Prazo da tarefa" />
-            <button className="botao botao-neutro crm-botao-compacto" onClick={() => void enviarTarefa()} disabled={!textoTarefa.trim() || salvandoTarefa} type="button">
-              <IconeMais className="" /> Adicionar tarefa
+            <input className="campo campo-p" value={textoTarefa} onChange={(e) => setTextoTarefa(e.target.value)} placeholder="Ex: enviar orçamento" maxLength={500} />
+            <input className="campo campo-p crm-tarefa-prazo" type="datetime-local" value={prazoTarefa} onChange={(e) => setPrazoTarefa(e.target.value)} aria-label="Prazo da tarefa" />
+            <button className="botao botao-p botao-neutro" onClick={() => void enviarTarefa()} disabled={!textoTarefa.trim() || salvandoTarefa} aria-busy={salvandoTarefa || undefined} type="button">
+              <IconeMais className="" /> Adicionar
             </button>
           </div>
-          <ul className="crm-tarefas-lista">
-            {tarefas.length === 0 && <li className="crm-vazio-inline">Nenhuma tarefa ainda.</li>}
-            {tarefas.map((tarefa) => (
-              <li className={`crm-tarefa${tarefa.feita ? " feita" : ""}`} key={tarefa.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={tarefa.feita}
-                    onChange={(e) => void aoAtualizarTarefa(tarefa.id, { feita: e.target.checked }).catch(() => undefined)}
-                  />
-                  <span>{tarefa.texto}</span>
-                </label>
-                {tarefa.prazo && <time>{formatarDataHora(tarefa.prazo)}</time>}
-                <button className="crm-acao-icone" onClick={() => void aoExcluirTarefa(tarefa.id).catch(() => undefined)} aria-label={`Excluir tarefa ${tarefa.texto}`} type="button">
-                  <IconeLixeira className="" />
-                </button>
-              </li>
-            ))}
-          </ul>
+          {tarefas.length === 0 && <p className="crm-vazio-inline">Nenhuma tarefa ainda.</p>}
+          {tarefas.length > 0 && (
+            <ul className="lista">
+              {tarefas.map((tarefa) => (
+                <li className={`item-lista crm-tarefa${tarefa.feita ? " feita" : ""}`} key={tarefa.id}>
+                  <label className="crm-tarefa-texto">
+                    <input
+                      className="caixa"
+                      type="checkbox"
+                      checked={tarefa.feita}
+                      onChange={(e) => void aoAtualizarTarefa(tarefa.id, { feita: e.target.checked }).catch(() => undefined)}
+                    />
+                    <span>{tarefa.texto}</span>
+                  </label>
+                  {tarefa.prazo && <time className="crm-item-quando">{formatarDataHora(tarefa.prazo)}</time>}
+                  <span className="item-lista-acoes">
+                    <button className="botao botao-p botao-icone botao-fantasma" onClick={() => void aoExcluirTarefa(tarefa.id).catch(() => undefined)} aria-label={`Excluir tarefa ${tarefa.texto}`} type="button">
+                      <IconeLixeira className="" />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
       <footer className="crm-painel-pe">
         <BotaoConfirmar
-          className="crm-excluir-contato"
+          className="botao botao-p botao-perigo crm-excluir-contato"
           titulo="Excluir este contato e seus negócios"
           aviso="Excluir contato e negócios?"
           aoConfirmar={() => aoExcluir(contato.id)}

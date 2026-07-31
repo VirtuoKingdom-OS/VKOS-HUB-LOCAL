@@ -106,11 +106,60 @@ export const rotasConexoes: FastifyPluginAsync = async (app) => {
   // autenticacao e acesso basico na API oficial do servico.
   app.post("/conexoes/:id/testar", async (requisicao, resposta) => {
     const { id } = requisicao.params as { id: string };
-    if (id !== "apify") {
+    if (id !== "apify" && id !== "supabase") {
       return resposta.status(400).send({ erro: "esta conexao nao tem teste remoto" });
     }
 
     const servidor = lerConexoes().servidores[id];
+
+    if (id === "supabase") {
+      // O teste do Supabase nao pergunta "a chave e valida", pergunta "esta
+      // chave le a tabela leads". A chave anon passa numa autenticacao generica
+      // e falha aqui, que e exatamente o engano que o painel precisa pegar:
+      // sob RLS ela so escreve, e devolveria uma lista vazia pra sempre.
+      const url = (servidor?.config?.url ?? "").trim().replace(/\/+$/, "");
+      const chave = (servidor?.config?.chaveServico ?? "").trim();
+      if (!servidor?.habilitado || !url || !chave) {
+        return resposta
+          .status(400)
+          .send({ erro: "ative a conexao e salve a URL e a chave antes de testar" });
+      }
+
+      let leitura: Response;
+      try {
+        leitura = await fetch(`${url}/rest/v1/leads?select=id&limit=1`, {
+          headers: {
+            apikey: chave,
+            Authorization: `Bearer ${chave}`,
+            Accept: "application/json",
+            "User-Agent": "VKOS-Hub",
+          },
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch {
+        return resposta
+          .status(502)
+          .send({ erro: "não foi possível falar com o Supabase. Confira a URL do projeto" });
+      }
+
+      if (leitura.status === 401 || leitura.status === 403) {
+        return resposta.status(401).send({
+          erro: "a chave foi recusada para leitura. Confira se você colou a service_role, e não a anon",
+        });
+      }
+      if (leitura.status === 404) {
+        return resposta
+          .status(400)
+          .send({ erro: "o projeto respondeu, mas não tem a tabela leads" });
+      }
+      if (!leitura.ok) {
+        return resposta.status(502).send({
+          erro: `o Supabase respondeu com erro ${leitura.status}. Tente novamente em instantes`,
+        });
+      }
+      return { ok: true, conta: new URL(url).hostname };
+    }
+
     const token = (servidor?.config?.token ?? "").trim();
     if (!servidor?.habilitado || !token) {
       return resposta

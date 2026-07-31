@@ -48,7 +48,8 @@ import {
   type RecargaConversas,
 } from "./conversas";
 import { contatoCombina } from "./logica";
-import "../../estilos/conversas.css";
+import { IconeX } from "../comum/Icones";
+import "./conversas.css";
 
 // Tamanho da pagina da thread. O servidor tem teto de 200.
 const PAGINA = 50;
@@ -461,9 +462,11 @@ export function TelaConversas({
   return (
     <div className="cv-tela" ref={telaRef}>
       {erro && (
-        <div className="cv-erro" role="alert">
-          {erro}
-          <button onClick={() => setErro(null)} aria-label="Fechar aviso" type="button">×</button>
+        <div className="faixa faixa-alerta cv-erro" role="alert">
+          <div className="faixa-texto">{erro}</div>
+          <div className="faixa-acoes">
+            <button className="botao botao-p botao-icone botao-fantasma" onClick={() => setErro(null)} aria-label="Fechar aviso" type="button"><IconeX className="" /></button>
+          </div>
         </div>
       )}
       <div className="cv-paineis">

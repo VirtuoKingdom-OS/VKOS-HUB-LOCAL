@@ -150,9 +150,9 @@ export function ThreadConversa({
   if (!conversa) {
     return (
       <section className="cv-thread cv-thread-vazia">
-        <div className="cv-vazio">
-          Escolha uma conversa à esquerda.
-          <small>Ou abra uma nova com qualquer contato do funil.</small>
+        <div className="vazio">
+          <h2>Escolha uma conversa à esquerda.</h2>
+          <p>Ou abra uma nova com qualquer contato do funil.</p>
         </div>
       </section>
     );
@@ -164,7 +164,7 @@ export function ThreadConversa({
   return (
     <section className="cv-thread" aria-label={`Conversa com ${nome}`}>
       <header className="cv-thread-topo">
-        <span className="cv-avatar cv-avatar-grande">{iniciais(nome)}</span>
+        <span className="crm-avatar crm-avatar-g">{iniciais(nome)}</span>
         <div className="cv-thread-id">
           <button className="cv-thread-nome" onClick={aoAbrirFicha} type="button" title="Abrir a ficha completa">
             {nome}
@@ -178,20 +178,21 @@ export function ThreadConversa({
           {/* O relogio da janela so existe quando o CANAL declara que tem
               janela. Nao ha comparacao com nome de canal em lugar nenhum. */}
           {janela.visivel && (
-            <span className={`cv-janela${janela.aberta ? " aberta" : " fechada"}`} role="status">
+            <span className={`selo ${janela.aberta ? "selo-vivo" : "selo-aviso"}`} role="status">
+              {janela.aberta && <span className="ponto-vivo" aria-hidden="true" />}
               {janela.rotulo}
             </span>
           )}
           {conversa.status === "resolvida" || conversa.status === "adiada" ? (
-            <button className="crm-acao-inline" onClick={() => aoMudarStatus("aberta")} type="button">
+            <button className="botao botao-p botao-neutro" onClick={() => aoMudarStatus("aberta")} type="button">
               Reabrir
             </button>
           ) : (
             <>
-              <button className="crm-acao-inline" onClick={() => setAdiando((a) => !a)} aria-expanded={adiando} type="button">
+              <button className="botao botao-p botao-fantasma" onClick={() => setAdiando((a) => !a)} aria-expanded={adiando} type="button">
                 Adiar
               </button>
-              <button className="crm-acao-inline" onClick={() => aoMudarStatus("resolvida")} type="button">
+              <button className="botao botao-p botao-neutro" onClick={() => aoMudarStatus("resolvida")} type="button">
                 <IconeCheck className="" /> Resolver
               </button>
             </>
@@ -201,10 +202,10 @@ export function ThreadConversa({
 
       {adiando && (
         <div className="cv-adiar" role="group" aria-label="Adiar a conversa">
-          <span className="crm-rotulo">Voltar a falar em</span>
+          <span className="rotulo">Voltar a falar em</span>
           {PRESETS_SNOOZE.map((preset) => (
             <button
-              className="crm-acao-inline"
+              className="botao botao-p botao-neutro"
               key={preset.chave}
               onClick={() => { setAdiando(false); aoMudarStatus("adiada", dataDoSnooze(new Date(), preset)); }}
               type="button"
@@ -212,7 +213,8 @@ export function ThreadConversa({
               {preset.rotulo}
             </button>
           ))}
-          <button className="cv-fechar-faixa" onClick={() => setAdiando(false)} aria-label="Cancelar" type="button">
+          <span className="barra-ferramentas-espaco" />
+          <button className="botao botao-p botao-icone botao-fantasma" onClick={() => setAdiando(false)} aria-label="Cancelar" type="button">
             <IconeX className="" />
           </button>
         </div>
@@ -221,25 +223,34 @@ export function ThreadConversa({
       {/* Arquivo estragado tem que aparecer. Fingir que a thread esta inteira e
           o unico jeito de o usuario confiar num historico furado. */}
       {linhasInvalidas > 0 && (
-        <p className="cv-aviso-perda" role="alert">
+        <div className="faixa faixa-alerta cv-faixa" role="alert">
           <IconeAlerta className="" />
-          {linhasInvalidas === 1
-            ? "1 mensagem desta conversa não pôde ser lida e não aparece abaixo."
-            : `${linhasInvalidas} mensagens desta conversa não puderam ser lidas e não aparecem abaixo.`}
-        </p>
+          <div className="faixa-texto">
+            {linhasInvalidas === 1
+              ? "1 mensagem desta conversa não pôde ser lida e não aparece abaixo."
+              : `${linhasInvalidas} mensagens desta conversa não puderam ser lidas e não aparecem abaixo.`}
+          </div>
+        </div>
       )}
 
       <div className="cv-rolagem" ref={rolagemRef} onScroll={aoRolar}>
         {temMais && (
           <div className="cv-mais-antigas">
-            <button className="crm-acao-inline" onClick={aoCarregarMais} disabled={carregandoMais} type="button">
-              <IconeSubir className="" /> {carregandoMais ? "Buscando..." : "Ver mensagens anteriores"}
+            <button className="botao botao-p botao-neutro" onClick={aoCarregarMais} disabled={carregandoMais} aria-busy={carregandoMais || undefined} type="button">
+              <IconeSubir className="" /> Ver mensagens anteriores
             </button>
           </div>
         )}
-        {carregando && mensagens.length === 0 && <p className="cv-vazio-inline">Abrindo a conversa...</p>}
+        {carregando && mensagens.length === 0 && (
+          <div aria-busy="true">
+            <span className="so-leitor">Abrindo a conversa</span>
+            {[0, 1, 2].map((i) => (
+              <div className="cv-esqueleto-balao esqueleto" key={i} aria-hidden="true" />
+            ))}
+          </div>
+        )}
         {!carregando && mensagens.length === 0 && (
-          <p className="cv-vazio-inline">Nada registrado ainda. Escreva abaixo o que já foi dito.</p>
+          <p className="crm-vazio-inline">Nada registrado ainda. Escreva abaixo o que já foi dito.</p>
         )}
 
         {grupos.map((grupo) => (
@@ -284,7 +295,7 @@ function Balao({
 
   return (
     <article className={classes}>
-      {mensagem.privada && <span className="cv-selo-privada">Nota interna</span>}
+      {mensagem.privada && <span className="selo selo-aviso">Nota interna</span>}
       {mensagem.texto && <p className="cv-texto">{mensagem.texto}</p>}
       {mensagem.anexos.length > 0 && (
         <ul className="cv-anexos">
@@ -301,10 +312,10 @@ function Balao({
           pessoa achar que mandou uma coisa que nunca saiu. */}
       {mensagem.envio === "falhou" && (
         <div className="cv-falhou-acoes">
-          <button className="crm-acao-inline" onClick={() => aoTentarDeNovo(mensagem)} type="button">
+          <button className="botao botao-p botao-neutro" onClick={() => aoTentarDeNovo(mensagem)} type="button">
             Tentar de novo
           </button>
-          <button className="crm-acao-inline" onClick={() => aoDescartar(mensagem)} type="button">
+          <button className="botao botao-p botao-fantasma" onClick={() => aoDescartar(mensagem)} type="button">
             Descartar
           </button>
         </div>
@@ -380,16 +391,18 @@ function Composer({
   if (janela.visivel && !janela.aberta) {
     return (
       <div className="cv-composer cv-composer-fechado">
+        {/* Sem triangulo: isto nao e alerta, e a explicacao de um estado que a
+            tela ja mostra de dois jeitos, no selo "Janela fechada" do topo e no
+            proprio campo de escrever, que sumiu. */}
         <p className="cv-fechado-aviso">
-          <IconeAlerta className="" />
           A janela de resposta livre está fechada. Só dá para retomar por um modelo aprovado.
         </p>
         {capacidades?.templates ? (
-          <select aria-label="Modelo de mensagem" defaultValue="">
+          <select className="campo campo-p" aria-label="Modelo de mensagem" defaultValue="">
             <option value="">Escolha um modelo</option>
           </select>
         ) : (
-          <span className="cv-ajuda">Este canal ainda não tem modelos cadastrados.</span>
+          <span className="dica">Este canal ainda não tem modelos cadastrados.</span>
         )}
       </div>
     );
@@ -398,29 +411,30 @@ function Composer({
   return (
     <div className="cv-composer">
       <div className="cv-composer-opcoes">
-        <div className="cv-quem" role="group" aria-label="Quem mandou a mensagem">
-          <button className={ehEntrada ? "" : "ativo"} onClick={() => setEhEntrada(false)} type="button" aria-pressed={!ehEntrada}>
+        <div className="segmentado" role="group" aria-label="Quem mandou a mensagem">
+          <button className="segmento" onClick={() => setEhEntrada(false)} type="button" aria-pressed={!ehEntrada}>
             Eu mandei
           </button>
-          <button className={ehEntrada ? "ativo" : ""} onClick={() => setEhEntrada(true)} type="button" aria-pressed={ehEntrada}>
+          <button className="segmento" onClick={() => setEhEntrada(true)} type="button" aria-pressed={ehEntrada}>
             Ele mandou
           </button>
         </div>
-        <label className="cv-opcao">
-          <input type="checkbox" checked={privada} onChange={(e) => setPrivada(e.target.checked)} />
+        <label className="linha-escolha">
+          <input className="caixa" type="checkbox" checked={privada} onChange={(e) => setPrivada(e.target.checked)} />
           Nota interna
         </label>
         <button
-          className={`crm-acao-inline${mostrarData ? " ativo" : ""}`}
+          className="botao botao-p botao-fantasma"
           onClick={() => setMostrarData((atual) => !atual)}
           aria-expanded={mostrarData}
+          aria-pressed={mostrarData}
           type="button"
         >
           {retroativo ? "Outra data marcada" : "Outra data"}
         </button>
         {mostrarData && (
           <input
-            className="cv-retroativo"
+            className="campo campo-p cv-retroativo"
             type="datetime-local"
             value={retroativo}
             onChange={(e) => setRetroativo(e.target.value)}
@@ -431,6 +445,7 @@ function Composer({
 
       <div className="cv-composer-linha">
         <textarea
+          className="campo"
           ref={campoRef}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
@@ -441,7 +456,7 @@ function Composer({
           aria-label="Mensagem"
         />
         <button
-          className="cv-mandar"
+          className="botao botao-icone botao-principal cv-mandar"
           onClick={enviar}
           disabled={!podeMandar}
           type="button"
@@ -451,7 +466,7 @@ function Composer({
           <IconeSeta className="" />
         </button>
       </div>
-      <span className="cv-ajuda">Enter manda. Shift e Enter quebram linha. Esc sai do campo sem perder nada.</span>
+      <span className="dica">Enter manda. Shift e Enter quebram linha. Esc sai do campo sem perder nada.</span>
     </div>
   );
 }

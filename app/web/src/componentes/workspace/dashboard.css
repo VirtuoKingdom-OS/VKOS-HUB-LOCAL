@@ -1,0 +1,247 @@
+/* A TELA INICIO DO WORKSPACE ABERTO, mais tres hospedes antigos que ainda
+   moram nesta folha: os chips da Galeria unificada, o placeholder de rota do
+   Studio e a acao "Abrir" do cartao de peca.
+
+   REFEITA na Fase 2 do redesign v2 (2026-07-30), sobre a fundacao nova.
+
+   O QUE MUDOU, e por que:
+
+   1. A TELA VESTE AS PRIMITIVAS. Ela era uma coluna de 1040px com padding de
+      48px e quatro blocos proprios; agora e .tela + .tela-topo + .tela-corpo,
+      com .secao no lugar de cada bloco. O cabecalho custa 56px em vez de uma
+      faixa de saudacao de 30px que nao carregava dado nenhum.
+   2. NAO HA MAIS CARTAO DE NAVEGACAO. Os dois blocos de "criar" viraram os
+      dois botoes do cabecalho (a principal e a neutra), e os dois atalhos
+      viraram duas linhas de .lista. Cartao aqui so na tira de recentes, que e
+      o unico lugar onde o registro TEM imagem.
+   3. O MENTA CALOU. Ele pintava o nome do negocio no titulo, e nome de projeto
+      nao esta acontecendo agora. O unico menta que sobrou e a faixa da geracao
+      em curso, com o ponto vivo.
+
+   Esta folha escreve so o que e LAYOUT desta tela. Cor, altura, raio, peso e
+   movimento vem das primitivas. */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e as telas carregam sob demanda. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. A GERACAO EM CURSO
+
+   A unica voz colorida da tela. Ela e uma faixa ancorada no topo do corpo,
+   nao um subtitulo dentro de um botao: quem chega na tela com uma peca em
+   geracao precisa ver isso antes de qualquer outra coisa.
+   ========================================================================== */
+.inicio-faixa-viva {
+  align-items: center;
+  margin-bottom: var(--esp-24);
+}
+
+/* ==========================================================================
+   2. A TIRA DE CRIACOES RECENTES
+
+   Grade de cartoes so quando o registro tem imagem, e aqui ele tem: cada peca
+   e uma miniatura de verdade. A tira rola na horizontal pra as oito ultimas
+   caberem sem empurrar o resto da tela pra baixo.
+   ========================================================================== */
+.inicio-tira {
+  display: flex;
+  align-items: stretch;
+  gap: var(--esp-12);
+  overflow-x: auto;
+  padding-bottom: var(--esp-8);
+  scroll-snap-type: x proximity;
+}
+
+.inicio-peca {
+  width: 156px;
+  flex: none;
+  padding: var(--esp-8);
+  scroll-snap-align: start;
+}
+
+/* Todas as miniaturas tem a MESMA altura, inclusive a de site, que o
+   MiniaturaSite preenche mostrando o topo da pagina. Enquanto o slot do site
+   era mais baixo, a miniatura descia pro pe do cartao pra os titulos alinharem
+   e sobrava um vazio branco no alto, que lia como cartao quebrado. */
+.inicio-peca-thumb {
+  position: relative;
+  width: 100%;
+  height: 176px;
+  border-radius: var(--raio-p);
+  overflow: hidden;
+  border: 1px solid var(--linha);
+  background: var(--superficie-alta);
+}
+.inicio-peca-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.inicio-peca-thumb.vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-fraco);
+}
+.inicio-peca-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.inicio-peca-titulo {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ==========================================================================
+   3. AS LINHAS DE "IR PARA" E DO SELETOR DE TIPO
+
+   As duas vestem .lista e .item-lista das primitivas. Aqui so mora o tamanho
+   do icone e o lugar da seta.
+   ========================================================================== */
+.inicio-icone-lista {
+  width: 18px;
+  height: 18px;
+  color: var(--texto-suave);
+}
+
+.inicio-seta {
+  width: 14px;
+  height: 14px;
+  color: var(--texto-fraco);
+}
+
+.item-lista > .inicio-seta {
+  margin-left: auto;
+}
+
+/* ==========================================================================
+   4. O SELETOR "O QUE VAMOS CRIAR?"
+
+   Ele veste .veu-modal e .modal das primitivas. E um dos poucos modais
+   legitimos do Hub: uma escolha que precisa acontecer antes do assistente
+   comecar. O corpo e uma lista de tres linhas, nao tres cartoes: nenhum dos
+   tres registros tem imagem.
+   ========================================================================== */
+.inicio-seletor {
+  width: min(440px, 100%);
+}
+
+/* ==========================================================================
+   5. O VEU DO ASSISTENTE, COMPARTILHADO COM A CASCA
+
+   O nome antigo continua porque o Shell tambem o usa, pra mostrar o carregando
+   do wizard enquanto o pedaco da tela chega. Ele e o mesmo veu do .veu-modal.
+   ========================================================================== */
+.dash-overlay-wizard {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-veu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-24);
+  background: var(--veu);
+}
+.dash-wizard-carregando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   6. HOSPEDES DE OUTRAS TELAS
+
+   Ficam aqui porque o TelaGalerias.tsx, o placeholder do Studio e o CartaoPeca
+   importam esta folha. Saem daqui quando aquelas telas migrarem, na propria
+   rodada delas.
+   ========================================================================== */
+
+/* Chips de filtro da Galeria unificada. Escolhido se le por superficie mais
+   contorno, nunca por preenchimento menta. */
+.tela-galerias .galerias-topo-linha {
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-12);
+}
+.galerias-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+  margin-top: var(--esp-12);
+}
+.chip-filtro {
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-12);
+  border-radius: var(--raio);
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao), box-shadow var(--transicao);
+}
+.chip-filtro:hover {
+  background: var(--superficie-alta);
+  color: var(--texto);
+}
+.chip-filtro.ativo {
+  background: var(--superficie-alta);
+  border-color: var(--acao);
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+  box-shadow: inset 0 0 0 1px var(--acao);
+}
+
+/* Placeholder de rota do Studio. */
+.tela-studio-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--fundo);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-16);
+  text-align: center;
+  padding: var(--esp-32);
+}
+.tela-studio-placeholder h1 {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+}
+.studio-placeholder-peca {
+  color: var(--texto);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+}
+.studio-placeholder-pasta {
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* Acao "Abrir" do cartao de peca de site. O tamanho vem do botao das
+   primitivas; aqui so o que impede ele de encolher na linha. */
+.botao-abrir-site {
+  flex-shrink: 0;
+}
+
+} /* fim de @layer tela */

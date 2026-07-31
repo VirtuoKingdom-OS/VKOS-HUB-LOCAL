@@ -44,7 +44,7 @@ import { usarCanvas } from "./canvasContexto";
 import { IconeClipe, IconeLixeira, IconeParar, IconeRaio, IconeSeta, IconeX } from "../comum/Icones";
 import { Markdown } from "../comum/Markdown";
 import type { TurnoSessao } from "../../tipos/dominio";
-import "../../estilos/composer.css";
+import "./composer.css";
 
 // Anexo inline do composer: nome do arquivo e caminho relativo devolvido pelo
 // backend. Fica no dados do no pra sobreviver ao reload e a duplicacao.
@@ -622,16 +622,19 @@ function NoSessaoInterno({ id, data }: NodeProps) {
       }
       onDrop={!idSessao ? aoSoltar : undefined}
     >
+      {/* A UNICA alca arrastavel do cockpit junto com a do contexto: e aqui que
+          o material entra na tarefa. */}
       <Handle type="target" position={Position.Left} />
-      {/* Handle de saida: origem da aresta sessao -> contêiner do tipo (o
-          segundo nivel da arvore). Sem ele o React Flow nao consegue tracar
-          essa aresta e o no fica solto do seu contêiner. */}
-      <Handle type="source" position={Position.Right} />
+      {/* Ancora, nao alca: a aresta sessao -> contêiner do tipo e automatica.
+          Sem o Handle o React Flow nao tracaria a aresta; arrastavel, ele so
+          oferecia um gesto que o onConnect descartava calado. */}
+      <Handle type="source" position={Position.Right} isConnectable={false} />
 
       <div className="cabeca">
         {editando ? (
           <input
-            className="nodrag campo-nome"
+            className="nodrag campo campo-p campo-nome"
+            aria-label="Nome do fluxo"
             autoFocus
             value={nomeRascunho}
             onChange={(e) => setNomeRascunho(e.target.value)}
@@ -653,13 +656,21 @@ function NoSessaoInterno({ id, data }: NodeProps) {
           </span>
         )}
         <div className="cabeca-dir">
+          {/* O estado da sessao e um selo das primitivas, e o ponto que pulsa
+              so aparece quando ela esta MESMO rodando: e o unico lugar do no
+              em que o menta fala. Concluida e parada sao selo neutro, porque
+              terminar nao e um estado vivo. */}
           {info ? (
-            <span className={`badge ${info.classe}`}>
-              <span className="ponto" />
+            <span
+              className={`selo${
+                rodando ? " selo-vivo" : deuErro ? " selo-alerta" : ""
+              }`}
+            >
+              {rodando && <span className="ponto-vivo" />}
               {info.rotulo}
             </span>
           ) : (
-            <span className="badge status-fila">Novo</span>
+            <span className="selo">Novo</span>
           )}
           {!idSessao && (
             <button
@@ -726,7 +737,8 @@ function NoSessaoInterno({ id, data }: NodeProps) {
 
             {(sub.precisaArgumento || sub.dicaArgumento) && (
               <input
-                className="nodrag"
+                className="nodrag campo"
+                aria-label={sub.dicaArgumento || "Tema"}
                 placeholder={sub.dicaArgumento || "Tema (opcional)"}
                 value={tema}
                 onChange={(e) => patch({ tema: e.target.value })}
@@ -737,7 +749,8 @@ function NoSessaoInterno({ id, data }: NodeProps) {
             )}
 
             <textarea
-              className="nodrag nowheel campo-detalhes"
+              className="nodrag nowheel campo campo-detalhes"
+              aria-label="Detalhes adicionais"
               placeholder="Detalhes adicionais (opcional)"
               value={detalhes}
               onChange={(e) => patch({ detalhes: e.target.value })}
@@ -924,11 +937,12 @@ function NoSessaoInterno({ id, data }: NodeProps) {
                 t.interno ? (
                   // Turno interno do Hub (retomada automatica do laco): a fala e de
                   // maquina, entao a transcricao mostra so uma nota discreta (M9).
-                  <div
-                    key={`${t.papel}-${i}-${t.em}`}
-                    className="turno-interno"
-                    style={{ opacity: 0.6, fontSize: "0.85em", textAlign: "center", padding: "4px 0" }}
-                  >
+                  // O estilo saiu do inline pro canvas.css: era opacity 0.6
+                  // sobre TEXTO (2,4:1 medido) e 0.85em, ou seja, 11,05px,
+                  // raspando o piso da escala. Inline nenhuma das duas travas
+                  // enxergava. Agora recua por token de cor, que e o canal
+                  // certo pra rotulo discreto.
+                  <div key={`${t.papel}-${i}-${t.em}`} className="turno-interno">
                     Correção automática do Hub
                   </div>
                 ) : (
@@ -967,26 +981,39 @@ function NoSessaoInterno({ id, data }: NodeProps) {
             )}
             {erroLocal && <div className="erro-local">{erroLocal}</div>}
 
-            {/* Rodape: modelo, custo e tokens. */}
+            {/* Rodape: o custo manda, o resto e contexto.
+
+                Antes as tres coisas vinham numa linha so, separadas por
+                barras, e a UNICA com peso era o nome do modelo: 700 e em
+                menta. Ou seja, o dado mais fraco do bloco era o que o olho
+                achava primeiro, e o valor gasto, o unico numero que alguem
+                compara entre sessoes, se perdia no meio da frase.
+
+                Agora e o desenho do cartao de workspace: um numero forte em
+                cima, e embaixo uma sublinha fraca que concatena modelo,
+                ressalva e tokens em frase. Nenhum dado saiu. */}
             <div className="rodape">
               <span className="custo">
-                <span className="modelo-tag">{modeloExibido}</span>
                 {typeof custoNum === "number" && (
-                  <>
-                    {" | "}
+                  <span className="custo-valor">
                     {turnosSemCusto > 0 ? "≥ " : ""}
                     {custoEstimado ? "~" : ""}${custoNum.toFixed(2)}
-                    {custoEstimado && (
-                      <span
-                        className="custo-estimado"
-                        title="Valor aproximado, estimado por tabela de preços. Não é a cobrança real."
-                      >
+                  </span>
+                )}
+                <span className="custo-contexto">
+                  <span className="modelo-tag">{modeloExibido}</span>
+                  {custoEstimado && (
+                    <>
+                      {", "}
+                      <span title="Valor aproximado, estimado por tabela de preços. Não é a cobrança real.">
                         aproximado
                       </span>
-                    )}
-                    {turnosSemCusto > 0 && (
+                    </>
+                  )}
+                  {turnosSemCusto > 0 && (
+                    <>
+                      {", "}
                       <span
-                        className="custo-estimado"
                         title={
                           turnosSemCusto === 1
                             ? "1 turno desta sessão gastou sem preço conhecido. O valor real é maior."
@@ -995,25 +1022,25 @@ function NoSessaoInterno({ id, data }: NodeProps) {
                       >
                         incompleto
                       </span>
-                    )}
-                  </>
-                )}
-                {temTokens &&
-                  (temDetalheEntrada ? (
-                    <>
-                      {" | "}
-                      {fmtK(sessao?.tokensEntradaNova)} novos,{" "}
-                      <span className="tok-cache">{fmtK(cacheGravado)} cache grav.</span>,{" "}
-                      <span className="tok-cache">{fmtK(cacheLido)} cache lido</span>,{" "}
-                      {fmtK(sessao?.tokensSaida)} saída
                     </>
-                  ) : (
-                    <>
-                      {" | "}
-                      {fmtK(sessao?.tokensEntrada)} entrada,{" "}
-                      {fmtK(sessao?.tokensSaida)} saída
-                    </>
-                  ))}
+                  )}
+                  {temTokens &&
+                    (temDetalheEntrada ? (
+                      <>
+                        {", "}
+                        {fmtK(sessao?.tokensEntradaNova)} novos,{" "}
+                        <span className="tok-cache">{fmtK(cacheGravado)} cache grav.</span>,{" "}
+                        <span className="tok-cache">{fmtK(cacheLido)} cache lido</span>,{" "}
+                        {fmtK(sessao?.tokensSaida)} saída
+                      </>
+                    ) : (
+                      <>
+                        {", "}
+                        {fmtK(sessao?.tokensEntrada)} entrada,{" "}
+                        {fmtK(sessao?.tokensSaida)} saída
+                      </>
+                    ))}
+                </span>
               </span>
               {rodando && (
                 <button className="botao botao-perigo" onClick={() => void parar()}>
@@ -1026,7 +1053,8 @@ function NoSessaoInterno({ id, data }: NodeProps) {
             {/* Campo de mensagem, sempre visivel. Desabilita enquanto roda. */}
             <div className="composer-conversa">
               <input
-                className="nodrag campo-mensagem"
+                className="nodrag campo campo-mensagem"
+                aria-label="Responder à sessão"
                 placeholder="Responda ou peça um ajuste"
                 value={mensagem}
                 disabled={!podeEnviar}
@@ -1036,10 +1064,11 @@ function NoSessaoInterno({ id, data }: NodeProps) {
                 }}
               />
               <button
-                className="botao botao-neutro botao-enviar"
+                className="botao botao-neutro botao-icone botao-enviar"
                 onClick={() => void enviar()}
                 disabled={!podeEnviar || !mensagem.trim()}
                 title="Enviar"
+                aria-label="Enviar"
               >
                 <IconeSeta className="" />
               </button>

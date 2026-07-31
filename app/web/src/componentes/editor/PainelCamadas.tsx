@@ -41,11 +41,11 @@ export function PainelCamadas({
     return <p className="painel-vazio">Nenhuma camada visível nesta página.</p>;
   }
   return (
-    <ul className="camadas-lista">
+    <ul className="lista camadas-lista">
       {itens.map((item) => (
         <li
           key={item.id}
-          className={`camadas-item camadas-nivel-${item.nivel}${
+          className={`item-lista camadas-item camadas-nivel-${item.nivel}${
             item.id === selecionadoId ? " ativo" : ""
           }`}
         >
@@ -54,26 +54,32 @@ export function PainelCamadas({
             className="camadas-nome"
             onClick={() => aoSelecionar(item.id)}
             title={item.detalhe}
+            aria-current={item.id === selecionadoId ? "true" : undefined}
           >
             <span className="camadas-papel">{item.nome}</span>
             {item.conteudo && <span className="camadas-conteudo">{item.conteudo}</span>}
           </button>
-          <span className="camadas-acoes">
+          {/* As setas nascem visíveis. Ação que só aparece no hover não existe
+              pro teclado, não existe pro toque, e some pra quem não sabe que
+              ela está ali. */}
+          <span className="item-lista-acoes">
             <button
               type="button"
-              className="camadas-seta camadas-seta-cima"
+              className="botao botao-p botao-icone botao-fantasma camadas-seta camadas-seta-cima"
               disabled={!item.podeSubir}
               onClick={() => aoMover(item.id, "acima")}
               title="Trazer pra frente"
+              aria-label={`Trazer ${item.nome} pra frente`}
             >
               <IconeChevron className="" />
             </button>
             <button
               type="button"
-              className="camadas-seta camadas-seta-baixo"
+              className="botao botao-p botao-icone botao-fantasma camadas-seta camadas-seta-baixo"
               disabled={!item.podeDescer}
               onClick={() => aoMover(item.id, "abaixo")}
               title="Levar pra trás"
+              aria-label={`Levar ${item.nome} pra trás`}
             >
               <IconeChevron className="" />
             </button>

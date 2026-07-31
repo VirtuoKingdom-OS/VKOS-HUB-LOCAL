@@ -9,9 +9,9 @@ import {
   formatarUsd,
   fraseDaTendencia,
   fraseDoPiso,
-  fraseDosProjetos,
   fraseDosRemovidos,
   lerSerie,
+  pastaPrevista,
   tempoRelativo,
 } from "./logica";
 
@@ -145,25 +145,6 @@ test("a barra so enche em relacao ao maior dia, e some no periodo vazio", () => 
   assert.equal(alturaDaBarra(dia(0.001), 100), 4);
 });
 
-test("a frase dos projetos declara o criterio de ativo", () => {
-  assert.match(
-    fraseDosProjetos({ projetosAtivos: 2, total: 4, sessoesRodando: 0, janelaAtividadeDias: 7 }),
-    /últimos 7 dias/,
-  );
-  assert.equal(
-    fraseDosProjetos({ projetosAtivos: 1, total: 4, sessoesRodando: 1, janelaAtividadeDias: 7 }),
-    "1 sessão de IA rodando neste momento.",
-  );
-  assert.equal(
-    fraseDosProjetos({ projetosAtivos: 0, total: 0, sessoesRodando: 0, janelaAtividadeDias: 7 }),
-    "Nenhum workspace registrado ainda.",
-  );
-  assert.match(
-    fraseDosProjetos({ projetosAtivos: 0, total: 3, sessoesRodando: 0, janelaAtividadeDias: 7 }),
-    /Nenhum workspace com atividade/,
-  );
-});
-
 test("o tempo relativo nao inventa idade pra data ausente ou quebrada", () => {
   const agora = new Date("2026-07-27T12:00:00.000Z");
   assert.equal(tempoRelativo(null, agora), null);
@@ -180,4 +161,17 @@ test("o tempo relativo nao inventa idade pra data ausente ou quebrada", () => {
 test("caminho longo aparece encurtado, e curto aparece inteiro", () => {
   assert.equal(encurtarCaminho("E:/VKOS/clientes/aura"), "... / clientes / aura");
   assert.equal(encurtarCaminho("C:/aura"), "C: / aura");
+});
+
+test("a pasta prevista repete a regra de slug do servidor, sempre em relativo", () => {
+  // Mesmos casos de server/src/workspaces/pastas.ts. Se as duas regras se
+  // separarem, a tela passa a anunciar uma pasta que nao e a que nasce.
+  assert.equal(pastaPrevista("Mãe Pixel"), "workspaces/mae-pixel");
+  assert.equal(pastaPrevista("  Aura & Co.  "), "workspaces/aura-co");
+  assert.equal(pastaPrevista("Ação 2026"), "workspaces/acao-2026");
+  // So simbolo: o servidor cai no fallback "workspace", e o anuncio acompanha.
+  assert.equal(pastaPrevista("***"), "workspaces/workspace");
+  // Antes de digitar nao ha o que prever, e o fallback pareceria nome decidido.
+  assert.equal(pastaPrevista(""), "workspaces/");
+  assert.equal(pastaPrevista("   "), "workspaces/");
 });

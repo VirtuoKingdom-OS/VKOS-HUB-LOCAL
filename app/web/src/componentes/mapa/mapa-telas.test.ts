@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { hashParaTela, telaParaHash } from "../layout/rotas";
+import { caminhoParaTela, telaParaCaminho } from "../layout/rotas";
 
 // Le o mapa de telas real do repositorio (5 niveis acima deste arquivo).
 const caminho = fileURLToPath(
@@ -27,9 +27,9 @@ test("todo destino padrao faz round-trip pela gramatica de rotas do Shell", () =
   for (const tela of mapa.telas) {
     const d = tela.destino;
     if (d === null || ESPECIAIS.has(d) || ehParametrizado(d)) continue;
-    // telaParaHash e hashParaTela precisam ser inversas: se nao forem, o botao
-    // Abrir apontaria pra uma tela que o Shell nao reconhece.
-    const roundTrip = hashParaTela(telaParaHash(d));
+    // telaParaCaminho e caminhoParaTela precisam ser inversas: se nao forem, o
+    // botao Abrir apontaria pra uma tela que o Shell nao reconhece.
+    const roundTrip = caminhoParaTela(telaParaCaminho(d));
     assert.equal(roundTrip, d, `destino invalido em ${tela.id}: ${d}`);
   }
 });
@@ -40,11 +40,11 @@ test("nenhum destino cai no fallback silencioso do dashboard", () => {
     if (d === null || ESPECIAIS.has(d) || ehParametrizado(d) || d === "dashboard") {
       continue;
     }
-    // Um destino que nao seja dashboard mas vire "#/dashboard" e um erro de
+    // Um destino que nao seja dashboard mas vire "/dashboard" e um erro de
     // digitacao no JSON: a gramatica nao o reconheceu.
     assert.notEqual(
-      telaParaHash(d),
-      "#/dashboard",
+      telaParaCaminho(d),
+      "/dashboard",
       `destino desconhecido em ${tela.id}: ${d}`,
     );
   }

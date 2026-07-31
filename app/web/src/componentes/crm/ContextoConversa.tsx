@@ -75,7 +75,10 @@ export function ContextoConversa({
   if (!contato) {
     return (
       <aside className="cv-contexto" aria-label="Contexto do contato">
-        <p className="cv-vazio-inline">O contato desta conversa não existe mais no funil.</p>
+        <div className="vazio">
+          <h2>Contato removido.</h2>
+          <p>O contato desta conversa não existe mais no funil.</p>
+        </div>
       </aside>
     );
   }
@@ -96,32 +99,39 @@ export function ContextoConversa({
   return (
     <aside className="cv-contexto" aria-label="Contexto do contato" data-vkos-dados="1">
       <header className="cv-contexto-topo">
-        <div>
-          <span className="crm-rotulo">Contexto</span>
-          <h3>{contato.nome}</h3>
+        <div className="cv-contexto-id">
+          <span className="rotulo">Contexto</span>
+          <h2>{contato.nome}</h2>
         </div>
-        <button className="crm-acao-inline" onClick={aoAbrirFicha} type="button">
+        <button className="botao botao-p botao-fantasma" onClick={aoAbrirFicha} type="button">
           Ficha completa
         </button>
       </header>
 
       <div className="cv-contexto-corpo">
-        <section className="cv-bloco">
-          <div className="cv-resumo">
-            <span><b>{formatarReais(total)}</b><small>em negócios</small></span>
-            <span><b>{abertos.length}</b><small>{abertos.length === 1 ? "aberto" : "abertos"}</small></span>
+        <section className="secao">
+          <div className="crm-placar">
+            <div className="crm-placar-item">
+              <span className="crm-numero">{formatarReais(total)}</span>
+              <span className="crm-numero-rotulo">em negócios</span>
+            </div>
+            <div className="crm-placar-item">
+              <span className="crm-numero">{abertos.length}</span>
+              <span className="crm-numero-rotulo">{abertos.length === 1 ? "aberto" : "abertos"}</span>
+            </div>
           </div>
-          <label className="crm-campo">
-            <span className="crm-rotulo">Estágio no funil</span>
-            <select value={contato.colunaId} onChange={(e) => aoMoverEstagio(e.target.value)}>
+          <label className="grupo-campo">
+            <span className="rotulo">Estágio no funil</span>
+            <select className="campo campo-p" value={contato.colunaId} onChange={(e) => aoMoverEstagio(e.target.value)}>
               {colunas.map((coluna) => (
                 <option key={coluna.id} value={coluna.id}>{coluna.nome}</option>
               ))}
             </select>
           </label>
-          <label className="crm-campo">
-            <span className="crm-rotulo">Conversa sobre</span>
+          <label className="grupo-campo">
+            <span className="rotulo">Conversa sobre</span>
             <select
+              className="campo campo-p"
               value={conversa.negocioId ?? ""}
               onChange={(e) => aoLigarNegocio(e.target.value || null)}
             >
@@ -133,10 +143,10 @@ export function ContextoConversa({
           </label>
         </section>
 
-        <section className="cv-bloco">
-          <div className="crm-secao-topo">
-            <h4>Negócios</h4>
-            <button className="crm-acao-inline" onClick={() => setCriandoNegocio((atual) => !atual)} aria-expanded={criandoNegocio} type="button">
+        <section className="secao">
+          <div className="secao-topo">
+            <h2>Negócios</h2>
+            <button className="botao botao-p botao-fantasma" onClick={() => setCriandoNegocio((atual) => !atual)} aria-expanded={criandoNegocio} type="button">
               {criandoNegocio ? "Cancelar" : "Novo negócio"}
             </button>
           </div>
@@ -144,6 +154,7 @@ export function ContextoConversa({
           {criandoNegocio && (
             <div className="cv-negocio-novo">
               <input
+                className="campo campo-p"
                 value={tituloNovo}
                 onChange={(e) => setTituloNovo(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); criar(); } }}
@@ -152,7 +163,7 @@ export function ContextoConversa({
                 aria-label="Título do negócio novo"
                 autoFocus
               />
-              <button className="botao botao-neutro crm-botao-compacto" onClick={criar} disabled={!tituloNovo.trim()} type="button">
+              <button className="botao botao-p botao-neutro" onClick={criar} disabled={!tituloNovo.trim()} type="button">
                 <IconeMais className="" /> Criar
               </button>
             </div>
@@ -174,12 +185,12 @@ export function ContextoConversa({
           </div>
         </section>
 
-        <section className="cv-bloco">
+        <section className="secao">
           <EditorTags contato={contato} aoSalvar={aoAtualizarContato} />
         </section>
 
-        <section className="cv-bloco">
-          <h4>Fora do chat</h4>
+        <section className="secao">
+          <div className="secao-topo"><h2>Fora do chat</h2></div>
           {carregandoInteracoes && <p className="crm-vazio-inline">Carregando...</p>}
           {!carregandoInteracoes && interacoes.length === 0 && (
             <p className="crm-vazio-inline">Nenhuma ligação, reunião ou nota registrada.</p>
@@ -187,7 +198,7 @@ export function ContextoConversa({
           <ol className="crm-linha-tempo">
             {interacoes.map((interacao) => (
               <li className="crm-interacao" key={interacao.id}>
-                <span className="crm-interacao-tipo">{ROTULO_INTERACAO[interacao.tipo] ?? interacao.tipo}</span>
+                <span className="selo">{ROTULO_INTERACAO[interacao.tipo] ?? interacao.tipo}</span>
                 <time>{formatarDataHora(interacao.em)}</time>
                 <p>{interacao.texto}</p>
               </li>

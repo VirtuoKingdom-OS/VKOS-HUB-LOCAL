@@ -3,6 +3,7 @@ import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
 import type { AlvoImagemCapturado } from "./imagens";
 import type { ModeloIA } from "../../api/cliente";
+import { montarPromptImagem } from "./promptImagem";
 export type { AlvoImagemCapturado } from "./imagens";
 
 // O motor captura o elemento exato antes de iniciar a sessao. A callback fica
@@ -15,6 +16,14 @@ interface Pendente {
   alvo: AlvoImagemCapturado;
   finalizando: boolean;
 }
+
+// Rede de seguranca. A tela sai do estado de espera quando a sessao termina,
+// quando da erro ou quando o arquivo aparece. Se o provedor nunca chega a
+// estado terminal (processo morto, maquina suspensa, conexao caida), nenhum
+// desses tres acontece e a espera fica pra sempre: foi o travamento que o Jesse
+// relatou. Quatro minutos porque gerar imagem e lento de verdade, entao um
+// limite curto abortaria trabalho bom; e um teto, nao uma expectativa.
+const LIMITE_ESPERA_MS = 4 * 60 * 1000;
 
 async function esperarArquivo(pasta: string, caminhoRelativo: string): Promise<void> {
   const url = `/pecas/${encodeURIComponent(pasta)}/${caminhoRelativo}`;
@@ -34,37 +43,62 @@ export function usarGeracaoImagemIA() {
   const [ultimaConcluidaEm, setUltimaConcluidaEm] = useState(0);
   const pendenteRef = useRef<Pendente | null>(null);
   const montadoRef = useRef(true);
+  const relogioRef = useRef(0);
+
+  // Encerra a espera de um jeito so, venha ela do fim da sessao, do erro ou do
+  // limite de tempo. Sempre desarma o relogio: relogio orfao derruba uma
+  // geracao seguinte que nao tem nada a ver com a que estourou.
+  const encerrarEspera = useCallback((mensagem: string | null) => {
+    if (relogioRef.current) {
+      window.clearTimeout(relogioRef.current);
+      relogioRef.current = 0;
+    }
+    pendenteRef.current = null;
+    if (!montadoRef.current) return;
+    setGerando(false);
+    if (mensagem !== null) setErro(mensagem);
+  }, []);
 
   useEffect(() => {
     montadoRef.current = true;
     return () => {
       montadoRef.current = false;
+      if (relogioRef.current) window.clearTimeout(relogioRef.current);
     };
   }, []);
 
+  // Devolve null quando o pedido foi aceito e a espera comecou, ou a frase do
+  // motivo quando foi recusado. O chamador precisa desse retorno na mao: antes,
+  // a recusa saia num `return` mudo, e quem esperava a imagem ficava esperando
+  // uma sessao que nunca nasceu. Ler o `erro` do hook nao serve aqui, porque
+  // dentro da funcao ele ainda e o valor do render anterior.
   const gerar = useCallback(async (
     pasta: string,
     alvo: AlvoImagemCapturado,
     modelo?: ModeloIA,
-  ) => {
+    descricao?: string,
+  ): Promise<string | null> => {
     if (ativo !== "codex") {
-      setErro("Gerar outra imagem com IA está disponível quando o Codex está conectado.");
-      return;
+      const motivo =
+        "Gerar outra imagem com IA está disponível quando o Codex está conectado.";
+      setErro(motivo);
+      return motivo;
     }
-    if (pendenteRef.current) return;
+    if (pendenteRef.current) {
+      const motivo = "Já existe uma geração de imagem em andamento. Espere ela terminar.";
+      setErro(motivo);
+      return motivo;
+    }
 
     const sufixo = Math.random().toString(36).slice(2, 7);
     const nome = `vkos-ia-${Date.now().toString(36)}-${sufixo}.png`;
     const caminhoRelativo = `img/${nome}`;
-    const contexto = alvo.contexto.replace(/\s+/g, " ").trim().slice(0, 2400);
-    const prompt = [
-      "Use explicitamente $imagegen para gerar uma unica imagem original.",
-      `Salve o bitmap final EXATAMENTE em conteudo/${pasta}/${caminhoRelativo}.`,
-      "Nao edite HTML, CSS, markdown nem qualquer outro arquivo. Nao crie variantes.",
-      "A imagem precisa seguir o Cerebro do negocio e representar o contexto do elemento, sem texto ou logotipo inventado.",
-      `Contexto visual: ${contexto || "imagem de apoio coerente com a peca"}.`,
-      "Ao terminar, responda apenas com o caminho salvo.",
-    ].join("\n");
+    const prompt = montarPromptImagem({
+      pasta,
+      caminhoRelativo,
+      contexto: alvo.contexto,
+      descricao,
+    });
 
     setErro(null);
     setGerando(true);
@@ -82,11 +116,21 @@ export function usarGeracaoImagemIA() {
         alvo,
         finalizando: false,
       };
+      relogioRef.current = window.setTimeout(() => {
+        relogioRef.current = 0;
+        if (!pendenteRef.current) return;
+        encerrarEspera(
+          "A geração da imagem passou de 4 minutos sem resposta. Confira o Codex e tente de novo.",
+        );
+      }, LIMITE_ESPERA_MS);
+      return null;
     } catch (e) {
-      setGerando(false);
-      setErro(e instanceof Error ? e.message : "Não foi possível iniciar a geração da imagem.");
+      const motivo =
+        e instanceof Error ? e.message : "Não foi possível iniciar a geração da imagem.";
+      encerrarEspera(motivo);
+      return motivo;
     }
-  }, [ativo, criarSessao]);
+  }, [ativo, criarSessao, encerrarEspera]);
 
   useEffect(() => {
     const pendente = pendenteRef.current;
@@ -95,14 +139,13 @@ export function usarGeracaoImagemIA() {
     if (!sessao) return;
 
     if (sessao.status === "erro" || sessao.status === "parada") {
-      pendenteRef.current = null;
-      setGerando(false);
-      setErro(sessao.erro || "A geração da imagem foi interrompida.");
+      encerrarEspera(sessao.erro || "A geração da imagem foi interrompida.");
       return;
     }
     if (sessao.status !== "concluida") return;
 
     pendente.finalizando = true;
+    const resultado: { falha: string | null } = { falha: null };
     void esperarArquivo(pendente.pasta, pendente.caminhoRelativo)
       .then(async () => {
         await pendente.alvo.aplicar(pendente.caminhoRelativo);
@@ -112,15 +155,13 @@ export function usarGeracaoImagemIA() {
         }
       })
       .catch((e: unknown) => {
-        if (montadoRef.current) {
-          setErro(e instanceof Error ? e.message : "A imagem gerada não pôde ser aplicada.");
-        }
+        resultado.falha =
+          e instanceof Error ? e.message : "A imagem gerada não pôde ser aplicada.";
       })
       .finally(() => {
-        pendenteRef.current = null;
-        if (montadoRef.current) setGerando(false);
+        encerrarEspera(resultado.falha);
       });
-  }, [sessoes]);
+  }, [sessoes, encerrarEspera]);
 
   return {
     disponivel: ativo === "codex",

@@ -1,0 +1,328 @@
+/* O SELETOR DE WORKSPACE da barra do projeto, o veu da troca e o botao "usar
+   esta pasta" do navegador de pastas.
+
+   REFEITO na Fase 2 do redesign v2 (2026-07-30). O que mudou, e por que:
+
+   1. O PAINEL VESTE .popover E .menu. Ele tinha painel proprio, sombra propria,
+      animacao propria (sw-surge), item proprio e campo de busca proprio. Nada
+      disso era diferente do que as primitivas ja fazem, e cada copia envelhecia
+      sozinha: o campo de busca daqui ja nao era mais o campo do app.
+   2. AS ACOES DE LINHA NASCEM VISIVEIS. Renomear e remover viviam em
+      opacity: 0 ate o mouse chegar. O que so aparece no hover nao existe pro
+      toque nem pra quem nunca passou ali.
+   3. O BALAO "CONFIRMAR?" SAIU. Ele flutuava dentro de um popover com overflow,
+      entao era recortado pela borda. A confirmacao passou pra propria linha.
+   4. O MENTA CALOU. Ponto menta no gatilho, nome do workspace aberto em menta,
+      fundo menta na linha ativa, chevron menta e icone menta no rodape: nada
+      disso estava acontecendo agora. Aberto se le por superficie, fio a
+      esquerda em --acao e o tique.
+
+   Esta folha escreve so o que e LAYOUT do seletor. Cor, altura, raio, peso e
+   movimento vem das primitivas. */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e as telas carregam sob demanda. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. O GATILHO
+
+   Ele mora logo abaixo do "Core", no topo da barra do projeto, e e um
+   CONTROLE: superficie mais fio forte, na altura da acao principal (40px). O
+   rotulo em caixa alta veste .rotulo-grupo, o mesmo dos grupos do menu.
+   ========================================================================== */
+.seletor-workspace {
+  position: relative;
+  flex: none;
+  margin-bottom: var(--esp-12);
+}
+
+.sw-rotulo {
+  display: block;
+  padding: 0 var(--esp-8) var(--esp-4);
+}
+
+.sw-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  width: 100%;
+  min-height: var(--alt-g);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio);
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--texto);
+  text-align: left;
+  transition: background var(--transicao), border-color var(--transicao);
+}
+.sw-trigger:hover:not(:disabled),
+.sw-trigger.aberto {
+  background: var(--superficie-alta);
+}
+/* Desabilitado nao e apagado: o nome do workspace continua legivel enquanto a
+   troca acontece, o que muda e a superficie. */
+.sw-trigger:disabled {
+  cursor: progress;
+  background: var(--superficie-alta);
+  border-color: var(--linha);
+  color: var(--texto-fraco);
+}
+
+.sw-trigger-nome {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sw-chevron {
+  flex: none;
+  color: var(--texto-fraco);
+  transition: transform var(--transicao), color var(--transicao);
+}
+.sw-trigger.aberto .sw-chevron {
+  transform: rotate(180deg);
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   2. O PAINEL
+
+   Ele veste .popover: superficie flutuante, fio, raio, sombra de popover e a
+   animacao ancorada, tudo das primitivas. Aqui so mora onde ele se ancora e
+   quanto ele mede. Ele passa da largura da barra de proposito, pra o nome
+   inteiro e o caminho caberem sem truncar cedo.
+   ========================================================================== */
+.sw-painel {
+  top: calc(100% + var(--esp-4));
+  left: 0;
+  width: 288px;
+  max-width: calc(100vw - var(--esp-24));
+}
+
+.sw-busca {
+  margin-bottom: var(--esp-4);
+}
+
+.sw-lista {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.sw-vazio {
+  padding: var(--esp-16) var(--esp-8);
+  text-align: center;
+  color: var(--texto-suave);
+}
+
+/* Uma linha da lista: o botao que abre o workspace mais as acoes dele. O
+   workspace ABERTO se marca por superficie e um fio a esquerda em --acao, a
+   mesma gramatica do .item-lista e do item de menu da barra. */
+.sw-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  border-radius: var(--raio-p);
+}
+.sw-linha.aberto {
+  background: var(--superficie-alta);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+
+/* O item do menu aqui tem duas linhas (nome e caminho), entao ele cresce do
+   piso de 28px em vez de centralizar tudo numa linha so. */
+.sw-item {
+  flex: 1;
+  min-width: 0;
+  padding: var(--esp-4) var(--esp-8);
+}
+.sw-item-nome {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sw-item-caminho {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Armado pra remover, a linha diz o que o proximo clique faz. */
+.sw-item-caminho.armado {
+  color: var(--alerta);
+  white-space: normal;
+}
+.sw-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--texto-suave);
+}
+
+.sw-linha-acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-right: var(--esp-4);
+}
+
+.sw-item-edit {
+  flex: 1;
+  min-width: 0;
+  margin: var(--esp-2) var(--esp-4);
+}
+
+.sw-icone {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-suave);
+}
+
+.sw-faixa {
+  align-items: center;
+  margin-top: var(--esp-8);
+}
+
+/* ==========================================================================
+   3. OS DOIS FORMULARIOS: ADICIONAR E CRIAR
+   ========================================================================== */
+.sw-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-4);
+}
+.sw-form-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+}
+/* A seta de voltar aponta pra lista, entao ela e a seta padrao girada. Um X
+   ali dizia "fechar o seletor", que e outra coisa. */
+.sw-voltar-seta {
+  width: 16px;
+  height: 16px;
+  transform: rotate(180deg);
+}
+.sw-form-topo h3 {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+}
+
+.sw-botao-pasta {
+  width: 100%;
+}
+
+/* Onde o workspace novo vai nascer. Nao e campo e nao abre nada: e um anuncio,
+   subordinado ao campo do nome. */
+.sw-destino {
+  display: block;
+}
+.sw-destino-valor {
+  font-family: var(--mono);
+  color: var(--texto-suave);
+  overflow-wrap: anywhere;
+}
+
+/* Dentro de um popover de 288px, o rodape do formulario nao precisa dos 24px
+   de respiro que ele tem numa tela inteira. */
+.sw-form-acoes {
+  margin-top: 0;
+}
+.sw-form-acoes .botao {
+  width: 100%;
+}
+
+/* ==========================================================================
+   4. O AVISO DO WORKSPACE RECEM-CRIADO
+
+   Ele veste .faixa .faixa-aviso. Aqui so mora onde ele fica: canto de baixo,
+   flutuando sobre o app, entao ele tem sombra de verdade.
+   ========================================================================== */
+.sw-toast {
+  position: fixed;
+  bottom: var(--esp-16);
+  left: var(--esp-16);
+  z-index: var(--z-aviso);
+  width: min(340px, calc(100vw - var(--esp-32)));
+  box-shadow: var(--sombra-popover);
+}
+.sw-toast-titulo {
+  display: block;
+  font-weight: var(--peso-forte);
+}
+.sw-toast-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  margin-top: var(--esp-4);
+  padding-left: var(--esp-16);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   5. O VEU DA TROCA DE WORKSPACE
+
+   Cobre so o conteudo, nunca a barra: durante a troca, a barra continua sendo
+   de onde a pessoa saiu. Ele existe pra o app nao piscar o dado do projeto
+   anterior enquanto o novo carrega.
+   ========================================================================== */
+.veu-troca {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-veu);
+  background: var(--fundo);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--mov-lento) var(--curva);
+}
+.veu-troca.ativo {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ==========================================================================
+   6. "USAR ESTA PASTA", NO NAVEGADOR DE PASTAS
+
+   Hospede desta folha: quem o mostra e o NavegadorPastas do onboarding. Sai
+   daqui quando aquela tela migrar.
+   ========================================================================== */
+.usar-pasta-atual {
+  flex: none;
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio);
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--texto);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  transition: background var(--transicao), border-color var(--transicao);
+}
+.usar-pasta-atual:hover:not(:disabled) {
+  background: var(--superficie-alta);
+}
+.usar-pasta-atual:disabled {
+  cursor: not-allowed;
+  background: var(--superficie-alta);
+  border-color: var(--linha);
+  color: var(--texto-fraco);
+}
+
+} /* fim de @layer tela */

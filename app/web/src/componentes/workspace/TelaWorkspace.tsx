@@ -10,6 +10,7 @@ import { usarEstado } from "../../estado/contexto";
 import { usarGeracao, type TipoGeracao } from "../../estado/geracao";
 import type { Peca } from "../../tipos/dominio";
 import { formatarTema } from "../telas/fluxos";
+import { Botao } from "../comum/Botao";
 import {
   IconeCarrossel,
   IconeFluxo,
@@ -21,7 +22,8 @@ import {
 } from "../comum/Icones";
 import { MiniaturaSite } from "../cockpit/MiniaturaSite";
 import { paginaInicialSite } from "../cockpit/PreviewSite";
-import "../../estilos/dashboard.css";
+import { irParaPeca, irParaTela } from "../layout/rotas";
+import "./dashboard.css";
 
 // Tipo de conteudo visual que o seletor oferece.
 type TipoConteudoVisual = "carrossel" | "post" | "story";
@@ -30,14 +32,14 @@ interface Props {
   aoCriar: (tipo: TipoGeracao) => void;
 }
 
-// Vai pro Studio de uma peca (pasta URL-encoded no hash).
+// Vai pro Studio de uma peca (pasta URL-encoded no caminho).
 function irParaStudio(pasta: string) {
-  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+  irParaPeca("studio", pasta);
 }
 
-// Vai pra tela de um site (pasta URL-encoded no hash).
+// Vai pra tela de um site (pasta URL-encoded no caminho).
 function irParaSite(pasta: string) {
-  window.location.hash = "#/site/" + encodeURIComponent(pasta);
+  irParaPeca("site", pasta);
 }
 
 // Rota de abertura de uma peca a partir do card de recentes: fonteHtml pronta
@@ -51,16 +53,28 @@ function abrirPeca(peca: Peca) {
     irParaSite(peca.pasta);
     return;
   }
-  window.location.hash = "#/galerias";
+  irParaTela("galerias");
 }
 
-// Tela de trabalho do workspace aberto: saudacao com o nome dele, criacao
-// guiada, criacoes recentes e atalhos pro modo avancado.
+// Tela de trabalho do workspace aberto: cabecalho com o nome do projeto e a
+// acao principal, o que esta sendo gerado agora, as criacoes recentes e pra
+// onde ir depois.
 //
-// Ate 2026-07-27 isto era o Dashboard e ficava em "#/dashboard". O Dashboard
-// virou a tela do CORE (gasto com IA e projetos ativos), que e o nivel de cima
-// e nao muda quando se troca de workspace. Criar conteudo e trabalho de
-// PROJETO, entao mora aqui, em "#/inicio", dentro do workspace aberto.
+// REDESENHADA na Fase 2 do redesign v2 (2026-07-30). O que mudou, e por que:
+//
+// 1. A SAUDACAO DE 30px SAIU. Ela custava uma faixa inteira de tela pra dizer o
+//    nome do workspace e fazer uma pergunta que os dois botoes ja respondem. O
+//    cabecalho agora e a linha de 56px das primitivas, com o nome do projeto e
+//    a acao principal no mesmo lugar de todas as outras telas do Hub.
+// 2. OS DOIS CARTOES DE CRIAR VIRARAM DOIS BOTOES. Eram dois blocos de 92px
+//    com caixa de icone, titulo, subtitulo e seta pra disparar duas rotas.
+//    "Criar conteudo" e a acao principal; "Site guiado" e a neutra ao lado.
+// 3. A GERACAO EM CURSO GANHOU VOZ PROPRIA. Antes ela virava um subtitulo
+//    dentro do cartao, que so se lia depois de procurar. Agora e uma faixa com
+//    o ponto vivo: e o unico menta desta tela, e ele diz exatamente o que o
+//    menta deve dizer.
+// 4. OS ATALHOS VIRARAM LISTA. Dois cartoes de 56px pra dois destinos de
+//    navegacao viraram duas linhas de lista, o formato de dado padrao do Hub.
 export function TelaWorkspace({ aoCriar }: Props) {
   const { pecas, workspaces, workspaceAtivo, estadoVkos } = usarEstado();
   const { ativa } = usarGeracao();
@@ -113,118 +127,116 @@ export function TelaWorkspace({ aoCriar }: Props) {
     if (!restaurarGeracaoAtiva()) aoCriar("site");
   }, [restaurarGeracaoAtiva, aoCriar]);
 
-  const escolherTipo = useCallback((tipo: TipoConteudoVisual) => {
-    if (restaurarGeracaoAtiva()) return;
-    setSeletorAberto(false);
-    aoCriar(tipo);
-  }, [restaurarGeracaoAtiva, aoCriar]);
+  const escolherTipo = useCallback(
+    (tipo: TipoConteudoVisual) => {
+      if (restaurarGeracaoAtiva()) return;
+      setSeletorAberto(false);
+      aoCriar(tipo);
+    },
+    [restaurarGeracaoAtiva, aoCriar]
+  );
+
+  // Esc fecha o seletor. Sem isto, a unica saida era clicar no veu, que nao
+  // existe pra quem navega por teclado.
+  useEffect(() => {
+    if (!seletorAberto) return;
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSeletorAberto(false);
+    };
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [seletorAberto]);
 
   const rotuloGeracao = (tipo: TipoGeracao) =>
-    tipo === "site" ? "site" : tipo === "story" ? "story" : tipo === "post" ? "post" : "carrossel";
+    tipo === "site"
+      ? "site"
+      : tipo === "story"
+        ? "story"
+        : tipo === "post"
+          ? "post"
+          : "carrossel";
 
+  // A linha do cabecalho diz o que aconteceu, e cala quando nao ha nada a
+  // dizer: repetir "vamos criar algo hoje" abaixo do nome do projeto custa
+  // altura e nao informa.
   const linhaContexto =
-    criadasSemana > 0
-      ? criadasSemana === 1
+    criadasSemana === 0
+      ? "Nenhuma peça criada nos últimos dias."
+      : criadasSemana === 1
         ? "1 peça criada nos últimos dias."
-        : `${criadasSemana} peças criadas nos últimos dias.`
-      : "Vamos criar algo hoje?";
+        : `${criadasSemana} peças criadas nos últimos dias.`;
 
   return (
-    <section className="tela-dashboard">
-      <div className="dashboard-scroll">
-        <header className="dashboard-cabecalho">
-          <h1>
-            Olá, <span className="dash-nome">{nomeWorkspace}</span>. O que
-            vamos criar hoje?
-          </h1>
-          <p className="dashboard-contexto">{linhaContexto}</p>
-        </header>
-
-        <div className="dashboard-criar">
-          <button
-            className="dash-hero"
-            onClick={abrirConteudoVisual}
-            type="button"
-          >
-            <span className="dash-hero-icone">
-              <IconeCarrossel className="" />
-            </span>
-            <span className="dash-hero-texto">
-              <span className="dash-hero-titulo">Criar Conteúdo Visual</span>
-              <span className="dash-hero-sub">
-                {ativa
-                  ? `Há um ${rotuloGeracao(ativa.tipo)} em geração. Clique para acompanhar.`
-                  : "Carrossel, post ou story, guiado por perguntas simples."}
-              </span>
-            </span>
-            <span className="dash-hero-seta">
-              <IconeSeta className="" />
-            </span>
-          </button>
-
-          <button
-            className="dash-hero dash-hero-secundario dash-hero-ativo"
-            onClick={abrirSiteGuiado}
-            type="button"
-          >
-            <span className="dash-hero-icone">
-              <IconeSite className="" />
-            </span>
-            <span className="dash-hero-texto">
-              <span className="dash-hero-titulo">Site Guiado</span>
-              <span className="dash-hero-sub">
-                {ativa
-                  ? `Uma criação já está em andamento. Clique para acompanhar.`
-                  : "Um site inteiro, passo a passo, direto do Cérebro."}
-              </span>
-            </span>
-            <span className="dash-hero-seta">
-              <IconeSeta className="" />
-            </span>
-          </button>
+    <section className="tela tela-inicio">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
+          <h1 title={nomeWorkspace}>{nomeWorkspace}</h1>
+          <p>{linhaContexto}</p>
         </div>
+        <div className="tela-topo-acoes">
+          <Botao onClick={abrirSiteGuiado}>Site guiado</Botao>
+          <Botao variante="principal" onClick={abrirConteudoVisual}>
+            Criar conteúdo
+          </Botao>
+        </div>
+      </header>
 
-        <section className="dashboard-recentes">
-          <div className="recentes-topo">
+      <div className="tela-corpo">
+        {/* O unico menta da tela, e ele diz o que o menta deve dizer: isto
+            esta acontecendo agora. */}
+        {ativa && (
+          <div className="faixa faixa-boa inicio-faixa-viva" role="status">
+            <span className="ponto-vivo" />
+            <div className="faixa-texto">
+              Um {rotuloGeracao(ativa.tipo)} está sendo gerado agora.
+            </div>
+            <div className="faixa-acoes">
+              <Botao tamanho="p" onClick={() => aoCriar(ativa.tipo)}>
+                Acompanhar
+              </Botao>
+            </div>
+          </div>
+        )}
+
+        <section className="secao">
+          <div className="secao-topo">
             <h2>Criações recentes</h2>
             {recentes.length > 0 && (
-              <button
-                className="recentes-vertodas"
+              <Botao
+                variante="fantasma"
+                tamanho="p"
                 onClick={() => {
-                  window.location.hash = "#/galerias";
+                  irParaTela("galerias");
                 }}
-                type="button"
               >
                 Ver galerias
-                <IconeSeta className="" />
-              </button>
+                <IconeSeta className="inicio-seta" />
+              </Botao>
             )}
           </div>
 
           {recentes.length === 0 ? (
-            <div className="recentes-vazio">
-              <IconeGaleria className="" style={{ width: 34, height: 34 }} />
-              <p>Nada por aqui ainda. Crie seu primeiro conteúdo.</p>
-              <button
-                className="botao botao-principal"
-                onClick={abrirConteudoVisual}
-                type="button"
-              >
-                Criar conteúdo
-              </button>
+            <div className="vazio">
+              <IconeGaleria className="" />
+              <h2>Nada criado ainda</h2>
+              <p>
+                Cada carrossel, post, story ou site que você criar aparece aqui,
+                pronto pra abrir e editar.
+              </p>
+              <Botao onClick={abrirConteudoVisual}>Criar a primeira peça</Botao>
             </div>
           ) : (
-            <div className="recentes-tira">
+            <div className="inicio-tira">
               {recentes.map((peca) => (
                 <button
                   key={peca.pasta}
-                  className="recente-item"
+                  className="cartao cartao-alvo inicio-peca"
                   onClick={() => abrirPeca(peca)}
                   title={formatarTema(peca.tema)}
                   type="button"
                 >
                   <MiniaturaPeca peca={peca} />
-                  <span className="recente-titulo">
+                  <span className="inicio-peca-titulo">
                     {formatarTema(peca.tema)}
                   </span>
                 </button>
@@ -233,77 +245,100 @@ export function TelaWorkspace({ aoCriar }: Props) {
           )}
         </section>
 
-        <div className="dashboard-atalhos">
-          <button
-            className="dash-atalho"
-            onClick={() => {
-              window.location.hash = "#/cockpit";
-            }}
-            type="button"
-          >
-            <IconeCockpitMini />
-            <span>
-              <strong>Cockpit</strong>
-              <em>Modo avançado, canvas completo</em>
-            </span>
-          </button>
-          <button
-            className="dash-atalho"
-            onClick={() => {
-              window.location.hash = "#/galerias";
-            }}
-            type="button"
-          >
-            <IconeGaleria className="" />
-            <span>
-              <strong>Galerias</strong>
-              <em>Todas as peças de imagem</em>
-            </span>
-          </button>
-        </div>
+        <section className="secao">
+          <div className="secao-topo">
+            <h2>Ir para</h2>
+          </div>
+          <div className="lista">
+            <button
+              className="item-lista"
+              onClick={() => {
+                irParaTela("cockpit");
+              }}
+              type="button"
+            >
+              <IconeCockpitMini />
+              <span className="item-lista-texto">
+                <span className="item-lista-titulo">Cockpit</span>
+                <span className="item-lista-meta">
+                  Modo avançado, canvas completo
+                </span>
+              </span>
+              <IconeSeta className="inicio-seta" />
+            </button>
+            <button
+              className="item-lista"
+              onClick={() => {
+                irParaTela("galerias");
+              }}
+              type="button"
+            >
+              <IconeGaleria className="inicio-icone-lista" />
+              <span className="item-lista-texto">
+                <span className="item-lista-titulo">Galerias</span>
+                <span className="item-lista-meta">
+                  Todas as peças de imagem
+                </span>
+              </span>
+              <IconeSeta className="inicio-seta" />
+            </button>
+          </div>
+        </section>
       </div>
 
       {seletorAberto && (
-        <div
-          className="dash-overlay-wizard"
-          onClick={() => setSeletorAberto(false)}
-        >
+        <div className="veu-modal" onClick={() => setSeletorAberto(false)}>
           <div
-            className="dash-seletor"
+            className="modal inicio-seletor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inicio-seletor-titulo"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="dash-seletor-titulo">O que vamos criar?</h2>
-            <div className="dash-seletor-grade">
-              <CardTipo
-                titulo="Carrossel"
-                descricao="Várias páginas em sequência, ideal pra ensinar ou contar algo."
-                Icone={IconeCarrossel}
-                onClick={() => escolherTipo("carrossel")}
-              />
-              <CardTipo
-                titulo="Post"
-                descricao="Uma imagem só, pronta pro feed."
-                Icone={IconePost}
-                onClick={() => escolherTipo("post")}
-              />
-              <CardTipo
-                titulo="Story"
-                descricao="Vertical, feito pros stories do Instagram."
-                Icone={IconeStories}
-                onClick={() => escolherTipo("story")}
-              />
+            <div className="modal-topo">
+              <h2 id="inicio-seletor-titulo">O que vamos criar?</h2>
+              <Botao
+                variante="fantasma"
+                tamanho="p"
+                soIcone
+                aria-label="Fechar"
+                onClick={() => setSeletorAberto(false)}
+              >
+                <IconeX />
+              </Botao>
+            </div>
+            <div className="modal-corpo">
+              <div className="lista">
+                <LinhaTipo
+                  titulo="Carrossel"
+                  descricao="Várias páginas em sequência, pra ensinar ou contar algo."
+                  Icone={IconeCarrossel}
+                  onClick={() => escolherTipo("carrossel")}
+                />
+                <LinhaTipo
+                  titulo="Post"
+                  descricao="Uma imagem só, pronta pro feed."
+                  Icone={IconePost}
+                  onClick={() => escolherTipo("post")}
+                />
+                <LinhaTipo
+                  titulo="Story"
+                  descricao="Vertical, feito pros stories do Instagram."
+                  Icone={IconeStories}
+                  onClick={() => escolherTipo("story")}
+                />
+              </div>
             </div>
           </div>
         </div>
       )}
-
     </section>
   );
 }
 
-// Card de um tipo no seletor "O que vamos criar?". Escolher abre a rota do
-// assistente com o tipo correspondente.
-function CardTipo({
+// Uma linha do seletor "O que vamos criar?". Lista densa em vez de tres
+// cartoes: o formato de dado padrao do Hub, e aqui o registro nao tem imagem.
+function LinhaTipo({
   titulo,
   descricao,
   Icone,
@@ -315,33 +350,33 @@ function CardTipo({
   onClick: () => void;
 }) {
   return (
-    <button className="dash-seletor-card" onClick={onClick} type="button">
-      <span className="dash-seletor-card-icone">
-        <Icone className="" />
+    <button className="item-lista" onClick={onClick} type="button">
+      <Icone className="inicio-icone-lista" />
+      <span className="item-lista-texto">
+        <span className="item-lista-titulo">{titulo}</span>
+        <span className="item-lista-meta">{descricao}</span>
       </span>
-      <span className="dash-seletor-card-titulo">{titulo}</span>
-      <span className="dash-seletor-card-descricao">{descricao}</span>
+      <IconeSeta className="inicio-seta" />
     </button>
   );
 }
 
-// Miniatura de uma peca no carrossel de recentes: site usa o MiniaturaSite
-// vivo do cockpit (rodada 17, proporcao de tela, nao de poster); peca
-// fonteHtml vira um mini-iframe da capa escalado (mesmo principio do
-// CartaoPeca da rodada 12); peca legada mostra a imagem; sem previa, um
+// Miniatura de uma peca na tira de recentes: site usa o MiniaturaSite vivo do
+// cockpit (proporcao de tela, nao de poster); peca fonteHtml vira um
+// mini-iframe da capa escalado; peca legada mostra a imagem; sem previa, um
 // icone do tipo.
 function MiniaturaPeca({ peca }: { peca: Peca }) {
   if (peca.tipo === "site") {
     const pagina = paginaInicialSite(peca);
     if (!pagina) {
       return (
-        <div className="recente-thumb vazia">
+        <div className="inicio-peca-thumb vazia">
           <IconeFluxo id={peca.tipo} className="" />
         </div>
       );
     }
     return (
-      <div className="recente-thumb recente-thumb-site">
+      <div className="inicio-peca-thumb inicio-peca-thumb-site">
         <MiniaturaSite url={pagina} titulo={formatarTema(peca.tema)} />
       </div>
     );
@@ -349,7 +384,7 @@ function MiniaturaPeca({ peca }: { peca: Peca }) {
   const url = peca.previews[0];
   if (!url) {
     return (
-      <div className="recente-thumb vazia">
+      <div className="inicio-peca-thumb vazia">
         <IconeFluxo id={peca.tipo} className="" />
       </div>
     );
@@ -358,7 +393,7 @@ function MiniaturaPeca({ peca }: { peca: Peca }) {
     return <MiniPagina url={url} />;
   }
   return (
-    <div className="recente-thumb">
+    <div className="inicio-peca-thumb">
       <img src={url} loading="lazy" decoding="async" alt="" />
     </div>
   );
@@ -415,11 +450,11 @@ function MiniPagina({ url }: { url: string }) {
   }
 
   return (
-    <div className="recente-thumb" ref={refCaixa}>
+    <div className="inicio-peca-thumb" ref={refCaixa}>
       {visivel && (
         <iframe
           ref={refIframe}
-          className="recente-thumb-frame"
+          className="inicio-peca-frame"
           src={url}
           title=""
           tabIndex={-1}
@@ -443,9 +478,39 @@ function MiniPagina({ url }: { url: string }) {
 // Icone do Cockpit em miniatura pro atalho (o mesmo tracado do da sidebar).
 function IconeCockpitMini() {
   return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className="inicio-icone-lista"
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M3 9h18M9 9v11" />
+    </svg>
+  );
+}
+
+// X do cabecalho do seletor.
+function IconeX() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={16}
+      height={16}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   );
 }

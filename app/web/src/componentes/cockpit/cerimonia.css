@@ -1,0 +1,275 @@
+/* A CERIMONIA DO CEREBRO: a entrevista guiada que abre um cliente novo.
+
+   Fundacao v2, Fase 2, onda B (2026-07-30). O que mudou, e por que:
+
+   ELA VIROU TELA, NAO MODAL. Era um cartao de 720 por 820 flutuando sobre um
+   scrim escuro, com sombra de modal e raio de 20px. Mas isto nao e uma
+   decisao a tomar antes de continuar: e a tarefa mais longa do produto, uns
+   dez minutos de conversa, e a unica coisa que o dono faz enquanto ela roda.
+   Tarefa longa mora em tela cheia. A camada nasce OPACA: enquanto um scrim
+   translucido fecha, o canvas continua se mexendo atras da conversa e cobra
+   atencao que a pergunta da vez precisa.
+
+   A HIERARQUIA E CALMA porque so tem tres coisas: a pergunta, a resposta e o
+   campo. A coluna para em 720px (largura de leitura), o cabecalho e uma linha
+   de 56px, e nao ha caixa nenhuma em volta do texto. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. A CAMADA
+   ========================================================================== */
+.cerimonia-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-camada);
+  display: flex;
+  justify-content: center;
+  /* Opaca de proposito. Ver o cabecalho desta folha. */
+  background: var(--fundo);
+}
+
+.cerimonia-painel {
+  width: 100%;
+  max-width: 880px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cerimonia-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-12);
+  min-height: calc(var(--base) * 14);
+  padding: var(--esp-12) var(--esp-24);
+  border-bottom: 1px solid var(--linha);
+}
+
+.cerimonia-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+
+.cerimonia-icone {
+  width: 18px;
+  height: 18px;
+  color: var(--texto-suave);
+}
+
+.cerimonia-fechar {
+  flex: none;
+  width: var(--alt-p);
+  height: var(--alt-p);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-suave);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  transition: color var(--transicao), background var(--transicao);
+}
+
+.cerimonia-fechar:hover {
+  color: var(--texto);
+  background: var(--superficie-alta);
+}
+
+.cerimonia-fechar svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ==========================================================================
+   2. ABERTURA E FIM: uma coluna centrada, uma acao principal
+   ========================================================================== */
+.cerimonia-intro {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-12);
+  padding: var(--esp-48) var(--esp-24);
+  overflow-y: auto;
+  text-align: center;
+  /* O movimento de entrada mora no CONTEUDO, nunca na tela. */
+  animation: surgir var(--mov-lento) var(--curva) both;
+}
+
+.cerimonia-selo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--esp-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-suave);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+}
+
+/* O fim feliz e o unico momento em que o menta preenche area nesta tela: o
+   Cerebro acabou de ficar pronto, e isso e o estado bom acontecendo agora. */
+.cerimonia-selo.pronto {
+  color: var(--menta);
+  background: var(--menta-tenue);
+  border-color: var(--menta-linha);
+}
+
+.cerimonia-selo svg {
+  width: 26px;
+  height: 26px;
+}
+
+.cerimonia-intro h2 {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+
+.cerimonia-intro p {
+  max-width: 56ch;
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  color: var(--texto-suave);
+}
+
+.cerimonia-comecar {
+  margin-top: var(--esp-8);
+}
+
+.cerimonia-dica {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* ==========================================================================
+   3. A CONVERSA
+   ========================================================================== */
+.cerimonia-conversa {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-16);
+  padding: var(--esp-24);
+  overflow-y: auto;
+}
+
+/* Quem fala se le pela POSICAO e pela superficie, nunca por cor: a pergunta
+   se apoia no papel, a resposta do dono sobe um degrau. */
+.cerimonia-turno {
+  min-width: 0;
+  max-width: 80%;
+  padding: var(--esp-12);
+  border-radius: var(--raio-g);
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+
+.cerimonia-turno.assistente {
+  align-self: flex-start;
+  max-width: 88%;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+}
+
+.cerimonia-turno.assistente .md {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cerimonia-turno.usuario {
+  align-self: flex-end;
+  color: var(--texto);
+  background: var(--superficie-alta);
+}
+
+/* Resposta ainda nao confirmada pelo servidor: ela recua por TINTA, nao por
+   opacidade, que derrubaria o contraste do proprio texto. */
+.cerimonia-turno.pendente {
+  color: var(--texto-fraco);
+}
+
+/* Digitando: tres pontos que pulsam em opacidade. E o mesmo sinal de vida do
+   .ponto-vivo, entao e menta. */
+.cerimonia-digitando {
+  align-self: flex-start;
+  display: inline-flex;
+  gap: var(--esp-4);
+  padding: var(--esp-12);
+}
+
+.cerimonia-digitando span {
+  width: 7px;
+  height: 7px;
+  background: var(--menta-viva);
+  border-radius: var(--raio-pilula);
+  animation: pulsar 1.4s var(--curva-simetrica) infinite;
+}
+
+.cerimonia-digitando span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.cerimonia-digitando span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.cerimonia-erro {
+  margin: 0 var(--esp-24) var(--esp-8);
+  padding: var(--esp-8) var(--esp-12);
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+  border: 1px solid var(--alerta-linha);
+  border-radius: var(--raio);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+}
+
+/* ==========================================================================
+   4. O CAMPO DE RESPOSTA
+   ========================================================================== */
+.cerimonia-envio {
+  flex: none;
+  display: flex;
+  gap: var(--esp-8);
+  padding: var(--esp-12) var(--esp-24) var(--esp-24);
+  border-top: 1px solid var(--linha);
+}
+
+.cerimonia-envio .campo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cerimonia-enviar {
+  flex: none;
+}
+
+.cerimonia-enviar svg {
+  width: 16px;
+  height: 16px;
+}
+} /* fim de @layer tela */

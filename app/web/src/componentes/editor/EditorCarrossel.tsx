@@ -12,7 +12,7 @@ import { PainelCamadas } from "./PainelCamadas";
 import { MenuAdicionarImagem } from "./ControlesImagem";
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "./GaleriaFontes";
 import { aplicarImagemDaFonte } from "./imagens";
-import "../../estilos/editor.css";
+import "./editor.css";
 
 interface Props {
   // Subpasta da peca (um segmento), ex "2026-07-14-tema-curto".
@@ -279,18 +279,18 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
   }
 
   return createPortal(
-    <div className="overlay-tela-cheia" onMouseDown={tentarFechar}>
+    <div className="veu-modal" onMouseDown={tentarFechar}>
       <div className="editor-shell" onMouseDown={(e) => e.stopPropagation()}>
-        <header className="editor-topo">
-          <div className="editor-titulo">
+        <header className="tela-topo ed-topo">
+          <div className="ed-identidade">
             <h2 title={nome}>{nome}</h2>
-            {motor.naoSalvo && (
-              <span className="editor-ponto-salvar" title="Alterações não salvas" />
-            )}
+            {/* Estado da gravação em palavra, não em ponto colorido: o ponto
+                sozinho não dizia o que estava acontecendo. */}
+            {motor.naoSalvo && <span className="selo selo-aviso">Não salvo</span>}
           </div>
-          <div className="editor-acoes">
+          <div className="tela-topo-acoes">
             <button
-              className="botao botao-fantasma"
+              className="botao botao-neutro"
               onClick={motor.desfazer}
               disabled={!motor.podeDesfazer}
               title="Desfazer (Ctrl+Z)"
@@ -313,21 +313,36 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
               <IconeGaleria className="" />
               Todas (ZIP)
             </button>
+            {/* A única ação principal desta tela. O rótulo não some enquanto
+                ela trabalha: trocar "Salvar" por um giro apaga a informação de
+                qual ação está em curso. */}
             <button
               className="botao botao-principal"
               onClick={() => void salvarWrap()}
               disabled={!motor.naoSalvo || salvando}
+              aria-busy={salvando}
               title="Salvar (Ctrl+S)"
             >
-              {salvando ? "Salvando..." : "Salvar"}
+              {salvando ? "Salvando" : "Salvar"}
             </button>
-            <button className="editor-fechar" onClick={tentarFechar} title="Fechar (Esc)">
+            <button
+              className="botao botao-icone botao-fantasma"
+              onClick={tentarFechar}
+              title="Fechar (Esc)"
+              aria-label="Fechar o editor"
+            >
               <IconeX className="" />
             </button>
           </div>
         </header>
 
-        {erro && <div className="editor-erro">{erro}</div>}
+        {erro && (
+          <div className="ed-faixa">
+            <div className="faixa faixa-alerta" role="alert">
+              <div className="faixa-texto">{erro}</div>
+            </div>
+          </div>
+        )}
 
         <div className="editor-corpo">
           {motor.paginas > 1 && (
@@ -363,33 +378,35 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
               />
             </div>
 
-            <div className="editor-navbar">
+            <div className="ed-flutuante">
               <button
-                className="editor-nav-btn"
+                className="botao botao-p botao-icone botao-fantasma"
                 onClick={() => setPagina(Math.max(0, paginaAtual - 1))}
                 disabled={paginaAtual === 0}
                 title="Página anterior"
+                aria-label="Página anterior"
               >
                 <IconeChevron className="" />
               </button>
-              <span className="editor-nav-contador">
+              <span className="ed-contador">
                 {paginaAtual + 1} / {motor.paginas}
               </span>
               <button
-                className="editor-nav-btn dir"
+                className="botao botao-p botao-icone botao-fantasma editor-nav-dir"
                 onClick={() => setPagina(Math.min(motor.paginas - 1, paginaAtual + 1))}
                 disabled={paginaAtual >= motor.paginas - 1}
                 title="Próxima página"
+                aria-label="Próxima página"
               >
                 <IconeChevron className="" />
               </button>
             </div>
           </div>
 
-          <aside className="editor-painel nowheel">
+          <aside className="editor-painel nowheel" aria-label="Propriedades">
             {/* Camadas da pagina atual: seleciona pela lista, sobe e desce. */}
             <section className="painel-secao">
-              <div className="secao-titulo rotulo-secao">Camadas</div>
+              <div className="secao-titulo">Camadas</div>
               <PainelCamadas
                 itens={motor.pronto ? motor.listarCamadas(paginaAtual) : []}
                 selecionadoId={sel?.vkId || null}
@@ -400,7 +417,7 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
 
             {/* Cores globais do tema (variaveis do :root). */}
             <section className="painel-secao">
-              <div className="secao-titulo rotulo-secao">Cores do tema</div>
+              <div className="secao-titulo">Cores do tema</div>
               {motor.vars.length === 0 ? (
                 <p className="painel-vazio">Este modelo não expõe cores no :root.</p>
               ) : (
@@ -423,10 +440,11 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                         </label>
                       ) : (
                         <input
-                          className="cor-texto"
+                          className="campo campo-p cor-texto"
                           value={v.valor}
                           onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
                           spellCheck={false}
+                          aria-label={v.nome}
                         />
                       )}
                     </div>
@@ -435,9 +453,13 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
               )}
             </section>
 
-            {/* Elemento selecionado. */}
+            {/* Elemento selecionado. É a voz principal do painel: responde ao
+                clique no slide e é a razão de o painel existir. As outras cinco
+                seções recuam um degrau de peso e de tinta. Sem fio de divisa
+                aqui: a ordem deste painel intercala escopo de página e de
+                seleção, e um fio prometeria um agrupamento que não existe. */}
             <section className="painel-secao">
-              <div className="secao-titulo rotulo-secao">Elemento</div>
+              <div className="secao-titulo secao-principal">Elemento</div>
               {!sel ? (
                 <p className="painel-vazio">
                   Clique num texto do slide para selecionar. Dê dois cliques para
@@ -445,34 +467,36 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                 </p>
               ) : (
                 <div className="campos-elemento">
-                  <div className="chip-alvo">
+                  <span className="selo chip-alvo" title={`${sel.tag} ${sel.classes}`}>
                     <code>{sel.tag}</code>
                     {sel.classes && <span>.{sel.classes.split(" ").join(".")}</span>}
-                  </div>
+                  </span>
 
-                  <label className="campo">
-                    <span>Texto</span>
+                  <label className="grupo-campo">
+                    <span className="rotulo">Texto</span>
                     <textarea
+                      className="campo"
                       value={sel.texto}
                       disabled={!sel.editavelTexto}
                       onChange={(e) => motor.aplicarTexto(e.target.value)}
                       rows={2}
                     />
                     {!sel.editavelTexto ? (
-                      <small className="campo-nota">
+                      <small className="dica">
                         Dê dois cliques direto no texto, ou selecione um trecho menor.
                       </small>
                     ) : sel.temDestaqueInline ? (
-                      <small className="campo-nota">
+                      <small className="dica">
                         Partes coloridas: editar aqui remove o destaque. Prefira o
                         duplo clique no slide.
                       </small>
                     ) : null}
                   </label>
 
-                  <label className="campo">
-                    <span>Fonte</span>
+                  <label className="grupo-campo">
+                    <span className="rotulo">Fonte</span>
                     <select
+                      className="campo"
                       value={sel.fonte}
                       onChange={(e) =>
                         motor.comEstilo("font-family", valorFonte(e.target.value), aplicarTodas)
@@ -487,9 +511,10 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                   </label>
 
                   <div className="campo-linha">
-                    <label className="campo">
-                      <span>Tamanho</span>
+                    <label className="grupo-campo">
+                      <span className="rotulo">Tamanho</span>
                       <input
+                        className="campo"
                         type="number"
                         value={sel.tamanho}
                         onChange={(e) =>
@@ -497,9 +522,10 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                         }
                       />
                     </label>
-                    <label className="campo">
-                      <span>Peso</span>
+                    <label className="grupo-campo">
+                      <span className="rotulo">Peso</span>
                       <select
+                        className="campo"
                         value={sel.peso}
                         onChange={(e) => motor.comEstilo("font-weight", e.target.value, aplicarTodas)}
                       >
@@ -510,13 +536,14 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                         ))}
                       </select>
                     </label>
-                    <label className="campo campo-cor">
-                      <span>Cor</span>
+                    <label className="grupo-campo campo-cor">
+                      <span className="rotulo">Cor</span>
                       <label className="cor-swatch">
                         <input
                           type="color"
                           value={sel.cor}
                           onChange={(e) => motor.comEstilo("color", e.target.value, aplicarTodas)}
+                          aria-label="Cor do texto"
                         />
                         <span style={{ background: sel.cor }} />
                       </label>
@@ -525,9 +552,10 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
 
                   {/* Largura numerica pra imagem (altura acompanha a proporcao). */}
                   {sel.ehImagem && sel.tipoImagem === "img" && (
-                    <label className="campo">
-                      <span>Largura (px)</span>
+                    <label className="grupo-campo">
+                      <span className="rotulo">Largura (px)</span>
                       <input
+                        className="campo"
                         type="number"
                         min={20}
                         value={sel.larguraPx}
@@ -543,7 +571,10 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                   {sel.posicaoAjustada && (
                     <div className="campo-posicao">
                       <span className="posicao-nota">Elemento movido</span>
-                      <button className="botao botao-fantasma botao-reset-pos" onClick={motor.resetarPosicao}>
+                      <button
+                        className="botao botao-p botao-fantasma"
+                        onClick={motor.resetarPosicao}
+                      >
                         Posição original
                       </button>
                     </div>
@@ -554,24 +585,26 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
 
             {/* Toggle de aplicar em todas as paginas. */}
             <section className="painel-secao">
-              <button
-                className={`toggle-todas${aplicarTodas ? " ativo" : ""}`}
-                onClick={() => setAplicarTodas((v) => !v)}
-              >
-                <span className="toggle-marca">{aplicarTodas && <IconeCheck className="" />}</span>
+              <label className="linha-escolha toggle-todas">
+                <input
+                  type="checkbox"
+                  className="caixa"
+                  checked={aplicarTodas}
+                  onChange={() => setAplicarTodas((v) => !v)}
+                />
                 <span className="toggle-texto">
                   Aplicar estilo em todas as páginas
                   <small>Mesma tag e classes, em todos os slides. Texto nunca replica.</small>
                 </span>
-              </button>
+              </label>
             </section>
 
             {/* Imagem de fundo do slide. */}
             <section className="painel-secao">
-              <div className="secao-titulo rotulo-secao">Imagem de fundo</div>
+              <div className="secao-titulo">Imagem de fundo</div>
               {temFundo ? (
                 <button
-                  className="botao botao-neutro botao-fundo"
+                  className="botao botao-neutro editor-imagem-principal"
                   onClick={() => refArquivo.current?.click()}
                 >
                   Trocar imagem
@@ -590,7 +623,7 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
 
             {/* Adicionar imagem propria como elemento livre desta pagina. */}
             <section className="painel-secao">
-              <div className="secao-titulo rotulo-secao">Adicionar imagem</div>
+              <div className="secao-titulo">Adicionar imagem</div>
               <MenuAdicionarImagem
                 enviando={enviandoNova}
                 erro={erroNova}
@@ -613,12 +646,22 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
       />
 
       {confirmando && (
-        <div className="editor-confirm-scrim" onMouseDown={() => setConfirmando(false)}>
-          <div className="editor-confirm" onMouseDown={(e) => e.stopPropagation()}>
-            <h3>Sair com alterações não salvas?</h3>
-            <p>As mudanças que você fez neste carrossel serão perdidas.</p>
-            <div className="editor-confirm-acoes">
-              <button className="botao botao-fantasma" onClick={() => setConfirmando(false)}>
+        <div className="veu-modal" onMouseDown={() => setConfirmando(false)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sair com alterações não salvas?"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <header className="modal-topo">
+              <h2>Sair com alterações não salvas?</h2>
+            </header>
+            <div className="modal-corpo">
+              <p>As mudanças que você fez neste carrossel serão perdidas.</p>
+            </div>
+            <div className="modal-rodape">
+              <button className="botao botao-neutro" onClick={() => setConfirmando(false)}>
                 Cancelar
               </button>
               <button className="botao botao-perigo" onClick={aoFechar}>

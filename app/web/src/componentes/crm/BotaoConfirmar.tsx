@@ -5,6 +5,10 @@ import { useEffect, useState, type ReactNode } from "react";
 // confirmar; o segundo executa. O desarme e por TEMPO (4s), nunca por sair com o
 // mouse: sair nao pode cancelar a intencao. O botao NUNCA muda de tamanho ao
 // armar, senao o layout desloca e o segundo clique erra o alvo.
+//
+// Ele nao tem forma propria: quem chama passa as classes da primitiva de botao
+// em className (.botao .botao-p .botao-fantasma, por exemplo). Aqui so entra o
+// que e comportamento: a marca de armado e o balao de aviso.
 export function BotaoConfirmar({
   aoConfirmar,
   titulo,
@@ -46,7 +50,7 @@ export function BotaoConfirmar({
 
   return (
     <button
-      className={`crm-botao-excluir${armado ? " armado" : ""}${ocupado ? " ocupado" : ""} ${className}`}
+      className={`${className} crm-confirmar${armado ? " armado" : ""}${ocupado ? " ocupado" : ""}`}
       onClick={aoClicar}
       onPointerDown={(e) => e.stopPropagation()}
       title={armado ? "Clique de novo pra confirmar" : titulo}

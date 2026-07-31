@@ -9,36 +9,46 @@ export interface DadosCerebro extends Record<string, unknown> {
   aoClicar: () => void;
 }
 
-// No central. Pulsa com glow. Clicar abre o popover de fluxos ancorado.
+// No central. Clicar abre o popover de fluxos ancorado.
 // Ver o conteudo do Cerebro fica no menu de botao direito.
+//
+// O no tinha QUATRO linhas de texto empilhadas, e duas delas mandavam clicar:
+// "N comandos. Clique para criar." e, logo abaixo, "Clique pra começar a
+// entrevista." em amarelo. A mesma ordem dita duas vezes, uma delas com a cor
+// que o app reserva pra ressalva de verdade. E a primeira continuava mandando
+// criar mesmo com o Cerebro ja pronto.
+//
+// Agora sao tres faixas na gramatica do cartao de workspace: o nome manda, o
+// estado e o segundo, e o contexto vira uma sublinha fraca so. Nenhum fato
+// saiu: o total de comandos continua la, e o convite tambem, dentro da frase.
 function NoCerebroInterno({ data }: NodeProps) {
   const dados = data as unknown as DadosCerebro;
   const { estadoVkos } = usarEstado();
 
   const preenchido = estadoVkos?.cerebroPreenchido ?? false;
   const total = estadoVkos?.totalSkills ?? 0;
+  const contexto = preenchido
+    ? `${total} comandos`
+    : `${total} comandos, clique pra começar a entrevista`;
 
   return (
     <div className="no-cerebro">
-      <div
-        className="miolo"
-        onClick={() => dados.aoClicar()}
-        role="button"
-        tabIndex={0}
-      >
+      {/* Botao de verdade, nao div com role: assim Enter e espaco abrem o no
+          de graca, e o anel de foco de teclado aparece sem CSS proprio. */}
+      <button type="button" className="miolo" onClick={() => dados.aoClicar()}>
         <IconeCerebro className="icone-cerebro" />
-        <div className="titulo">Cérebro</div>
-        <div className="sub">
+        <span className="titulo">Cérebro</span>
+        {/* O estado do Cerebro e um selo, na gramatica das primitivas. Em
+            branco e uma pendencia (aviso), nao um erro. */}
+        <span className={`selo${preenchido ? "" : " selo-aviso"}`}>
           {preenchido ? "Identidade carregada" : "Ainda em branco"}
-        </div>
-        <div className="meta">
-          {total} comandos. Clique para criar.
-        </div>
-        {!preenchido && (
-          <div className="aviso">Clique pra começar a entrevista.</div>
-        )}
-      </div>
-      <Handle type="source" position={Position.Right} />
+        </span>
+        <span className="meta">{contexto}</span>
+      </button>
+      {/* Ancora, nao alca: a aresta Cerebro -> sessao e automatica, toda sessao
+          ja nasce com a dela. Deixar arrastavel so criava um gesto que o
+          onConnect descartava calado. */}
+      <Handle type="source" position={Position.Right} isConnectable={false} />
     </div>
   );
 }

@@ -369,9 +369,19 @@ export function usarMotorEdicao(
       s.id = "vkos-ed-runtime";
       doc.head.appendChild(s);
     }
-    // A cor vem do token --menta do documento do HUB, resolvida agora: o doc do
-    // iframe nao enxerga as variaveis do app. Ver editor/tema.ts.
-    const menta = corDoTema("--menta");
+    // A cor vem do token --menta-viva do documento do HUB, resolvida agora: o
+    // doc do iframe nao enxerga as variaveis do app. Ver editor/tema.ts.
+    //
+    // POR QUE --menta-viva E NAO --menta, NEM --acao. Esta e a UNICA marcacao
+    // de selecao do Hub que nao segue a regra "selecionado e superficie mais
+    // fio em --acao": ela e desenhada por cima do conteudo COLORIDO do
+    // usuario, que pode ser preto, branco ou qualquer foto. A tinta de --acao
+    // (quase preta no Claro, quase branca no Escuro) desapareceria em metade
+    // das pecas. O --menta-viva e o token de SINAL do sistema, passa em 3:1
+    // contra os quatro planos nos dois temas e nao se confunde com nenhuma
+    // cor de moldura, porque a moldura nao tem cor. E instrumentacao de
+    // editor, removida na serializacao, nunca parte da peca.
+    const menta = corDoTema("--menta-viva");
     const canais = canaisRgb(menta) || "47, 212, 167";
     s.textContent =
       `[data-ed-sel]{outline:2px solid ${menta} !important;outline-offset:-2px !important;cursor:move !important;}` +
@@ -1382,7 +1392,7 @@ export function usarMotorEdicao(
       e.stopPropagation();
       // A exclusao continua passando pela confirmacao de quem monta a tela: o
       // Desfazer some depois de salvar, entao apagar por tecla sem aviso seria
-      // uma perda silenciosa. Ver decisoes/2026-07-27-manipulacao-direta-studio.md.
+      // uma perda silenciosa. Ver docs/decisoes/2026-07-27-manipulacao-direta-no-studio.md.
       optsRef.current.aoPedirExcluir?.();
       return;
     }

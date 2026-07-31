@@ -1,0 +1,470 @@
+/* ==========================================================================
+   STUDIO DE SITE. Fundação v2, redesenhado em 2026-07-30.
+
+   Tela cheia irmã do Studio do carrossel: barra de topo com o nome do site e
+   as ações, viewport central com a página real num iframe escalado, painel de
+   ajuste com IA e, no modo Editar, o inspetor de propriedades (PainelSite).
+
+   A regra que decide esta tela: o que está no meio dela é a PÁGINA DO CLIENTE,
+   que tem a cor, a fonte e o desenho do negócio dele. A moldura em volta é
+   acromática, senão o preview deixa de ser preview. O que saiu por isso: os
+   cinco grupos segmentados (modo, presets de largura, zoom, modelo de IA e
+   escopo da mudança) marcavam o ligado com preenchimento de menta, cinco vozes
+   verdes em volta de uma página colorida. Todos passaram a `.segmentado` das
+   primitivas, que marca o ligado com superfície e peso.
+
+   O inspetor, a coluna lateral, as camadas, os controles de imagem e a galeria
+   de fontes vêm de `componentes/editor/editor.css`, compartilhados com os
+   outros dois ambientes de edição. Aqui fica só o que é desta tela.
+
+   O que NÃO mudou, de propósito: nenhum passo, botão, atalho ou rota. E o
+   botão de fechar e o alternador de painel continuam sem `disabled` em estado
+   nenhum, que é a decisão de 2026-07-27-o-usuario-descreve-a-imagem.md.
+   ========================================================================== */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler é a que vale, e o bundler não garante qual vem primeiro. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A tela compõe `.tela` e nasce OPACA, sem fade de entrada. */
+.tela-site {
+  z-index: var(--z-camada);
+}
+
+/* ===== Barra de topo ===================================================== */
+.site-voltar svg {
+  transform: rotate(180deg);
+}
+/* Nome do site em cima, arquivo da página aberta embaixo. */
+.site-titulo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.site-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A seta de "abrir no navegador" aponta pra fora. */
+.site-icone-abrir {
+  transform: rotate(-45deg);
+}
+
+/* Faixa de aviso ou de erro, na largura da tela e logo abaixo da barra. */
+.site-faixa {
+  flex: none;
+  padding: var(--esp-8) var(--esp-24);
+}
+
+/* ===== Corpo: palco central e coluna lateral ============================= */
+.site-corpo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.site-palco {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* A barra de controles do preview. Ela compõe `.barra-ferramentas` e fica
+   grudada acima do viewport, então não leva a margem inferior da primitiva. */
+.site-barra {
+  flex: none;
+  margin-bottom: 0;
+  padding: var(--esp-8) var(--esp-16);
+  border-bottom: 1px solid var(--linha);
+  background: var(--superficie);
+}
+.site-select-pagina {
+  max-width: 200px;
+}
+
+/* O viewport abriga o iframe escalado. Fundo do plano de trabalho, sem
+   textura: a página do cliente é a única coisa com desenho próprio aqui. */
+.site-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-24);
+  overflow: hidden;
+  background: var(--fundo);
+}
+/* No modo Editar o zoom é fixo e a página pode ficar maior que a área: ela
+   rola em vez de cortar. "safe" mantém o início alcançável ao transbordar. */
+.site-viewport.editando {
+  overflow: auto;
+  overscroll-behavior: contain;
+  align-items: safe center;
+  justify-content: safe center;
+}
+
+/* A moldura em volta do preview. O papel é branco em qualquer tema, de
+   propósito: é a folha do cliente, não uma superfície do Hub, e uma página web
+   renderiza branca independente do tema em que o Hub está. */
+.site-moldura {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  background: var(--papel);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  transition: width var(--mov-rapido) var(--curva),
+    height var(--mov-rapido) var(--curva);
+}
+.site-frame {
+  border: 0;
+  display: block;
+  transform-origin: top left;
+}
+/* Medida em pixel do preview, no canto. Ela não é clicável. */
+.site-medida {
+  position: absolute;
+  right: var(--esp-16);
+  bottom: var(--esp-16);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ===== Painel Ajustar com IA ============================================= */
+.site-ajuste-icone {
+  width: 17px;
+  height: 17px;
+  color: var(--texto-fraco);
+}
+.site-ajuste-campo {
+  min-height: calc(var(--base) * 28);
+}
+/* Atalho pronto no topo do painel: um preset do mesmo fluxo de ajuste, não um
+   caminho novo. Ele se anuncia parado, com superfície e fio próprios. */
+.site-revisao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--esp-2);
+  width: 100%;
+  padding: var(--esp-8) var(--esp-12);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  transition: border-color var(--transicao), background var(--transicao);
+}
+.site-revisao:hover:not(:disabled) {
+  background: var(--superficie-alta);
+}
+.site-revisao:disabled {
+  cursor: not-allowed;
+  background: var(--superficie-alta);
+  border-color: var(--linha);
+}
+.site-revisao-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.site-revisao-titulo svg {
+  color: var(--texto-fraco);
+}
+.site-revisao-desc {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* ===== Aviso de conflito externo =========================================
+   Faixa que FLUTUA no rodapé, sem recarregar por cima do trabalho. Ela fica
+   parada enquanto o canvas rola, então a sombra de popover é legítima. */
+.site-conflito {
+  position: absolute;
+  left: 50%;
+  bottom: var(--esp-24);
+  transform: translateX(-50%);
+  z-index: var(--z-popover);
+  width: min(620px, calc(100% - var(--esp-48)));
+  box-shadow: var(--sombra-popover);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+.site-conflito-texto strong {
+  display: block;
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.site-conflito-texto span {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* ===== Inspetor do modo Editar (PainelSite) ==============================
+   Ele compõe `.ed-lateral` e o inspetor de `editor.css`. O que sobra aqui é
+   só o que existe neste painel e em nenhum outro. */
+
+/* O corpo rolante do inspetor. Ele não leva `.editor-painel`: a largura, a
+   superfície e a borda da coluna já vêm do `.ed-lateral` em volta, e as duas
+   classes juntas dariam dois fios na mesma divisa. */
+.ps-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Campo numérico com a unidade grudada. */
+.ps-num {
+  position: relative;
+}
+.ps-num .campo {
+  padding-right: var(--esp-24);
+  font-variant-numeric: tabular-nums;
+}
+.ps-num-un {
+  position: absolute;
+  right: var(--esp-8);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  pointer-events: none;
+}
+
+/* Amostra de cor sem cor definida: xadrez discreto, pra ficar claro que o
+   fundo é transparente e não branco. */
+.ps-swatch-vazio {
+  background:
+    linear-gradient(45deg, var(--superficie-alta) 25%, transparent 25%) 0 0 / 12px 12px,
+    linear-gradient(-45deg, var(--superficie-alta) 25%, transparent 25%) 0 6px / 12px 12px,
+    var(--superficie);
+}
+.ps-fundo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+.ps-fundo .cor-swatch {
+  flex: 1;
+}
+
+.ps-wa {
+  display: flex;
+  gap: var(--esp-8);
+}
+.ps-wa .campo {
+  flex: 1;
+}
+.ps-wa-abrir {
+  width: 100%;
+}
+
+/* Estado de erro da tela: a peça não existe mais. */
+.tela-site-erro {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Lista de seções da página. Ela compõe `.lista` e `.item-lista`: a linha se
+   anuncia parada e as quatro ações nascem visíveis, porque ação que só aparece
+   no hover não existe pro teclado nem pro toque. */
+.ps-secao-item {
+  position: relative;
+  min-height: var(--alt);
+  padding: var(--esp-4) var(--esp-4) var(--esp-4) 0;
+  gap: var(--esp-4);
+}
+.ps-secao-rotulo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-8);
+  text-align: left;
+}
+/* Balãozinho de confirmação de exclusão: flutua sobre a linha. */
+.ps-confirma {
+  position: absolute;
+  top: calc(var(--esp-12) * -1);
+  right: var(--esp-8);
+  z-index: var(--z-popover);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-medio);
+  color: var(--alerta);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--alerta-linha);
+  box-shadow: var(--sombra-popover);
+  white-space: nowrap;
+}
+
+/* Bloco de cores do site, colapsável. */
+.ps-cores-cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  width: 100%;
+  min-height: var(--alt-p);
+  text-align: left;
+}
+/* Chevron: aponta pra direita fechado, pra baixo aberto. */
+.ps-cores-seta {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-fraco);
+  transform: rotate(180deg);
+  transition: transform var(--transicao);
+}
+.ps-cores-seta.aberto {
+  transform: rotate(-90deg);
+}
+.ps-camadas .camadas-lista {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.ps-vira {
+  transform: rotate(180deg);
+}
+.ps-vira-esq {
+  transform: rotate(180deg);
+}
+/* Exclusão armada: o segundo clique confirma, e a linha diz isso pela cor do
+   próprio botão. */
+.ps-excluir.armado {
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+  border-color: var(--alerta-linha);
+}
+.ps-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* ===== Exportar ==========================================================
+   Painel ancorado no canto superior direito. Ele fica parado sobre a tela
+   inteira, então leva --sombra-modal. */
+.site-exportar {
+  position: absolute;
+  top: var(--esp-8);
+  right: var(--esp-16);
+  z-index: var(--z-popover);
+  width: min(480px, calc(100% - var(--esp-32)));
+  max-height: calc(100% - var(--esp-24));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--texto);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-modal);
+  animation: surgir-ancorado var(--mov-padrao) var(--curva) both;
+}
+.site-exportar-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-16);
+  padding: var(--esp-16);
+}
+.site-exportar-carregando {
+  padding: var(--esp-24);
+  color: var(--texto-suave);
+  text-align: center;
+}
+/* Cada gesto da exportação é uma SEÇÃO, não um cartão. O painel já é uma
+   superfície flutuante: um cartão aqui dentro seria cartão dentro de cartão,
+   que era exatamente o desenho anterior. */
+.site-exportar-gesto p {
+  margin-top: var(--esp-2);
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+.site-exportar-gesto .botao {
+  width: 100%;
+  margin-top: var(--esp-8);
+}
+.site-exportar-ultima {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+.site-exportar-lista {
+  margin: var(--esp-4) 0 0;
+  padding-left: var(--esp-16);
+}
+.site-exportar-lista li + li {
+  margin-top: var(--esp-4);
+}
+
+/* ===== Tela estreita =====================================================
+   Nada aqui muda passo, botão nem rota: o mesmo conteúdo passa a quebrar em
+   vez de transbordar. Sem estas regras, em 390px a barra de topo e a coluna
+   lateral empurravam a página inteira pra fora da viewport. */
+@media (max-width: 860px) {
+  .ed-topo {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tela-topo-acoes {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .site-corpo {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .site-ajuste,
+  .ps-painel {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--linha);
+  }
+  .site-palco {
+    min-height: 420px;
+  }
+  .site-exportar {
+    top: auto;
+    left: var(--esp-8);
+    right: var(--esp-8);
+    width: auto;
+  }
+}
+
+/* Movimento reduzido: esta folha usa só `surgir` e `surgir-ancorado`, que são
+   das primitivas e já têm o substituto declarado na camada `base`. É lá que
+   ele precisa estar: para declaração `!important` a ordem das camadas se
+   inverte, e a rede geral do `global.css`, que vive na `base`, venceria
+   qualquer substituto escrito numa folha de tela. */
+
+} /* fim de @layer tela */

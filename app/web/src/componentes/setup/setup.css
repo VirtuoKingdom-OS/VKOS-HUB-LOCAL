@@ -1,0 +1,206 @@
+/* ==========================================================================
+   SETUP: a configuracao guiada do motor de IA.
+
+   REDESENHADA na Fase 2 do redesign v2 (2026-07-30).
+
+   ELA E A PRIMEIRA TELA QUE UM CLIENTE NOVO VE NA VIDA, e o desenho sai disso:
+
+   - O cartao central saiu. A tela inteira JA e a tela do setup: um cartao de
+     760px por 590px dentro dela era uma caixa desenhando a borda de outra
+     caixa. Agora o conteudo se apoia direto no plano de trabalho, numa coluna
+     de 640px, que e onde uma frase longa ainda se le sem varrer a cabeca.
+   - Os tres pontos de menta boiando no fundo sairam. Eles nao marcavam estado
+     nenhum: eram enfeite, e enfeite na primeira tela cobra atencao de quem
+     ainda esta entendendo o que aquilo e.
+   - O progresso ficou honesto e ESCRITO: "Passo 2 de 5" em palavra, mais a
+     barra ao lado. A regua de bolinhas dizia que havia cinco passos e nada
+     mais, e quem nao contasse nao sabia onde estava.
+   - Um passo, um titulo, uma frase, uma decisao e UMA acao principal, sempre
+     no mesmo canto: embaixo, a direita.
+   - As caixas de estado viraram .faixa das primitivas, e o "terminal" com tres
+     bolinhas de janela virou o bloco de resposta, que e o que ele e.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+/* O setup substitui o Hub inteiro enquanto a primeira execucao nao termina,
+   entao ele fica acima de tudo, no degrau mais alto da escala. */
+.setup {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-aviso);
+  display: flex;
+  flex-direction: column;
+  background: var(--fundo);
+}
+
+/* A linha de cima: a marca, onde a pessoa esta, e a saida. */
+.setup-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-24);
+  min-height: calc(var(--base) * 14);
+  padding: var(--esp-12) var(--esp-24);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linha);
+}
+.setup-progresso-bloco {
+  flex: 1;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+/* A saida fica na ponta oposta da marca: e a unica coisa da barra que nao faz
+   parte do caminho. */
+.setup-topo > .botao {
+  margin-left: auto;
+}
+.setup-progresso-rotulo {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+
+.setup-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--esp-48) var(--esp-24);
+}
+
+/* A coluna do passo. 640px e mais estreito que os 720px do formulario padrao
+   de proposito: aqui o que manda e a frase, nao o campo. */
+.setup-passo {
+  width: min(640px, 100%);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-16);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+/* O rotulo que nomeia o passo. Frase normal, tinta suave: ele apresenta o
+   titulo, nao compete com ele. */
+.setup-sobre {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+.setup-passo h1 {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+.setup-legenda {
+  max-width: 62ch;
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  color: var(--texto-suave);
+}
+/* A segunda linha de uma faixa de estado: o detalhe do que a primeira diz. */
+.setup-faixa-detalhe {
+  display: block;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.setup-motores {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.setup-motores .selo {
+  align-self: flex-start;
+  margin-top: var(--esp-4);
+}
+
+/* A instalacao na mao, para quem prefere. Fechada por padrao: ela e a saida
+   alternativa, nao o caminho. */
+.setup-manual > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--alt-p);
+  cursor: pointer;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-suave);
+}
+.setup-manual > summary:hover {
+  color: var(--texto);
+}
+.setup-comando {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  margin-top: var(--esp-8);
+  padding: var(--esp-8) var(--esp-8) var(--esp-8) var(--esp-12);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+.setup-comando code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto);
+  white-space: nowrap;
+}
+
+/* A resposta do teste real. Superficie com fio, sem cromo de janela. */
+.setup-resposta {
+  display: flex;
+  flex-direction: column;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+  overflow: hidden;
+}
+.setup-resposta-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+.setup-resposta pre {
+  min-height: calc(var(--base) * 30);
+  max-height: calc(var(--base) * 60);
+  overflow: auto;
+  padding: var(--esp-12);
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-corpo);
+  color: var(--texto);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Tela baixa aperta a MOLDURA, nunca o conteudo: o que sai e folga. */
+@media (max-height: 780px) {
+  .setup-corpo {
+    padding-top: var(--esp-24);
+    padding-bottom: var(--esp-24);
+  }
+}
+
+@media (max-width: 640px) {
+  .setup-topo {
+    gap: var(--esp-12);
+  }
+  .setup-progresso-bloco {
+    max-width: none;
+  }
+}
+} /* fim de @layer tela */

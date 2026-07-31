@@ -7,6 +7,11 @@ import { mensagemDeErro } from "../../util/erros";
 import { IconeGaleria, IconeX } from "../comum/Icones";
 import { ehImagem } from "../telas/fontes";
 
+// A folha entra por aqui porque a galeria tambem abre de dentro das telas de
+// Criacao, que nao carregam o editor. Ate 2026-07-27 o estilo dela morava no
+// global.css e vinha de graca, o que escondia essa dependencia.
+import "./editor.css";
+
 export interface ArquivoGaleriaFonte {
   contextoId: string;
   nome: string;
@@ -64,33 +69,39 @@ export function GaleriaFontes({ aberta, aoFechar, aoEscolher }: Props) {
 
   return createPortal(
     <div
-      className="galeria-fontes-camada"
+      /* "galeria-fontes-camada" nao veste nada: e o que o Escape do Studio
+         procura pra saber que esta janela esta aberta na frente do canvas e
+         nao limpar a selecao junto. Ver TelaStudio.tsx. */
+      className="veu-modal galeria-fontes-camada"
       role="presentation"
       onMouseDown={(evento) => {
         if (evento.target === evento.currentTarget && !carregando) aoFechar();
       }}
     >
-      <section className="galeria-fontes-modal" role="dialog" aria-modal="true" aria-label="Imagens das fontes de dados">
-        <header className="galeria-fontes-topo">
-          <div>
-            <span className="galeria-fontes-marca">
-              <IconeGaleria className="" />
-            </span>
-            <div>
-              <h2>Fontes de dados</h2>
-              <p>Escolha uma imagem para usar nesta criação.</p>
-            </div>
-          </div>
-          <button type="button" onClick={aoFechar} disabled={!!carregando} aria-label="Fechar galeria">
+      <section className="modal modal-g" role="dialog" aria-modal="true" aria-label="Imagens das fontes de dados">
+        <header className="modal-topo">
+          <h2>Fontes de dados</h2>
+          <button
+            type="button"
+            className="botao botao-p botao-icone botao-fantasma"
+            onClick={aoFechar}
+            disabled={!!carregando}
+            aria-label="Fechar galeria"
+          >
             <IconeX className="" />
           </button>
         </header>
 
-        <div className="galeria-fontes-corpo">
+        <div className="modal-corpo galeria-fontes-corpo">
           {grupos.length === 0 ? (
-            <div className="galeria-fontes-vazia">
+            /* Estado vazio ENSINA: o que é aquilo e qual é a próxima ação. */
+            <div className="vazio">
               <IconeGaleria className="" />
-              <p>Nenhuma imagem nas fontes de dados ainda.</p>
+              <h2>Nenhuma imagem guardada ainda</h2>
+              <p>
+                As imagens que você enviar nas fontes de dados do workspace
+                aparecem aqui, prontas para reusar em qualquer criação.
+              </p>
             </div>
           ) : (
             grupos.map((grupo) => (
@@ -120,7 +131,11 @@ export function GaleriaFontes({ aberta, aoFechar, aoEscolher }: Props) {
               </section>
             ))
           )}
-          {erro && <p className="galeria-fontes-erro">{erro}</p>}
+          {erro && (
+            <p className="faixa faixa-alerta" role="alert">
+              {erro}
+            </p>
+          )}
         </div>
       </section>
     </div>,

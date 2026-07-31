@@ -15,9 +15,11 @@ import type {
   ProvedorIA,
 } from "../../tipos/dominio";
 import { mensagemDeErro } from "../../util/erros";
+import { Botao } from "../comum/Botao";
 import { IconeAlerta, IconeCheck, IconeRaio, IconeSeta } from "../comum/Icones";
 import { Marca } from "../comum/Telas";
-import "../../estilos/setup.css";
+import "./setup.css";
+import { irParaTela } from "../layout/rotas";
 
 type Passo = "boas-vindas" | "motor" | "detectar" | "login" | "teste" | "pronto";
 
@@ -41,6 +43,10 @@ const ORDEM_COMPLETA: Passo[] = [
   "pronto",
 ];
 
+// A configuracao guiada. Ela e a PRIMEIRA tela que um cliente novo ve na vida,
+// entao ela e calma: um passo por vez, uma coluna estreita, um titulo, uma
+// frase, uma decisao e uma acao principal. O progresso e honesto, escrito em
+// palavra ("Passo 2 de 5") e desenhado na barra ao lado.
 export function TelaSetup({
   primeiraExecucao,
   provedorAtual,
@@ -209,39 +215,44 @@ export function TelaSetup({
   }
 
   const nomeMotor = provedor === "codex" ? "Codex" : "Claude";
+  const passoAtual = indicePasso + 1;
 
   return (
     <main className="setup">
-      <div className="setup-ambiente" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-      <section className="setup-cartao">
-        <header className="setup-topo">
-          <Marca />
-          <div className="setup-progresso" aria-label={`Passo ${indicePasso + 1} de ${ordem.length}`}>
-            {ordem.map((item, indice) => (
-              <span
-                key={item}
-                className={indice === indicePasso ? "ativo" : indice < indicePasso ? "feito" : ""}
-              />
-            ))}
+      <header className="setup-topo">
+        <Marca />
+        <div className="setup-progresso-bloco">
+          <span className="setup-progresso-rotulo">
+            Passo {passoAtual} de {ordem.length}
+          </span>
+          <div
+            className="progresso"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={ordem.length}
+            aria-valuenow={passoAtual}
+            aria-label="Progresso da configuração"
+          >
+            <div
+              className="progresso-barra"
+              style={{ width: `${(passoAtual / ordem.length) * 100}%` }}
+            />
           </div>
-          {!primeiraExecucao && (
-            <button
-              type="button"
-              className="setup-fechar"
-              onClick={() => {
-                window.location.hash = "#/conexoes";
-              }}
-            >
-              Voltar
-            </button>
-          )}
-        </header>
+        </div>
+        {!primeiraExecucao && (
+          <Botao
+            variante="fantasma"
+            onClick={() => {
+              irParaTela("conexoes");
+            }}
+          >
+            Sair
+          </Botao>
+        )}
+      </header>
 
-        <div className="setup-miolo" key={passo}>
+      <div className="setup-corpo">
+        <div className="setup-passo" key={passo}>
           {passo === "boas-vindas" && (
             <PassoBoasVindas aoContinuar={() => setPasso("motor")} />
           )}
@@ -313,37 +324,43 @@ export function TelaSetup({
           )}
 
           {erro && (
-            <div className="setup-erro" role="alert">
-              <IconeAlerta />
-              <span>{erro}</span>
+            <div className="faixa faixa-alerta" role="alert">
+              <IconeAlerta className="" />
+              <div className="faixa-texto">{erro}</div>
             </div>
           )}
         </div>
-      </section>
+      </div>
     </main>
   );
+}
+
+// O rotulo que nomeia o passo. Frase normal, nunca caixa alta.
+function Sobre({ children }: { children: string }) {
+  return <p className="setup-sobre">{children}</p>;
 }
 
 function PassoBoasVindas({ aoContinuar }: { aoContinuar: () => void }) {
   return (
     <>
-      <span className="setup-sobre">Primeira abertura</span>
+      <Sobre>Primeira abertura</Sobre>
       <h1>Seu negócio, com uma equipe de IA por baixo.</h1>
       <p className="setup-legenda">
         Vamos preparar o motor que o VKOS Hub usa para trabalhar. Leva poucos
         minutos e acontece só nesta máquina.
       </p>
-      <div className="setup-destaque">
-        <IconeRaio />
-        <div>
-          <strong>Você escolhe a conta</strong>
-          <span>Use Claude ou ChatGPT. O hub não guarda a sua senha.</span>
+      <div className="faixa" role="note">
+        <IconeRaio className="" />
+        <div className="faixa-texto">
+          <strong>Você escolhe a conta.</strong> Use Claude ou ChatGPT. O Hub
+          não guarda a sua senha.
         </div>
       </div>
-      <div className="setup-acoes direita">
-        <button className="botao botao-principal" onClick={aoContinuar}>
-          Começar <IconeSeta />
-        </button>
+      <div className="acoes-formulario">
+        <Botao variante="principal" tamanho="m" onClick={aoContinuar}>
+          Começar
+          <IconeSeta className="" />
+        </Botao>
       </div>
     </>
   );
@@ -362,49 +379,44 @@ function PassoMotor({
 }) {
   return (
     <>
-      <span className="setup-sobre">Motor de IA</span>
-      <h1>Com quem o hub vai trabalhar?</h1>
+      <Sobre>Motor de IA</Sobre>
+      <h1>Com quem o Hub vai trabalhar?</h1>
       <p className="setup-legenda">
         Escolha pela conta que você já usa. Dá para trocar depois em Conexões.
       </p>
-      <div className="setup-motores">
-        <CartaoMotor
+      <fieldset className="opcoes setup-motores">
+        <legend className="so-leitor">Motor de IA</legend>
+        <OpcaoMotor
           id="claude"
           nome="Claude"
-          selo="Claude Pro, Max ou API"
-          texto="Melhor compatibilidade com as conexões MCP e com as skills originais do VKOS."
+          texto="Melhor compatibilidade com as conexões MCP e com as skills originais do VKOS. Conta Claude Pro, Max ou API."
           deteccao={ambiente?.claude}
           ativo={selecionado === "claude"}
           aoEscolher={aoEscolher}
         />
-        <CartaoMotor
+        <OpcaoMotor
           id="codex"
           nome="Codex"
-          selo="ChatGPT Plus, Pro ou API"
-          texto="Usa sua conta OpenAI. O custo mostrado no hub é uma estimativa por tokens."
+          texto="Usa sua conta OpenAI, do ChatGPT Plus, Pro ou API. O custo mostrado no Hub é uma estimativa por tokens."
           deteccao={ambiente?.codex}
           ativo={selecionado === "codex"}
           aoEscolher={aoEscolher}
         />
-      </div>
-      <p className="setup-nota">Conexões MCP funcionam só com Claude nesta versão.</p>
-      <div className="setup-acoes direita">
-        <button
-          className="botao botao-principal"
-          disabled={!selecionado}
-          onClick={aoContinuar}
-        >
-          Continuar <IconeSeta />
-        </button>
+      </fieldset>
+      <p className="dica">Conexões MCP funcionam só com Claude nesta versão.</p>
+      <div className="acoes-formulario">
+        <Botao variante="principal" disabled={!selecionado} onClick={aoContinuar}>
+          Continuar
+          <IconeSeta className="" />
+        </Botao>
       </div>
     </>
   );
 }
 
-function CartaoMotor({
+function OpcaoMotor({
   id,
   nome,
-  selo,
   texto,
   deteccao,
   ativo,
@@ -412,31 +424,27 @@ function CartaoMotor({
 }: {
   id: ProvedorIA;
   nome: string;
-  selo: string;
   texto: string;
   deteccao?: DeteccaoMotorIA;
   ativo: boolean;
   aoEscolher: (id: ProvedorIA) => void;
 }) {
   return (
-    <button
-      type="button"
-      className={`setup-motor${ativo ? " ativo" : ""}`}
-      onClick={() => aoEscolher(id)}
-      aria-pressed={ativo}
-    >
-      <span className="setup-motor-cabeca">
-        <strong>{nome}</strong>
-        {ativo && <IconeCheck />}
-      </span>
-      <span className="setup-motor-selo">{selo}</span>
-      <span className="setup-motor-texto">{texto}</span>
-      <span className={`setup-motor-estado${deteccao?.instalado ? " ok" : ""}`}>
+    <label className="opcao">
+      <input
+        type="radio"
+        name="setup-motor"
+        checked={ativo}
+        onChange={() => aoEscolher(id)}
+      />
+      <span className="opcao-titulo">{nome}</span>
+      <span className="opcao-descricao">{texto}</span>
+      <span className={deteccao?.instalado ? "selo selo-vivo" : "selo"}>
         {deteccao?.instalado
           ? `Encontrado${deteccao.versao ? `, ${deteccao.versao}` : ""}`
           : "Ainda não encontrado"}
       </span>
-    </button>
+    </label>
   );
 }
 
@@ -470,68 +478,90 @@ function PassoDetectar({
   const encontrado = deteccao?.instalado === true;
   return (
     <>
-      <span className="setup-sobre">Programa local</span>
+      <Sobre>Programa local</Sobre>
       <h1>{encontrado ? `${nomeMotor} encontrado.` : `Vamos instalar o ${nomeMotor}.`}</h1>
       <p className="setup-legenda">
         {encontrado
           ? "O programa está disponível nesta máquina. Confira a versão e siga."
-          : "O Hub pode baixar e instalar o programa oficial para você. Sua conta será conectada somente no próximo passo."}
+          : "O Hub pode baixar e instalar o programa oficial para você. Sua conta entra só no próximo passo."}
       </p>
-      <div className={`setup-status${encontrado ? " ok" : ""}`}>
-        <span className="setup-status-icone">
-          {encontrado ? <IconeCheck /> : <IconeAlerta />}
-        </span>
-        <div>
-          <strong>{encontrado ? `${nomeMotor} pronto` : `${nomeMotor} não encontrado`}</strong>
-          <span>{deteccao?.versao ?? "Aguardando a instalação"}</span>
+
+      <div
+        className={encontrado ? "faixa faixa-boa" : "faixa"}
+        role="status"
+        aria-live="polite"
+      >
+        {encontrado ? <IconeCheck className="" /> : <IconeAlerta className="" />}
+        <div className="faixa-texto">
+          <strong>
+            {encontrado ? `${nomeMotor} pronto` : `${nomeMotor} não encontrado`}
+          </strong>
+          <span className="setup-faixa-detalhe">
+            {deteccao?.versao ?? "Aguardando a instalação"}
+          </span>
         </div>
       </div>
-      {!encontrado && (
-        <div className={`setup-instalacao${instalando ? " ativa" : ""}`} aria-live="polite">
-          <div className="setup-instalacao-cabeca">
-            {instalando ? <span className="giro" /> : <IconeRaio />}
-            <strong>{instalando ? "Instalando agora" : "Instalação automática"}</strong>
+
+      {!encontrado && instalando && (
+        <div className="faixa" role="status" aria-live="polite">
+          <span className="ponto-vivo" />
+          <div className="faixa-texto">
+            <strong>Instalando agora</strong>
+            <span className="setup-faixa-detalhe">
+              {progressoInstalacao.at(-1) ?? "Preparando o instalador oficial."}
+            </span>
           </div>
-          <p>
-            {instalando
-              ? progressoInstalacao.at(-1) ?? "Preparando o instalador oficial..."
-              : "O Windows pode pedir autorização. O Hub não recebe sua senha nem seus dados de login."}
-          </p>
         </div>
       )}
+
+      {!encontrado && !instalando && (
+        <p className="dica">
+          O Windows pode pedir autorização. O Hub não recebe sua senha nem seus
+          dados de login.
+        </p>
+      )}
+
       {!encontrado && (
         <details className="setup-manual">
-          <summary>Usar instalação manual</summary>
+          <summary>Prefiro instalar na mão</summary>
           <div className="setup-comando">
             <code>{comando}</code>
-            <button type="button" onClick={aoCopiar}>{copiado ? "Copiado" : "Copiar"}</button>
+            <Botao tamanho="p" onClick={aoCopiar}>
+              {copiado ? "Copiado" : "Copiar"}
+            </Botao>
           </div>
         </details>
       )}
-      <div className="setup-acoes">
-        <button className="botao botao-fantasma" onClick={aoVoltar} disabled={instalando}>Voltar</button>
+
+      <div className="acoes-formulario">
+        <Botao variante="fantasma" onClick={aoVoltar} disabled={instalando}>
+          Voltar
+        </Botao>
+        <span className="acoes-formulario-espaco" />
         {encontrado ? (
-          <button className="botao botao-principal" onClick={aoContinuar}>
-            Continuar <IconeSeta />
-          </button>
+          <Botao variante="principal" onClick={aoContinuar}>
+            Continuar
+            <IconeSeta className="" />
+          </Botao>
         ) : (
-          <div className="setup-acoes-grupo">
-            <button
-              className="botao botao-fantasma"
+          <>
+            <Botao
+              variante="neutro"
               onClick={aoVerificar}
               disabled={verificando || instalando}
+              aria-busy={verificando}
             >
-              {verificando ? "Verificando" : "Já instalei"}
-            </button>
-            <button
-              className="botao botao-principal"
+              Já instalei
+            </Botao>
+            <Botao
+              variante="principal"
               onClick={aoInstalar}
               disabled={instalando || verificando}
+              aria-busy={instalando}
             >
-              {instalando ? "Instalando" : `Instalar ${nomeMotor}`}
-              {!instalando && <IconeSeta />}
-            </button>
-          </div>
+              Instalar {nomeMotor}
+            </Botao>
+          </>
         )}
       </div>
     </>
@@ -560,32 +590,59 @@ function PassoLogin({
   const logado = deteccao?.logado === true;
   return (
     <>
-      <span className="setup-sobre">Sua conta</span>
+      <Sobre>Sua conta</Sobre>
       <h1>{logado ? "Conta conectada." : `Entre no ${nomeMotor}.`}</h1>
       <p className="setup-legenda">
         {logado
           ? "A autenticação foi confirmada pelo programa instalado."
-          : "Vamos abrir uma janela do terminal com o login oficial. Sua senha não passa pelo hub."}
+          : "Vamos abrir uma janela do terminal com o login oficial. Sua senha não passa pelo Hub."}
       </p>
-      <div className={`setup-status${logado ? " ok" : ""}`}>
-        <span className="setup-status-icone">{logado ? <IconeCheck /> : <IconeRaio />}</span>
-        <div>
-          <strong>{logado ? "Login confirmado" : loginAberto ? "Aguardando o login" : "Login pendente"}</strong>
-          <span>{logado ? "Pode seguir para o teste." : "Conclua os passos na janela que abrir."}</span>
+
+      <div
+        className={logado ? "faixa faixa-boa" : "faixa"}
+        role="status"
+        aria-live="polite"
+      >
+        {logado ? <IconeCheck className="" /> : <IconeRaio className="" />}
+        <div className="faixa-texto">
+          <strong>
+            {logado
+              ? "Login confirmado"
+              : loginAberto
+              ? "Aguardando o login"
+              : "Login pendente"}
+          </strong>
+          <span className="setup-faixa-detalhe">
+            {logado
+              ? "Pode seguir para o teste."
+              : "Conclua os passos na janela que abrir."}
+          </span>
         </div>
       </div>
-      <div className="setup-acoes">
-        <button className="botao botao-fantasma" onClick={aoVoltar}>Voltar</button>
+
+      <div className="acoes-formulario">
+        <Botao variante="fantasma" onClick={aoVoltar}>
+          Voltar
+        </Botao>
+        <span className="acoes-formulario-espaco" />
         {logado ? (
-          <button className="botao botao-principal" onClick={aoContinuar}>
-            Testar conexão <IconeSeta />
-          </button>
+          <Botao variante="principal" onClick={aoContinuar}>
+            Testar conexão
+            <IconeSeta className="" />
+          </Botao>
         ) : (
           <>
-            <button className="botao botao-neutro" onClick={aoVerificar} disabled={verificando}>
-              {verificando ? "Verificando" : "Verificar agora"}
-            </button>
-            <button className="botao botao-principal" onClick={aoAbrir}>Abrir login</button>
+            <Botao
+              variante="neutro"
+              onClick={aoVerificar}
+              disabled={verificando}
+              aria-busy={verificando}
+            >
+              Verificar agora
+            </Botao>
+            <Botao variante="principal" onClick={aoAbrir}>
+              Abrir login
+            </Botao>
           </>
         )}
       </div>
@@ -613,39 +670,67 @@ function PassoTeste({
   aoContinuar: () => void;
 }) {
   const custoFormatado = useMemo(
-    () => (custo ? custo.valor.toLocaleString("pt-BR", { style: "currency", currency: "USD", minimumFractionDigits: 4 }) : ""),
+    () =>
+      custo
+        ? custo.valor.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 4,
+          })
+        : "",
     [custo]
   );
   return (
     <>
-      <span className="setup-sobre">Prova final</span>
+      <Sobre>Prova final</Sobre>
       <h1>Vamos ouvir o {nomeMotor}.</h1>
       <p className="setup-legenda">
-        Este botão faz uma chamada curta de verdade. A resposta aparece aqui ao vivo,
-        sem criar workspace, histórico ou custo salvo no hub.
+        Este botão faz uma chamada curta de verdade. A resposta aparece aqui ao
+        vivo, sem criar workspace, histórico ou custo salvo no Hub.
       </p>
-      <div className={`setup-terminal${sucesso ? " sucesso" : ""}`}>
-        <span className="setup-terminal-topo">
-          <span /><span /><span />
-          <em>{testando ? "recebendo resposta" : sucesso ? "teste concluído" : "pronto para testar"}</em>
-        </span>
-        <pre>{texto || (testando ? "Aguardando o primeiro sinal..." : "A resposta vai aparecer aqui.")}</pre>
+
+      <div className="setup-resposta">
+        <div className="setup-resposta-topo">
+          {testando && <span className="ponto-vivo" />}
+          {testando
+            ? "Recebendo resposta"
+            : sucesso
+            ? "Teste concluído"
+            : "Pronto para testar"}
+        </div>
+        <pre aria-live="polite">
+          {texto ||
+            (testando
+              ? "Aguardando o primeiro sinal."
+              : "A resposta vai aparecer aqui.")}
+        </pre>
       </div>
+
       {custo && (
-        <p className="setup-custo">
-          Custo aproximado, estimado por tabela de preços: <strong>{custoFormatado}</strong>
+        <p className="dica">
+          Custo aproximado, estimado por tabela de preços: {custoFormatado}
         </p>
       )}
-      <div className="setup-acoes">
-        <button className="botao botao-fantasma" onClick={aoVoltar} disabled={testando}>Voltar</button>
+
+      <div className="acoes-formulario">
+        <Botao variante="fantasma" onClick={aoVoltar} disabled={testando}>
+          Voltar
+        </Botao>
+        <span className="acoes-formulario-espaco" />
         {sucesso ? (
-          <button className="botao botao-principal" onClick={aoContinuar}>
-            Continuar <IconeSeta />
-          </button>
+          <Botao variante="principal" onClick={aoContinuar}>
+            Continuar
+            <IconeSeta className="" />
+          </Botao>
         ) : (
-          <button className="botao botao-principal" onClick={aoTestar} disabled={testando}>
-            {testando ? "Testando" : "Fazer teste real"}
-          </button>
+          <Botao
+            variante="principal"
+            onClick={aoTestar}
+            disabled={testando}
+            aria-busy={testando}
+          >
+            Fazer teste real
+          </Botao>
         )}
       </div>
     </>
@@ -671,31 +756,50 @@ function PassoPronto({
 }) {
   return (
     <>
-      <span className="setup-sobre">Tudo certo</span>
-      <div className="setup-celebracao"><IconeCheck /></div>
+      <Sobre>Tudo certo</Sobre>
       <h1>{nomeMotor} está pronto para trabalhar.</h1>
       <p className="setup-legenda">
         {primeiraExecucao
           ? "Agora vamos montar o Cérebro do seu negócio dentro do VKOS Hub."
           : "As próximas sessões vão usar este motor. Sessões antigas continuam no motor em que nasceram."}
       </p>
-      <button
-        type="button"
-        className={`setup-atalho${atalhoCriado ? " pronto" : ""}`}
-        onClick={aoCriarAtalho}
-        disabled={criandoAtalho || atalhoCriado}
-      >
-        <span className="setup-status-icone"><IconeRaio /></span>
-        <span>
-          <strong>{atalhoCriado ? "Atalho criado" : "Criar atalho na área de trabalho"}</strong>
-          <small>{atalhoCriado ? "VKOS Hub está na sua área de trabalho." : "Abra o hub com um clique nas próximas vezes."}</small>
-        </span>
-      </button>
-      <div className="setup-acoes direita">
-        <button className="botao botao-principal" onClick={aoConcluir} disabled={concluindo}>
-          {concluindo ? "Salvando" : primeiraExecucao ? "Configurar meu negócio" : "Voltar para Conexões"}
-          {!concluindo && <IconeSeta />}
-        </button>
+
+      <div className={atalhoCriado ? "faixa faixa-boa" : "faixa"} role="status">
+        {atalhoCriado ? <IconeCheck className="" /> : <IconeRaio className="" />}
+        <div className="faixa-texto">
+          <strong>
+            {atalhoCriado ? "Atalho criado" : "Atalho na área de trabalho"}
+          </strong>
+          <span className="setup-faixa-detalhe">
+            {atalhoCriado
+              ? "O VKOS Hub está na sua área de trabalho."
+              : "Abra o Hub com um clique nas próximas vezes."}
+          </span>
+        </div>
+        {!atalhoCriado && (
+          <div className="faixa-acoes">
+            <Botao
+              tamanho="p"
+              onClick={aoCriarAtalho}
+              disabled={criandoAtalho}
+              aria-busy={criandoAtalho}
+            >
+              Criar atalho
+            </Botao>
+          </div>
+        )}
+      </div>
+
+      <div className="acoes-formulario">
+        <Botao
+          variante="principal"
+          onClick={aoConcluir}
+          disabled={concluindo}
+          aria-busy={concluindo}
+        >
+          {primeiraExecucao ? "Configurar meu negócio" : "Voltar para Conexões"}
+          {!concluindo && <IconeSeta className="" />}
+        </Botao>
       </div>
     </>
   );

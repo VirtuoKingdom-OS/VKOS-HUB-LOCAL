@@ -3,12 +3,28 @@ import test from "node:test";
 
 import type { Sessao } from "../tipos.js";
 import {
+  ehEscopoProjeto,
   extrairPastaAlvoDoPrompt,
   geracaoVisualEmAndamento,
   promptCitaCrm,
   resolverPastaAlvoGeracaoSite,
   skillExigeCerebro,
 } from "./rotas.js";
+
+test("so o escopo de projeto tira a sessao da pasta do workspace", () => {
+  // O chat da VKOS-IDE roda na raiz da instalacao pra falar dos mesmos arquivos
+  // que a arvore dela mostra. Todo o resto continua confinado no workspace, e o
+  // padrao (campo ausente) tem que ser o confinado: escopo nao se abre por
+  // omissao nem por engano de digitacao.
+  assert.equal(ehEscopoProjeto("projeto"), true);
+  for (const valor of [undefined, null, "", "Projeto", "PROJETO", "projetos", "workspace", true, 1]) {
+    assert.equal(
+      ehEscopoProjeto(valor),
+      false,
+      `${JSON.stringify(valor)} nao pode abrir o escopo pra raiz`,
+    );
+  }
+});
 
 test("exige Cerebro nos fluxos que criam artefato visual", () => {
   assert.equal(skillExigeCerebro("carrossel"), true);

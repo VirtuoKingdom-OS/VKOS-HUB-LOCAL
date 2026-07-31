@@ -85,7 +85,7 @@ interface ValorContexto {
   // Registra uma pasta VKOS existente como cliente e ja troca pra ela.
   adicionarCliente: (pasta: string, nome?: string) => Promise<void>;
   // Cria um cliente novo clonando a estrutura do ativo. Devolve os avisos.
-  criarCliente: (nome: string, pastaDestino: string) => Promise<string[]>;
+  criarCliente: (nome: string) => Promise<string[]>;
   renomearCliente: (id: string, nome: string) => Promise<void>;
   removerCliente: (id: string) => Promise<void>;
   recarregarInicial: () => Promise<void>;
@@ -101,6 +101,8 @@ interface ValorContexto {
     // cuidado; total = sem freios. Repassada no body pro backend.
     permissao?: "padrao" | "total";
     escopoPeca?: EscopoPecaSessao;
+    // "projeto" roda na raiz da instalacao. So o chat da VKOS-IDE usa.
+    escopo?: "projeto";
     // Geracao guiada de site: liga o laco de conformidade a peca alvo.
     pastaAlvo?: string;
   }) => Promise<Sessao>;
@@ -393,6 +395,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       permissao?: "padrao" | "total";
       escopoPeca?: EscopoPecaSessao;
       pastaAlvo?: string;
+      escopo?: "projeto";
     }) => {
       // permissao viaja no body por JSON.stringify: api.criarSessao repassa o
       // objeto inteiro, entao o campo novo chega ao backend sem tocar cliente.ts.
@@ -531,8 +534,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   );
 
   const criarCliente = useCallback(
-    async (nome: string, pastaDestino: string) => {
-      const r = await api.criarWorkspaceNovo(nome, pastaDestino);
+    async (nome: string) => {
+      const r = await api.criarWorkspaceNovo(nome);
       if (r.workspace) await aplicarTrocaLocal(r.workspace.id);
       else await recarregarWorkspaces();
       return r.avisos;

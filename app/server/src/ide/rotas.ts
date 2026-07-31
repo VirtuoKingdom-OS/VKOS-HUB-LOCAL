@@ -1,7 +1,14 @@
 // Rotas da IDE de arquivos. Montado sob /api pelo index.ts.
-// Base de tudo: a pasta do workspace VKOS ATIVO (obterPastaVkos). Toda operacao
-// e escopada nessa pasta, com sanitizacao rigida do caminho: resolve + startsWith
-// na base, recusa ".." e nunca segue symlink pra fora (realpath do ancestral).
+//
+// Base de tudo: A RAIZ DO PROJETO (raizProjeto), desde 2026-07-27. Antes era a
+// pasta do workspace VKOS ativo, e a IDE mostrava cerebro/, marca/ e materiais/
+// de um cliente em vez do projeto: nem app/, nem docs/, nem ferramentas/. Ela e
+// a bancada do dono, no nivel CORE, e bancada que so alcanca uma subpasta nao e
+// bancada. Ver docs/decisoes/2026-07-27-a-ide-abre-o-projeto.md.
+//
+// Toda operacao continua escopada na base, com sanitizacao rigida do caminho:
+// resolve + startsWith na base, recusa ".." e nunca segue symlink pra fora
+// (realpath do ancestral).
 
 import {
   existsSync,
@@ -17,14 +24,31 @@ import {
 import path from "node:path";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 
-import { obterPastaVkos } from "../vkos/estado.js";
+import { raizProjeto } from "../util/raizProjeto.js";
 import { gravarTextoAtomico } from "../util/gravarJson.js";
 
-// Pastas ignoradas na arvore: ruido pesado que nao interessa editar.
+// Pastas ignoradas na arvore, por NOME, em qualquer nivel: ruido pesado que nao
+// interessa editar.
 const IGNORAR = new Set(["node_modules", ".git", "dist"]);
 
+// Pastas ignoradas por CAMINHO EXATO a partir da raiz. Diferente do IGNORAR por
+// nome: "dados" e palavra comum demais pra sumir em qualquer nivel, e a pasta
+// de dados de um cliente tem que continuar visivel.
+//
+// app/dados guarda o registro de workspaces, o CRM e o token da conexao. Some
+// da IDE e do alcance do chat de IA, mas o Hub continua lendo e gravando nela
+// normalmente: some da bancada, nao do sistema. Uma sessao no modo "Poder
+// total" reescrevendo o CRM por engano nao tem desfazer.
+const IGNORAR_CAMINHO = new Set(["app/dados"]);
+
 // Profundidade maxima da arvore, pra nao varrer o mundo em pasta funda.
-const PROFUNDIDADE_MAX = 8;
+//
+// Era 8 quando a base era a pasta do workspace. Com a base na raiz do projeto a
+// arvore comeca um nivel acima, e o mais fundo hoje ja bate 7: sobrava um
+// degrau. Truncar aqui nao avisa nada, so devolve pasta vazia, entao a margem
+// virou folga de verdade. O teto continua existindo porque a raiz e calculada,
+// e calculo errado nao pode virar varredura de disco inteiro.
+const PROFUNDIDADE_MAX = 14;
 
 // Teto de leitura de arquivo: 1MB. Acima disso responde 413.
 const LIMITE_LEITURA = 1024 * 1024;
@@ -68,29 +92,46 @@ function realpathAncestral(dir: string): string {
   }
 }
 
+// A base da IDE, com symlink ja resolvido.
+function baseCanonica(): string {
+  const raiz = raizProjeto();
+  try {
+    return realpathSync(raiz);
+  } catch {
+    return path.resolve(raiz);
+  }
+}
+
+// O caminho relativo cai numa pasta bloqueada? Pega a propria pasta e tudo que
+// esta dentro dela. Compara em minusculas porque no Windows o sistema de
+// arquivos nao diferencia caixa, e "APP/Dados" abriria a mesma pasta.
+function caminhoBloqueado(rel: string): boolean {
+  const alvo = rel.toLowerCase();
+  for (const bloqueada of IGNORAR_CAMINHO) {
+    if (alvo === bloqueada || alvo.startsWith(`${bloqueada}/`)) return true;
+  }
+  return false;
+}
+
 // Resolve um caminho relativo dentro da base ativa de forma segura.
 // Devolve a base canonica e o caminho absoluto. Lanca ErroIde 400 se sair da base.
 function resolverSeguro(rel: unknown): { base: string; abs: string; rel: string } {
-  const pasta = obterPastaVkos();
-  if (!pasta) {
-    throw new ErroIde(400, "Nenhum workspace ativo. Escolha um VKOS primeiro.");
-  }
   if (typeof rel !== "string") {
     throw new ErroIde(400, "Caminho invalido.");
   }
-  // Base canonica: resolve symlink da propria pasta do workspace.
-  let base: string;
-  try {
-    base = realpathSync(pasta);
-  } catch {
-    base = path.resolve(pasta);
-  }
+  const base = baseCanonica();
 
   // Normaliza barras e tira barra inicial pra tratar sempre como relativo.
   const limpo = rel.replace(/\\/g, "/").replace(/^\/+/, "");
   // Recusa qualquer segmento "..". Sem excecao.
   if (limpo.split("/").some((seg) => seg === "..")) {
     throw new ErroIde(400, "Caminho invalido.");
+  }
+  // O que nao aparece na arvore tambem nao se le, grava nem apaga por URL. Sem
+  // isto, app/dados sumiria da lista e continuaria alcancavel por caminho
+  // digitado, que e esconder em vez de proteger.
+  if (caminhoBloqueado(limpo)) {
+    throw new ErroIde(403, "Esse caminho e do sistema do Hub e nao abre na IDE.");
   }
 
   const abs = path.resolve(base, limpo);
@@ -124,6 +165,7 @@ function construirArvore(absDir: string, relDir: string, profundidade: number): 
     // Symlink nao entra na arvore: guarda contra escapar da base.
     if (e.isSymbolicLink()) continue;
     const rel = relDir ? `${relDir}/${e.name}` : e.name;
+    if (caminhoBloqueado(rel)) continue;
     if (e.isDirectory()) {
       pastas.push({
         nome: e.name,
@@ -150,18 +192,10 @@ function pareceBinario(buffer: Buffer): boolean {
 }
 
 export const rotasIde: FastifyPluginAsync = async (app) => {
-  // Arvore completa da pasta do workspace ativo.
-  app.get("/ide/arvore", async (_req, resposta) => {
-    const pasta = obterPastaVkos();
-    if (!pasta) {
-      return resposta.status(400).send({ erro: "Nenhum workspace ativo. Escolha um VKOS primeiro." });
-    }
-    let base: string;
-    try {
-      base = realpathSync(pasta);
-    } catch {
-      base = path.resolve(pasta);
-    }
+  // Arvore completa do projeto. Nao depende de workspace ativo: a IDE abre
+  // mesmo antes de existir um, que e o caso de quem acabou de instalar.
+  app.get("/ide/arvore", async () => {
+    const base = baseCanonica();
     const itens = construirArvore(base, "", 1);
     return { base: path.basename(base), itens };
   });

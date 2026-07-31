@@ -4,20 +4,20 @@
 
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 
 import Fastify from "fastify";
 import type { FastifyError } from "fastify";
 import cors from "@fastify/cors";
 import estatico from "@fastify/static";
 
-import { configurarWs } from "./ws.js";
+import { configurarWs } from "./nucleo/ws.js";
 import { rotasSessoes } from "./sessoes/rotas.js";
 import { gerenciador } from "./sessoes/gerenciador.js";
 import { rotasPecas, rotasVkos } from "./vkos/rotas.js";
 import { rotasAmbiente } from "./ambiente/rotas.js";
 import { rotasContextos } from "./contextos/rotas.js";
-import { rotasAnexos } from "./anexos.js";
+import { rotasAnexos } from "./anexos/rotas.js";
 import { rotasCanvas } from "./canvas/rotas.js";
 import { rotasConfig } from "./config/rotas.js";
 import { rotasWorkspaces } from "./workspaces/rotas.js";
@@ -27,11 +27,14 @@ import { rotasCore } from "./core/rotas.js";
 import { rotasCrm } from "./crm/rotas.js";
 import { rotasMensagens } from "./mensagens/rotas.js";
 import { migrarSeNecessario } from "./workspaces/migracao.js";
+import { migrarPastasParaRaizWorkspaces } from "./workspaces/migracaoPastas.js";
 import { garantirWorkspaceIntegrado } from "./workspaces/integrado.js";
 import { rotasProvedores } from "./provedores/rotas.js";
 import { rotasPublicacao } from "./publicacao/rotas.js";
-import { rotasMapa } from "./mapa.js";
+import { rotasMapa } from "./mapa/rotas.js";
 import { rotasLeads } from "./leads/rotas.js";
+import { rotasFormulario } from "./formulario/rotas.js";
+import { ehRotaDoApp } from "./nucleo/spa.js";
 
 const PORTA_PADRAO = 4600;
 const HOST = "127.0.0.1";
@@ -87,6 +90,12 @@ async function subir(): Promise<void> {
   // Migracao do estado global antigo pro primeiro workspace. Roda antes de tudo,
   // pra o registro de workspaces ja existir quando as sessoes carregarem.
   migrarSeNecessario();
+  // Recolhe pra <raiz>/workspaces/ as pastas de workspace que ficaram soltas na
+  // raiz do projeto. Depois do registro existir, antes do integrado ser
+  // procurado ao lado de app/.
+  for (const aviso of migrarPastasParaRaizWorkspaces().avisos) {
+    console.warn(aviso);
+  }
   const integrado = garantirWorkspaceIntegrado();
   if (!integrado.pronto) {
     console.warn("O VKOS integrado nao foi encontrado ao lado da pasta app.");
@@ -139,6 +148,7 @@ async function subir(): Promise<void> {
   // familia do CRM: conversa nao existe sem contato.
   await app.register(rotasMensagens, { prefix: "/api" });
   await app.register(rotasLeads, { prefix: "/api" });
+  await app.register(rotasFormulario, { prefix: "/api" });
   await app.register(rotasPublicacao, { prefix: "/api" });
   await app.register(rotasMapa, { prefix: "/api" });
 
@@ -163,6 +173,27 @@ async function subir(): Promise<void> {
           ehAsset ? "public, max-age=31536000, immutable" : "no-cache",
         );
       },
+    });
+
+    // Rota de interface que nao existe em disco devolve a casca do app. Sem
+    // isto, F5 em /crm daria 404: o navegador manda o caminho pro servidor
+    // agora, coisa que o roteamento por hash antigo escondia. A decisao de
+    // quem merece a casca mora em spa.ts, separada e testada.
+    app.setNotFoundHandler((pedido, resposta) => {
+      const naveg = ehRotaDoApp({
+        metodo: pedido.method,
+        url: pedido.url,
+        aceita: pedido.headers.accept,
+      });
+      if (!naveg) {
+        return resposta.code(404).send({ erro: "Rota nao encontrada." });
+      }
+      // O index nunca cacheia: build novo precisa chegar no usuario.
+      return resposta
+        .code(200)
+        .header("Cache-Control", "no-cache")
+        .type("text/html; charset=utf-8")
+        .send(readFileSync(join(pastaWebDist, "index.html")));
     });
   }
 

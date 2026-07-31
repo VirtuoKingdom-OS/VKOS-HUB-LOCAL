@@ -1,11 +1,14 @@
 import { IconeAlerta } from "./Icones";
+import "./comum.css";
 
 // Marca oficial, usada na sidebar e nas telas de abertura.
 export function Marca() {
   return (
     <span className="marca-logo">
       <img src="/logo.png" className="marca-img" alt="" />
-      VKOS <span style={{ color: "var(--menta-clara)" }}>HUB</span>
+      {/* O wordmark e monocromatico: o menta so fala do que esta vivo, e nome
+          de produto nao e estado. A cor da marca continua no logo ao lado. */}
+      VKOS HUB
     </span>
   );
 }
@@ -15,7 +18,7 @@ export function Splash() {
   return (
     <div className="tela-central">
       <Marca />
-      <div className="giro" />
+      <div className="girinho" role="status" aria-label="Carregando" />
       <p>Abrindo o cockpit.</p>
     </div>
   );
@@ -25,19 +28,7 @@ export function Splash() {
 export function ServidorForaDoAr({ aoTentar }: { aoTentar: () => void }) {
   return (
     <div className="tela-central">
-      <div
-        className="selo pendente"
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 16,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(var(--alerta-rgb),0.1)",
-          color: "var(--alerta)",
-        }}
-      >
+      <div className="aviso-central" aria-hidden="true">
         <IconeAlerta className="" />
       </div>
       <h1>Servidor fora do ar</h1>

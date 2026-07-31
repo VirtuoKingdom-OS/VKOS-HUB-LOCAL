@@ -17,7 +17,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { WebSocket } from "ws";
 
 import { rotasCrm } from "../crm/rotas.js";
-import { configurarWs } from "../ws.js";
+import { configurarWs } from "../nucleo/ws.js";
 import { escopoDaRotaMensagens, montarAvisoMensagens } from "./aovivo.js";
 import { rotasMensagens } from "./rotas.js";
 

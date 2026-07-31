@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { IconeCheck, IconeDuplicar, IconeLixeira, IconeSubir } from "../comum/Icones";
+import { IconeDuplicar, IconeLixeira, IconeSubir } from "../comum/Icones";
 import type { MotorEdicao } from "../editor/motor";
 import { ControlesImagem, MenuAdicionarImagem } from "../editor/ControlesImagem";
 import { PainelCamadas } from "../editor/PainelCamadas";
@@ -10,7 +10,7 @@ import {
   type AlvoImagemCapturado,
   urlImagemPreview,
 } from "../editor/imagens";
-import "../../estilos/editor.css";
+import "../editor/editor.css";
 
 // Painel direito de propriedades do Studio. Mesmo conteudo do overlay, mas
 // aqui a imagem age sobre a pagina EM FOCO (a mais visivel no scroll), nao
@@ -34,6 +34,10 @@ interface Props {
   // Pagina em foco (indice 0-based), pra imagem de fundo.
   foco: number;
   pecaPasta: string;
+  // Fora de cena, mas VIVO. Quando o painel de IA abre, este aqui sai da tela
+  // sem sair da arvore: desmontar mataria em silencio uma geracao de imagem
+  // disparada aqui, porque o hook que espera a sessao mora neste componente.
+  oculto?: boolean;
   aplicarTodas: boolean;
   aoAlternarTodas: () => void;
   // Abre a confirmacao de exclusao, que vive na tela: a tecla Delete no canvas
@@ -45,6 +49,7 @@ export function PainelPropriedades({
   motor,
   foco,
   pecaPasta,
+  oculto = false,
   aplicarTodas,
   aoAlternarTodas,
   aoPedirExcluir,
@@ -71,14 +76,16 @@ export function PainelPropriedades({
     }
   }
 
-  function aoGerar() {
+  // A descricao vem da janela do ControlesImagem e pode ser vazia: vazia, a IA
+  // trabalha so com o contexto do elemento, como sempre trabalhou.
+  function aoGerar(descricao: string) {
     setErroUpload(null);
     const alvo = motor.capturarImagemSelecionada();
     if (!alvo) {
       setErroUpload("Selecione uma imagem antes de gerar outra.");
       return;
     }
-    void geracaoImagem.gerar(pecaPasta, alvo);
+    void geracaoImagem.gerar(pecaPasta, alvo, undefined, descricao);
   }
 
   function abrirGaleria() {
@@ -124,10 +131,20 @@ export function PainelPropriedades({
   const camadas = motor.pronto ? motor.listarCamadas(foco) : [];
 
   return (
-    <aside className="editor-painel studio-painel nowheel">
-      {/* Elemento selecionado. */}
+    <aside
+      className="editor-painel nowheel"
+      aria-label="Propriedades"
+      hidden={oculto}
+      inert={oculto}
+    >
+      {/* ===== O que depende da seleção =====
+          Duas seções, e a primeira é a voz principal do painel: ela responde ao
+          clique no canvas e é a razão de o painel existir. As outras quatro,
+          daqui pra baixo, tratam da página em foco e do carrossel inteiro, e
+          por isso recuam um degrau de peso e de tinta. Nada saiu: o painel é
+          ferramenta de trabalho e continua com todos os controles. */}
       <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Elemento</div>
+        <div className="secao-titulo secao-principal">Elemento</div>
         {!sel ? (
           <p className="painel-vazio">
             Clique em qualquer parte da página para selecionar. Dois cliques
@@ -135,15 +152,15 @@ export function PainelPropriedades({
           </p>
         ) : (
           <div className="campos-elemento">
-            <div className="chip-alvo">
+            <span className="selo chip-alvo" title={`${sel.tag} ${sel.classes}`}>
               <code>{sel.tag}</code>
               {sel.classes && <span>.{sel.classes.split(" ").join(".")}</span>}
-            </div>
+            </span>
 
-            <div className="studio-elemento-acoes">
+            <div className="acoes-elemento">
               {sel.podeSubirNivel && (
                 <button
-                  className="botao botao-fantasma"
+                  className="botao botao-p botao-neutro"
                   onClick={motor.selecionarPai}
                   title="Selecionar o bloco que envolve este elemento"
                 >
@@ -153,7 +170,7 @@ export function PainelPropriedades({
               )}
               {sel.podeExcluir && (
                 <button
-                  className="botao botao-fantasma"
+                  className="botao botao-p botao-neutro"
                   onClick={motor.duplicarSelecionado}
                   title="Duplicar ao lado (Ctrl+D)"
                 >
@@ -163,7 +180,7 @@ export function PainelPropriedades({
               )}
               {sel.podeExcluir && (
                 <button
-                  className="botao botao-perigo"
+                  className="botao botao-p botao-perigo"
                   onClick={() => aoPedirExcluir("elemento")}
                   title="Excluir (Delete)"
                 >
@@ -173,29 +190,31 @@ export function PainelPropriedades({
               )}
             </div>
 
-            <label className="campo">
-              <span>Texto</span>
+            <label className="grupo-campo">
+              <span className="rotulo">Texto</span>
               <textarea
+                className="campo"
                 value={sel.texto}
                 disabled={!sel.editavelTexto}
                 onChange={(e) => motor.aplicarTexto(e.target.value)}
                 rows={2}
               />
               {!sel.editavelTexto ? (
-                <small className="campo-nota">
+                <small className="dica">
                   Dê dois cliques direto no texto, ou selecione o trecho específico.
                 </small>
               ) : sel.temDestaqueInline ? (
-                <small className="campo-nota">
+                <small className="dica">
                   Este bloco tem partes coloridas, editar aqui remove o destaque.
                   Prefira o duplo clique no canvas.
                 </small>
               ) : null}
             </label>
 
-            <label className="campo">
-              <span>Fonte</span>
+            <label className="grupo-campo">
+              <span className="rotulo">Fonte</span>
               <select
+                className="campo"
                 value={sel.fonte}
                 onChange={(e) =>
                   motor.comEstilo("font-family", valorFonte(e.target.value), aplicarTodas)
@@ -210,9 +229,10 @@ export function PainelPropriedades({
             </label>
 
             <div className="campo-linha">
-              <label className="campo">
-                <span>Tamanho</span>
+              <label className="grupo-campo">
+                <span className="rotulo">Tamanho</span>
                 <input
+                  className="campo"
                   type="number"
                   value={sel.tamanho}
                   onChange={(e) =>
@@ -220,9 +240,10 @@ export function PainelPropriedades({
                   }
                 />
               </label>
-              <label className="campo">
-                <span>Peso</span>
+              <label className="grupo-campo">
+                <span className="rotulo">Peso</span>
                 <select
+                  className="campo"
                   value={sel.peso}
                   onChange={(e) => motor.comEstilo("font-weight", e.target.value, aplicarTodas)}
                 >
@@ -233,13 +254,14 @@ export function PainelPropriedades({
                   ))}
                 </select>
               </label>
-              <label className="campo campo-cor">
-                <span>Cor</span>
+              <label className="grupo-campo campo-cor">
+                <span className="rotulo">Cor</span>
                 <label className="cor-swatch">
                   <input
                     type="color"
                     value={sel.cor}
                     onChange={(e) => motor.comEstilo("color", e.target.value, aplicarTodas)}
+                    aria-label="Cor do texto"
                   />
                   <span style={{ background: sel.cor }} />
                 </label>
@@ -251,7 +273,7 @@ export function PainelPropriedades({
               <div className="campo-posicao">
                 <span className="posicao-nota">Elemento movido</span>
                 <button
-                  className="botao botao-fantasma botao-reset-pos"
+                  className="botao botao-p botao-fantasma"
                   onClick={motor.resetarPosicao}
                 >
                   Posição original
@@ -263,15 +285,16 @@ export function PainelPropriedades({
                 So elementos absolutos ganham alca (bloco de fluxo nao). */}
             {sel.redimensionavel && (
               <div className="campo-tamanho">
-                <span className="posicao-nota">
+                <span className="dica">
                   Arraste as alças nas bordas para redimensionar. No canto, a
                   imagem mantém a proporção (Shift libera; num bloco, Shift trava).
                 </span>
                 {!sel.ehImagem && (
                   <div className="campo-tamanho-linha">
-                    <label className="campo">
-                      <span>Largura (px)</span>
+                    <label className="grupo-campo">
+                      <span className="rotulo">Largura (px)</span>
                       <input
+                        className="campo"
                         type="number"
                         min={16}
                         value={sel.larguraPx}
@@ -281,9 +304,10 @@ export function PainelPropriedades({
                         }}
                       />
                     </label>
-                    <label className="campo">
-                      <span>Altura (px)</span>
+                    <label className="grupo-campo">
+                      <span className="rotulo">Altura (px)</span>
                       <input
+                        className="campo"
                         type="number"
                         min={16}
                         value={sel.alturaPx}
@@ -303,7 +327,7 @@ export function PainelPropriedades({
 
       {/* Qualquer imagem selecionada, pequena ou grande, img ou fundo CSS. */}
       <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Imagem da página {foco + 1}</div>
+        <div className="secao-titulo">Imagem da página {foco + 1}</div>
         {sel?.ehImagem ? (
           <>
             <ControlesImagem
@@ -318,9 +342,10 @@ export function PainelPropriedades({
               aoExcluir={() => aoPedirExcluir("imagem")}
             />
             {sel.tipoImagem === "img" && (
-              <label className="campo">
-                <span>Largura (px)</span>
+              <label className="grupo-campo">
+                <span className="rotulo">Largura (px)</span>
                 <input
+                  className="campo"
                   type="number"
                   min={20}
                   value={sel.larguraPx}
@@ -329,7 +354,7 @@ export function PainelPropriedades({
                     if (v > 0) motor.comEstilo("width", `${v}px`, false);
                   }}
                 />
-                <small className="campo-nota">A altura acompanha a proporção.</small>
+                <small className="dica">A altura acompanha a proporção.</small>
               </label>
             )}
           </>
@@ -340,23 +365,31 @@ export function PainelPropriedades({
         )}
       </section>
 
-      {/* Toggle de aplicar em todas as paginas. */}
+      {/* ===== Daqui pra baixo nada depende da seleção =====
+          É a única divisa que continua sendo um fio. As outras viraram espaço:
+          seis fios em seis divisas davam a todas as seções o mesmo status, e
+          nenhuma agrupava nada. */}
+      {/* Caixa de seleção de verdade, não um botão que finge ser uma. Assim o
+          teclado e o leitor de tela funcionam de graça, e o alvo clicável é a
+          linha inteira em vez do quadradinho de 16px. */}
       <section className="painel-secao">
-        <button
-          className={`toggle-todas${aplicarTodas ? " ativo" : ""}`}
-          onClick={aoAlternarTodas}
-        >
-          <span className="toggle-marca">{aplicarTodas && <IconeCheck className="" />}</span>
+        <label className="linha-escolha toggle-todas">
+          <input
+            type="checkbox"
+            className="caixa"
+            checked={aplicarTodas}
+            onChange={aoAlternarTodas}
+          />
           <span className="toggle-texto">
             Aplicar estilo em todas as páginas
             <small>Mesma tag e classes, em todos os slides. Texto nunca replica.</small>
           </span>
-        </button>
+        </label>
       </section>
 
       {/* Camadas do slide em foco: seleciona pela lista, sobe e desce. */}
       <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Camadas da página {foco + 1}</div>
+        <div className="secao-titulo">Camadas da página {foco + 1}</div>
         <PainelCamadas
           itens={camadas}
           selecionadoId={sel?.vkId || null}
@@ -367,7 +400,7 @@ export function PainelPropriedades({
 
       {/* Cores globais do tema (variaveis do :root). */}
       <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Cores do tema</div>
+        <div className="secao-titulo">Cores do tema</div>
         {motor.vars.length === 0 ? (
           <p className="painel-vazio">Este modelo não expõe cores no :root.</p>
         ) : (
@@ -387,15 +420,17 @@ export function PainelPropriedades({
                           : v.valor
                       }
                       onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
+                      aria-label={v.nome}
                     />
                     <span style={{ background: v.valor }} />
                   </label>
                 ) : (
                   <input
-                    className="cor-texto"
+                    className="campo campo-p cor-texto"
                     value={v.valor}
                     onChange={(e) => motor.aplicarVar(v.nome, e.target.value)}
                     spellCheck={false}
+                    aria-label={v.nome}
                   />
                 )}
               </div>
@@ -406,7 +441,7 @@ export function PainelPropriedades({
 
       {/* Adicionar imagem propria como elemento livre da pagina em foco. */}
       <section className="painel-secao">
-        <div className="secao-titulo rotulo-secao">Adicionar imagem</div>
+        <div className="secao-titulo">Adicionar imagem</div>
         <MenuAdicionarImagem
           enviando={enviandoNova}
           erro={erroNova}

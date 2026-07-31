@@ -1,0 +1,902 @@
+/* ==========================================================================
+   A MOLDURA DE EDIÇÃO. Fundação v2, redesenhada em 2026-07-30.
+
+   Esta folha veste o que os TRÊS ambientes de edição de peça compartilham: o
+   overlay do carrossel (EditorCarrossel), o Studio do carrossel (TelaStudio) e
+   o Studio de site (TelaSite). O inspetor da direita, a lista de camadas, os
+   controles de imagem e a galeria de fontes moram aqui uma vez só.
+
+   A REGRA QUE DECIDE TUDO NESTA PASTA: um editor é moldura pra peça do
+   usuário. A peça é colorida, a moldura não é. Nada aqui pode competir com o
+   carrossel ou o site que está sendo editado, então a moldura é papel, fio,
+   espaço e tinta, e nenhuma superfície do editor carrega textura, gradiente ou
+   cor de marca. O menta saiu do inspetor inteiro: aba, item selecionado,
+   ícone de menu e chip de tag eram todos verdes, e verde ao lado de uma peça
+   colorida vira mais uma cor na tela.
+
+   O QUE MUDOU DE FATO em relação à versão anterior:
+   - O `.campo` local não existe mais. Ele declarava `display: flex` com o
+     MESMO nome da primitiva de input, na camada `tela`, que vence a `base`:
+     qualquer input `.campo` do app ficava deformado enquanto esta folha
+     estivesse carregada, e ela carrega dentro da Criação também. Agora o
+     bloco rótulo + controle é `.grupo-campo` + `.rotulo` + `.campo`.
+   - Selecionado é superfície mais fio `inset` de 2px em `--acao`, herdado da
+     Onda A. Nunca preenchimento de menta.
+   - O canvas do palco perdeu a grade de pontos. Grade atrás de uma peça
+     colorida é textura competindo com textura; a peça se separa do plano pelo
+     próprio fio.
+   - Menu, modal e véu passaram a compor `.popover`, `.menu`, `.veu-modal` e
+     `.modal` das primitivas em vez de reinventar cada um.
+
+   FRONTEIRA DE RUNTIME: `motor.ts`, `motorSite.ts` e `nucleo.ts` injetam CSS
+   com valores LITERAIS dentro do iframe da peça, porque aquele documento não
+   enxerga `var()` do app. Aquele CSS não passa por esta folha e não pertence a
+   camada nenhuma. Ver `editor/tema.ts`.
+   ========================================================================== */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler é a que vale, e o bundler não garante qual vem primeiro. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A SEÇÃO 0 DESTA FOLHA MORREU EM 2026-07-30, na varredura final da Fase 2.
+   Ela devolvia a escala de campo, área de texto, select, caixa de seleção e
+   amostra de cor dentro de ".tela-studio", ".tela-site" e ".editor-shell",
+   porque o legado.css declarava "input, textarea, select" por SELETOR DE
+   ELEMENTO na camada tela, e camada vence especificidade: a caixa de seleção
+   de 16px saía com 40px de altura e 10px de raio, e a área de texto de 80px
+   encolhia pra 40px. O legado.css foi demolido e as 22 regras de remendo
+   saíram com ele.
+
+   Uma regra da seção ficou, e não é remendo: a altura própria da caixa de
+   descrição da imagem, logo abaixo. */
+
+/* A descrição da imagem é a única área de texto do editor com altura própria:
+   ela recebe uma frase inteira, não um nome curto. */
+.descricao-imagem-campo {
+  min-height: calc(var(--base) * 20);
+}
+
+/* ==========================================================================
+   1. O OVERLAY DO CARROSSEL (EditorCarrossel)
+
+   Ele é um modal de tela quase cheia: fica parado enquanto o app inteiro
+   continua atrás. Por isso leva --sombra-modal, que é o token pra isso.
+   ========================================================================== */
+.editor-shell {
+  position: relative;
+  z-index: var(--z-modal);
+  width: min(1360px, 96vw);
+  height: min(92vh, 980px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--fundo);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-gg);
+  box-shadow: var(--sombra-modal);
+  animation: surgir var(--mov-lento) var(--curva) both;
+}
+
+/* ==========================================================================
+   2. A BARRA DE TOPO DE UM EDITOR
+
+   As três telas usam a primitiva `.tela-topo`: uma linha de 56px, o nome da
+   peça à esquerda e as ações à direita. Aqui ficam só as duas diferenças de um
+   editor pra uma tela de conteúdo.
+   ========================================================================== */
+
+/* O h1 de um editor é o NOME DA PEÇA, não o nome da tela, e a barra dele tem
+   sete controles do lado direito. Em 22px o nome vira o objeto mais pesado de
+   uma barra que é toda de trabalho. Um degrau abaixo é o suficiente pra dizer
+   onde a pessoa está. */
+.ed-topo h1,
+.ed-topo h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Nome da peça mais o estado da gravação, na mesma linha. */
+.ed-identidade {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-width: 0;
+}
+
+/* O par desfazer e refazer anda colado, como um controle só. */
+.ed-par {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+/* Faixa de erro ou de aviso, na largura da tela e logo abaixo da barra de
+   topo: ela é ancorada onde o problema está, não no topo do app. */
+.ed-faixa {
+  flex: none;
+  padding: var(--esp-8) var(--esp-24);
+}
+
+/* ==========================================================================
+   3. O CORPO: CANVAS E INSPETOR
+   ========================================================================== */
+.editor-corpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* Trilho de páginas do overlay. Alvo de 32px, superfície e fio desde parado. */
+.editor-rail {
+  flex: none;
+  width: calc(var(--base) * 15);
+  padding: var(--esp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  overflow-y: auto;
+  border-right: 1px solid var(--linha);
+  background: var(--superficie);
+}
+.editor-rail-item {
+  flex: none;
+  min-height: var(--alt);
+  border-radius: var(--raio);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+  border: 1px solid var(--linha);
+  background: var(--superficie);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--transicao), color var(--transicao),
+    background var(--transicao), box-shadow var(--transicao);
+}
+.editor-rail-item:hover {
+  border-color: var(--linha-forte);
+  color: var(--texto);
+}
+/* Selecionado, na gramática da Onda A: superfície mais fio interno em --acao.
+   O fio é `inset`, então a caixa não muda de tamanho ao selecionar. */
+.editor-rail-item.ativo {
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+  background: var(--superficie-alta);
+  border-color: var(--acao);
+  box-shadow: inset 0 0 0 1px var(--acao);
+}
+
+/* O plano onde a peça se apoia. Sem grade de pontos: a peça já é a textura
+   desta tela, e uma grade atrás dela é ruído competindo com conteúdo. */
+.editor-canvas,
+.ed-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-24);
+  overflow: hidden;
+  background: var(--fundo);
+}
+
+/* O palco recebe o iframe escalado. O fio é OUTLINE, não border: a peça tem
+   medida exata em pixel e uma borda entraria no cálculo do tamanho. */
+.editor-palco,
+.ed-palco {
+  position: relative;
+  flex: none;
+  outline: 1px solid var(--linha-forte);
+  transition: width var(--mov-rapido) var(--curva),
+    height var(--mov-rapido) var(--curva);
+}
+/* No overlay o palco mostra UM slide, então ele é a moldura e pinta o papel. */
+.editor-palco {
+  border-radius: var(--raio-p);
+  overflow: hidden;
+  background: var(--papel);
+}
+/* O iframe nasce TRANSPARENTE. Pintar papel aqui deixava uma faixa branca em
+   volta do carrossel no tema Escuro, porque a peça ocupa a altura toda mas o
+   documento dela é mais largo que o slide. Quem precisa de papel por baixo é a
+   moldura, e ela pinta. */
+.editor-frame,
+.ed-frame {
+  border: none;
+  display: block;
+  transform-origin: top left;
+  background: transparent;
+}
+
+/* Barra flutuante embaixo do palco. Ela fica parada enquanto o canvas rola,
+   então a sombra de popover aqui é a régua da fundação, não enfeite. */
+.ed-flutuante {
+  position: absolute;
+  bottom: var(--esp-16);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-fixo);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  padding: var(--esp-4);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  box-shadow: var(--sombra-popover);
+}
+.editor-nav-dir svg {
+  transform: rotate(180deg);
+}
+.ed-flutuante-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: var(--esp-4) 0;
+  background: var(--linha);
+}
+/* Contador de página. Numeral tabular, pra a barra não pular de largura ao
+   passar de 9 pra 10. */
+.ed-contador {
+  padding: 0 var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Área carregando. Esqueleto seria o certo pra conteúdo próprio; aqui o que
+   está chegando é o documento de outra origem, cuja forma não se conhece
+   antes de medir, então o giro dentro de uma frase é o honesto. */
+.ed-carregando {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-fixo);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-12);
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  background: var(--fundo);
+}
+
+/* Véu de trabalho da IA: cobre o canvas, nunca o inspetor. */
+.ed-travado {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-veu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-24);
+  background: var(--veu);
+  cursor: progress;
+}
+.ed-travado-caixa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-12);
+  max-width: 320px;
+  padding: var(--esp-24);
+  text-align: center;
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-modal);
+}
+/* A saída de emergência é o único ponto clicável de uma camada que cobre o
+   canvas inteiro: ela não herda o cursor de espera do véu. */
+.ed-travado .botao {
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   4. O INSPETOR DA DIREITA
+
+   Ele é denso de propósito: é ferramenta de trabalho e nenhum controle sai em
+   nome da limpeza. O que separa uma seção da outra é espaço e um fio, nunca
+   uma caixa: cartão dentro de cartão foi o padrão mais visível do inspetor
+   antigo, com o painel sendo um cartão e cada bloco outro por dentro.
+   ========================================================================== */
+.editor-painel {
+  flex: none;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-left: 1px solid var(--linha);
+  background: var(--superficie);
+}
+
+/* O painel de propriedades sai da árvore sem ser desmontado enquanto o painel
+   de IA está aberto: desmontar mataria em silêncio uma geração de imagem em
+   voo. Sem esta regra o `hidden` não pega, porque `display` de folha vence
+   `display` de agente. */
+.editor-painel[hidden] {
+  display: none;
+}
+
+.painel-secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-16);
+}
+.painel-secao + .painel-secao {
+  border-top: 1px solid var(--linha);
+}
+/* Dentro do inspetor o ritmo vertical é do `gap` do bloco, não da margem
+   entre campos: os dois somados davam 28px onde a coluna pede 12. */
+.painel-secao .grupo-campo + .grupo-campo,
+.ed-lateral-corpo .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+
+/* Título de seção do inspetor, em dois degraus.
+
+   Ele NÃO usa o `.secao-topo h2` das primitivas de propósito. Aquele degrau é
+   18px, calibrado pra uma seção que ocupa a largura do corpo de uma tela.
+   Numa coluna de 320px com seis seções empilhadas, seis títulos de 18px viram
+   seis blocos disputando entre si e o inspetor deixa de ter primeira leitura.
+   O degrau forte é UM por painel: a seção que responde ao clique no canvas e
+   que é a razão de o painel existir. */
+.secao-titulo {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  letter-spacing: var(--tr-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+.secao-titulo.secao-principal {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+/* O texto que ensina quando não há seleção. Ele não é erro nem aviso: é a
+   instrução de como usar o canvas, e é a única coisa no bloco. */
+.painel-vazio {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+.campos-elemento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+}
+
+/* Nota de campo: mora colada ao controle que ela explica. */
+.campo-nota {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* Tamanho, peso e cor na mesma linha. A terceira coluna tem largura fixa: em
+   `auto`, ela media o conteúdo, o conteúdo era uma amostra de 100% e a coluna
+   colapsava pra alguns pixels. */
+.campo-linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr 48px;
+  gap: var(--esp-8);
+  align-items: end;
+}
+.campo-tamanho-linha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--esp-8);
+}
+.campo-tamanho {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+/* O chip que mostra a tag e as classes do elemento. Ele compõe `.selo`: é
+   metadado técnico de conferência, e quem usa o Studio não é desenvolvedor.
+   Em menta cheio, que era o desenho anterior, ele virava o objeto mais forte
+   de um painel onde quem manda são as ações e os campos logo abaixo. */
+.chip-alvo {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: var(--peso-normal);
+}
+.chip-alvo code {
+  font-family: var(--mono);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+.chip-alvo span {
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ações do elemento: largura natural, alinhadas à esquerda. Esticadas em
+   largura total, a ação destrutiva virava o maior objeto do painel inteiro,
+   pra uma coisa que quase nunca é o que a pessoa quer. */
+.acoes-elemento {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+}
+
+/* Nota de posição, com o botão de voltar ao original ao lado. */
+.campo-posicao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  padding: var(--esp-4) var(--esp-8);
+  border-radius: var(--raio);
+  background: var(--superficie-alta);
+}
+.posicao-nota {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* Aplicar o estilo em todas as páginas. A linha inteira é o alvo e a caixa é
+   um checkbox de verdade, então teclado e leitor de tela vêm de graça. */
+.toggle-todas {
+  align-items: flex-start;
+  min-height: var(--alt);
+  padding: var(--esp-8);
+}
+.toggle-texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+.toggle-texto small {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-normal);
+  color: var(--texto-fraco);
+}
+
+/* ==========================================================================
+   5. COR: LISTA DE VARIÁVEIS E AMOSTRA
+   ========================================================================== */
+.lista-cores {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.cor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+}
+.cor-nome {
+  min-width: 0;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cor-texto {
+  width: 148px;
+  flex: none;
+  font-family: var(--mono);
+}
+
+/* A amostra esconde o input de cor nativo e mostra o quadrado pintado. O fio
+   é o forte, porque a amostra É um controle e a borda é o único indicador
+   dele: o preenchimento é a cor da peça, que pode ser qualquer uma. */
+.cor-swatch {
+  position: relative;
+  flex: none;
+  width: calc(var(--base) * 11);
+  height: var(--alt-p);
+  border-radius: var(--raio);
+  overflow: hidden;
+  border: 1px solid var(--linha-forte);
+  cursor: pointer;
+  transition: border-color var(--transicao), box-shadow var(--transicao);
+}
+.cor-swatch:hover {
+  border-color: var(--texto-fraco);
+}
+.cor-swatch:focus-within {
+  border-color: var(--menta-linha);
+  box-shadow: var(--glow-foco);
+}
+.cor-swatch input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + var(--esp-8));
+  height: calc(100% + var(--esp-8));
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+.cor-swatch > span {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.campo-cor .cor-swatch {
+  width: 100%;
+  height: var(--alt);
+}
+
+/* ==========================================================================
+   6. CAMADAS
+
+   A lista compõe `.lista` e `.item-lista` das primitivas. A linha se anuncia
+   parada, o selecionado é fio interno em --acao e as setas nascem visíveis:
+   ação que só aparece no hover não existe pro teclado nem pro toque.
+   ========================================================================== */
+.camadas-lista {
+  gap: 0;
+}
+/* Mais apertada que a lista padrão: aqui a linha tem um dado só e o inspetor
+   costuma mostrar dez de uma vez. 28px continua acima do alvo mínimo. */
+.camadas-item {
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-4) 0 0;
+  gap: var(--esp-4);
+}
+.camadas-item.camadas-nivel-1 {
+  padding-left: var(--esp-16);
+}
+.camadas-nome {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-4);
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-8);
+  text-align: left;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+/* O papel do elemento manda na linha, a prévia do conteúdo é subordinada. */
+.camadas-papel {
+  flex: none;
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+.camadas-conteudo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto-fraco);
+}
+.camadas-seta svg {
+  width: 14px;
+  height: 14px;
+}
+.camadas-seta-cima svg {
+  transform: rotate(90deg);
+}
+.camadas-seta-baixo svg {
+  transform: rotate(-90deg);
+}
+
+/* ==========================================================================
+   7. CONTROLES DE IMAGEM
+
+   Compartilhados pelos dois Studios E pelas telas de Criação, que não
+   carregam o editor inteiro: por isso o TSX importa esta folha direto.
+   ========================================================================== */
+.editor-imagem-controles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.editor-imagem-preview {
+  width: 100%;
+  max-height: 128px;
+  object-fit: cover;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--superficie-alta);
+}
+.editor-imagem-acoes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--esp-8);
+  align-items: start;
+}
+.editor-imagem-troca {
+  position: relative;
+  min-width: 0;
+}
+.editor-imagem-principal {
+  width: 100%;
+}
+
+/* O menu de origem da imagem compõe `.popover` e `.menu`. Ele é ancorado no
+   botão e o inspetor rola, então ele acompanha o botão de propósito: um
+   `position: fixed` aqui ficaria parado enquanto a lista some por baixo. */
+.editor-imagem-menu {
+  top: calc(100% + var(--esp-4));
+  left: 0;
+  right: 0;
+  min-width: 240px;
+}
+/* Item de duas linhas: nome da origem mais o que ela faz. */
+.editor-imagem-menu .menu-item {
+  min-height: var(--alt-g);
+  padding: var(--esp-8);
+}
+.editor-imagem-menu .menu-item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-fraco);
+}
+.editor-imagem-menu .menu-item:disabled {
+  color: var(--texto-fraco);
+  cursor: not-allowed;
+}
+.editor-imagem-menu .menu-item > span {
+  display: grid;
+  gap: var(--esp-2);
+  min-width: 0;
+  text-align: left;
+  font-weight: var(--peso-medio);
+}
+.editor-imagem-menu .menu-item small {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-normal);
+  color: var(--texto-fraco);
+}
+.editor-imagem-erro {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--alerta);
+}
+
+/* ==========================================================================
+   8. GALERIA DE FONTES
+
+   Grade limpa dentro de um modal. A miniatura escolhida não fica menta: cada
+   tile é um alvo que se anuncia parado, com superfície e fio próprios, e o
+   hover reforça o fio em vez de revelá-lo.
+   ========================================================================== */
+.galeria-fontes-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-24);
+}
+.galeria-fontes-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+/* Nome da fonte de onde vieram as imagens ("Imagens do cliente"). É um título
+   de bloco, não rótulo de navegação: em caixa alta, com quatro grupos
+   empilhados, a mancha adensa e nenhum se destaca. */
+.galeria-fontes-grupo h3 {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.galeria-fontes-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: var(--esp-8);
+}
+.galeria-fontes-grade button {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--texto);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  transition: border-color var(--transicao), background var(--transicao);
+}
+.galeria-fontes-grade button:hover:not(:disabled) {
+  border-color: var(--linha-forte);
+  background: var(--superficie-alta);
+}
+.galeria-fontes-grade button:disabled {
+  cursor: progress;
+  border-color: var(--linha);
+}
+.galeria-fontes-grade img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--superficie-alta);
+}
+.galeria-fontes-grade span {
+  display: block;
+  padding: var(--esp-4) var(--esp-8);
+  overflow: hidden;
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Ícone dentro de botão de barra de editor e de coluna lateral. 16px é o
+   tamanho que fecha com a linha de 20px do corpo; o padrão de 18px do conjunto
+   de ícones é calibrado pra item de menu da barra lateral, que é maior. O
+   seletor é escopado de propósito: uma regra solta de `.botao svg` na camada
+   `tela` mudaria o botão de toda tela carregada junto com esta folha. */
+.ed-topo .botao svg,
+.editor-painel .botao svg,
+.ed-lateral .botao svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ==========================================================================
+   9. A JANELA DE DESCRIÇÃO DA IMAGEM
+
+   Ela compõe `.veu-modal` e `.modal` inteiros. Aqui sobra só a área de texto,
+   que precisa de altura própria: o padrão da primitiva é curto demais pra uma
+   descrição de imagem.
+   ========================================================================== */
+.descricao-imagem-campo {
+  min-height: calc(var(--base) * 27);
+}
+.descricao-imagem-nota {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* ==========================================================================
+   10. A COLUNA LATERAL DE UM EDITOR
+
+   O inspetor de propriedades e o painel "Ajustar com IA" ocupam a mesma faixa
+   e se alternam. Antes eram quatro larguras diferentes escritas em quatro
+   lugares (300px, clamp(300px, 28vw, 380px) duas vezes, e o inspetor do
+   overlay), e a tela pulava de largura ao trocar de painel.
+   ========================================================================== */
+.ed-lateral {
+  flex: none;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--superficie);
+  border-left: 1px solid var(--linha);
+}
+
+/* O cabeçalho da coluna repete a altura da barra de topo da tela, pra as duas
+   linhas fecharem na mesma horizontal. */
+.ed-lateral-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  min-height: calc(var(--base) * 14);
+  padding: var(--esp-8) var(--esp-8) var(--esp-8) var(--esp-16);
+  border-bottom: 1px solid var(--linha);
+}
+.ed-lateral-topo h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ed-lateral-topo-texto {
+  min-width: 0;
+}
+.ed-lateral-topo-texto p {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ed-lateral-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-16);
+}
+.ed-lateral-rodape {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-12);
+  padding: var(--esp-12) var(--esp-16);
+  border-top: 1px solid var(--linha);
+  background: var(--superficie);
+}
+
+/* A linha que diz que a IA está trabalhando AGORA.
+
+   Ela não usa barra de progresso indeterminada de propósito. Barra
+   indeterminada é um translateX de mais de um segundo, e a rede de movimento
+   reduzido do `global.css` vive na camada `base`: para declaração
+   `!important`, a ordem das camadas se INVERTE e a `base` vence a `tela`.
+   Ou seja, nenhuma folha de tela consegue substituir aquela animação, só
+   herdar um pisca de 1ms. O `.girinho` das primitivas já tem o substituto
+   certo declarado na própria camada `base`, e a frase ao lado dele diz o que
+   uma barra sem porcentagem nunca disse. */
+.ed-trabalhando {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* As respostas do painel de IA, em três tons. */
+.ed-nota {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+.ed-ok {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--menta);
+}
+.ed-erro {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--alerta);
+}
+
+/* A ação do painel lateral gruda no fim da coluna, sempre no mesmo lugar. */
+.ed-enviar {
+  width: 100%;
+  margin-top: auto;
+}
+
+} /* fim de @layer tela */

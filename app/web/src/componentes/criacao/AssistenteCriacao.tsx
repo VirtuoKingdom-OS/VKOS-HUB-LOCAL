@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
-import { usarGeracao, FASES, LARGURA_FASE, type TipoCriacao } from "../../estado/geracao";
+import { usarGeracao, LARGURA_FASE, type TipoCriacao } from "../../estado/geracao";
 import {
-  IconeAlerta,
   IconeCheck,
   IconeGaleria,
   IconeRaio,
@@ -28,7 +27,8 @@ import {
   type DadosEtapasSite,
 } from "./EtapasSite";
 import { montarPromptSite } from "./promptSite";
-import "../../estilos/criacao.css";
+import { esquecerGeracao, formatarDecorrido, inicioDaGeracao } from "./tempoDecorrido";
+import "./criacao.css";
 
 // O Site Guiado e uma quarta jornada de criacao, irma do conteudo visual. Usa a
 // mesma casca do assistente, com etapas e prompt proprios.
@@ -57,6 +57,7 @@ export function AssistenteCriacao({
   const {
     ativa,
     fase,
+    fases,
     falhou,
     pecaSumiu,
     erro: erroGeracao,
@@ -100,6 +101,19 @@ export function AssistenteCriacao({
   // aberto ele mostra o progresso; o mini card flutuante so aparece minimizado.
   const gerando = ativa !== null;
 
+  // Relogio da geracao. Um numero que anda na tela e o que separa "esta
+  // travado" de "esta demorando", e a diferenca entre as duas leituras e a
+  // pessoa cancelar ou esperar.
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    if (!gerando || falhou || pecaSumiu) return;
+    const t = window.setInterval(() => setAgora(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [gerando, falhou, pecaSumiu]);
+  const decorrido = ativa
+    ? formatarDecorrido(agora - inicioDaGeracao(ativa.sessaoId))
+    : null;
+
   // Ao abrir com uma geracao minimizada em andamento, reata: mostra o progresso
   // aqui e esconde o flutuante enquanto o wizard estiver aberto.
   useEffect(() => {
@@ -113,7 +127,7 @@ export function AssistenteCriacao({
     document.body.classList.add("overlay-aberto");
     return () => {
       if (
-        document.querySelectorAll(".overlay-tela-cheia, .criacao-fundo").length <= 1
+        document.querySelectorAll(".overlay-tela-cheia, .criacao-veu").length <= 1
       ) {
         document.body.classList.remove("overlay-aberto");
       }
@@ -184,6 +198,7 @@ export function AssistenteCriacao({
       } catch {
         // segue saindo mesmo se o backend reclamar
       }
+      esquecerGeracao(ativa.sessaoId);
     }
     limpar();
     aoCancelar();
@@ -225,188 +240,223 @@ export function AssistenteCriacao({
   // ===== Render =====
 
   const corpo = (
-    <div className="criacao-fundo" role="dialog" aria-modal="true">
-      <div className="criacao-card">
-        <header className="criacao-topo">
-          <span className="criacao-marca">
-            <cfg.Icone className="criacao-marca-icone" />
-            {cfg.marca}
-          </span>
-          <button
-            className="criacao-fechar"
-            onClick={pedirCancelar}
-            title="Fechar"
-            aria-label="Fechar"
-          >
-            <IconeX className="" />
-          </button>
-        </header>
+    <>
+      <div className="veu-modal criacao-veu">
+        <div
+          className="modal criacao-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={cfg.marca}
+        >
+          <header className="modal-topo">
+            <p className="criacao-marca">
+              <cfg.Icone className="" />
+              {cfg.marca}
+            </p>
+            <button
+              className="botao botao-p botao-icone botao-fantasma"
+              onClick={pedirCancelar}
+              aria-label="Fechar"
+            >
+              <IconeX className="" />
+            </button>
+          </header>
 
-        {!gerando ? (
-          tipo === "site" ? (
-            <EtapasSite
-              dados={dadosSite}
-              aoMudar={aoMudarSite}
-              aoGerar={() => void dispararGeracao()}
-              ativo={!confirmandoSaida}
-            />
-          ) : (
-            <EtapasCriacao
-              tipo={tipo}
-              dados={dados}
-              aoMudar={aoMudar}
-              aoGerar={() => void dispararGeracao()}
-              ativo={!confirmandoSaida}
-            />
-          )
-        ) : (
-          // ===== Etapa 5: geracao =====
-          <div className="criacao-geracao">
-            {falhou ? (
-              <div className="criacao-estado">
-                <div className="criacao-selo erro">
-                  <IconeAlerta className="" />
-                </div>
-                <h2 className="criacao-titulo">A geração não foi</h2>
-                <p className="criacao-texto">
-                  {erroGeracao ??
-                    sessao?.erro ??
-                    `A sessão parou antes de terminar o ${cfg.substantivo}. Dá pra tentar de novo.`}
-                </p>
-                <div className="criacao-estado-acoes">
-                  <button className="botao botao-neutro" onClick={() => limpar()}>
-                    Voltar
-                  </button>
-                  {precisaMontarCerebro ? (
-                    <button
-                      className="botao botao-principal"
-                      onClick={() => {
-                        limpar();
-                        aoAbrirDestino("cockpit");
-                      }}
-                    >
-                      <IconeRaio className="" />
-                      Montar o Cérebro
-                    </button>
-                  ) : (
-                    <button
-                      className="botao botao-principal"
-                      onClick={() => void dispararGeracao()}
-                    >
-                      <IconeRaio className="" />
-                      Tentar de novo
-                    </button>
+          {!gerando ? (
+            tipo === "site" ? (
+              <EtapasSite
+                dados={dadosSite}
+                aoMudar={aoMudarSite}
+                aoGerar={() => void dispararGeracao()}
+                ativo={!confirmandoSaida}
+              />
+            ) : (
+              <EtapasCriacao
+                tipo={tipo}
+                dados={dados}
+                aoMudar={aoMudar}
+                aoGerar={() => void dispararGeracao()}
+                ativo={!confirmandoSaida}
+              />
+            )
+          ) : falhou ? (
+            // ===== A geracao parou no meio =====
+            <>
+              <div className="criacao-corpo">
+                <div className="criacao-geracao">
+                  <div className="criacao-cabeca">
+                    <h2 className="criacao-pergunta">A geração não foi</h2>
+                  </div>
+                  <p className="criacao-geracao-texto">
+                    A sessão parou antes de terminar o {cfg.substantivo}. Nada foi
+                    perdido: dá pra tentar de novo com os mesmos dados.
+                  </p>
+                  {(erroGeracao ?? sessao?.erro) && (
+                    <div className="faixa faixa-alerta" role="alert">
+                      <div className="faixa-texto">{erroGeracao ?? sessao?.erro}</div>
+                    </div>
                   )}
                 </div>
               </div>
-            ) : pecaSumiu ? (
-              <div className="criacao-estado">
-                <div className="criacao-selo aviso">
-                  <IconeAlerta className="" />
-                </div>
-                <h2 className="criacao-titulo">
-                  {tipo === "site" ? "O site ainda não está pronto" : "O arquivo não foi criado"}
-                </h2>
-                <p className="criacao-texto">
-                  {tipo === "site"
-                    ? "A sessão terminou mas nenhum site apareceu na pasta."
-                    : `A sessão terminou sem criar o arquivo esperado do ${cfg.substantivo}.`}
-                  {resultadoSemPeca
-                    ? ` A resposta da IA foi: ${resultadoSemPeca.slice(0, 700)}`
-                    : " Verifique a orientação abaixo ou tente novamente."}
-                </p>
-                <div className="criacao-estado-acoes">
-                  <button className="botao botao-neutro" onClick={() => void sairDeVez()}>
-                    Fechar
-                  </button>
+              <footer className="criacao-rodape">
+                <button className="botao botao-neutro" onClick={() => limpar()}>
+                  Voltar às etapas
+                </button>
+                {precisaMontarCerebro ? (
                   <button
                     className="botao botao-principal"
                     onClick={() => {
                       limpar();
-                      aoAbrirDestino("galerias");
+                      aoAbrirDestino("cockpit");
                     }}
                   >
-                    <IconeGaleria className="" />
-                    Abrir Galerias
+                    <IconeRaio className="" />
+                    Montar o Cérebro
                   </button>
+                ) : (
+                  <button
+                    className="botao botao-principal"
+                    onClick={() => void dispararGeracao()}
+                  >
+                    <IconeRaio className="" />
+                    Tentar de novo
+                  </button>
+                )}
+              </footer>
+            </>
+          ) : pecaSumiu ? (
+            // ===== A sessao terminou sem deixar a peca =====
+            <>
+              <div className="criacao-corpo">
+                <div className="criacao-geracao">
+                  <div className="criacao-cabeca">
+                    <h2 className="criacao-pergunta">
+                      {tipo === "site"
+                        ? "O site ainda não está pronto"
+                        : "O arquivo não foi criado"}
+                    </h2>
+                  </div>
+                  <p className="criacao-geracao-texto">
+                    {tipo === "site"
+                      ? "A sessão terminou, mas nenhum site apareceu na pasta."
+                      : `A sessão terminou sem criar o arquivo esperado do ${cfg.substantivo}.`}{" "}
+                    Vale conferir nas Galerias se sobrou alguma coisa antes de
+                    tentar de novo.
+                  </p>
+                  {resultadoSemPeca && (
+                    <div className="faixa faixa-aviso" role="status">
+                      <div className="faixa-texto">
+                        A resposta da IA foi: {resultadoSemPeca.slice(0, 700)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="criacao-progresso">
-                <div className="criacao-selo pulsa">
-                  <cfg.Icone className="" />
-                </div>
-                <h2 className="criacao-titulo">
-                  {faseConferencia ?? `Gerando seu ${cfg.substantivo}`}
-                </h2>
-                <p className="criacao-texto">
-                  {faseConferencia
-                    ? "O Hub está conferindo o site e ajustando o que a auditoria apontou antes de abrir."
-                    : "Isso leva um tempo. Pode acompanhar por aqui ou minimizar e seguir usando o app."}
-                </p>
-                <div className="criacao-fases">
-                  {FASES.map((f, i) => (
-                    <span
-                      key={f}
-                      className={`criacao-fase${i === fase ? " atual" : ""}${
-                        i < fase ? " feita" : ""
-                      }`}
-                    >
-                      {i < fase ? (
-                        <IconeCheck className="" />
-                      ) : (
-                        <span className="criacao-fase-ponto" />
-                      )}
-                      {f}
-                    </span>
-                  ))}
-                </div>
-                <div className="criacao-barra">
-                  <div
-                    className="criacao-barra-cheia"
-                    style={{ width: `${LARGURA_FASE[fase]}%` }}
-                  />
-                </div>
-                <div className="criacao-geracao-acoes">
-                  <button className="botao botao-fantasma" onClick={pedirCancelar}>
-                    Cancelar
-                  </button>
-                  <button className="botao botao-neutro" onClick={aoMinimizar}>
-                    <IconeSubir className="" />
-                    Minimizar
-                  </button>
+              <footer className="criacao-rodape">
+                <button className="botao botao-neutro" onClick={() => void sairDeVez()}>
+                  Fechar
+                </button>
+                <button
+                  className="botao botao-principal"
+                  onClick={() => {
+                    limpar();
+                    aoAbrirDestino("galerias");
+                  }}
+                >
+                  <IconeGaleria className="" />
+                  Abrir Galerias
+                </button>
+              </footer>
+            </>
+          ) : (
+            // ===== Gerando =====
+            <>
+              <div className="progresso criacao-progresso" aria-hidden="true">
+                <div
+                  className="progresso-barra"
+                  style={{ width: `${LARGURA_FASE[fase]}%` }}
+                />
+              </div>
+              <div className="criacao-corpo">
+                <div className="criacao-geracao">
+                  <div className="criacao-cabeca">
+                    <h2 className="criacao-pergunta">
+                      {faseConferencia ?? `Gerando seu ${cfg.substantivo}`}
+                    </h2>
+                    <span className="criacao-contador">{decorrido}</span>
+                  </div>
+                  <p className="criacao-geracao-texto">
+                    {faseConferencia
+                      ? "O Hub está conferindo o site e ajustando o que a auditoria apontou antes de abrir."
+                      : "Costuma levar alguns minutos. Pode minimizar e seguir usando o app: quando ficar pronto, um aviso aparece no canto."}
+                  </p>
+                  <ul className="criacao-fases">
+                    {fases.map((f, i) => (
+                      <li
+                        key={f}
+                        className={`criacao-fase${i === fase ? " atual" : ""}${
+                          i < fase ? " feita" : ""
+                        }`}
+                        aria-current={i === fase ? "step" : undefined}
+                      >
+                        {i < fase ? (
+                          <IconeCheck className="" />
+                        ) : i === fase ? (
+                          <span className="ponto-vivo" />
+                        ) : (
+                          <span className="criacao-fase-espera" />
+                        )}
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+              <footer className="criacao-rodape">
+                <button className="botao botao-fantasma" onClick={pedirCancelar}>
+                  Cancelar geração
+                </button>
+                <button className="botao botao-principal" onClick={aoMinimizar}>
+                  <IconeSubir className="" />
+                  Minimizar e seguir usando
+                </button>
+              </footer>
+            </>
+          )}
+        </div>
+      </div>
 
-        {/* Confirmacao de saida: scrim solido sobre o card, sem backdrop-filter. */}
-        {confirmandoSaida && (
-          <div className="criacao-confirma">
-            <div className="criacao-confirma-caixa">
-              <h3>Sair da criação?</h3>
+      {/* Confirmacao de saida. Ela cobre a tela inteira, e nao so o card: e uma
+          decisao que trava tudo, e meio veu por cima de outro veu le como
+          bug. */}
+      {confirmandoSaida && (
+        <div className="veu-modal">
+          <div className="modal" role="alertdialog" aria-modal="true">
+            <div className="modal-topo">
+              <h2>Sair da criação?</h2>
+            </div>
+            <div className="modal-corpo">
               <p>
                 {gerando && !falhou && !pecaSumiu
                   ? "A geração em andamento vai parar e o que foi preenchido se perde."
                   : "O que você preencheu até aqui se perde."}
               </p>
-              <div className="criacao-confirma-acoes">
-                <button
-                  className="botao botao-neutro"
-                  onClick={() => setConfirmandoSaida(false)}
-                >
-                  Continuar aqui
-                </button>
-                <button className="botao botao-perigo" onClick={() => void sairDeVez()}>
-                  Sair
-                </button>
-              </div>
+            </div>
+            <div className="modal-rodape">
+              <button
+                className="botao botao-neutro"
+                onClick={() => setConfirmandoSaida(false)}
+              >
+                Continuar aqui
+              </button>
+              <button className="botao botao-perigo" onClick={() => void sairDeVez()}>
+                Sair
+              </button>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 
   return createPortal(corpo, document.body);

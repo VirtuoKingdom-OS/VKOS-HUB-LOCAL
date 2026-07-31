@@ -19,7 +19,7 @@ export function citarArg(arg: string): string {
 // o cmd.exe corta a linha na primeira quebra: um valor multilinha chega truncado
 // na primeira linha e leva junto todo argumento posterior, incluindo
 // --mcp-config e --allowedTools. Sem erro e sem aviso.
-// Ver decisoes/2026-07-26-instrucoes-extras-por-stdin.md.
+// Ver docs/decisoes/2026-07-26-instrucoes-extras-por-stdin.md.
 export function montarPromptComInstrucoes(opcoes: OpcoesSessaoProvedor): string {
   if (!opcoes.instrucoesExtras) return opcoes.prompt;
   return `<regras-da-sessao>\n${opcoes.instrucoesExtras}\n</regras-da-sessao>\n\n${opcoes.prompt}`;

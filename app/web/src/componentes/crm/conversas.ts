@@ -334,7 +334,7 @@ export function ordenarThread(mensagens: readonly MensagemNaTela[]): MensagemNaT
 //
 // 1. Colapsa por id, a ULTIMA versao vence. E o mesmo que o servidor faz ao ler
 //    o .jsonl: a versao nova de uma mensagem entra como linha nova com o mesmo
-//    id (ver decisoes/2026-07-27-conversa-append-only-...md). A tela precisa da
+//    id (ver docs/decisoes/2026-07-27-conversa-append-only-...md). A tela precisa da
 //    mesma regra pra confirmacao de entrega nao virar mensagem duplicada.
 // 2. Pendente cuja chaveIdempotencia ja apareceu no servidor some: ela foi
 //    gravada, e manter as duas mostraria a mesma frase duas vezes.

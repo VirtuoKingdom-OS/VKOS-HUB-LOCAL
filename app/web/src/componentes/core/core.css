@@ -1,0 +1,422 @@
+/* AS TELAS DO CORE: o Dashboard do dono, a lista de Workspaces e as duas telas
+   que ainda estao em definicao (Clientes e Financas).
+
+   REFEITAS na Fase 2 do redesign v2 (2026-07-30). O que mudou, e por que:
+
+   1. NAO HA MAIS CARTAO. Os cinco paineis do Dashboard eram cartoes de vidro
+      fosco com raio de 14px, e dentro deles moravam listas de pilulas: cartao
+      dentro de cartao, tres molduras entre o plano e o dado. Agora cada painel
+      e uma .secao (titulo, fio e espaco) apoiada direto no plano de trabalho, e
+      a unica caixa da tela e a .lista, que e onde o dado repete.
+   2. A TEXTURA SAIU. A grade de pontos e o grao viviam no background desta
+      tela. Textura no plano de trabalho compete com a peca colorida do usuario,
+      que e a unica coisa que pode ter cor aqui.
+   3. OS WORKSPACES VIRARAM LISTA. Eram uma grade de cartoes de 300px, e
+      workspace nao tem imagem: grade de cartao so quando o registro tem imagem
+      de verdade. Na lista cabem tres vezes mais projetos na mesma altura, e o
+      gasto de cada um passa a ser lido em coluna, de cima a baixo.
+   4. O MENTA CALOU. Etiqueta menta no nome, pilula menta de nivel, seta menta
+      no hover, barra de gasto menta e funil menta sairam. O menta so aparece no
+      ponto de sessao rodando.
+
+   Esta folha escreve so o que e LAYOUT do CORE. Cor, altura, raio, peso e
+   movimento vem das primitivas. */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e as telas carregam sob demanda. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. A GRADE DO DASHBOARD
+
+   Cinco paineis numa grade que se resolve sozinha: em 1440 ela da tres
+   colunas, em 1280 tres colunas mais estreitas, e abaixo de 900 ela quebra
+   pra duas e depois pra uma. Sem media query nenhuma.
+   ========================================================================== */
+.core-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--esp-24) var(--esp-32);
+  align-items: start;
+}
+
+/* A .secao das primitivas separa irmas com 24px de margem, que numa grade
+   desalinharia as linhas: aqui quem separa e o gap. */
+.core-grade > .secao + .secao {
+  margin-top: 0;
+}
+
+.core-painel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A nota de dado de demonstracao. Ela fica ANTES da grade, uma vez so: um selo
+   em cada painel repetiria cinco vezes a mesma ressalva. */
+.core-nota {
+  margin-bottom: var(--esp-24);
+}
+
+.core-faixa-erro {
+  margin-bottom: var(--esp-16);
+}
+
+/* ==========================================================================
+   2. O NUMERO DE UM PAINEL
+
+   Enfase de dado. Ele pesa 600 e nao 700: 700 e do wordmark e da .contagem, e
+   30px ja da o salto que separa o valor do rotulo acima dele.
+   ========================================================================== */
+.core-numero {
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+/* A unidade e rotulo, nao numero: ela desce um degrau de tamanho e de tinta
+   pra nao competir com o valor. */
+.core-numero-de {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  font-weight: var(--peso-normal);
+  color: var(--texto-fraco);
+}
+.core-legenda {
+  margin-top: var(--esp-2);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.core-ressalva {
+  margin-top: var(--esp-4);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+/* O aviso de piso nunca sai: ele e o que impede o numero de parecer exato
+   quando nao e. Ele e uma linha subordinada ao valor, nao uma faixa: faixa
+   dentro de painel de resumo pesa mais que o proprio dado. */
+.core-alerta {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-4);
+  margin-top: var(--esp-4);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--aviso);
+}
+.core-alerta-icone {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+
+/* Enquanto o resumo nao chega, o esqueleto guarda o lugar e o formato do que
+   vem. Giro no meio de area de conteudo nao diz nada sobre o que esta
+   chegando. */
+.core-esqueleto {
+  height: calc(var(--base) * 18);
+}
+
+/* ==========================================================================
+   3. A SERIE DIARIA DO GASTO
+
+   Ela e dado, e dado da interface e acromatico: a barra usa o fio forte, que
+   passa em 3:1 contra a superficie nos dois temas. Menta aqui diria "isto
+   esta acontecendo agora", e gasto de terca-feira nao esta.
+   ========================================================================== */
+.core-serie {
+  margin-top: var(--esp-12);
+  padding-top: var(--esp-12);
+  border-top: 1px solid var(--linha);
+}
+.core-serie-barras {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-2);
+  height: calc(var(--base) * 9);
+}
+.core-barra {
+  flex: 1 1 0;
+  min-height: 2px;
+  border-radius: var(--raio-p) var(--raio-p) 0 0;
+  background: var(--linha-forte);
+  transition: height var(--transicao);
+}
+/* Dia que teve turno sem preco conhecido: a barra dele e um piso, entao ela
+   sai listrada em vez de cheia. Sem isso o desenho fingiria exatidao. */
+.core-barra.piso {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--linha-forte) 0 3px,
+    var(--superficie-alta) 3px 6px
+  );
+}
+/* Dia sem gasto nenhum: fica so o tracinho da linha de base. */
+.core-barra[style*="height: 0%"] {
+  background: var(--linha);
+}
+.core-serie-leitura {
+  margin-top: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   4. AS LISTAS DENTRO DOS PAINEIS
+
+   Elas vestem .lista e .item-lista das primitivas. Aqui so entra o que e
+   layout: a margem que separa a lista do numero acima e o alinhamento das
+   colunas de valor.
+   ========================================================================== */
+.core-lista {
+  margin-top: var(--esp-12);
+}
+.core-linha-valor {
+  flex: none;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+/* A seta nasce visivel, em tinta fraca. Ela e o unico sinal, junto do fundo da
+   linha, de que aquilo abre alguma coisa: revelar so no hover apaga o alvo pro
+   teclado, pro toque e pra quem nao passou por ali. */
+.core-linha-seta {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--texto-fraco);
+}
+
+/* O .vazio das primitivas veste o h2. Dentro de um painel o titulo do vazio e
+   subordinado ao titulo da secao, entao ele e h3 e recebe a mesma receita. */
+.core-painel .vazio {
+  padding: var(--esp-24) 0;
+  align-items: flex-start;
+  text-align: left;
+}
+.core-painel .vazio h3 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+.core-painel .vazio p {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-suave);
+}
+
+/* A acao que leva pra tela cheia do painel. Ela cola no pe da secao pra as
+   tres colunas da segunda faixa terminarem na mesma linha. */
+.core-ver-todos {
+  margin-top: auto;
+  padding-top: var(--esp-12);
+  align-self: flex-start;
+}
+
+/* ==========================================================================
+   5. FINANCAS: ENTROU E SAIU
+   ========================================================================== */
+.core-fluxo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--esp-12);
+  margin-top: var(--esp-12);
+}
+.core-fluxo-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+.core-fluxo-valor {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+/* Entrada e saida NAO se separam por cor: o sinal vem antes do valor na lista
+   e o rotulo diz "Entrou" e "Saiu". Cor sozinha deixaria a leitura dependendo
+   de enxergar verde e vermelho. */
+.core-mov-sinal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--raio-pilula);
+  background: var(--neutro-tenue);
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+}
+
+/* ==========================================================================
+   6. CRM: O FUNIL
+   ========================================================================== */
+.core-funil {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  margin-top: var(--esp-12);
+}
+.core-funil-linha {
+  display: grid;
+  grid-template-columns: 68px 1fr 24px;
+  align-items: center;
+  gap: var(--esp-8);
+}
+.core-funil-nome {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.core-funil-trilho {
+  height: var(--esp-8);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie-alta);
+  overflow: hidden;
+}
+.core-funil-barra {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--linha-forte);
+  transition: width var(--mov-padrao) var(--curva);
+}
+.core-funil-total {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ==========================================================================
+   7. O OLHO E O QUE ELE COBRE
+
+   Borrao, e nao substituicao por pontos: ele preserva a caixa exata do texto,
+   entao a lista nao dança ao ligar e desligar, e continua obvio que ha dado
+   ali em vez de campo vazio. O blur em em importa: dentro do .core-numero, um
+   valor fixo em px quase nao borraria.
+   ========================================================================== */
+.core-sigilo {
+  filter: blur(0.32em);
+  /* O texto continua no DOM, entao ele nao pode ser copiado nem lido em voz
+     alta enquanto esta coberto. */
+  user-select: none;
+  pointer-events: none;
+  transition: filter var(--transicao);
+}
+
+/* ==========================================================================
+   8. A TELA DE WORKSPACES
+
+   Uma linha por projeto, com as acoes VISIVEIS na linha. O cartao de 300px com
+   quatro faixas saiu: workspace nao tem imagem, e sem imagem cartao so gasta
+   altura. Numa lista o gasto de cada projeto vira coluna e se compara.
+   ========================================================================== */
+.ws-busca {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+/* O nome em edicao ocupa a coluna do titulo, na mesma altura da linha. */
+.ws-nome-edit {
+  max-width: 260px;
+}
+
+/* Gasto: numero, com tratamento de numero. E o unico dado da linha que se
+   compara entre linhas, entao ele alinha a direita, em coluna. */
+.ws-gasto {
+  flex: none;
+  width: 96px;
+  text-align: right;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ws-gasto-unidade {
+  margin-left: var(--esp-4);
+  font-size: var(--txt-legenda);
+  font-weight: var(--peso-normal);
+  color: var(--texto-fraco);
+}
+/* Gasto que ainda nao chegou, ou que nao deu pra ler. Ele PERDE o tratamento
+   de numero de proposito: nao ha numero ali, e fingir um seria mentir. */
+.ws-gasto.vago {
+  font-size: var(--txt-legenda);
+  font-weight: var(--peso-normal);
+  color: var(--texto-fraco);
+}
+
+/* A coluna do selo tem largura fixa, mas o SELO nao: um selo esticado ate a
+   largura da coluna vira uma faixa cinza com a palavra encostada na esquerda.
+   Quem reserva a coluna e a celula em volta. */
+.ws-cel-selo {
+  flex: none;
+  display: flex;
+  width: 112px;
+}
+
+/* A linha da lista carrega tres botoes de 28px, entao o respiro vertical cai
+   pra 4px: 28 mais 4 em cima e embaixo da 36px, que e a altura densa da
+   fundacao. Com 8px ela iria a 44px e a lista deixaria de ser densa. */
+.ws-lista .item-lista {
+  padding-block: var(--esp-4);
+}
+/* A coluna de acoes tem largura fixa porque o rotulo do primeiro botao muda
+   ("Abrir" ou "Ir para o trabalho"): sem ela, a linha do workspace aberto
+   empurra o gasto e o selo pra esquerda, e as tres colunas param de alinhar de
+   cima a baixo, que e a unica razao de a tela ser lista e nao cartao. */
+.ws-lista .item-lista-acoes {
+  width: 196px;
+  justify-content: flex-end;
+}
+
+/* A linha armada pra remover fala pela propria meta, em tinta de alerta. Balao
+   flutuante em cima do botao sumia atras da borda da lista. */
+.ws-meta-armada {
+  color: var(--alerta);
+}
+
+/* Em tela estreita as colunas fixas viram texto corrido: o que sai e o
+   alinhamento, nunca o dado. */
+@media (max-width: 900px) {
+  .ws-gasto,
+  .ws-selo {
+    width: auto;
+  }
+}
+
+/* ==========================================================================
+   9. MOVIMENTO REDUZIDO
+   O que se move some; a mudanca de cor e de tamanho de barra fica, porque e
+   ela que carrega o dado.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .core-barra,
+  .core-funil-barra,
+  .core-sigilo {
+    transition: none;
+  }
+}
+
+}

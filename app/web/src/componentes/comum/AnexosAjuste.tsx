@@ -5,7 +5,7 @@ import type { AnexoAjuste } from "../../tipos/dominio";
 import { lerBase64 } from "../../util/arquivo";
 import { mensagemDeErro } from "../../util/erros";
 import { IconeClipe, IconeX } from "./Icones";
-import "../../estilos/composer.css";
+import "../cockpit/composer.css";
 
 const ACEITA_ANEXO = ".md,.txt,.pdf,.csv,.json,.svg,image/*";
 

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
 import { escolherPastaNativa } from "../../api/cliente";
 import { obterResumoCore } from "../../api/core";
-import type { ResumoCore, WorkspaceNoCore } from "../../tipos/core";
+import type { EstadoAtividade, ResumoCore, WorkspaceNoCore } from "../../tipos/core";
 import { INFO_STATUS } from "../../config/status";
 import { mensagemDeErro } from "../../util/erros";
+import { Botao } from "../comum/Botao";
 import {
   IconeAlerta,
   IconeLapis,
@@ -17,9 +18,10 @@ import {
   ROTULO_ATIVIDADE,
   encurtarCaminho,
   formatarUsd,
+  pastaPrevista,
   tempoRelativo,
 } from "./logica";
-import "../../estilos/core.css";
+import "./core.css";
 
 // A partir de quantos workspaces vale ter busca por nome.
 const LIMITE_BUSCA = 6;
@@ -34,6 +36,11 @@ interface Props {
 
 // Tela de Workspaces do CORE: a lista de projetos do dono, com o gasto e o
 // estado de cada um. Abrir, criar, adicionar, renomear e remover moram aqui.
+//
+// UMA LINHA POR PROJETO, e nao mais uma grade de cartoes: workspace nao tem
+// imagem, e sem imagem o cartao so gasta altura. Na lista cabem tres vezes mais
+// projetos na mesma tela, o gasto vira coluna e se compara de cima a baixo, e
+// as acoes de cada linha nascem visiveis.
 export function TelaWorkspaces({ aoNavegar }: Props) {
   const {
     workspaces,
@@ -61,7 +68,6 @@ export function TelaWorkspaces({ aoNavegar }: Props) {
   const [nomeEdit, setNomeEdit] = useState("");
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
   const [nomeNovo, setNomeNovo] = useState("");
-  const [pastaDestino, setPastaDestino] = useState<string | null>(null);
   const timerDesarme = useRef<number | undefined>(undefined);
 
   const emVoo = sessoes.filter((s) => INFO_STATUS[s.status].ativa).length;
@@ -179,43 +185,19 @@ export function TelaWorkspaces({ aoNavegar }: Props) {
     }
   };
 
-  const aoEscolherDestino = async () => {
-    setErro(null);
-    try {
-      const caminho = await escolherPastaNativa("Escolha onde criar a pasta do workspace novo");
-      if (caminho) setPastaDestino(caminho);
-    } catch (e) {
-      setErro(mensagemDeErro(e));
-    }
-  };
-
-  // A pasta do workspace novo nasce DENTRO da pasta escolhida, com o nome em
-  // slug. O backend cria a pasta se ela nao existir.
-  const destinoFinal = (): string | null => {
-    if (!pastaDestino) return null;
-    const limpo = nomeNovo
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const separador = pastaDestino.includes("\\") ? "\\" : "/";
-    const base = pastaDestino.endsWith(separador) ? pastaDestino.slice(0, -1) : pastaDestino;
-    return `${base}${separador}${limpo || "workspace"}`;
-  };
-
+  // Criar pede so o nome. O destino nao e mais escolha da pessoa: o servidor
+  // monta <raiz do projeto>/workspaces/<slug do nome> sozinho, e a tela anuncia
+  // esse caminho em relativo enquanto ela digita.
   const aoCriar = async () => {
     const nome = nomeNovo.trim();
-    const destino = destinoFinal();
-    if (!nome || !destino) return;
+    if (!nome) return;
     setOcupado(true);
     setErro(null);
     try {
-      const retorno = await criarCliente(nome, destino);
+      const retorno = await criarCliente(nome);
       if (retorno.length > 0) setAvisos(retorno);
       setVista("lista");
       setNomeNovo("");
-      setPastaDestino(null);
     } catch (e) {
       setErro(mensagemDeErro(e));
     } finally {
@@ -224,160 +206,189 @@ export function TelaWorkspaces({ aoNavegar }: Props) {
   };
 
   return (
-    <section className="tela-core tela-workspaces">
-      <div className="core-scroll">
-        <header className="core-cabecalho">
-          <span className="core-nivel">CORE</span>
+    <section className="tela">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
           <h1>Workspaces</h1>
-          <p className="core-contexto">
+          <p>
             Um workspace por projeto. Cada um é uma pasta VKOS completa, com o
             Cérebro, as peças e as sessões dele.
           </p>
-        </header>
+        </div>
+        {/* As acoes do cabecalho so existem na lista: nas duas telas de
+            formulario a acao principal e a do proprio formulario, e duas
+            principais na mesma tela e o que faz o olho parar de achar a
+            primeira. */}
+        {vista === "lista" && (
+          <div className="tela-topo-acoes">
+            <Botao
+              variante="neutro"
+              onClick={() => {
+                setErro(null);
+                setVista("adicionar");
+              }}
+            >
+              <IconePasta className="" />
+              Adicionar
+            </Botao>
+            <Botao
+              variante="principal"
+              onClick={() => {
+                setErro(null);
+                setVista("novo");
+              }}
+            >
+              <IconeMais className="" />
+              Novo workspace
+            </Botao>
+          </div>
+        )}
+      </header>
 
+      <div className="tela-corpo">
         {erro && (
-          <div className="core-erro" role="alert">
+          <div className="faixa faixa-alerta core-faixa-erro" role="alert">
             <IconeAlerta className="" />
-            {erro}
+            <div className="faixa-texto">{erro}</div>
+          </div>
+        )}
+
+        {avisos && (
+          <div className="faixa faixa-aviso core-faixa-erro" role="status">
+            <IconeAlerta className="" />
+            <div className="faixa-texto">
+              Workspace criado, com pendências:{" "}
+              {avisos.join(" ")}
+            </div>
+            <div className="faixa-acoes">
+              <Botao
+                variante="fantasma"
+                tamanho="p"
+                soIcone
+                aria-label="Fechar aviso"
+                onClick={() => setAvisos(null)}
+              >
+                <IconeX className="" />
+              </Botao>
+            </div>
           </div>
         )}
 
         {vista === "lista" && (
           <>
-            <div className="ws-barra">
-              {workspaces.length > LIMITE_BUSCA && (
-                <input
-                  className="ws-busca"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar workspace"
-                  aria-label="Buscar workspace"
-                />
-              )}
-              <div className="ws-barra-acoes">
-                <button
-                  className="botao botao-neutro"
-                  type="button"
-                  onClick={() => {
-                    setErro(null);
-                    setVista("adicionar");
-                  }}
-                >
-                  <IconePasta className="" />
-                  Adicionar workspace
-                </button>
-                <button
-                  className="botao botao-principal"
-                  type="button"
-                  onClick={() => {
-                    setErro(null);
-                    setVista("novo");
-                  }}
-                >
-                  <IconeMais className="" />
-                  Novo workspace
-                </button>
+            {workspaces.length > LIMITE_BUSCA && (
+              <div className="barra-ferramentas">
+                <div className="campo-com-icone ws-busca">
+                  <IconeLupa />
+                  <input
+                    className="campo"
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar workspace"
+                    aria-label="Buscar workspace"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {linhas.length === 0 ? (
-              <div className="core-vazio ws-vazio">
+              <div className="vazio">
+                <h2>
+                  {workspaces.length === 0
+                    ? "Nenhum workspace ainda"
+                    : "Nenhum workspace com esse nome"}
+                </h2>
                 <p>
                   {workspaces.length === 0
-                    ? "Nenhum workspace ainda. Crie o primeiro para começar a trabalhar."
-                    : "Nenhum workspace com esse nome."}
+                    ? "Cada projeto seu vira um workspace, com o Cérebro e as peças dele. Crie o primeiro para começar a trabalhar."
+                    : "Apague parte da busca para ver os outros projetos."}
                 </p>
+                {workspaces.length === 0 && (
+                  <Botao variante="neutro" onClick={() => setVista("novo")}>
+                    Criar o primeiro
+                  </Botao>
+                )}
               </div>
             ) : (
-              <ul className="ws-grade">
+              <div className="lista ws-lista">
                 {linhas.map(({ registro, core }) => {
                   const ehAtivo = registro.id === workspaceAtivo;
                   const editando = editandoId === registro.id;
                   const armado = confirmandoId === registro.id;
                   const quando = tempoRelativo(core?.ultimoTurnoEm ?? registro.ultimoUso);
+                  const contexto = fraseDoContexto(core, quando);
                   return (
-                    <li
+                    <div
                       key={registro.id}
-                      className={`ws-cartao${ehAtivo ? " aberto" : ""}`}
+                      className={`item-lista${ehAtivo ? " ativo" : ""}`}
                     >
-                      <div className="ws-cartao-topo">
-                        <span
-                          className={`core-linha-estado ${core?.atividade ?? "parado"}`}
-                          aria-hidden="true"
+                      {editando ? (
+                        <input
+                          className="campo campo-p ws-nome-edit"
+                          autoFocus
+                          value={nomeEdit}
+                          onChange={(e) => setNomeEdit(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void salvarEdicao();
+                            if (e.key === "Escape") setEditandoId(null);
+                          }}
+                          onBlur={() => void salvarEdicao()}
+                          aria-label="Novo nome do workspace"
                         />
-                        {editando ? (
-                          <input
-                            className="ws-cartao-edit"
-                            autoFocus
-                            value={nomeEdit}
-                            onChange={(e) => setNomeEdit(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void salvarEdicao();
-                              if (e.key === "Escape") setEditandoId(null);
-                            }}
-                            onBlur={() => void salvarEdicao()}
-                            aria-label="Novo nome do workspace"
-                          />
-                        ) : (
-                          <h2 className="ws-cartao-nome" title={registro.nome}>
+                      ) : (
+                        <span className="item-lista-texto">
+                          <span className="item-lista-titulo" title={registro.nome}>
                             {registro.nome}
-                          </h2>
-                        )}
-                        {ehAtivo && <span className="core-etiqueta">aberto</span>}
-                      </div>
-
-                      <p className="ws-cartao-pasta" title={registro.pasta}>
-                        {encurtarCaminho(registro.pasta)}
-                      </p>
-
-                      <dl className="ws-cartao-dados">
-                        <div>
-                          <dt>Estado</dt>
-                          <dd>
-                            {ROTULO_ATIVIDADE[core?.atividade ?? "parado"]}
-                            {core && core.sessoesRodando > 0 &&
-                              `, ${core.sessoesRodando} ${
-                                core.sessoesRodando === 1 ? "sessão" : "sessões"
-                              }`}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Gasto com IA</dt>
-                          <dd
-                            title={
-                              core?.gastoIlegivel
-                                ? "O histórico de gasto deste workspace não pôde ser lido."
-                                : undefined
-                            }
+                          </span>
+                          {/* Armado pra remover, a propria linha diz o que vai
+                              acontecer. Balao flutuante em cima do botao ficava
+                              recortado pela borda da lista. */}
+                          <span
+                            className={`item-lista-meta${armado ? " ws-meta-armada" : ""}`}
+                            title={registro.pasta}
                           >
-                            {!core
-                              ? "carregando"
-                              : core.gastoIlegivel
-                                ? "sem leitura"
-                                : formatarUsd(core.totalUsd, {
-                                    estimado: core.estimado,
-                                    piso: core.piso,
-                                  })}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Último trabalho</dt>
-                          <dd>{quando ?? "nunca"}</dd>
-                        </div>
-                      </dl>
+                            {armado
+                              ? "Clique de novo para remover. Sai do registro do Hub; a pasta VKOS fica intacta."
+                              : `${encurtarCaminho(registro.pasta)}, ${contexto}`}
+                          </span>
+                        </span>
+                      )}
 
-                      <div className="ws-cartao-acoes">
-                        <button
-                          className="botao botao-principal ws-abrir"
-                          type="button"
+                      <span className="ws-cel-selo">
+                        <SeloAtividade atividade={core?.atividade ?? "parado"} />
+                      </span>
+
+                      {!core ? (
+                        <span className="ws-gasto vago">carregando</span>
+                      ) : core.gastoIlegivel ? (
+                        <span
+                          className="ws-gasto vago"
+                          title="O histórico de gasto deste workspace não pôde ser lido."
+                        >
+                          sem leitura
+                        </span>
+                      ) : (
+                        <span className="ws-gasto" title="Gasto com IA neste workspace">
+                          {formatarUsd(core.totalUsd, {
+                            estimado: core.estimado,
+                            piso: core.piso,
+                          })}
+                          <span className="ws-gasto-unidade">em IA</span>
+                        </span>
+                      )}
+
+                      <div className="item-lista-acoes">
+                        <Botao
+                          tamanho="p"
                           disabled={trocandoWorkspace}
                           onClick={() => void abrir(registro.id)}
                         >
                           {ehAtivo ? "Ir para o trabalho" : "Abrir"}
-                        </button>
-                        <button
-                          className="ws-acao"
-                          type="button"
+                        </Botao>
+                        <Botao
+                          variante="fantasma"
+                          tamanho="p"
+                          soIcone
                           title="Renomear"
                           aria-label={`Renomear ${registro.nome}`}
                           onClick={() => {
@@ -387,10 +398,11 @@ export function TelaWorkspaces({ aoNavegar }: Props) {
                           }}
                         >
                           <IconeLapis className="" />
-                        </button>
-                        <button
-                          className={`ws-acao ws-remover${armado ? " armado" : ""}`}
-                          type="button"
+                        </Botao>
+                        <Botao
+                          variante={armado ? "perigo" : "fantasma"}
+                          tamanho="p"
+                          soIcone
                           title={
                             ehAtivo
                               ? "Não dá pra remover o workspace aberto"
@@ -401,128 +413,133 @@ export function TelaWorkspaces({ aoNavegar }: Props) {
                           onClick={() => clicarRemover(registro.id)}
                         >
                           <IconeLixeira className="" />
-                          {armado && <span className="ws-balao">Confirmar?</span>}
-                        </button>
+                        </Botao>
                       </div>
-
-                      {armado && (
-                        <p className="ws-cartao-aviso">
-                          Sai do registro e apaga os dados do Hub deste workspace.
-                          A pasta VKOS dele fica intacta.
-                        </p>
-                      )}
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             )}
           </>
         )}
 
         {vista === "adicionar" && (
-          <div className="ws-form">
-            <div className="ws-form-topo">
-              <button
-                className="ws-voltar"
-                type="button"
-                onClick={() => setVista("lista")}
-                disabled={ocupado}
-                aria-label="Voltar para a lista"
-              >
-                <IconeX className="" />
-              </button>
-              <h2>Adicionar workspace</h2>
-            </div>
-            <p className="ws-ajuda">
-              Aponte a pasta VKOS de um projeto que já existe. O seletor do
-              Windows vai abrir.
-            </p>
-            <button
-              className="botao botao-principal"
-              type="button"
-              onClick={() => void aoEscolherEAdicionar()}
-              disabled={ocupado}
-            >
-              <IconePasta className="" />
-              {ocupado ? "Aguardando o seletor..." : "Escolher pasta"}
-            </button>
+          <div className="tela-corpo-estreito">
+            <section className="secao">
+              <div className="secao-topo">
+                <h2>Adicionar workspace</h2>
+                <Botao variante="fantasma" tamanho="p" onClick={() => setVista("lista")}>
+                  Voltar
+                </Botao>
+              </div>
+              <p className="dica">
+                Aponte a pasta VKOS de um projeto que já existe. O seletor do
+                Windows vai abrir.
+              </p>
+              <div className="acoes-formulario">
+                <Botao
+                  variante="principal"
+                  onClick={() => void aoEscolherEAdicionar()}
+                  disabled={ocupado}
+                  aria-busy={ocupado}
+                >
+                  <IconePasta className="" />
+                  Escolher pasta
+                </Botao>
+              </div>
+            </section>
           </div>
         )}
 
         {vista === "novo" && (
-          <div className="ws-form">
-            <div className="ws-form-topo">
-              <button
-                className="ws-voltar"
-                type="button"
-                onClick={() => setVista("lista")}
-                disabled={ocupado}
-                aria-label="Voltar para a lista"
-              >
-                <IconeX className="" />
-              </button>
-              <h2>Novo workspace</h2>
-            </div>
-            <p className="ws-ajuda">
-              Cria um workspace novo com a mesma estrutura do aberto e o Cérebro
-              em branco. Escolha o nome e a pasta onde ele vai morar.
-            </p>
-            <input
-              className="ws-input"
-              value={nomeNovo}
-              onChange={(e) => setNomeNovo(e.target.value)}
-              placeholder="Nome do workspace"
-              aria-label="Nome do workspace"
-              disabled={ocupado}
-            />
-            <button
-              className="botao botao-neutro"
-              type="button"
-              onClick={() => void aoEscolherDestino()}
-              disabled={ocupado}
-            >
-              <IconePasta className="" />
-              {pastaDestino ? "Trocar a pasta" : "Escolher onde criar"}
-            </button>
-            <div className="ws-destino">
-              <span className="ws-destino-rotulo">Pasta do workspace</span>
-              <span className="ws-destino-valor">
-                {destinoFinal() ? encurtarCaminho(destinoFinal() as string) : "Nenhuma escolhida ainda"}
-              </span>
-            </div>
-            <button
-              className="botao botao-principal"
-              type="button"
-              onClick={() => void aoCriar()}
-              disabled={ocupado || !nomeNovo.trim() || !pastaDestino}
-            >
-              {ocupado ? "Criando" : "Criar workspace"}
-            </button>
-          </div>
-        )}
-
-        {avisos && (
-          <div className="ws-toast" role="status">
-            <div className="ws-toast-topo">
-              <IconeAlerta className="" />
-              <strong>Workspace criado, com pendências</strong>
-              <button
-                className="ws-toast-x"
-                type="button"
-                onClick={() => setAvisos(null)}
-                aria-label="Fechar aviso"
-              >
-                <IconeX className="" />
-              </button>
-            </div>
-            <ul className="ws-toast-lista">
-              {avisos.map((a, i) => (
-                <li key={i}>{a}</li>
-              ))}
-            </ul>
+          <div className="tela-corpo-estreito">
+            <section className="secao">
+              <div className="secao-topo">
+                <h2>Novo workspace</h2>
+                <Botao variante="fantasma" tamanho="p" onClick={() => setVista("lista")}>
+                  Voltar
+                </Botao>
+              </div>
+              <p className="dica">
+                Cria um workspace novo com a mesma estrutura do aberto e o Cérebro
+                em branco. Basta o nome: o Hub já sabe onde guardar.
+              </p>
+              <div className="grupo-campo">
+                <label className="rotulo" htmlFor="ws-nome-novo">
+                  Nome do workspace
+                </label>
+                <input
+                  className="campo"
+                  id="ws-nome-novo"
+                  value={nomeNovo}
+                  onChange={(e) => setNomeNovo(e.target.value)}
+                  placeholder="Padaria do Bairro"
+                  disabled={ocupado}
+                  aria-describedby="ws-destino"
+                />
+                {/* A pessoa nao escolhe mais a pasta, mas nao pode ficar no
+                    escuro sobre onde o dado dela vai parar. O caminho e
+                    relativo porque a raiz e do servidor. */}
+                <span className="dica" id="ws-destino">
+                  Vai nascer em {pastaPrevista(nomeNovo)}
+                </span>
+              </div>
+              <div className="acoes-formulario">
+                <Botao variante="neutro" onClick={() => setVista("lista")} disabled={ocupado}>
+                  Cancelar
+                </Botao>
+                {/* O rotulo NAO vira "Criando": trocar o texto por um estado
+                    apaga qual acao esta em curso. O giro entra ao lado. */}
+                <Botao
+                  variante="principal"
+                  onClick={() => void aoCriar()}
+                  disabled={ocupado || !nomeNovo.trim()}
+                  aria-busy={ocupado}
+                >
+                  Criar workspace
+                </Botao>
+              </div>
+            </section>
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+// O estado de atividade do workspace, como selo com texto.
+//
+// Sao TRES estados, e nao um liga/desliga: "Rodando agora" e "Ativo" nao sao a
+// mesma noticia. Cor so no estado vivo, que e a regra do menta falar pouco: os
+// outros dois sao o selo neutro.
+function SeloAtividade({ atividade }: { atividade: EstadoAtividade }) {
+  const vivo = atividade === "rodando";
+  return (
+    <span className={`selo${vivo ? " selo-vivo" : ""}`}>
+      <span className={`ponto-vivo${vivo ? "" : " parado"}`} aria-hidden="true" />
+      {ROTULO_ATIVIDADE[atividade]}
+    </span>
+  );
+}
+
+// A frase de contexto da linha: sessoes em voo e quando foi o ultimo trabalho.
+function fraseDoContexto(core: WorkspaceNoCore | null, quando: string | null): string {
+  const partes: string[] = [];
+  if (core && core.sessoesRodando > 0) {
+    partes.push(
+      `${core.sessoesRodando} ${core.sessoesRodando === 1 ? "sessão" : "sessões"}`,
+    );
+  }
+  partes.push(quando ? `trabalhou ${quando}` : "nunca trabalhou");
+  return partes.join(", ");
+}
+
+// Lupa da busca. Ela e decorativa: o rotulo real do campo vive no aria-label.
+function IconeLupa() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="6" />
+      <path d="m20 20-3.6-3.6" />
+    </svg>
   );
 }

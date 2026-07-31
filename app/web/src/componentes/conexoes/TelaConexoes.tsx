@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import "../../estilos/conexoes.css";
+import "./conexoes.css";
 import { Botao } from "../comum/Botao";
 import { usarEstado } from "../../estado/contexto";
 import { usarProvedoresIA } from "../../estado/provedores";
@@ -22,18 +22,18 @@ import {
   IconeCheck,
   IconeOlho,
   IconeOlhoRiscado,
-  IconeRaio,
 } from "../comum/Icones";
+import { CAMINHO_SETUP, irParaCaminho } from "../layout/rotas";
 
 // Conexões que o Hub confirma na API oficial ao salvar. Hoje só a Apify, que
 // alimenta a busca de leads do CRM.
-const IDS_COM_TESTE = new Set(["apify"]);
+const IDS_COM_TESTE = new Set(["apify", "supabase"]);
 
 // Mapa de estado por id de servidor.
 type MapaServidores = Record<string, EstadoServidor>;
 
-// Tela das conexoes: um card por servico. O usuario cola o token, liga o
-// servidor e salva.
+// Tela das conexoes: o motor de IA em cima e uma secao por servico externo. O
+// usuario cola o token, liga o servidor e salva.
 //
 // A conexao e do CORE desde 2026-07-27, nao do workspace: a conta e do dono do
 // Hub e a mesma em todo projeto. Por isso nada aqui depende do workspace aberto,
@@ -63,7 +63,7 @@ export function TelaConexoes() {
       setCatalogo(dados.catalogo);
       setServidores(dados.estado.servidores);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Nao deu pra carregar as conexoes.");
+      setErro(e instanceof Error ? e.message : "Não deu para carregar as conexões.");
     } finally {
       setCarregando(false);
     }
@@ -103,91 +103,105 @@ export function TelaConexoes() {
   );
 
   return (
-    <section className="tela-fluxo">
-      <header className="tela-fluxo-topo">
-        <div className="conx-topo-titulo">
-          <IconeRaio className="conx-topo-icone" />
-          <div>
-            <h1>Conexões</h1>
-            <p className="subtitulo">
-              {ligadas === 0
-                ? "Nenhuma conexão ligada, valem para todos os workspaces"
-                : ligadas === 1
-                ? "1 conexão ligada, vale para todos os workspaces"
-                : `${ligadas} conexões ligadas, valem para todos os workspaces`}
-            </p>
-          </div>
+    <section className="tela tela-conexoes">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
+          <h1>Conexões</h1>
+          <p>
+            {ligadas === 0
+              ? "Nenhuma conexão ligada. Elas valem para todos os workspaces."
+              : ligadas === 1
+              ? "1 conexão ligada. Ela vale para todos os workspaces."
+              : `${ligadas} conexões ligadas. Elas valem para todos os workspaces.`}
+          </p>
+        </div>
+        <div className="tela-topo-acoes">
+          <Botao
+            variante="neutro"
+            onClick={() => {
+              irParaCaminho(CAMINHO_SETUP);
+            }}
+          >
+            Configuração guiada
+          </Botao>
         </div>
       </header>
 
-      <div className="conx-corpo">
-        <BlocoMotorIA
-          ativo={provedorAtivo}
-          modelos={modelos}
-          modeloPadrao={modeloPadrao}
-          temClaude={provedores.some((p) => p.id === "claude")}
-          temCodex={provedores.some((p) => p.id === "codex")}
-          ambiente={ambiente}
-          carregando={carregandoProvedores}
-          erro={erroProvedores}
-          aoAtualizar={async () => {
-            await recarregarProvedores();
-            try {
-              setAmbiente(await obterAmbiente(true));
-            } catch {
-              // O catalogo segue utilizavel mesmo sem atualizar a deteccao.
-            }
-          }}
-        />
+      <div className="tela-corpo">
+        <div className="tela-corpo-estreito">
+          <BlocoMotorIA
+            ativo={provedorAtivo}
+            modelos={modelos}
+            modeloPadrao={modeloPadrao}
+            temClaude={provedores.some((p) => p.id === "claude")}
+            temCodex={provedores.some((p) => p.id === "codex")}
+            ambiente={ambiente}
+            carregando={carregandoProvedores}
+            erro={erroProvedores}
+            aoAtualizar={async () => {
+              await recarregarProvedores();
+              try {
+                setAmbiente(await obterAmbiente(true));
+              } catch {
+                // O catalogo segue utilizavel mesmo sem atualizar a deteccao.
+              }
+            }}
+          />
 
-        <p className="conx-aviso-local">
-          <IconeAlerta className="conx-aviso-icone" />
-          Os tokens ficam só nesta máquina, num arquivo local do Hub. Eles são
-          seus, não do workspace, e nada sai daqui.
-        </p>
+          <section className="secao">
+            <div className="secao-topo">
+              <h2>Serviços</h2>
+              <p>Os tokens ficam só nesta máquina, num arquivo local do Hub.</p>
+            </div>
 
-        {provedorAtivo === "codex" && (
-          <p className="conx-aviso-mcp">
-            <IconeAlerta className="conx-aviso-icone" />
-            As ferramentas MCP estão disponíveis só com Claude nesta versão. As
-            conexões continuam configuráveis com Codex.
-          </p>
-        )}
+            {erro && (
+              <div className="faixa faixa-alerta conx-faixa" role="alert">
+                <IconeAlerta className="" />
+                <div className="faixa-texto">{erro}</div>
+                <div className="faixa-acoes">
+                  <Botao tamanho="p" onClick={() => void carregar()}>
+                    Tentar de novo
+                  </Botao>
+                </div>
+              </div>
+            )}
 
-        {erro && (
-          <div className="conx-erro-topo">
-            {erro}
-            <Botao onClick={() => void carregar()}>Tentar de novo</Botao>
-          </div>
-        )}
-
-        {carregando ? (
-          <div className="conx-carregando">
-            <span className="giro" />
-          </div>
-        ) : (
-          <div className="conx-grade">
-            {catalogo.map((entrada) => (
-              <CartaoConexao
-                key={entrada.id}
-                entrada={entrada}
-                estado={servidores[entrada.id]}
-                aoSalvar={aoSalvar}
-              />
-            ))}
-          </div>
-        )}
+            {carregando ? (
+              <div className="conx-carregando" aria-hidden="true">
+                <div className="esqueleto esqueleto-linha" />
+                <div className="esqueleto esqueleto-linha" />
+                <div className="esqueleto esqueleto-linha" />
+              </div>
+            ) : (
+              catalogo.map((entrada) => (
+                <ServicoConexao
+                  key={entrada.id}
+                  entrada={entrada}
+                  estado={servidores[entrada.id]}
+                  aoSalvar={aoSalvar}
+                />
+              ))
+            )}
+          </section>
+        </div>
       </div>
     </section>
   );
 }
 
 function textoStatus(deteccao?: DeteccaoMotorIA): string {
-  if (!deteccao) return "Verificando...";
+  if (!deteccao) return "Verificando";
   if (!deteccao?.instalado) return "Não instalado";
   if (deteccao.logado === true) return "Instalado e conectado";
   if (deteccao.logado === false) return "Instalado, falta entrar";
   return "Instalado, login não verificado";
+}
+
+// O selo do motor só fica vivo quando ele está pronto de verdade: instalado e
+// com a conta conectada. Cor que fala sempre deixa de significar.
+function classeStatus(deteccao?: DeteccaoMotorIA): string {
+  if (!deteccao || !deteccao.instalado) return "selo";
+  return deteccao.logado === true ? "selo selo-vivo" : "selo selo-aviso";
 }
 
 function BlocoMotorIA({
@@ -211,21 +225,15 @@ function BlocoMotorIA({
   erro: string | null;
   aoAtualizar: () => Promise<void>;
 }) {
-  const [confirmar, setConfirmar] = useState<ProvedorIA | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erroLocal, setErroLocal] = useState<string | null>(null);
 
   async function trocar(provedor: ProvedorIA) {
     if (provedor === ativo || salvando) return;
-    if (confirmar !== provedor) {
-      setConfirmar(provedor);
-      return;
-    }
     setSalvando(true);
     setErroLocal(null);
     try {
       await atualizarConfig({ provedorPadrao: provedor });
-      setConfirmar(null);
       await aoAtualizar();
     } catch (e) {
       setErroLocal(e instanceof Error ? e.message : "Não foi possível trocar o motor.");
@@ -263,75 +271,52 @@ function BlocoMotorIA({
   ];
 
   return (
-    <section className="conx-motor" aria-labelledby="conx-motor-titulo">
-      <header className="conx-motor-topo">
-        <div>
-          <span className="conx-motor-sobre">Motor ativo</span>
-          <h2 id="conx-motor-titulo">Motor de IA</h2>
-        </div>
-        <div className="conx-motor-acoes-topo">
-          <span className="conx-motor-ativo">
-            {ativo === "codex" ? "Codex" : "Claude"}
-          </span>
-          <Botao
-            variante="fantasma"
-            tamanho="p"
-            className="conx-motor-guia"
-            onClick={() => {
-              window.location.hash = "#/setup";
-            }}
-          >
-            Abrir configuração guiada
-          </Botao>
-        </div>
-      </header>
-
-      <div className="conx-motor-grade">
-        {opcoes.map((opcao) => {
-          const selecionado = opcao.id === ativo;
-          const armada = confirmar === opcao.id;
-          return (
-            <div className={`conx-motor-opcao${selecionado ? " ativa" : ""}`} key={opcao.id}>
-              <div className="conx-motor-opcao-cabeca">
-                <strong>{opcao.nome}</strong>
-                <span className={`conx-motor-status${opcao.deteccao?.logado ? " ok" : ""}`}>
-                  {textoStatus(opcao.deteccao)}
-                </span>
-              </div>
-              {opcao.deteccao?.versao && (
-                <span className="conx-motor-versao">{opcao.deteccao.versao}</span>
-              )}
-              <Botao
-                variante={selecionado ? "neutro" : "fantasma"}
-                tamanho="p"
-                className="conx-motor-trocar"
-                disabled={selecionado || !opcao.disponivel || salvando}
-                onClick={() => void trocar(opcao.id)}
-              >
-                {selecionado
-                  ? "Em uso"
-                  : armada
-                  ? `Confirmar ${opcao.nome}`
-                  : `Usar ${opcao.nome}`}
-              </Botao>
-              {armada && (
-                <p className="conx-motor-confirmacao">
-                  {opcao.id === "codex"
-                    ? "O custo passa a ser estimado por tokens e o MCP fica indisponível."
-                    : "As novas sessões usam Claude e recuperam as conexões MCP."}
-                  <Botao variante="fantasma" tamanho="p" onClick={() => setConfirmar(null)}>
-                    Cancelar
-                  </Botao>
-                </p>
-              )}
-            </div>
-          );
-        })}
+    <section className="secao">
+      <div className="secao-topo">
+        <h2>Motor de IA</h2>
+        <p>Vale para as sessões novas de todos os workspaces.</p>
       </div>
 
-      <label className="conx-motor-modelo">
-        <span>Modelo padrão de {ativo === "codex" ? "Codex" : "Claude"}</span>
+      <fieldset className="opcoes conx-motores">
+        <legend className="so-leitor">Motor de IA em uso</legend>
+        {opcoes.map((opcao) => (
+          <label className="opcao" key={opcao.id}>
+            <input
+              type="radio"
+              name="conx-motor"
+              checked={opcao.id === ativo}
+              disabled={!opcao.disponivel || salvando}
+              onChange={() => void trocar(opcao.id)}
+            />
+            <span className="opcao-titulo">{opcao.nome}</span>
+            <span className="opcao-descricao">
+              {opcao.deteccao?.versao ?? "Versão desconhecida"}
+            </span>
+            <span className={classeStatus(opcao.deteccao)}>
+              {opcao.deteccao?.logado === true && <span className="ponto-vivo" />}
+              {textoStatus(opcao.deteccao)}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      {ativo === "codex" && (
+        <div className="faixa faixa-aviso conx-faixa" role="status">
+          <IconeAlerta className="" />
+          <div className="faixa-texto">
+            As ferramentas MCP funcionam só com Claude nesta versão. Os serviços
+            abaixo continuam configuráveis.
+          </div>
+        </div>
+      )}
+
+      <div className="grupo-campo conx-modelo">
+        <label className="rotulo" htmlFor="conx-modelo">
+          Modelo padrão de {ativo === "codex" ? "Codex" : "Claude"}
+        </label>
         <select
+          className="campo"
+          id="conx-modelo"
           value={modeloPadrao}
           onChange={(e) => void escolherModelo(e.target.value)}
           disabled={carregando || salvando || modelos.length === 0}
@@ -342,15 +327,22 @@ function BlocoMotorIA({
             </option>
           ))}
         </select>
-      </label>
+        <span className="dica">A troca vale da próxima sessão em diante.</span>
+      </div>
 
-      {(erro || erroLocal) && <p className="conx-erro">{erroLocal ?? erro}</p>}
+      {(erro || erroLocal) && (
+        <div className="faixa faixa-alerta conx-faixa" role="alert">
+          <IconeAlerta className="" />
+          <div className="faixa-texto">{erroLocal ?? erro}</div>
+        </div>
+      )}
     </section>
   );
 }
 
-// Card de um servico. Servico indisponivel vira card apagado com selo "em breve".
-function CartaoConexao({
+// Uma seção por serviço externo. Serviço que ainda não existe fica com o selo
+// "Em breve" e sem formulário.
+function ServicoConexao({
   entrada,
   estado,
   aoSalvar,
@@ -371,9 +363,9 @@ function CartaoConexao({
   const [testeOk, setTesteOk] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Sincroniza o toggle com o valor persistido quando ele muda no servidor (ex:
-  // o fluxo Conectar liga a conexao no backend). So dispara quando o disco muda,
-  // entao nao atropela o usuario mexendo no toggle antes de salvar.
+  // Sincroniza o interruptor com o valor persistido quando ele muda no servidor
+  // (ex: o fluxo Conectar liga a conexao no backend). So dispara quando o disco
+  // muda, entao nao atropela o usuario mexendo no controle antes de salvar.
   useEffect(() => {
     setHabilitado(estado?.habilitado ?? false);
   }, [estado?.habilitado]);
@@ -381,16 +373,15 @@ function CartaoConexao({
   // Placeholder mascarado do token salvo, quando existe.
   const mascarado = (campo: CampoConexao): string => estado?.config?.[campo.chave] ?? "";
   const temTokenSalvo = entrada.campos.some((c) => c.segredo && mascarado(c));
-
   const temTeste = IDS_COM_TESTE.has(entrada.id);
 
   if (!entrada.disponivel) {
     return (
-      <article className="conx-cartao indisponivel">
-        <header className="conx-cartao-topo">
+      <article className="conx-servico">
+        <div className="conx-servico-topo">
           <h3>{entrada.nome}</h3>
-          <span className="conx-selo-breve">em breve</span>
-        </header>
+          <span className="selo">Em breve</span>
+        </div>
         <p className="conx-descricao">{entrada.descricao}</p>
       </article>
     );
@@ -437,113 +428,118 @@ function CartaoConexao({
       setSalvo(true);
       window.setTimeout(() => setSalvo(false), 2200);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Nao deu pra salvar.");
+      setErro(e instanceof Error ? e.message : "Não deu para salvar.");
     } finally {
       setSalvando(false);
     }
   }
 
+  const idInterruptor = `conx-ligar-${entrada.id}`;
+
   return (
-    <article className={`conx-cartao${habilitado ? " ligado" : ""}`}>
-      <header className="conx-cartao-topo">
+    <article className="conx-servico">
+      <div className="conx-servico-topo">
         <h3>{entrada.nome}</h3>
-        <label className="conx-switch" title={habilitado ? "Ligado" : "Desligado"}>
+        <span className={habilitado ? "selo selo-vivo" : "selo"}>
+          {habilitado && <span className="ponto-vivo" />}
+          {habilitado ? "Ligado" : "Desligado"}
+        </span>
+        {/* O selo ao lado já diz o estado por escrito, então o rótulo do
+            interruptor vive só para o leitor de tela. */}
+        <label className="conx-ligar" htmlFor={idInterruptor}>
+          <span className="so-leitor">Ligar {entrada.nome}</span>
           <input
+            className="interruptor"
             type="checkbox"
+            id={idInterruptor}
             checked={habilitado}
             onChange={(e) => {
               setHabilitado(e.target.checked);
               setTesteOk(null);
             }}
           />
-          <span className="conx-switch-trilho">
-            <span className="conx-switch-bola" />
-          </span>
         </label>
-      </header>
+      </div>
 
       <p className="conx-descricao">{entrada.descricao}</p>
 
-      <div className="conx-campos">
-        {entrada.campos.map((campo) => {
-          const vendo = revelar[campo.chave] ?? false;
-          return (
-            <div className="conx-campo" key={campo.chave}>
-              <label className="conx-rotulo">{campo.rotulo}</label>
-              <div className="conx-entrada">
-                <input
-                  type={campo.segredo && !vendo ? "password" : "text"}
-                  value={valores[campo.chave] ?? ""}
-                  onChange={(e) => {
-                    setValores((antes) => ({ ...antes, [campo.chave]: e.target.value }));
-                    setTesteOk(null);
-                  }}
-                  placeholder={
-                    mascarado(campo) || campo.dica || "Cole o token aqui"
+      {entrada.campos.map((campo) => {
+        const vendo = revelar[campo.chave] ?? false;
+        const id = `conx-${entrada.id}-${campo.chave}`;
+        return (
+          <div className="grupo-campo" key={campo.chave}>
+            <label className="rotulo" htmlFor={id}>
+              {campo.rotulo}
+            </label>
+            <div className="conx-entrada">
+              <input
+                className="campo conx-campo-token"
+                id={id}
+                type={campo.segredo && !vendo ? "password" : "text"}
+                value={valores[campo.chave] ?? ""}
+                onChange={(e) => {
+                  setValores((antes) => ({ ...antes, [campo.chave]: e.target.value }));
+                  setTesteOk(null);
+                }}
+                // O placeholder NÃO repete a dica: ela já aparece logo abaixo
+                // do campo, e o texto duplicado fazia o bloco parecer ter dois
+                // avisos onde há um.
+                placeholder={mascarado(campo) || "Cole o token aqui"}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {campo.segredo && (
+                <Botao
+                  variante="fantasma"
+                  tamanho="p"
+                  soIcone
+                  className="conx-olho"
+                  onClick={() =>
+                    setRevelar((antes) => ({ ...antes, [campo.chave]: !vendo }))
                   }
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                {campo.segredo && (
-                  <Botao
-                    variante="fantasma"
-                    tamanho="p"
-                    soIcone
-                    className="conx-olho"
-                    onClick={() =>
-                      setRevelar((antes) => ({ ...antes, [campo.chave]: !vendo }))
-                    }
-                    aria-label={vendo ? "Ocultar" : "Revelar"}
-                    title={vendo ? "Ocultar" : "Revelar"}
-                  >
-                    {vendo ? (
-                      <IconeOlhoRiscado className="" />
-                    ) : (
-                      <IconeOlho className="" />
-                    )}
-                  </Botao>
-                )}
-              </div>
-              {campo.dica && <p className="conx-dica">{campo.dica}</p>}
+                  aria-label={vendo ? "Ocultar o token" : "Revelar o token"}
+                  title={vendo ? "Ocultar o token" : "Revelar o token"}
+                >
+                  {vendo ? <IconeOlhoRiscado className="" /> : <IconeOlho className="" />}
+                </Botao>
+              )}
             </div>
-          );
-        })}
-      </div>
+            {campo.dica && <span className="dica">{campo.dica}</span>}
+          </div>
+        );
+      })}
 
-      {erro && <p className="conx-erro">{erro}</p>}
-      {testeOk && (
-        <p className="conx-teste-ok">
+      {erro && (
+        <div className="faixa faixa-alerta conx-faixa" role="alert">
+          <IconeAlerta className="" />
+          <div className="faixa-texto">{erro}</div>
+        </div>
+      )}
+      {(testeOk || salvo) && !erro && (
+        <div className="faixa faixa-boa conx-faixa" role="status">
           <IconeCheck className="" />
-          {testeOk}
-        </p>
+          <div className="faixa-texto">{testeOk ?? "Salvo nesta máquina"}</div>
+        </div>
       )}
 
-      <div className="conx-cartao-rodape">
-        <span className="conx-estado-token">
-          {temTokenSalvo ? "token salvo nesta maquina" : "sem token ainda"}
+      <div className="acoes-formulario">
+        <span className="dica acoes-formulario-espaco">
+          {temTokenSalvo ? "Token salvo nesta máquina" : "Sem token ainda"}
         </span>
-        <div className="conx-acoes">
-          {salvo && (
-            <span className="conx-salvo">
-              <IconeCheck className="" />
-              salvo
-            </span>
-          )}
-          <Botao
-            variante="principal"
-            className="conx-salvar"
-            onClick={() => void salvar()}
-            disabled={salvando}
-          >
-            {validando
-              ? "Validando..."
-              : salvando
-              ? "Salvando..."
-              : temTeste && habilitado
-              ? "Salvar e testar"
-              : "Salvar"}
-          </Botao>
-        </div>
+        <Botao
+          variante="neutro"
+          onClick={() => void salvar()}
+          disabled={salvando || validando}
+          aria-busy={salvando || validando}
+        >
+          {validando
+            ? "Validando"
+            : salvando
+            ? "Salvando"
+            : temTeste && habilitado
+            ? "Salvar e testar"
+            : "Salvar"}
+        </Botao>
       </div>
     </article>
   );

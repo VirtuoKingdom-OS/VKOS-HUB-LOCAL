@@ -13,12 +13,25 @@ import { ErroDadoCorrompido, quarentenar } from "../util/quarentena.js";
 const arquivoAtual = fileURLToPath(import.meta.url);
 const pastaModulo = dirname(arquivoAtual);
 const pastaApp = resolve(pastaModulo, "..", "..", "..");
-const pastaDados = join(pastaApp, "dados");
-const caminhoConfig = join(pastaDados, "config.json");
+
+// Raiz dos dados, lida a CADA chamada e nunca fixada na carga do modulo.
+// VKOS_DADOS_TESTE desvia a raiz, do mesmo jeito que o registro de workspaces
+// (ver workspaces/estado.ts). Sem isso, qualquer teste que ativasse um workspace
+// gravaria a pasta temporaria dele no config.json de VERDADE, e o app do usuario
+// abriria apontando pra uma pasta que ja sumiu.
+function raizDados(): string {
+  return process.env.VKOS_DADOS_TESTE?.trim() || join(pastaApp, "dados");
+}
+
+function caminhoConfigAtual(): string {
+  return join(raizDados(), "config.json");
+}
 
 // Cache em memoria da pasta escolhida. Carrega do disco no primeiro uso.
 let pastaVkosCache: string | null = null;
 let carregado = false;
+// De qual raiz o cache veio. Trocou a raiz, o cache nao vale mais.
+let raizDoCache: string | null = null;
 // Fica verdadeiro quando o arquivo estava corrompido e nao deu pra quarentenar.
 // Enquanto estiver assim, gravar a pasta por cima apagaria o original.
 let gravacaoBloqueada = false;
@@ -28,10 +41,11 @@ export interface Validacao {
   motivo?: string;
 }
 
-// Garante que app/dados existe antes de gravar o config.
+// Garante que a raiz de dados existe antes de gravar o config.
 function garantirPastaDados(): void {
-  if (!existsSync(pastaDados)) {
-    mkdirSync(pastaDados, { recursive: true });
+  const raiz = raizDados();
+  if (!existsSync(raiz)) {
+    mkdirSync(raiz, { recursive: true });
   }
 }
 
@@ -76,11 +90,13 @@ export function lerPastaVkosDeArquivo(caminho: string): {
   return { pasta: dados.pastaVkos, podeGravar: true };
 }
 
-// Le o config do disco uma vez.
+// Le o config do disco uma vez por raiz. Trocou a raiz (teste), rele.
 function carregar(): void {
-  if (carregado) return;
+  const raiz = raizDados();
+  if (carregado && raizDoCache === raiz) return;
   carregado = true;
-  const lido = lerPastaVkosDeArquivo(caminhoConfig);
+  raizDoCache = raiz;
+  const lido = lerPastaVkosDeArquivo(caminhoConfigAtual());
   pastaVkosCache = lido.pasta;
   gravacaoBloqueada = !lido.podeGravar;
 }
@@ -103,7 +119,7 @@ export function definirPastaVkos(caminho: string): void {
   pastaVkosCache = caminho;
   garantirPastaDados();
   const dados = { pastaVkos: caminho };
-  gravarJsonAtomico(caminhoConfig, dados);
+  gravarJsonAtomico(caminhoConfigAtual(), dados);
 }
 
 // Confere se um caminho e um diretorio de verdade.

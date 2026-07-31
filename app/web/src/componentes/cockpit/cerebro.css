@@ -1,0 +1,224 @@
+/* O PAINEL DO CEREBRO: ler e editar a identidade do negocio.
+
+   Fundacao v2, Fase 2, onda B (2026-07-30). O Cerebro e o documento que toda
+   sessao le, entao a tela dele e uma tela de LEITURA antes de ser uma tela de
+   interface: a prosa manda, o resto recua. Dai a largura de leitura, o degrau
+   de 16px do corpo e a ausencia de qualquer caixa em volta do texto.
+
+   A moldura (gaveta, veu, cabecalho, botao de fechar) vem do canvas.css, que
+   e a folha da area. Aqui mora so o que e do Cerebro. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. LEITURA
+   ========================================================================== */
+.acoes-cerebro {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+.meta-cerebro {
+  margin-bottom: var(--esp-16);
+  padding-bottom: var(--esp-8);
+  border-bottom: 1px solid var(--linha);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* A prosa do Cerebro. 16/24 e o degrau de leitura da escala, e a largura para
+   em 68 caracteres: acima disso o olho perde a linha na volta. */
+.leitura-cerebro {
+  max-width: 68ch;
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  color: var(--texto-suave);
+}
+
+.leitura-cerebro h1,
+.leitura-cerebro h2,
+.leitura-cerebro h3 {
+  margin: var(--esp-24) 0 var(--esp-8);
+  color: var(--texto);
+  font-weight: var(--peso-medio);
+}
+
+.leitura-cerebro h1:first-child,
+.leitura-cerebro h2:first-child,
+.leitura-cerebro h3:first-child {
+  margin-top: 0;
+}
+
+.leitura-cerebro h1 {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+}
+
+.leitura-cerebro h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+}
+
+.leitura-cerebro h3 {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+}
+
+.leitura-cerebro p {
+  margin: 0 0 var(--esp-12);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.leitura-cerebro ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  margin: 0 0 var(--esp-12);
+  padding-left: var(--esp-24);
+}
+
+/* Enfase dentro de texto corrido: 600 basta, e 700 num paragrafo de leitura
+   inteiro vira mancha. */
+.leitura-cerebro strong {
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+}
+
+/* Estado vazio: ele ENSINA o que o Cerebro e e qual e a proxima acao. */
+.vazio-cerebro {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-8);
+  padding: var(--esp-48) var(--esp-24);
+  text-align: center;
+}
+
+.vazio-cerebro svg {
+  width: 28px;
+  height: 28px;
+  margin-bottom: var(--esp-4);
+  color: var(--texto-fraco);
+}
+
+.vazio-cerebro h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+
+.vazio-cerebro p {
+  max-width: 42ch;
+  color: var(--texto-suave);
+}
+
+.vazio-cerebro .botao {
+  margin-top: var(--esp-8);
+}
+
+/* ==========================================================================
+   2. EDICAO: modal central, o texto ocupando a tela toda
+   ========================================================================== */
+.overlay-cerebro {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-veu);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-24);
+  background: var(--veu);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+
+.modal-cerebro {
+  width: min(820px, 94vw);
+  height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-gg);
+  box-shadow: var(--sombra-modal);
+  animation: surgir var(--mov-lento) var(--curva) both;
+}
+
+.topo-modal-cerebro {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-12);
+  min-height: calc(var(--base) * 14);
+  padding: var(--esp-12) var(--esp-16);
+  border-bottom: 1px solid var(--linha);
+}
+
+.titulo-modal-cerebro {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+}
+
+.corpo-modal-cerebro {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--esp-16) var(--esp-16) 0;
+}
+
+/* O campo E a tela: sem caixa, sem fio, sem anel de foco. O foco se enxerga
+   pelo cursor no texto, e o modal ja e a moldura. */
+.campo-cerebro-editar {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  resize: none;
+  color: var(--texto);
+  background: transparent;
+  border: none;
+  font-family: var(--mono);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-leitura);
+}
+
+.campo-cerebro-editar:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.rodape-cerebro {
+  flex: none;
+  margin-top: var(--esp-12);
+  padding: var(--esp-12) var(--esp-16);
+  border-top: 1px solid var(--linha);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+.marca-erro-cerebro {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--alerta);
+}
+} /* fim de @layer tela */

@@ -6,7 +6,7 @@
 import { definirPastaVkos } from "../vkos/estado.js";
 import { reinstalarObservador } from "../vkos/pecas.js";
 import { invalidarCacheContextos } from "../contextos/armazenamento.js";
-import { transmitir } from "../ws.js";
+import { transmitir } from "../nucleo/ws.js";
 import {
   adicionarWorkspace,
   lerRegistro,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IconeLapis, IconeSeta, IconeX } from "../comum/Icones";
 import { IconeBaixar } from "../telas/icones";
 import { nomeDownload } from "../telas/fluxos";
+import "./pecas.css";
 
 interface Props {
   urls: string[];
@@ -102,7 +103,12 @@ export function Lightbox({
       onClick={aoFechar}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <button className="visor-fechar" onClick={aoFechar} title="Fechar">
+      <button
+        className="visor-fechar"
+        onClick={aoFechar}
+        aria-label="Fechar"
+        title="Fechar"
+      >
         <IconeX className="" />
       </button>
 
@@ -159,6 +165,7 @@ export function Lightbox({
             e.stopPropagation();
             anterior();
           }}
+          aria-label="Anterior"
           title="Anterior"
         >
           <IconeSeta className="" style={{ transform: "rotate(180deg)" }} />
@@ -210,6 +217,7 @@ export function Lightbox({
             e.stopPropagation();
             proximo();
           }}
+          aria-label="Próxima"
           title="Próxima"
         >
           <IconeSeta className="" />

@@ -12,6 +12,10 @@ export interface ApiCanvas {
     arquivos: File[],
     tipo: TipoContexto
   ) => Promise<string | null>;
+  // Corta uma aresta e marca o corte pra ele sobreviver ao sync e ao reload.
+  // Quem chama e a propria aresta (o botao de corte no meio do caminho) e o
+  // menu de botao direito, que passa pelo Cockpit.
+  desconectarAresta: (idAresta: string) => void;
 }
 
 export const CanvasContexto = createContext<ApiCanvas | null>(null);

@@ -1,5 +1,5 @@
 // Exportacao local do site. Substituiu a publicacao integrada no GitHub e na
-// Netlify em 2026-07-26 (ver decisoes/2026-07-26-fim-da-publicacao-integrada.md).
+// Netlify em 2026-07-26 (ver docs/decisoes/2026-07-26-fim-da-publicacao-integrada.md).
 // Duas saidas: abrir a pasta da peca no explorador do sistema e baixar o site
 // pronto num ZIP. Nenhuma credencial, nenhuma chamada de rede.
 //

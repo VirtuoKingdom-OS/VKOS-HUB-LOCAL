@@ -1,7 +1,7 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import "../../estilos/markdown.css";
+import "./markdown.css";
 
 // Renderizador de markdown das mensagens da IA. Um so componente pra todo o
 // app (no de sessao, cerimonia, chat da IDE), pra conversa nunca mais chegar

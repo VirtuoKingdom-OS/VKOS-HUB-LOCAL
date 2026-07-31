@@ -47,7 +47,7 @@ export interface EntradaPublica {
 //
 // GitHub, Netlify e Notion sairam em 2026-07-26. GitHub e Netlify eram o
 // transporte da publicacao integrada de site, que virou exportacao local (ver
-// decisoes/2026-07-26-fim-da-publicacao-integrada.md). Notion saiu junto por
+// docs/decisoes/2026-07-26-fim-da-publicacao-integrada.md). Notion saiu junto por
 // nao alimentar nenhum fluxo do Hub. Vercel ja tinha saido em 2026-07-14: o
 // servidor oficial so entra por OAuth de navegador, sem token fixo.
 const CATALOGO: EntradaCatalogo[] = [
@@ -66,6 +66,29 @@ const CATALOGO: EntradaCatalogo[] = [
       },
     ],
     fonte: "Apify REST API v2, Actor compass/crawler-google-places",
+  },
+  {
+    id: "supabase",
+    nome: "Formulário do site (Supabase)",
+    descricao:
+      "Lê quem preencheu o formulário do seu site. A chave fica só nesta máquina.",
+    disponivel: true,
+    transporte: "http",
+    campos: [
+      {
+        chave: "url",
+        rotulo: "URL do projeto",
+        segredo: false,
+        dica: "No Supabase, em Settings, API, o campo Project URL",
+      },
+      {
+        chave: "chaveServico",
+        rotulo: "Chave service_role",
+        segredo: true,
+        dica: "No mesmo lugar, atrás do botão Reveal. Nunca use a chave anon aqui: ela não lê nada.",
+      },
+    ],
+    fonte: "Supabase PostgREST, tabela public.leads",
   },
 ];
 

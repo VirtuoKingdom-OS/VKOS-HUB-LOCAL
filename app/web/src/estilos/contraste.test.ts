@@ -1,23 +1,26 @@
-// Trava de contraste da paleta, nos tres temas.
+// Trava de contraste da paleta, nos dois temas. Fundacao v2, 2026-07-30.
 //
-// POR QUE ISTO EXISTE: cor aprovada no olho foi como o tema Claro chegou a um
-// botao principal com 3,69:1 no rotulo, e como a borda de campo ficou em
-// 1,55:1 nos tres temas. A paleta antiga falhava em 13 destas 48 verificacoes.
-// Contraste nao se mede no olho, se mede com a formula.
+// POR QUE ISTO EXISTE: cor aprovada no olho foi como o botao principal chegou
+// a 3,69:1 no rotulo e a borda de campo a 1,55:1. Contraste nao se mede no
+// olho, se mede com a formula.
 //
 // A formula e a do WCAG 2.2: luminancia relativa com o canal linearizado, e
 // (L1 + 0,05) / (L2 + 0,05). Ver https://www.w3.org/TR/WCAG22/#dfn-contrast-ratio
+//
+// POR QUE WCAG 2 E NAO APCA: o APCA e mais fiel a percepcao, mas em 2026 ele
+// ainda nao e criterio normativo em lugar nenhum e nao tem piso oficial por
+// tamanho de texto. A conformidade que se cobra do produto continua sendo a do
+// WCAG 2.2, entao e ela que a trava mede.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
-const pasta = dirname(fileURLToPath(import.meta.url));
-const css = readFileSync(join(pasta, "visual-hub.css"), "utf8");
+import { folhaPorNome } from "./folhas.js";
 
-const TEMAS = ["escuro", "vkos", "claro"] as const;
+const css = readFileSync(folhaPorNome("visual-hub.css").caminho, "utf8");
+
+const TEMAS = ["claro", "escuro"] as const;
 
 function tokensDoTema(tema: string): Map<string, string> {
   const marca = `:root[data-theme="${tema}"] {`;
@@ -55,28 +58,83 @@ function razao(frente: string, fundo: string): number {
   return (claro + 0.05) / (escuro + 0.05);
 }
 
-// Os pares criticos. O minimo de 4,5 vem do criterio 1.4.3 (texto). O de 3
-// vem do 1.4.11, que vale onde a borda E o unico indicador de um controle.
+// OS PARES CRITICOS.
+//
+// 4,5 vem do criterio 1.4.3 (texto normal). 3 vem do 1.4.11, que vale onde a
+// cor E o unico indicador de um controle ou de um grafico com significado.
+//
+// TODO TEXTO E MEDIDO CONTRA OS QUATRO PLANOS EM QUE ELE PODE CAIR, nao so
+// contra um. A falha classica do sistema anterior foi aprovar --texto-fraco
+// sobre --superficie e esquecer que a mesma linha, no hover, vira
+// --superficie-alta e perde meio ponto de razao.
+const PLANOS = ["--chassi", "--fundo", "--superficie", "--superficie-alta"];
+
 const PARES: { frente: string; fundo: string; minimo: number; oque: string }[] = [
-  { frente: "--texto", fundo: "--fundo", minimo: 4.5, oque: "texto na area de trabalho" },
-  { frente: "--texto", fundo: "--superficie", minimo: 4.5, oque: "texto em cartao" },
-  { frente: "--texto", fundo: "--superficie-alta", minimo: 4.5, oque: "texto em linha selecionada" },
+  ...PLANOS.map((p) => ({ frente: "--texto", fundo: p, minimo: 4.5, oque: "conteudo" })),
+  ...PLANOS.map((p) => ({ frente: "--texto-suave", fundo: p, minimo: 4.5, oque: "descricao" })),
+  ...PLANOS.map((p) => ({ frente: "--texto-fraco", fundo: p, minimo: 4.5, oque: "metadado" })),
   { frente: "--texto", fundo: "--superficie-flutuante", minimo: 4.5, oque: "texto em popover" },
-  { frente: "--texto-suave", fundo: "--superficie", minimo: 4.5, oque: "subtitulo em cartao" },
-  { frente: "--texto-suave", fundo: "--superficie-alta", minimo: 4.5, oque: "subtitulo em hover" },
-  { frente: "--texto-fraco", fundo: "--superficie", minimo: 4.5, oque: "metadado em cartao" },
-  { frente: "--texto-fraco", fundo: "--superficie-alta", minimo: 4.5, oque: "metadado em hover" },
-  { frente: "--menta", fundo: "--fundo", minimo: 4.5, oque: "menta sobre o canvas" },
-  { frente: "--menta", fundo: "--superficie", minimo: 4.5, oque: "menta como texto ou icone" },
-  { frente: "--sobre-menta", fundo: "--menta", minimo: 4.5, oque: "rotulo do botao principal" },
-  // Achado em 2026-07-27, na conferencia final: o rotulo do botao de excluir
-  // era um hex literal e dava 3,74:1 no Claro. E o botao onde ler errado apaga.
+  { frente: "--texto-suave", fundo: "--superficie-flutuante", minimo: 4.5, oque: "descricao em popover" },
+
+  // O rotulo de grupo e o UNICO texto autorizado abaixo de 4,5:1. Ele vive no
+  // patamar de contorno (3:1), porque e etiqueta redundante de gaveta: quem
+  // nao a le continua lendo os proprios itens do menu. Nenhum outro token de
+  // texto pode citar este par como precedente.
+  { frente: "--texto-rotulo", fundo: "--chassi", minimo: 3, oque: "rotulo de grupo na barra" },
+  { frente: "--texto-rotulo", fundo: "--superficie", minimo: 3, oque: "rotulo de grupo em painel" },
+
+  // Menta como TEXTO usa o corte legivel, nos tres planos onde ela aparece.
+  { frente: "--menta", fundo: "--fundo", minimo: 4.5, oque: "menta sobre o trabalho" },
+  { frente: "--menta", fundo: "--superficie", minimo: 4.5, oque: "menta em painel" },
+  { frente: "--menta", fundo: "--superficie-alta", minimo: 4.5, oque: "menta em linha selecionada" },
+  // Selo preenchido tem fundo PROPRIO: medir a tinta contra a superficie do
+  // painel daria um numero que ninguem enxerga na tela.
+  { frente: "--menta", fundo: "--menta-tenue", minimo: 4.5, oque: "selo vivo" },
+  { frente: "--sobre-menta", fundo: "--menta", minimo: 4.5, oque: "rotulo sobre menta cheio" },
+  { frente: "--menta-linha", fundo: "--superficie", minimo: 3, oque: "contorno de campo em foco" },
+
+  // --menta-viva e GRAFICO, nunca texto: ponto de sessao rodando, barra de
+  // progresso, contorno de conexao ligada. Piso de 3:1 pelo 1.4.11, contra os
+  // dois planos onde ele aparece. E este par que obriga o Claro a NAO usar o
+  // #2fd4a7 da marca, que ali da 1,7:1.
+  { frente: "--menta-viva", fundo: "--chassi", minimo: 3, oque: "ponto de sessao viva na barra" },
+  { frente: "--menta-viva", fundo: "--fundo", minimo: 3, oque: "sinal vivo sobre o trabalho" },
+  { frente: "--menta-viva", fundo: "--superficie-alta", minimo: 3, oque: "barra de progresso" },
+
+  // A acao principal: o rotulo dela e o texto mais importante da tela, e o
+  // preenchimento precisa se destacar do plano onde o botao se apoia.
+  { frente: "--sobre-acao", fundo: "--acao", minimo: 4.5, oque: "rotulo do botao principal" },
+  { frente: "--sobre-acao", fundo: "--acao-hover", minimo: 4.5, oque: "rotulo do botao principal no hover" },
+  { frente: "--acao", fundo: "--superficie", minimo: 3, oque: "botao principal contra o painel" },
+  { frente: "--acao", fundo: "--fundo", minimo: 3, oque: "botao principal contra o trabalho" },
+  // O marcador de aba ativa e de linha aberta e desenhado em --acao. Ele e o
+  // unico indicador de qual aba esta aberta, entao vale o 1.4.11.
+  { frente: "--acao", fundo: "--superficie-alta", minimo: 3, oque: "marcador de aba e de linha ativa" },
+
+  // Semantica. O botao de excluir e onde ler errado apaga alguma coisa.
   { frente: "--sobre-alerta", fundo: "--alerta", minimo: 4.5, oque: "rotulo do botao de excluir" },
   { frente: "--alerta", fundo: "--superficie", minimo: 4.5, oque: "texto de erro" },
+  { frente: "--alerta", fundo: "--fundo", minimo: 4.5, oque: "texto de erro sobre o trabalho" },
+  { frente: "--alerta", fundo: "--alerta-tenue", minimo: 4.5, oque: "faixa e selo de erro" },
   { frente: "--aviso", fundo: "--superficie", minimo: 4.5, oque: "texto de aviso" },
-  { frente: "--linha-forte", fundo: "--superficie", minimo: 3, oque: "borda de campo dentro de cartao" },
-  { frente: "--linha-forte", fundo: "--fundo", minimo: 3, oque: "borda de campo na tela" },
-  { frente: "--menta-linha", fundo: "--superficie", minimo: 3, oque: "borda de campo em foco" },
+  { frente: "--aviso", fundo: "--fundo", minimo: 4.5, oque: "texto de aviso sobre o trabalho" },
+  { frente: "--aviso", fundo: "--aviso-tenue", minimo: 4.5, oque: "faixa e selo de aviso" },
+  { frente: "--texto-suave", fundo: "--neutro-tenue", minimo: 4.5, oque: "selo neutro e contagem" },
+
+  // O contorno de controle, contra TODO plano em que ele se apoia. Campo,
+  // botao neutro, caixa de selecao e trilho de interruptor usam este token.
+  ...PLANOS.map((p) => ({ frente: "--linha-forte", fundo: p, minimo: 3, oque: "contorno de controle" })),
+
+  // O canvas de grafo. A aresta carrega significado (qual sessao alimenta
+  // qual), entao ela e "graphical object" pelo 1.4.11 e deve 3:1. O contorno
+  // do no tambem: no canvas nao existe sombra, e e o fio que separa o no do
+  // plano. A GRADE DE PONTOS NAO ENTRA nesta lista de proposito: ela e
+  // referencia espacial e nao carrega informacao, e ela fica de proposito
+  // entre 1,3:1 e 1,4:1, que e onde React Flow, tldraw e n8n a colocam.
+  { frente: "--ligacao", fundo: "--canvas-fundo", minimo: 3, oque: "aresta em repouso" },
+  { frente: "--ligacao-viva", fundo: "--canvas-fundo", minimo: 3, oque: "aresta sendo arrastada" },
+  { frente: "--linha-forte", fundo: "--canvas-fundo", minimo: 3, oque: "contorno do no de grafo" },
+  { frente: "--texto", fundo: "--canvas-fundo", minimo: 4.5, oque: "rotulo solto sobre o canvas" },
 ];
 
 for (const tema of TEMAS) {
@@ -111,4 +169,40 @@ test("a borda de controle e a de decoracao nao podem ter a mesma cor", () => {
       `no tema ${tema} a --linha e a --linha-forte ficaram iguais`
     );
   }
+});
+
+test("a escada de superficie tem quatro degraus distintos e na ordem certa", () => {
+  // A profundidade do Hub vem daqui, nao de sombra. Se dois degraus tiverem o
+  // mesmo valor, um painel para de se destacar do plano em que ele se apoia e
+  // a unica saida vira sombra, que e o que este sistema nao usa.
+  for (const tema of TEMAS) {
+    const tokens = tokensDoTema(tema);
+    const escada = ["--chassi", "--fundo", "--superficie", "--superficie-alta"];
+    const valores = escada.map((t) => tokens.get(t)!);
+    assert.equal(
+      new Set(valores).size,
+      escada.length,
+      `no tema ${tema} dois degraus da escada de superficie sao a mesma cor: ${valores.join(", ")}`
+    );
+    // O chassi e sempre o degrau mais recuado: mais escuro que o trabalho no
+    // Claro, mais escuro ainda no Escuro. Nos dois casos ele e o mais escuro.
+    const luzes = escada.map((t) => luminancia(tokens.get(t)!));
+    assert.ok(
+      luzes[0] < luzes[1],
+      `no tema ${tema} o --chassi precisa ser mais recuado que o --fundo`
+    );
+  }
+});
+
+test("os dois temas declaram exatamente o mesmo conjunto de tokens", () => {
+  // Token que existe num tema so cai no valor do :root do global.css, que e o
+  // valor do Claro. Num tema escuro, isso e uma cor clara aparecendo do nada,
+  // e a falha e silenciosa: nada quebra, so fica errado.
+  const [a, b] = TEMAS.map((t) => [...tokensDoTema(t).keys()].sort());
+  const soNoClaro = a.filter((t) => !b.includes(t) && t !== "color-scheme");
+  const soNoEscuro = b.filter((t) => !a.includes(t) && t !== "color-scheme");
+  // --veu so existe no Escuro de proposito: no Claro ele e composto a partir
+  // de --scrim-rgb, no global.css, e o valor derivado ja serve.
+  assert.deepEqual(soNoClaro, [], "tokens declarados so no tema Claro");
+  assert.deepEqual(soNoEscuro.filter((t) => t !== "--veu"), [], "tokens declarados so no tema Escuro");
 });

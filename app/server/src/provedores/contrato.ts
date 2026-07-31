@@ -54,7 +54,7 @@ export interface OpcoesSessaoProvedor {
   //              desta versao). O provedor acumulativo NAO pode chutar: declara
   //              o turno sem custo conhecido (custo_conhecido: false).
   // Medido em 2026-07-27: o Claude reporta total_cost_usd e usage do TURNO, o
-  // Codex reporta o acumulado da thread. Ver decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md.
+  // Codex reporta o acumulado da thread. Ver docs/decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md.
   usoAnterior?: UsoAcumuladoSessao | null;
 }
 

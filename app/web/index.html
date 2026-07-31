@@ -3,19 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <title>VKOS Hub</title>
     <script>
       // Aplica o tema salvo ANTES do bundle carregar, senao a tela pisca num
-      // tema errado por um frame. Sao tres temas: "escuro" (padrao novo),
-      // "claro" e "vkos" (o dark original). SEMPRE grava um data-theme na raiz,
-      // inclusive "vkos", pra nao sobrar duvida de qual tema esta ativo.
+      // tema errado por um frame. Sao dois temas desde 2026-07-27: "claro",
+      // que e o padrao e a identidade, e "escuro". O "vkos" salvo de versoes
+      // antigas migra pro escuro em silencio, uma vez.
       (function () {
-        var tema = "escuro";
+        var tema = "claro";
         try {
           var salvo = localStorage.getItem("vkos-tema");
-          if (salvo === "claro" || salvo === "escuro" || salvo === "vkos") {
+          if (salvo === "vkos") {
+            salvo = "escuro";
+            localStorage.setItem("vkos-tema", salvo);
+          }
+          if (salvo === "claro" || salvo === "escuro") {
             tema = salvo;
           }
         } catch (e) {}

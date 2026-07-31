@@ -1,0 +1,779 @@
+/* ==========================================================================
+   VKOS-IDE: a janela flutuante com arvore, editor e conversa.
+
+   REDESENHADA na Fase 2 do redesign v2 (2026-07-30), contra
+   docs/planos/redesign-v2/00-fundacao.md.
+
+   O QUE ESTA FOLHA ESCREVE, e so isto: o LAYOUT da janela (quanto mede cada
+   coluna, o que gruda, o que rola) mais os tres componentes que so existem
+   aqui: a linha da arvore, o texto do editor com a coluna de numeros, e o
+   turno da conversa. Botao, campo, selo, faixa, popover, opcao, segmentado,
+   esqueleto e estado vazio vem das primitivas, compostos no TSX.
+
+   AS DECISOES DESTA PASSADA:
+
+   - A janela e o unico elemento daqui que FLUTUA, entao ela e a unica com
+     sombra. Durante o arrasto ela troca pra --sombra-arrasto, que e o token
+     feito pra isso.
+   - A escada de superficie dentro da janela: a barra de titulo, a coluna da
+     arvore e a coluna da conversa sao --superficie; o editor, que e a area de
+     trabalho, e --fundo. Assim as duas colunas se separam do editor sem
+     precisar de fio grosso nem de sombra interna.
+   - O arquivo aberto e a pasta selecionada se leem PARADOS: superficie alta
+     mais um fio inset de 2px em --acao, o mesmo marcador da Onda A. O menta
+     saiu daqui: arquivo aberto nao e estado vivo, e pintar de verde a linha
+     selecionada era exatamente o que fazia o menta virar decoracao.
+   - O menta sobrou em dois lugares, os dois vivos de verdade: o ponto de "a
+     IA esta trabalhando" e a engrenagem da ferramenta que ESTA rodando agora.
+   - O "digitando" de tres bolinhas virou uma linha com o ponto vivo e a frase
+     "A IA esta trabalhando". Tres bolinhas nao dizem quem esta trabalhando
+     nem em que, e quem liga movimento reduzido nao via nada.
+   - A conversa perdeu o balao do assistente. Resposta longa de IA e
+     documento, nao mensagem de aplicativo: dentro de uma coluna de 340px, o
+     balao cobrava 24px de largura por turno e nao dizia nada que o alinhamento
+     ja nao dissesse. So a fala do usuario continua em caixa, a direita.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A SECAO 0 DESTA FOLHA MORREU EM 2026-07-30, na varredura final da Fase 2.
+   Ela devolvia o raio e a altura do campo dentro de ".tela-ide", porque o
+   legado.css vestia input, textarea e select POR ELEMENTO na camada tela, que
+   vence a base onde as primitivas moram. O legado.css foi demolido e as duas
+   regras de remendo sairam com ele. */
+
+/* ==========================================================================
+   1. A JANELA
+   ========================================================================== */
+.tela-ide {
+  position: relative;
+  width: min(1180px, 100%);
+  height: min(780px, 100%);
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-gg);
+  /* Ela flutua de verdade sobre a tela que ficou atras: a sombra e legitima. */
+  box-shadow: var(--sombra-modal);
+  overflow: hidden;
+}
+.tela-ide.arrastando {
+  box-shadow: var(--sombra-arrasto);
+}
+
+/* A barra de titulo e o pegador do arrasto. 32px, o degrau de controle. */
+.ide-barra {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-4) 0 var(--esp-12);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linha);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.tela-ide.arrastando .ide-barra {
+  cursor: grabbing;
+}
+.ide-barra-nome {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto-suave);
+}
+.ide-barra-acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.ide-corpo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* A navegacao de tres areas so existe quando a janela e estreita demais pra
+   tres colunas. Em janela larga ela nao ocupa altura nenhuma. */
+.ide-navegacao {
+  display: none;
+}
+
+/* ==========================================================================
+   2. A COLUNA DA ARVORE
+
+   Lista densa de arquivo. Linha de 28px, que e o piso de alvo clicavel do
+   app: uma arvore de projeto tem trinta linhas na tela, e 32px aqui custaria
+   quatro arquivos a menos por dobra.
+   ========================================================================== */
+.ide-coluna-arvore {
+  width: 232px;
+  flex: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--superficie);
+  border-right: 1px solid var(--linha);
+}
+
+.ide-arvore-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-4) 0 var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+}
+/* A raiz do projeto e um CAMINHO, entao ela se escreve como caminho: fonte
+   mono, tinta suave, cortada no fim quando nao cabe. */
+.ide-arvore-base {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.ide-arvore-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--esp-4) var(--esp-4) var(--esp-16);
+}
+.ide-arvore-carregando {
+  padding: var(--esp-8);
+}
+
+.ide-arvore-erro {
+  margin: var(--esp-8);
+}
+
+/* A linha de um arquivo ou de uma pasta. O balao de confirmar exclusao se
+   ancora nela, entao ela e a caixa de referencia. */
+.ide-no {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  width: 100%;
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio-p);
+  text-align: left;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-suave);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transicao), color var(--transicao);
+}
+.ide-no:hover {
+  background: var(--superficie-alta);
+  color: var(--texto);
+}
+/* Aberto agora. Superficie mais fio inset em --acao, nunca preenchimento
+   colorido: e o mesmo marcador de linha selecionada do resto do app. */
+.ide-no.ativo {
+  background: var(--superficie-alta);
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+  box-shadow: inset 2px 0 0 0 var(--acao);
+}
+.ide-no.armado {
+  background: var(--alerta-tenue);
+  color: var(--texto);
+}
+.ide-no-cabo {
+  flex: none;
+  display: inline-flex;
+  width: 14px;
+  color: var(--texto-fraco);
+}
+.ide-caret {
+  transition: transform var(--transicao);
+}
+.ide-caret-vazio {
+  display: inline-block;
+  width: 14px;
+}
+.ide-no-icone {
+  flex: none;
+  display: inline-flex;
+  color: var(--texto-fraco);
+}
+.ide-no-icone svg {
+  width: 15px;
+  height: 15px;
+}
+.ide-no-nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ide-filhos {
+  display: flex;
+  flex-direction: column;
+}
+/* Pasta vazia. Sem italico: numa lista de nome de arquivo o italico le como
+   erro de renderizacao, e a tinta fraca ja diz o que precisa. */
+.ide-no-vazio {
+  padding: var(--esp-4) var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+/* O campo de criar e de renomear no lugar. Ele e o .campo-p das primitivas com
+   a caixa aberta pra caber na linha da arvore. */
+.ide-no-input {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(var(--alt-p) - var(--esp-8));
+  padding: 0 var(--esp-4);
+  font-size: var(--txt-corpo);
+}
+
+/* Confirmar exclusao. Ele flutua abaixo da linha, entao ganha sombra de
+   popover, e nunca muda a altura da linha. */
+.ide-balao-excluir {
+  position: absolute;
+  top: calc(100% + var(--esp-4));
+  right: var(--esp-4);
+  z-index: var(--z-popover);
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-8);
+  border-radius: var(--raio);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+  color: var(--alerta);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--alerta-linha);
+  box-shadow: var(--sombra-popover);
+}
+.ide-balao-excluir:hover {
+  background: var(--alerta-tenue);
+}
+
+/* ==========================================================================
+   3. A COLUNA DO EDITOR
+
+   Ela e a area de trabalho da janela, entao e o plano mais ao fundo: as duas
+   colunas ao lado sao superficie POR CIMA dela.
+   ========================================================================== */
+.ide-coluna-editor {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--fundo);
+}
+.ide-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ide-editor-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-8) 0 var(--esp-16);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linha);
+}
+/* O caminho do arquivo aberto e o dado forte do cabecalho. */
+.ide-editor-caminho {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* "Salvo" e ausencia de pendencia, entao ele e a voz fraca. O que tem cor e o
+   selo de "Nao salvo", porque ali existe uma coisa a fazer. */
+.ide-editor-salvo {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-4);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+.ide-editor-salvo svg {
+  width: 14px;
+  height: 14px;
+}
+.ide-editor-erro {
+  margin: var(--esp-8) var(--esp-16) 0;
+}
+
+/* A area de texto e a coluna de numeros, rolando juntas. */
+.ide-editor-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.ide-gutter {
+  flex: none;
+  overflow: hidden;
+  padding: var(--esp-12) 0;
+  text-align: right;
+  background: var(--superficie);
+  border-right: 1px solid var(--linha);
+  color: var(--texto-fraco);
+  font-family: var(--mono);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  user-select: none;
+}
+.ide-gutter-linha {
+  padding: 0 var(--esp-8) 0 var(--esp-12);
+  font-variant-numeric: tabular-nums;
+}
+.ide-textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--texto);
+  font-family: var(--mono);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  padding: var(--esp-12) var(--esp-16);
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+.ide-textarea:focus,
+.ide-textarea:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+.ide-editor-carregando {
+  flex: 1;
+  min-height: 0;
+  padding: var(--esp-16);
+}
+.ide-editor-carregando .esqueleto-linha {
+  height: var(--esp-12);
+}
+
+/* ==========================================================================
+   4. A COLUNA DA CONVERSA
+   ========================================================================== */
+.ide-coluna-chat {
+  width: 340px;
+  flex: none;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--superficie);
+  border-left: 1px solid var(--linha);
+  transition: width var(--mov-padrao) var(--curva-simetrica);
+}
+.ide-coluna-chat.recolhida {
+  width: calc(var(--base) * 11);
+}
+/* O pegador de recolher fica pendurado na borda da coluna, por cima do
+   editor: e o unico lugar da janela onde a superficie flutuante e o degrau
+   certo. */
+.ide-chat-pegador {
+  position: absolute;
+  top: var(--esp-12);
+  left: calc(var(--esp-16) * -1);
+  z-index: var(--z-fixo);
+  background: var(--superficie-flutuante);
+}
+.ide-chat-pegador svg {
+  width: 15px;
+  height: 15px;
+  transition: transform var(--mov-padrao) var(--curva-simetrica);
+}
+.ide-chat-rotulo-vert {
+  margin: calc(var(--esp-48) + var(--esp-8)) auto 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+
+.ide-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ide-chat-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-8) 0 var(--esp-24);
+  border-bottom: 1px solid var(--linha);
+}
+.tela-ide.minimizada .ide-chat-topo,
+.tela-ide.ide-compacta .ide-chat-topo {
+  padding-left: var(--esp-12);
+}
+/* O titulo nao encolhe: em 340px de coluna ele virava "C...". Quem cede
+   espaco sao os selos, que sao redundantes com o popover ao lado. */
+.ide-chat-titulo {
+  flex: none;
+  min-width: 0;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Os selos do que esta travado na sessao. Eles cedem espaco antes do titulo e
+   antes do botao: sao a informacao mais dispensavel da linha. */
+.ide-chat-topo > .selo {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* O botao que abre a configuracao. Ele mostra, parado, o que esta valendo. */
+.ide-controle {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+}
+.ide-controle-botao {
+  max-width: min(200px, 46vw);
+}
+.ide-controle-botao span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ide-controle-popover {
+  top: calc(100% + var(--esp-4));
+  right: 0;
+  width: min(320px, calc(100vw - var(--esp-48)));
+  max-height: min(560px, calc(100dvh - var(--esp-48) * 2));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+}
+/* Cada grupo do popover e um <fieldset> de verdade, com <legend> por rotulo:
+   teclado e leitor de tela ganham o agrupamento de graca. O contorno nativo do
+   fieldset sai, porque quem separa os grupos e o fio de cima. */
+.ide-controle-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  min-width: 0;
+  border: 0;
+}
+.ide-controle-grupo + .ide-controle-grupo {
+  padding-top: var(--esp-12);
+  border-top: 1px solid var(--linha);
+}
+.ide-controle-grupo > legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin-bottom: var(--esp-8);
+}
+/* Duas colunas quando as opcoes sao curtas, uma quando a janela aperta. */
+.ide-controle-popover .opcoes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ide-controle-popover .opcoes.uma {
+  grid-template-columns: 1fr;
+}
+.ide-controle-popover .opcao {
+  padding: var(--esp-8);
+}
+.ide-controle-aplicar {
+  width: 100%;
+}
+
+/* A transcricao. */
+.ide-chat-conversa {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-16) var(--esp-16) var(--esp-8);
+}
+
+/* A abertura da conversa. Ela ENSINA o que aquilo faz e mostra, parado, com
+   que motor, modelo e permissao a primeira mensagem vai rodar. */
+.ide-chat-intro {
+  margin: auto 0;
+  padding: var(--esp-16) var(--esp-8);
+}
+.ide-chat-selos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--esp-4);
+  margin-top: var(--esp-4);
+}
+
+/* O turno do assistente NAO tem caixa: resposta de IA e documento. */
+.ide-turno-ia {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-leitura);
+  color: var(--texto);
+  overflow-wrap: anywhere;
+}
+/* A fala do usuario tem caixa, a direita: e o que separa pergunta de resposta
+   sem precisar de rotulo em cima de cada turno. */
+.ide-turno-usuario {
+  align-self: flex-end;
+  max-width: 88%;
+  padding: var(--esp-8) var(--esp-12);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ide-turno-usuario.pendente {
+  color: var(--texto-suave);
+}
+/* Nota de maquina no meio da transcricao: correcao automatica do Hub. */
+.ide-turno-interno {
+  align-self: center;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* A ferramenta que esta rodando AGORA. A engrenagem e um dos dois usos de
+   menta desta janela, e ela some quando o turno termina. */
+.ide-ferramenta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-4);
+  max-width: 100%;
+  padding: var(--esp-2) var(--esp-8);
+  border-radius: var(--raio-p);
+  background: var(--neutro-tenue);
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.ide-ferramenta > svg {
+  flex: none;
+  color: var(--menta);
+}
+.ide-ferramenta-nome {
+  flex: none;
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+}
+.ide-ferramenta-alvo {
+  min-width: 0;
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A IA trabalhando. Uma frase e o ponto vivo, que continua pulsando em
+   opacidade quando o movimento reduzido esta ligado. */
+.ide-trabalhando {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+.ide-chat-erro {
+  margin: 0 var(--esp-12) var(--esp-8);
+}
+
+/* O envio. O campo cresce, o botao fica do tamanho do campo. */
+.ide-chat-envio {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-8);
+  padding: var(--esp-12);
+  border-top: 1px solid var(--linha);
+}
+.ide-chat-campo {
+  flex: 1;
+  min-height: var(--alt-g);
+  resize: none;
+}
+.ide-chat-enviar {
+  flex: none;
+}
+.ide-chat-enviar svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ==========================================================================
+   5. OS FORMATOS DA JANELA
+
+   minimizada  so a conversa, encostada num canto
+   media       janela apertada: as colunas laterais encolhem
+   compacta    uma area por vez, escolhida na navegacao do topo
+   ========================================================================== */
+.tela-ide.minimizada {
+  width: min(380px, calc(100% - var(--esp-16)));
+  height: min(600px, calc(100% - var(--esp-32)));
+  /* O popover de configuracao abre pra fora do cabecalho: aqui o recorte da
+     janela nao pode corta-lo, e ele mesmo controla a rolagem do conteudo. */
+  overflow: visible;
+}
+.tela-ide.minimizada .ide-navegacao,
+.tela-ide.minimizada .ide-coluna-arvore,
+.tela-ide.minimizada .ide-coluna-editor,
+.tela-ide.minimizada .ide-chat-pegador {
+  display: none;
+}
+.tela-ide.minimizada .ide-coluna-chat,
+.tela-ide.minimizada .ide-coluna-chat.recolhida {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.tela-ide.ide-media .ide-coluna-arvore {
+  width: 200px;
+}
+.tela-ide.ide-media .ide-coluna-chat {
+  width: 300px;
+}
+
+.tela-ide.ide-compacta {
+  position: relative !important;
+  inset: auto !important;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--raio-g);
+}
+.tela-ide.ide-compacta .ide-barra {
+  cursor: default;
+}
+.tela-ide.ide-compacta .ide-minimizar {
+  display: none;
+}
+.tela-ide.ide-compacta .ide-corpo {
+  flex-direction: column;
+}
+.tela-ide.ide-compacta .ide-navegacao {
+  flex: none;
+  display: flex;
+  padding: var(--esp-8) var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+  background: var(--superficie);
+}
+.tela-ide.ide-compacta .ide-navegacao .segmentado {
+  width: 100%;
+}
+.tela-ide.ide-compacta .ide-navegacao .segmento {
+  flex: 1;
+  min-width: 0;
+}
+.tela-ide.ide-compacta .ide-coluna-arvore,
+.tela-ide.ide-compacta .ide-coluna-editor,
+.tela-ide.ide-compacta .ide-coluna-chat,
+.tela-ide.ide-compacta .ide-coluna-chat.recolhida {
+  display: none;
+  width: 100%;
+  height: auto;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+}
+.tela-ide.ide-compacta .ide-coluna-arvore.compacta-ativa,
+.tela-ide.ide-compacta .ide-coluna-editor.compacta-ativa,
+.tela-ide.ide-compacta .ide-coluna-chat.compacta-ativa {
+  display: flex;
+}
+.tela-ide.ide-compacta .ide-chat-pegador {
+  display: none;
+}
+.tela-ide.ide-compacta .ide-controle {
+  position: static;
+}
+.tela-ide.ide-compacta .ide-controle-popover {
+  left: var(--esp-8);
+  right: var(--esp-8);
+  width: auto;
+}
+.tela-ide.minimizada .ide-controle-popover,
+.tela-ide.ide-compacta .ide-controle-popover {
+  max-height: min(560px, calc(100dvh - var(--esp-48) * 3));
+}
+
+/* Janela estreita: as opcoes do popover viram uma coluna. */
+.tela-ide.ide-estreita .ide-controle-popover .opcoes {
+  grid-template-columns: 1fr;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* SUBSTITUI, nao apaga: o que se move para de se mover, e o feedback de cor
+     continua. O ponto vivo da conversa continua pulsando em opacidade pela
+     regra das primitivas, que e onde ele mora. */
+  .ide-coluna-chat,
+  .ide-chat-pegador svg,
+  .ide-caret {
+    transition: none;
+  }
+}
+} /* fim de @layer tela */

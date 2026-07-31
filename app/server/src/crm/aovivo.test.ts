@@ -22,7 +22,7 @@ import {
   pastaDadosWorkspace,
   salvarRegistro,
 } from "../workspaces/estado.js";
-import { configurarWs } from "../ws.js";
+import { configurarWs } from "../nucleo/ws.js";
 import { deveAvisar, escopoDaRota, montarAviso } from "./aovivo.js";
 import { rotasCrm } from "./rotas.js";
 

@@ -7,7 +7,7 @@ import {
   LIMITE_ANEXO_BYTES,
   nomeLivre,
   sanitizarNome,
-} from "../anexos.js";
+} from "../anexos/rotas.js";
 import { ErroCarrossel } from "./carrossel.js";
 
 // Salva um material de apoio dentro da propria peca, para a sessao confinada

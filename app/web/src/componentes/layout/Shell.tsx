@@ -16,12 +16,22 @@ import { ORDEM_TIPOS_FONTE } from "../telas/fontes";
 import type { TipoContexto, TipoPeca } from "../../tipos/dominio";
 import {
   destinoAposCriacao,
-  hashParaTela,
+  enderecoUsaHashAntigo,
+  EVENTO_ROTA,
+  nivelDaTela,
   retornoSeguroDaCriacao,
-  telaParaHash,
+  telaDoEndereco,
+  telaParaCaminho,
   TELAS_FIXAS,
   tipoCriacaoDaTela,
 } from "./rotas";
+
+// A IDE ja foi uma rota. Hoje e uma camada por cima de qualquer tela, mas
+// endereco velho ainda pode chegar apontando pra ela.
+function enderecoPedeIde(): boolean {
+  const bruto = window.location.hash || window.location.pathname;
+  return bruto.replace(/^[#/]+/, "").replace(/\/+$/, "") === "ide";
+}
 
 // Telas do hub (Conexoes, CRM, Studio) entram por import dinamico: cada
 // uma so pesa no bundle quando aberta pela primeira vez, como o terminal fazia.
@@ -39,6 +49,9 @@ const TelaMapa = lazy(() =>
 );
 const TelaWorkspaces = lazy(() =>
   import("../core").then((m) => ({ default: m.TelaWorkspaces }))
+);
+const TelaEmDefinicao = lazy(() =>
+  import("../core").then((m) => ({ default: m.TelaEmDefinicao }))
 );
 const TelaStudio = lazy(() =>
   import("../studio/TelaStudio").then((m) => ({ default: m.TelaStudio }))
@@ -58,13 +71,9 @@ export function Shell() {
     usarEstado();
   // A tela nasce da URL: F5 numa tela de fluxo volta pra mesma tela.
   const [tela, setTela] = useState<string>(() =>
-    window.location.hash.replace(/^#\/?/, "") === "ide"
-      ? "dashboard"
-      : hashParaTela(window.location.hash)
+    enderecoPedeIde() ? "dashboard" : telaDoEndereco()
   );
-  const [ideAberta, setIdeAberta] = useState(
-    () => window.location.hash.replace(/^#\/?/, "") === "ide"
-  );
+  const [ideAberta, setIdeAberta] = useState(enderecoPedeIde);
   const [ideJaAberta, setIdeJaAberta] = useState(ideAberta);
   const [mapaDisponivel, setMapaDisponivel] = useState(false);
 
@@ -85,36 +94,46 @@ export function Shell() {
     };
   }, []);
 
-  // Compatibilidade de entrada direta: abre a camada, mas limpa a rota antiga.
-  // Assim um F5 futuro volta para a tela real, sem tratar a IDE como pagina.
+  // Compatibilidade de entrada direta. Dois casos, os dois reescrevem a barra
+  // de endereco uma vez so: a IDE, que ja foi rota e hoje e camada; e o
+  // endereco antigo com hash (/#/crm), que precisa virar /crm sem o usuario
+  // perceber. Quem tinha favorito salvo continua caindo na tela certa.
   useEffect(() => {
-    if (window.location.hash.replace(/^#\/?/, "") !== "ide") return;
-    history.replaceState(null, "", telaParaHash(tela));
-    // A tela inicial para o hash legado e sempre o Dashboard.
+    if (enderecoPedeIde() || enderecoUsaHashAntigo()) {
+      history.replaceState(null, "", telaParaCaminho(tela));
+    }
+    // Roda uma vez, na entrada.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Voltar/avancar do navegador mudam o hash: a tela acompanha. O flushSync
-  // commita a troca ANTES do proximo paint: sem ele, com a thread ocupada (o
-  // canvas do cockpit animando), o navegador pintava frames com o hash novo e o
-  // cockpit ainda visivel, o "fantasma" na saida do cockpit.
+  // Voltar/avancar do navegador trocam o caminho: a tela acompanha. O
+  // EVENTO_ROTA cobre a navegacao feita por codigo de fora do Shell, porque
+  // pushState nao dispara evento nenhum sozinho.
+  //
+  // O flushSync commita a troca ANTES do proximo paint: sem ele, com a thread
+  // ocupada (o canvas do cockpit animando), o navegador pintava frames com a
+  // rota nova e o cockpit ainda visivel, o "fantasma" na saida do cockpit.
   useEffect(() => {
-    const aoMudarHash = () => {
-      if (window.location.hash.replace(/^#\/?/, "") === "ide") {
+    const aoMudarRota = () => {
+      if (enderecoPedeIde()) {
         flushSync(() => {
           setIdeJaAberta(true);
           setIdeAberta(true);
         });
-        history.replaceState(null, "", telaParaHash(tela));
+        history.replaceState(null, "", telaParaCaminho(tela));
         return;
       }
       flushSync(() => {
         setIdeAberta(false);
-        setTela(hashParaTela(window.location.hash));
+        setTela(telaDoEndereco());
       });
     };
-    window.addEventListener("hashchange", aoMudarHash);
-    return () => window.removeEventListener("hashchange", aoMudarHash);
+    window.addEventListener("popstate", aoMudarRota);
+    window.addEventListener(EVENTO_ROTA, aoMudarRota);
+    return () => {
+      window.removeEventListener("popstate", aoMudarRota);
+      window.removeEventListener(EVENTO_ROTA, aoMudarRota);
+    };
   }, [tela]);
 
   const alternarIde = useCallback(() => {
@@ -122,16 +141,16 @@ export function Shell() {
     setIdeAberta((aberta) => !aberta);
   }, []);
 
-  // Navegar pela sidebar atualiza o estado e grava o hash (vira historico).
-  // Mesmo flushSync do hashchange: a tela nova commita antes do paint.
+  // Navegar pela sidebar atualiza o estado e grava o caminho (vira historico).
+  // Mesmo flushSync do popstate: a tela nova commita antes do paint.
   const navegar = useCallback((proxima: string) => {
     flushSync(() => {
       setIdeAberta(false);
       setTela(proxima);
     });
-    const hash = telaParaHash(proxima);
-    if (window.location.hash !== hash) {
-      window.location.hash = hash;
+    const caminho = telaParaCaminho(proxima);
+    if (window.location.pathname !== caminho) {
+      history.pushState(null, "", caminho);
     }
   }, []);
 
@@ -142,7 +161,7 @@ export function Shell() {
       setIdeAberta(false);
       setTela(proxima);
     });
-    history.replaceState(null, "", telaParaHash(proxima));
+    history.replaceState(null, "", telaParaCaminho(proxima));
   }, []);
 
   // Itens de fluxo derivados das pecas: um por tipo presente, com contagem.
@@ -232,7 +251,7 @@ export function Shell() {
     history.pushState(
       { vkosRetornoTela: retorno },
       "",
-      telaParaHash(proxima),
+      telaParaCaminho(proxima),
     );
   }, [telaAtiva, tipoCriacao]);
 
@@ -253,9 +272,9 @@ export function Shell() {
     if (carregandoInicial || trocandoWorkspace) return;
     if (telaAtiva !== tela) {
       setTela(telaAtiva);
-      const hash = telaParaHash(telaAtiva);
-      if (window.location.hash !== hash) {
-        history.replaceState(null, "", hash);
+      const caminho = telaParaCaminho(telaAtiva);
+      if (window.location.pathname !== caminho) {
+        history.replaceState(null, "", caminho);
       }
     }
   }, [carregandoInicial, trocandoWorkspace, telaAtiva, tela]);
@@ -267,6 +286,9 @@ export function Shell() {
         itensFluxo={itensFluxo}
         itensFonte={itensFonte}
         telaAtiva={tipoCriacao ? "inicio" : telaAtiva}
+        // A barra segue a tela: as cinco areas do dono no CORE, so o projeto
+        // dentro de um projeto. Estar criando peca conta como estar no projeto.
+        nivel={tipoCriacao ? "workspace" : nivelDaTela(telaAtiva)}
         aoNavegar={navegar}
         ideAberta={ideAberta}
         aoAlternarIde={alternarIde}
@@ -315,6 +337,8 @@ export function Shell() {
         {(telaFixa === "conexoes" ||
           telaFixa === "mapa" ||
           telaFixa === "workspaces" ||
+          telaFixa === "clientes" ||
+          telaFixa === "financas" ||
           telaFixa === "crm") && (
           <Suspense
             fallback={<div className="tela-hub-carregando">Abrindo...</div>}
@@ -329,6 +353,28 @@ export function Shell() {
                 que estava aberto na tela, sem trazer dado novo nenhum. */}
             {telaFixa === "crm" && <TelaCrm />}
             {telaFixa === "mapa" && <TelaMapa />}
+            {/* Clientes e Financas ja tem porta na barra, mas o conteudo delas
+                ainda nao foi definido. Ficam navegaveis e dizem isso na cara,
+                em vez de mostrar dado inventado. */}
+            {/* O contexto diz o ESCOPO da tela, a promessa diz o FUTURO dela.
+                Antes os dois diziam a mesma coisa com palavras diferentes
+                ("Quem você atende" e "a lista de clientes do seu negócio"), e
+                subtítulo que reformula o título é ruído com custo de altura
+                (regra 6 do contrato). */}
+            {telaFixa === "clientes" && (
+              <TelaEmDefinicao
+                titulo="Clientes"
+                contexto="O nível de cima do Hub: esta lista não muda quando você troca de workspace."
+                promessa="Vai morar aqui a lista de quem você atende. O que ela mostra de cada um ainda está sendo definido."
+              />
+            )}
+            {telaFixa === "financas" && (
+              <TelaEmDefinicao
+                titulo="Finanças"
+                contexto="O dinheiro do negócio. Não confundir com o gasto com IA, que fica no Dashboard."
+                promessa="Vai morar aqui o que entra e o que sai. O que ela controla ainda está sendo definido."
+              />
+            )}
           </Suspense>
         )}
         {/* Studio de uma peca: cobre por cima como as demais telas. A pasta vai
@@ -362,7 +408,7 @@ export function Shell() {
             fallback={
               <div className="dash-overlay-wizard">
                 <div className="dash-wizard-carregando">
-                  <div className="giro" />
+                  <div className="girinho" role="status" aria-label="Abrindo" />
                 </div>
               </div>
             }

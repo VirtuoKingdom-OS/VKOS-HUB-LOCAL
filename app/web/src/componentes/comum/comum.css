@@ -1,0 +1,100 @@
+/* ==========================================================================
+   A MARCA E AS TELAS DE ABERTURA (comum/Telas.tsx).
+
+   ESCRITA NA VARREDURA FINAL da Fase 2 do redesign v2 (2026-07-30), quando o
+   legado.css foi demolido. Sao tres coisas pequenas que nao tinham dono: o
+   wordmark (a barra lateral, o onboarding e as duas telas de abertura usam o
+   mesmo), a tela de carregamento e a tela de servidor fora do ar.
+
+   O QUE MUDOU EM RELACAO AO LEGADO:
+
+   - O WORDMARK CONTINUA PESO 700, e e um dos dois unicos lugares do sistema
+     onde 700 e legitimo (o outro e numero). Ele nao e titulo: e a assinatura
+     do produto.
+   - O giro de 34px com fio de 3px virou o .girinho das primitivas, aumentado.
+     Uma primitiva com um tamanho diferente e uma excecao de uma linha; um
+     giro proprio e um segundo componente pra manter.
+   - O selo de erro da tela de servidor fora do ar sai do style inline do TSX,
+     onde ele escrevia rgba() e raio a mao, e vira classe com token.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* O wordmark. Monocromatico: o menta so fala do que esta vivo, e nome de
+   produto nao e estado. A cor da marca continua no logo ao lado. */
+.marca-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  font-weight: var(--peso-pesado);
+  letter-spacing: var(--tr-titulo-p);
+  color: var(--texto);
+}
+
+.marca-img {
+  flex: none;
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--raio);
+}
+
+/* Tela de foco unico: carregando, ou servidor fora do ar. Ela nasce opaca,
+   como toda tela: o movimento de entrada mora no conteudo. */
+.tela-central {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-16);
+  padding: var(--esp-48) var(--esp-24);
+  text-align: center;
+  background: var(--fundo);
+}
+
+.tela-central > * {
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+
+.tela-central h1 {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+  font-weight: var(--peso-medio);
+}
+
+.tela-central p {
+  max-width: 42ch;
+  color: var(--texto-suave);
+}
+
+/* O giro da abertura e a primitiva, so que maior: aqui ele e o unico elemento
+   da tela, e 16px se perderia no meio dela. */
+.tela-central .girinho {
+  width: 24px;
+  height: 24px;
+}
+
+/* O selo da tela de servidor fora do ar. Ele e o estado da tela inteira,
+   entao ganha area, ao contrario do selo de linha de lista. */
+.aviso-central {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--esp-48);
+  height: var(--esp-48);
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+  border: 1px solid var(--alerta-linha);
+  border-radius: var(--raio-g);
+}
+
+.aviso-central svg {
+  width: 22px;
+  height: 22px;
+}
+}

@@ -87,7 +87,7 @@ export function ListaConversas({
         <div className="cv-lista-titulo">
           <h2>Conversas</h2>
           <button
-            className="cv-nova"
+            className="botao botao-p botao-icone botao-neutro"
             onClick={() => { setEscolhendo((atual) => !atual); setTermoContato(""); }}
             aria-expanded={escolhendo}
             type="button"
@@ -100,6 +100,7 @@ export function ListaConversas({
         {escolhendo ? (
           <div className="cv-escolher-contato">
             <input
+              className="campo campo-p"
               value={termoContato}
               onChange={(e) => setTermoContato(e.target.value)}
               placeholder="Com quem você vai falar?"
@@ -108,42 +109,42 @@ export function ListaConversas({
             />
             <div className="cv-escolher-lista" role="listbox" aria-label="Contatos">
               {sugestoes.length === 0 && (
-                <p className="cv-vazio-inline">Nenhum contato encontrado.</p>
+                <p className="crm-vazio-inline">Nenhum contato encontrado.</p>
               )}
               {sugestoes.map((contato) => (
                 <button
-                  className="cv-escolher-opcao"
+                  className="item-lista"
                   key={contato.id}
                   onClick={() => { setEscolhendo(false); aoCriarConversa(contato.id); }}
                   type="button"
                   role="option"
                   aria-selected="false"
                 >
-                  <span className="cv-avatar">{iniciais(contato.nome)}</span>
-                  <span className="cv-escolher-id">
-                    <b>{contato.nome}</b>
-                    {nomeOrganizacao(contato) && <small>{nomeOrganizacao(contato)}</small>}
+                  <span className="crm-avatar">{iniciais(contato.nome)}</span>
+                  <span className="item-lista-texto">
+                    <span className="item-lista-titulo">{contato.nome}</span>
+                    {nomeOrganizacao(contato) && <span className="item-lista-meta">{nomeOrganizacao(contato)}</span>}
                   </span>
                 </button>
               ))}
             </div>
             {/* Conversa que ja existe volta a mesma, nao nasce uma segunda. Duas
                 caixas de entrada do mesmo cliente e a doenca que o modulo cura. */}
-            <span className="cv-ajuda">Se já houver conversa com esse contato, ela é reaberta.</span>
+            <span className="dica">Se já houver conversa com esse contato, ela é reaberta.</span>
           </div>
         ) : (
           <>
             <input
-              className="cv-busca"
+              className="campo campo-p cv-busca"
               value={busca}
               onChange={(e) => aoBuscar(e.target.value)}
               placeholder="Buscar conversa"
               aria-label="Buscar conversa"
             />
-            <div className="cv-filtros" role="tablist" aria-label="Filtrar conversas por status">
+            <div className="segmentado cv-filtros" role="tablist" aria-label="Filtrar conversas por status">
               {FILTROS.map((item) => (
                 <button
-                  className={filtro === item.valor ? "ativo" : ""}
+                  className="segmento"
                   key={item.valor}
                   onClick={() => aoFiltrar(item.valor)}
                   role="tab"
@@ -159,42 +160,47 @@ export function ListaConversas({
       </header>
 
       <div className="cv-lista-corpo">
-        {carregando && <p className="cv-vazio-inline">Carregando as conversas...</p>}
+        {carregando && (
+          <div aria-busy="true">
+            <span className="so-leitor">Carregando as conversas</span>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div className="item-lista" key={i} aria-hidden="true"><span className="esqueleto crm-esqueleto-linha" /></div>
+            ))}
+          </div>
+        )}
         {!carregando && conversas.length === 0 && (
-          <p className="cv-vazio">
-            Nenhuma conversa por aqui.
-            <small>Abra uma pelo botão de mais e registre o que já foi dito.</small>
-          </p>
+          <div className="vazio">
+            <h2>Nenhuma conversa por aqui.</h2>
+            <p>Abra uma pelo botão de mais e registre o que já foi dito.</p>
+          </div>
         )}
         {conversas.map((conversa) => {
           const contato = contatoDe(conversa.contatoId);
           const nome = contato?.nome ?? "Contato removido";
           return (
             <button
-              className={`cv-item${conversa.id === abertaId ? " aberta" : ""}${conversa.naoLidas > 0 ? " nao-lida" : ""}`}
+              className={`item-lista cv-item${conversa.id === abertaId ? " ativo" : ""}${conversa.naoLidas > 0 ? " nao-lida" : ""}`}
               key={conversa.id}
               onClick={() => aoAbrir(conversa.id)}
               type="button"
               aria-current={conversa.id === abertaId ? "true" : undefined}
             >
-              <span className="cv-avatar">{iniciais(nome)}</span>
-              <span className="cv-item-corpo">
+              <span className="crm-avatar">{iniciais(nome)}</span>
+              <span className="item-lista-texto">
                 <span className="cv-item-linha">
-                  <b className="cv-item-nome">{nome}</b>
+                  <span className="item-lista-titulo">{nome}</span>
                   <time className="cv-item-hora">{carimboCurto(conversa.ultimaMensagemEm, agora)}</time>
                 </span>
                 <span className="cv-item-linha">
-                  <span className="cv-item-previa">{conversa.previa || "Sem mensagem ainda."}</span>
+                  <span className="item-lista-meta">{conversa.previa || "Sem mensagem ainda."}</span>
                   {conversa.naoLidas > 0 && (
-                    <span className="cv-badge" aria-label={`${conversa.naoLidas} não lidas`}>
+                    <span className="contagem" aria-label={`${conversa.naoLidas} não lidas`}>
                       {conversa.naoLidas > 99 ? "99+" : conversa.naoLidas}
                     </span>
                   )}
                 </span>
                 {conversa.status !== "aberta" && (
-                  <span className={`cv-marca-status status-${conversa.status}`}>
-                    {ROTULO_STATUS[conversa.status]}
-                  </span>
+                  <span className="selo cv-marca-status">{ROTULO_STATUS[conversa.status]}</span>
                 )}
               </span>
             </button>

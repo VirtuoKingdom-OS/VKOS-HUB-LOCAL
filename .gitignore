@@ -66,6 +66,12 @@ ehthumbs.db
 # de propósito: só a pasta da raiz.
 /vkos2/
 
+# A casa dos workspaces: cada pasta aqui dentro é o Cérebro de um cliente, e
+# Cérebro de cliente nunca versiona. Barra inicial de propósito: só a pasta da
+# raiz. Sem ela, o padrão engolia app/server/src/workspaces/, que é código do
+# server.
+/workspaces/
+
 # Downloads e artefatos de terceiro (ex: ponytail-main.zip). Pasta de rascunho,
 # não é código nosso, não versiona.
 /outros/

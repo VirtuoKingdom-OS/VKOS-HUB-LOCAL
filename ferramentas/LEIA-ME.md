@@ -4,7 +4,7 @@ Scripts que ajudam a conferir o Hub e não fazem parte do produto.
 
 ## `olhar-telas.mjs`, a conferência visual
 
-Abre a interface num navegador de verdade, percorre as telas por rota, coleta erro de console e tira uma foto de cada uma.
+Abre a interface num navegador de verdade, percorre 13 telas em três tamanhos, mede responsividade, coleta erro de console e tira uma foto de cada uma.
 
 ### Por que existe
 
@@ -14,7 +14,11 @@ Isso ficou caro em 2026-07-27, em duas rodadas seguidas. A mudança na ordem das
 
 ### O que ele pega, e o que não pega
 
-Pega a classe de defeito que passa batido no verde: tela que não renderiza, erro de runtime que só aparece no navegador, tela sem botão nenhum, e rolagem horizontal no corpo, que quase sempre é layout estourando.
+Pega a classe de defeito que passa batido no verde: tela que não renderiza, erro de runtime que só aparece no navegador, tela sem botão nenhum, rolagem horizontal no corpo, elemento estourando pra direita, alvo de toque abaixo de 24px (WCAG 2.2, critério 2.5.8), texto abaixo do piso de 11px da escala, e item de menu fora do alcance.
+
+**Ele mede altura, e isso não é detalhe.** Em 2026-07-27 a barra lateral empilhava os dois níveis de navegação e sobrava 33px pro menu do projeto num notebook de 720px. Compilava, passava nos cinco portões, e a pessoa não conseguia clicar nos próprios itens. Nenhum teste via isso porque nenhum teste tinha altura. Por isso ele varre 1440x900, 1366x768 e 1280x720 por padrão, e aceita outros por `--tamanhos 1024x640,1920x1080`.
+
+Além do sintoma ele checa o mecanismo: o menu tem que ser quem cede altura quando falta espaço, e o resto da barra não. Essa checagem pega o defeito antes de existir conteúdo bastante pra ele aparecer, que é exatamente como ele passou batido da primeira vez.
 
 Não pega nada de estética. Cor errada, espaçamento feio e hierarquia confusa continuam exigindo olho humano. As fotos existem justamente para isso, e para comparar antes e depois de uma mudança de estilo, que é onde a cascata quebra sem avisar.
 
@@ -33,13 +37,14 @@ Depois, de outra janela:
 node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
 ```
 
-Nos três temas, que é o que a identidade exige:
+Nos dois temas, que é o que a identidade exige:
 
 ```
 node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
-node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas --tema dark-vkos
-node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas --tema claro
+node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas --tema escuro
 ```
+
+O nome do tema é o que vai em `data-theme`: `claro` (o padrão desde a identidade nova) e `escuro`. Cuidado com nome de tema inventado: valor desconhecido é ignorado em silêncio e a conferência roda o padrão achando que cobriu outro tema.
 
 Ele sai com código de erro quando alguma tela reprova, então serve de portão dentro de outro script.
 

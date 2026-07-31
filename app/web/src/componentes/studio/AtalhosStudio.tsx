@@ -53,23 +53,30 @@ interface Props {
 
 export function AtalhosStudio({ aoFechar }: Props) {
   return (
-    <div className="studio-confirm-scrim" onMouseDown={aoFechar}>
+    <div className="veu-modal" onMouseDown={aoFechar}>
       <div
-        className="studio-atalhos"
+        className="modal"
         role="dialog"
         aria-label="Atalhos do teclado"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <header className="studio-atalhos-topo">
-          <h3>Atalhos</h3>
-          <button className="studio-atalhos-fechar" onClick={aoFechar} aria-label="Fechar">
+        <header className="modal-topo">
+          <h2>Atalhos</h2>
+          <button
+            className="botao botao-p botao-icone botao-fantasma"
+            onClick={aoFechar}
+            aria-label="Fechar"
+          >
             <IconeX className="" />
           </button>
         </header>
-        <div className="studio-atalhos-corpo">
+        <div className="modal-corpo studio-atalhos-corpo">
           {GRUPOS.map((g) => (
             <section key={g.titulo}>
-              <div className="rotulo-secao">{g.titulo}</div>
+              {/* Cabecalho de conteudo, nao rotulo de gaveta: aqui ele nao e
+                  redundante, e quem nao o ler perde em qual contexto o atalho
+                  vale. Por isso nao e caixa alta. */}
+              <div className="studio-atalhos-grupo">{g.titulo}</div>
               <ul>
                 {g.itens.map((a) => (
                   <li key={a.o_que}>

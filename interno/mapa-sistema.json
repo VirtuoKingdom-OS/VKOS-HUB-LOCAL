@@ -59,12 +59,13 @@
       "grupo": "entrada",
       "nome": "Cockpit",
       "resumo": "A mesa visual que acompanha conversas, fontes e resultados no mesmo espaço.",
-      "descricao": "É a sala de comando do trabalho. O Cérebro fica no centro, as conversas aparecem ao redor e as peças prontas chegam aos seus lugares, como uma equipe reunida diante do mesmo quadro.",
+      "descricao": "É a sala de comando do trabalho. O Cérebro fica no centro, as conversas aparecem ao redor e as peças prontas chegam aos seus lugares, como uma equipe reunida diante do mesmo quadro. A partir de 2026-07-31 ele tem uma terceira porta de entrada: quem já tem o negócio escrito num arquivo solta ele ali e a entrevista começa lendo, em vez de perguntar do zero.",
       "conversaCom": [
         "cerebro",
         "sessoes",
         "pecas",
-        "fontes"
+        "fontes",
+        "anexos"
       ]
     },
     {
@@ -97,8 +98,8 @@
       "id": "ide",
       "grupo": "entrada",
       "nome": "VKOS-IDE",
-      "resumo": "A oficina de arquivos e conversa com IA que acompanha qualquer tela.",
-      "descricao": "É uma bancada móvel que pode ser aberta por cima do trabalho atual. Nela, o operador lê e ajusta arquivos enquanto conversa com Claude ou Codex, sem perder o ponto em que estava.",
+      "resumo": "A oficina de arquivos e conversa com IA, aberta no projeto inteiro.",
+      "descricao": "É uma bancada móvel que pode ser aberta por cima do trabalho atual. Nela, o operador lê e ajusta arquivos enquanto conversa com Claude ou Codex, sem perder o ponto em que estava. Desde 2026-07-27 a bancada alcança a instalação inteira, e não só a pasta do cliente aberto, e a conversa acontece sobre esses mesmos arquivos. A pasta de dados do Hub fica de fora: ninguém tropeça no registro, no funil nem na chave de conexão enquanto trabalha.",
       "conversaCom": [
         "workspaces",
         "sessoes"
@@ -154,7 +155,8 @@
         "workspaces",
         "sessoes",
         "dashboard",
-        "site-guiado"
+        "site-guiado",
+        "anexos"
       ]
     },
     {
@@ -162,7 +164,7 @@
       "grupo": "dados",
       "nome": "Workspaces",
       "resumo": "As gavetas separadas que guardam a identidade e o trabalho de cada projeto.",
-      "descricao": "É um armário com uma gaveta por projeto. Trocar de workspace muda Cérebro, peças e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu. Desde 2026-07-27 existe uma tela própria no nível de cima, com a lista de todos, o gasto de cada um e o estado de atividade. O CRM e as Conexões não estão aqui dentro: os dois são do dono do Hub e valem para todos os projetos ao mesmo tempo.",
+      "descricao": "É um armário com uma gaveta por projeto. Trocar de workspace muda Cérebro, peças e histórico juntos, enquanto uma conversa já iniciada pode terminar em segurança na gaveta em que nasceu. Desde 2026-07-27 existe uma tela própria no nível de cima, com a lista de todos, o gasto de cada um e o estado de atividade. O armário agora tem lugar fixo: criar um projeto só pede o nome, e a pasta dele nasce dentro de workspaces/, ao lado do app. Quem já guardou um projeto em outro canto do disco continua com ele lá, funcionando. O CRM e as Conexões não estão aqui dentro: os dois são do dono do Hub e valem para todos os projetos ao mesmo tempo.",
       "conversaCom": [
         "cerebro",
         "pecas",
@@ -187,11 +189,12 @@
       "grupo": "dados",
       "nome": "Anexos",
       "resumo": "Os materiais escolhidos para acompanhar um pedido ou uma edição específica.",
-      "descricao": "São a pasta entregue junto com uma ordem de serviço. Quando uma imagem entra numa peça, o Hub faz uma cópia própria para que o resultado continue inteiro mesmo se a fonte original mudar.",
+      "descricao": "São a pasta entregue junto com uma ordem de serviço. Quando uma imagem entra numa peça, o Hub faz uma cópia própria para que o resultado continue inteiro mesmo se a fonte original mudar. O mesmo caminho serve à abertura de um cliente novo: o documento que descreve o negócio entra por aqui e vira a matéria-prima da entrevista que monta o Cérebro.",
       "conversaCom": [
         "sessoes",
         "studio-carrossel",
-        "site-guiado"
+        "site-guiado",
+        "cerebro"
       ]
     },
     {
@@ -199,7 +202,7 @@
       "grupo": "dados",
       "nome": "CRM",
       "resumo": "O funil comercial do dono do Hub: contatos, organizações, negócios, orçamentos, tarefas, histórico e leads confirmados.",
-      "descricao": "É a caderneta viva do relacionamento comercial, e ela é uma só. O CRM não pertence a cliente nenhum: é o funil de quem usa o Hub para vender, então ele abre igual com qualquer cliente aberto, ou sem nenhum. Cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. Cada estágio do funil declara se é aberto, ganho ou perdido, então o número do funil para de misturar as três coisas. A empresa do contato é uma Organização de verdade, o negócio guarda status, próxima ação, escopo e recorrência, e o orçamento existe como registro próprio, com validade. O que cresce sem teto saiu do arquivo de todo mundo: interações e histórico de estágio vivem em arquivos que só recebem linha nova, nunca reescrita. Telefone é guardado em formato único, então o mesmo cliente não entra duas vezes, e a chave técnica da origem é separada do rótulo que o usuário edita. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. Os funis que viviam separados dentro de cada cliente foram fundidos num só, uma vez, com a procedência de cada contato preservada; contato repetido não é fundido sozinho, vira uma anotação para o usuário decidir. O que muda numa janela aparece na hora nas outras, sem recarregar a página, e a atualização espera se você estiver escrevendo numa ficha, pra nunca apagar o que está sendo digitado. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público.",
+      "descricao": "É a caderneta viva do relacionamento comercial, e ela é uma só. O CRM não pertence a cliente nenhum: é o funil de quem usa o Hub para vender, então ele abre igual com qualquer cliente aberto, ou sem nenhum. Cada contato é um cartão que caminha pelo funil por conta própria, do primeiro estágio ao fechamento, e os negócios são o valor preso a ele. Cada estágio do funil declara se é aberto, ganho ou perdido, então o número do funil para de misturar as três coisas. A empresa do contato é uma Organização de verdade, o negócio guarda status, próxima ação, escopo e recorrência, e o orçamento existe como registro próprio, com validade. O que cresce sem teto saiu do arquivo de todo mundo: interações e histórico de estágio vivem em arquivos que só recebem linha nova, nunca reescrita. Telefone é guardado em formato único, então o mesmo cliente não entra duas vezes, e a chave técnica da origem é separada do rótulo que o usuário edita. A mineração pela Apify guarda leads do Google Maps numa lista separada, organiza descartes em Arquivados e só cria Contatos quando o usuário importa, levando o retrato completo do lead pra ficha. Os funis que viviam separados dentro de cada cliente foram fundidos num só, uma vez, com a procedência de cada contato preservada; contato repetido não é fundido sozinho, vira uma anotação para o usuário decidir. O que muda numa janela aparece na hora nas outras, sem recarregar a página, e a atualização espera se você estiver escrevendo numa ficha, pra nunca apagar o que está sendo digitado. Quando um pedido cita o CRM, a IA recebe um retrato resumido das dores e do funil, mas dados pessoais nunca viram conteúdo público. O funil tem duas portas de entrada, e elas são simétricas: a mineração vai atrás de quem não pediu nada, e o formulário do site recebe quem levantou a mão sozinho. Quem preencheu o formulário chega com nove respostas de qualificação e uma temperatura calculada pelo próprio site, aparece separado entre quem ainda não entrou no funil e quem já entrou, e vira Contato só quando o usuário importa, levando as respostas inteiras pra ficha. Depois de importado, o estágio de verdade é a coluna do funil daqui: o site é caixa de entrada, nunca um segundo funil.",
       "conversaCom": [
         "sessoes",
         "barramento",
@@ -235,7 +238,7 @@
       "grupo": "integracoes",
       "nome": "Conexões",
       "resumo": "As chaves das contas do dono, uma vez só para todos os workspaces.",
-      "descricao": "É o molho de chaves do dono do Hub, não do cliente atendido: a conta da Apify é uma só e quem paga por ela é quem opera o Hub. Desde 2026-07-27 a chave mora no nível de cima, então ela é digitada uma vez e vale em todos os projetos, e a tela abre com ou sem workspace aberto. Antes cada projeto tinha o seu arquivo, e o mesmo token precisava ser colado de novo a cada cliente. O que estava espalhado subiu numa migração única: o primeiro projeto em ordem vence, a divergência entre dois vira anotação em vez de escolha silenciosa, e o arquivo de origem nunca é apagado, vira uma cópia carimbada com a data. Nenhum valor de chave entra na anotação. As chaves ficam só em disco local e nunca saem da máquina.",
+      "descricao": "É o molho de chaves do dono do Hub, não do cliente atendido: a conta da Apify é uma só e quem paga por ela é quem opera o Hub. Desde 2026-07-27 a chave mora no nível de cima, então ela é digitada uma vez e vale em todos os projetos, e a tela abre com ou sem workspace aberto. Antes cada projeto tinha o seu arquivo, e o mesmo token precisava ser colado de novo a cada cliente. O que estava espalhado subiu numa migração única: o primeiro projeto em ordem vence, a divergência entre dois vira anotação em vez de escolha silenciosa, e o arquivo de origem nunca é apagado, vira uma cópia carimbada com a data. Nenhum valor de chave entra na anotação. As chaves ficam só em disco local e nunca saem da máquina. Além da conta de mineração, mora aqui a chave do banco que recebe o formulário do site. Ela é a chave poderosa, a que lê tudo, e por isso ela nunca chega no navegador: quem fala com o banco é o servidor do Hub, e a tela só conversa com ele. O teste dessa conexão não pergunta se a chave é válida, pergunta se ela consegue mesmo ler os leads, porque a chave fraca do site passaria na primeira pergunta e devolveria uma lista vazia pra sempre.",
       "conversaCom": [
         "sessoes",
         "crm"
@@ -430,6 +433,16 @@
       "de": "sessoes",
       "para": "dashboard",
       "rotulo": "diz o que roda agora"
+    },
+    {
+      "de": "cockpit",
+      "para": "anexos",
+      "rotulo": "recebe"
+    },
+    {
+      "de": "anexos",
+      "para": "cerebro",
+      "rotulo": "alimenta"
     }
   ],
   "skills": [

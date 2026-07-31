@@ -1,23 +1,18 @@
-// Mini card flutuante da geracao minimizada. Fica no canto inferior direito,
-// pequeno e por cima de tudo, sem overlay: nao atrapalha a navegacao. Mostra a
-// geracao em andamento (titulo + barra de fases) e, ao concluir, o botao
-// "Editar no Studio". Le tudo do estado global de geracao, sem logica propria.
+// Cartao flutuante da geracao minimizada. Fica no canto inferior direito, por
+// cima de tudo e sem veu: ele nao atrapalha a navegacao. Mostra o que a pessoa
+// precisa saber sem abrir nada, que sao tres coisas: em que fase esta, ha
+// quanto tempo, e o que fazer quando terminar. Le tudo do estado global de
+// geracao, sem logica propria.
 
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usarGeracao, LARGURA_FASE } from "../../estado/geracao";
-import {
-  IconeAlerta,
-  IconeCarrossel,
-  IconeLapis,
-  IconeOlho,
-  IconePost,
-  IconeSite,
-  IconeStories,
-  IconeX,
-} from "../comum/Icones";
-import "../../estilos/criacao.css";
+import { IconeLapis, IconeOlho, IconeX } from "../comum/Icones";
+import { formatarDecorrido, inicioDaGeracao } from "./tempoDecorrido";
+import "./criacao.css";
+import { irParaPeca } from "../layout/rotas";
 
-// Rotulos curtos por tipo, pro titulo do mini card.
+// Rotulos curtos por tipo, pro titulo do cartao.
 const ROTULO_TIPO: Record<string, string> = {
   carrossel: "carrossel",
   post: "post",
@@ -27,12 +22,12 @@ const ROTULO_TIPO: Record<string, string> = {
 
 // Vai pro Studio de uma peca (pasta URL-encoded no hash).
 function irParaStudio(pasta: string) {
-  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+  irParaPeca("studio", pasta);
 }
 
 // Vai pra tela do site de uma peca (pasta URL-encoded no hash).
 function irParaSite(pasta: string) {
-  window.location.hash = "#/site/" + encodeURIComponent(pasta);
+  irParaPeca("site", pasta);
 }
 
 export function GeracaoFlutuante() {
@@ -49,38 +44,36 @@ export function GeracaoFlutuante() {
     limpar,
   } = usarGeracao();
 
-  // So aparece quando ha geracao viva E minimizada. Com o wizard aberto, ele e
+  const rodando = Boolean(ativa) && minimizada && !falhou && pastaPronta === null;
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    if (!rodando) return;
+    const t = window.setInterval(() => setAgora(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [rodando]);
+
+  // So aparece quando ha geracao viva E minimizada. Com o wizard aberto, e ele
   // que mostra o progresso.
   if (!ativa || !minimizada) return null;
 
   const ehSite = ativa.tipo === "site";
-  const Icone =
-    ativa.tipo === "post"
-      ? IconePost
-      : ativa.tipo === "story"
-        ? IconeStories
-        : ehSite
-          ? IconeSite
-          : IconeCarrossel;
   const rotulo = ROTULO_TIPO[ativa.tipo] ?? "carrossel";
   const pronta = pastaPronta !== null;
+  const decorrido = formatarDecorrido(agora - inicioDaGeracao(ativa.sessaoId));
 
   const corpo = (
-    <div
-      className={`geracao-flutuante${pronta ? " pronta" : ""}${falhou ? " falhou" : ""}`}
-      role="status"
-      aria-live="polite"
-    >
+    <div className="geracao-flutuante" role="status" aria-live="polite">
       <div className="geracao-flutuante-topo">
-        <span className="geracao-flutuante-selo">
-          {falhou ? <IconeAlerta className="" /> : <Icone className="" />}
-        </span>
+        <span
+          className={`ponto-vivo${falhou ? " erro" : pronta ? " parado" : ""}`}
+          aria-hidden="true"
+        />
         <span className="geracao-flutuante-texto">
           <span className="geracao-flutuante-titulo">
             {falhou
               ? "A geração não foi"
               : pronta
-                ? "Pronto!"
+                ? `Seu ${rotulo} está pronto`
                 : `Gerando seu ${rotulo}`}
           </span>
           <span className="geracao-flutuante-tema" title={ativa.tema}>
@@ -89,10 +82,9 @@ export function GeracaoFlutuante() {
         </span>
         {(pronta || falhou || conferenciaDemorou) && (
           <button
-            className="geracao-flutuante-x"
+            className="botao botao-p botao-icone botao-fantasma"
             onClick={limpar}
-            aria-label="Dispensar"
-            title="Dispensar"
+            aria-label="Dispensar aviso"
           >
             <IconeX className="" />
           </button>
@@ -113,14 +105,16 @@ export function GeracaoFlutuante() {
         </button>
       ) : falhou ? (
         <p className="geracao-flutuante-erro">
-          {erro ?? "A sessão parou antes de terminar. Tente de novo pelo criar."}
+          {erro ?? "A sessão parou antes de terminar. Tente de novo pelo Criar."}
         </p>
       ) : (
         <>
-          <div className="geracao-flutuante-fase">{faseConferencia ?? fases[fase]}</div>
-          <div className="geracao-flutuante-barra">
+          <div className="geracao-flutuante-fase">
+            {faseConferencia ?? fases[fase]}, há {decorrido}
+          </div>
+          <div className="progresso" aria-hidden="true">
             <div
-              className="geracao-flutuante-barra-cheia"
+              className="progresso-barra"
               style={{ width: `${LARGURA_FASE[fase]}%` }}
             />
           </div>

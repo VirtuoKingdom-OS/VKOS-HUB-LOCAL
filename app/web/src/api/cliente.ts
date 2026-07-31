@@ -314,6 +314,10 @@ export function criarSessao(dados: {
   // Geracao guiada de site: subpasta alvo em conteudo/. Liga o laco de
   // conformidade a peca certa depois que a sessao conclui.
   pastaAlvo?: string;
+  // "projeto" roda a sessao na raiz da instalacao em vez da pasta do workspace.
+  // Quem usa e o chat da VKOS-IDE, pra falar dos mesmos arquivos que a arvore
+  // dela mostra.
+  escopo?: "projeto";
 }): Promise<{ sessao: Sessao }> {
   return pedir<{ sessao: Sessao }>("/api/sessoes", corpoJson(dados));
 }
@@ -429,14 +433,14 @@ export function removerWorkspace(id: string): Promise<void> {
 
 // Cria um cliente novo clonando a estrutura do ativo (Cerebro em branco) e ja o
 // ativa. Devolve o registro e avisos opcionais (ex: rodar npm install).
+//
+// So o nome vai no corpo. Sem pastaDestino, o servidor monta o destino sozinho
+// em <raiz do projeto>/workspaces/<slug do nome>, que e o caminho normal desde
+// 2026-07-27. A pessoa nao decide mais onde a pasta nasce.
 export async function criarWorkspaceNovo(
-  nome: string,
-  pastaDestino: string
+  nome: string
 ): Promise<RespostaAcaoWorkspace> {
-  const corpo = await pedir<unknown>(
-    "/api/workspaces/novo",
-    corpoJson({ nome, pastaDestino })
-  );
+  const corpo = await pedir<unknown>("/api/workspaces/novo", corpoJson({ nome }));
   return lerRespostaAcao(corpo);
 }
 

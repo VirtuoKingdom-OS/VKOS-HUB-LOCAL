@@ -8,6 +8,7 @@ import { MiniaturaSite } from "./MiniaturaSite";
 import { PreviewSite, paginaInicialSite } from "./PreviewSite";
 import { IconeSeta, IconeX } from "../comum/Icones";
 import type { Peca } from "../../tipos/dominio";
+import { irParaPeca } from "../layout/rotas";
 
 interface Props {
   // Tipo cru da peca (carrossel, post, stories, site, texto, outro). String pra
@@ -152,7 +153,7 @@ export function GaleriaContainer({ tipo, aoFechar }: Props) {
               })}
             </div>
           ) : (
-            <div className={`tela-fluxo-corpo${empilhado ? " empilhado" : ""}`}>
+            <div className={`grade-galeria${empilhado ? " empilhada" : ""}`}>
               {itens.map((peca) => (
                 <CartaoPeca
                   key={peca.pasta}
@@ -160,7 +161,7 @@ export function GaleriaContainer({ tipo, aoFechar }: Props) {
                   aoAmpliar={(peca, indice) => setVisor({ peca, indice })}
                   aoEditar={(pasta) => {
                     aoFechar();
-                    window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                    irParaPeca("studio", pasta);
                   }}
                 />
               ))}
@@ -181,7 +182,7 @@ export function GaleriaContainer({ tipo, aoFechar }: Props) {
                   const pasta = visor.peca.pasta;
                   setVisor(null);
                   aoFechar();
-                  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+                  irParaPeca("studio", pasta);
                 }
               : undefined
           }

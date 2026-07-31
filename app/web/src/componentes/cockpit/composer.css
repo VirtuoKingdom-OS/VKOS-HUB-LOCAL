@@ -1,0 +1,202 @@
+/* O COMPOSER DO NO DE SESSAO: formato, proporcao, estilo e anexos.
+
+   Fundacao v2, Fase 2, onda B (2026-07-30). A decisao desta folha e uma so:
+   O COMPOSER E UM FORMULARIO. Ele nasceu como um amontoado de pilulas
+   coloridas dentro de um no de 320px, e pilula colorida nao diz o que faz.
+   Agora cada bloco e rotulo mais controle, e a opcao escolhida se le por
+   contorno e superficie, como em toda escolha unica do Hub.
+
+   O rotulo (.rotulo-mini) e a tira de estilos (.cards-estilo) moram no
+   canvas.css, que e a folha da area: aqui fica so o que e do composer. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. FORMATO E PROPORCAO: escolha unica com descricao
+   ========================================================================== */
+.seletor-formato,
+.seletor-proporcao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.chips-imagem {
+  display: flex;
+  gap: var(--esp-4);
+}
+
+/* Mesma gramatica de .opcao das primitivas, num tamanho que cabe no no. O
+   contorno engrossa por fio INTERNO: borda de verdade mudaria a caixa e a
+   opcao pularia 1px ao ser escolhida. */
+.chip-imagem {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  padding: var(--esp-8);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  cursor: pointer;
+  transition: background var(--transicao), border-color var(--transicao),
+    box-shadow var(--transicao);
+}
+
+.chip-imagem:hover {
+  background: var(--superficie-alta);
+}
+
+.chip-imagem.ativo {
+  background: var(--superficie-alta);
+  border-color: var(--acao);
+  box-shadow: inset 0 0 0 1px var(--acao);
+}
+
+.chip-imagem .nome-op {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+.chip-imagem .desc-op {
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--tr-micro);
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   2. ANEXOS INLINE
+   ========================================================================== */
+.anexos-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-4);
+}
+
+.chip-anexo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-4);
+  max-width: 100%;
+  min-height: var(--alt-p);
+  padding: 0 var(--esp-4) 0 var(--esp-8);
+  color: var(--texto-suave);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+
+.chip-anexo > svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--texto-fraco);
+}
+
+.chip-anexo .nome-anexo {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* O x desenha 16px, mas o ALVO tem 24, que e o criterio 2.5.8 do WCAG 2.2.
+   Crescer a caixa engordaria a tira inteira de anexos; o pseudo-elemento
+   estende so a area de acerto. 16 mais 4 de cada lado fecha em 24. */
+.chip-anexo .remover-anexo {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--texto-fraco);
+  background: transparent;
+  border: none;
+  border-radius: var(--raio-p);
+  cursor: pointer;
+  transition: color var(--transicao), background var(--transicao);
+}
+
+.chip-anexo .remover-anexo::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.chip-anexo .remover-anexo:hover {
+  color: var(--alerta);
+  background: var(--alerta-tenue);
+}
+
+.chip-anexo .remover-anexo svg {
+  width: 11px;
+  height: 11px;
+  color: inherit;
+}
+
+/* ==========================================================================
+   3. A TIRA DE ESTILOS DO CARROSSEL
+
+   Ela rola na horizontal e mostra um fade so do lado em que ha mais card fora
+   da vista. O fade e affordance de rolagem, nao decoracao: sem ele o terceiro
+   card cortado parece um erro de layout.
+   ========================================================================== */
+.tira-estilos {
+  position: relative;
+}
+
+.tira-estilos::before,
+.tira-estilos::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: var(--esp-4);
+  z-index: var(--z-fixo);
+  width: 28px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transicao);
+}
+
+.tira-estilos::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--superficie), transparent);
+}
+
+.tira-estilos::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--superficie), transparent);
+}
+
+.tira-estilos.fade-esq::before,
+.tira-estilos.fade-dir::after {
+  opacity: 1;
+}
+
+/* A barra de rolagem da tira sai: quem rola aqui e a roda do mouse, e a
+   propria tira ja avisa que ha mais coisa pelo fade. */
+.seletor-estilo .cards-estilo {
+  scrollbar-width: none;
+}
+
+.seletor-estilo .cards-estilo::-webkit-scrollbar {
+  height: 0;
+}
+
+/* Cards mais compactos, pra tres caberem na largura do no (com o terceiro
+   espiando pela borda quando ha mais, reforcando o fade). */
+.seletor-estilo .card-estilo {
+  width: 96px;
+}
+} /* fim de @layer tela */

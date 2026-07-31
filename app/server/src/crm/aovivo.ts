@@ -18,7 +18,7 @@
 // mesmo funil pra qualquer aba do dono, entao transmitirPara estaria errado
 // aqui, filtrando por um workspace que o CRM nao tem mais.
 
-import { transmitir } from "../ws.js";
+import { transmitir } from "../nucleo/ws.js";
 
 export type EscopoCrm = "funil" | "interacoes";
 

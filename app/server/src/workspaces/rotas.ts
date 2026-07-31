@@ -46,7 +46,8 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     return { workspace: workspacePorPasta(pasta), ...lerRegistro() };
   });
 
-  // Cria um cliente novo clonando a estrutura do ativo.
+  // Cria um cliente novo clonando a estrutura do ativo. pastaDestino e opcional:
+  // sem ela o destino nasce em <raiz>/workspaces/<slug do nome>.
   app.post("/workspaces/novo", async (req: FastifyRequest, resposta: FastifyReply) => {
     const corpo = (req.body ?? {}) as { nome?: unknown; pastaDestino?: unknown };
     const nome = typeof corpo.nome === "string" ? corpo.nome : "";
@@ -106,7 +107,7 @@ export const rotasWorkspaces: FastifyPluginAsync = async (app) => {
     invalidarCacheContextos(id);
     // Antes de apagar a pasta, o gasto acumulado do cliente vai pro historico do
     // CORE. Dinheiro gasto nao deixa de ter sido gasto porque a pasta sumiu: o
-    // total geral continua contando. Ver decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md.
+    // total geral continua contando. Ver docs/decisoes/2026-07-27-custo-por-turno-e-total-que-nao-mente.md.
     absorverCustosDeWorkspace(id);
     // Apaga os dados do hub desse workspace: conexoes.json (segredos), crm.json
     // (PII), logs.

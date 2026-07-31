@@ -79,6 +79,36 @@ export interface DadosLead {
   capturadoEm?: string;
 }
 
+// Retrato de quem chegou pelo formulario do site. So leitura, igual ao
+// DadosLead, e separado dele de proposito: sao duas origens com perguntas
+// diferentes, e espremer as duas num tipo so deixaria os dois vagos.
+//
+// gatilho e tentativas aceitam texto longo (2000, o mesmo teto do formulario)
+// porque sao a resposta aberta que mais serve na hora de ligar pra pessoa.
+// Cortar em 300 como o resto transformaria o melhor campo em reticencias.
+//
+// O utm do formulario nao entra: e atribuicao de campanha, quase sempre vazia, e
+// origem mais referrer ja contam de onde a pessoa veio.
+export interface DadosFormulario {
+  leadId?: string;
+  recebidoEm?: string;
+  negocio?: string;
+  faturamento?: string;
+  papelMarketing?: string;
+  dores?: string[];
+  gatilho?: string;
+  tentativas?: string;
+  decisao?: string;
+  investimento?: string;
+  horario?: string;
+  // Calculada pelo banco do site a partir de decisao, faturamento e
+  // investimento. Texto solto aqui de proposito: o CRM nao precisa conhecer o
+  // vocabulario do formulario, e a regra pode mudar la sem migrar nada aqui.
+  temperatura?: string;
+  origem?: string;
+  referrer?: string;
+}
+
 export interface Contato {
   id: string;
   nome: string;
@@ -102,6 +132,7 @@ export interface Contato {
   // Procedencia do registro, pra fusao dos workspaces no escopo CORE.
   workspaceOrigemId: string;
   lead?: DadosLead;
+  formulario?: DadosFormulario;
   arquivado?: boolean;
   criadoEm: string;
   atualizadoEm: string;
@@ -254,4 +285,59 @@ export function tipoColunaPeloNome(nome: string): TipoColuna {
 // Chave de deduplicacao de organizacao: nome aparado, sem diferenca de caixa.
 export function chaveOrganizacao(nome: string): string {
   return nome.trim().toLocaleLowerCase("pt-BR");
+}
+
+const TETO_TEXTO_FORMULARIO = 300;
+// gatilho e tentativas sao resposta aberta longa. Ver DadosFormulario.
+const TETO_TEXTO_LONGO = 2000;
+const TETO_DORES = 12;
+
+// Saneia o retrato do formulario. Mora aqui, e nao em estado.ts nem em
+// migracao.ts, porque o contato e reconstruido campo a campo NOS DOIS: criar
+// ficha passa por um, e toda leitura do crm.json passa pelo outro. Campo que so
+// um dos dois conhece e gravado e depois descartado em silencio na leitura
+// seguinte. O saneiaDadosLead ainda vive duplicado nos dois arquivos; este nasce
+// num lugar so pra nao repetir a armadilha.
+export function saneiaDadosFormulario(valor: unknown): DadosFormulario | undefined {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return undefined;
+  const bruto = valor as Record<string, unknown>;
+  const saida: DadosFormulario = {};
+
+  const texto = (v: unknown, teto: number): string | undefined => {
+    if (typeof v !== "string") return undefined;
+    const limpo = v.trim().slice(0, teto);
+    return limpo || undefined;
+  };
+
+  for (const campo of [
+    "leadId",
+    "recebidoEm",
+    "negocio",
+    "faturamento",
+    "papelMarketing",
+    "decisao",
+    "investimento",
+    "horario",
+    "temperatura",
+    "origem",
+    "referrer",
+  ] as const) {
+    const limpo = texto(bruto[campo], TETO_TEXTO_FORMULARIO);
+    if (limpo) saida[campo] = limpo;
+  }
+
+  for (const campo of ["gatilho", "tentativas"] as const) {
+    const limpo = texto(bruto[campo], TETO_TEXTO_LONGO);
+    if (limpo) saida[campo] = limpo;
+  }
+
+  if (Array.isArray(bruto.dores)) {
+    const dores = bruto.dores
+      .map((dor) => texto(dor, TETO_TEXTO_FORMULARIO))
+      .filter((dor): dor is string => Boolean(dor))
+      .slice(0, TETO_DORES);
+    if (dores.length > 0) saida.dores = dores;
+  }
+
+  return Object.keys(saida).length > 0 ? saida : undefined;
 }

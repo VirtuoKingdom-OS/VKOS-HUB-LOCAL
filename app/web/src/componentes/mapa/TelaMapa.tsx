@@ -18,7 +18,8 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
-import "../../estilos/mapa.css";
+import "./mapa.css";
+import { useCorDoTema } from "../comum/useCorDoTema";
 import { TelaMapaTelas } from "./TelaMapaTelas";
 
 interface GrupoMapa {
@@ -149,9 +150,11 @@ function NoSkill({ data }: NodeProps) {
   }
   return (
     <div className={`mapa-no-skill mapa-cor-${corSegura(d.cor)}`}>
-      <span className="mapa-no-skill-tag">Skill</span>
+      {/* O nome manda, e o resto vira UMA sublinha em frase, no desenho do
+          cartao de workspace. Antes eram tres linhas de peso parecido: a
+          etiqueta "Skill" em versal por cima, o nome, e a contagem embaixo. */}
       <strong>{d.nome}</strong>
-      <small>{d.passos} passos</small>
+      <small>Skill, {d.passos} {d.passos === 1 ? "passo" : "passos"}</small>
       <Handle
         type="source"
         position={Position.Right}
@@ -286,7 +289,10 @@ function ehMapa(valor: unknown): valor is MapaSistema {
   );
 }
 
-function montarVisual(mapa: MapaSistema): {
+function montarVisual(
+  mapa: MapaSistema,
+  corLigacao: string
+): {
   nodes: NoVisual[];
   edges: Edge[];
 } {
@@ -328,9 +334,13 @@ function montarVisual(mapa: MapaSistema): {
     target: ligacao.para,
     label: ligacao.rotulo,
     className: "mapa-ligacao",
+    // A cor da seta vai como LITERAL: o React Flow monta o id do <marker>
+    // concatenando o valor, e um id com parenteses corta o url(#...) que
+    // aponta pra ele. Com "var(--borda-forte)" aqui, a seta sumia em
+    // silencio. O literal vem do token, por useCorDoTema.
     markerEnd: {
       type: MarkerType.ArrowClosed,
-      color: "var(--borda-forte)",
+      color: corLigacao,
     },
   }));
 
@@ -359,8 +369,14 @@ function MapaCarregado({
   visaoCompleta: boolean;
 }) {
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
-  const { setCenter, fitView } = useReactFlow();
-  const visual = useMemo(() => montarVisual(mapa), [mapa]);
+  const { setCenter, fitView, getZoom } = useReactFlow();
+  // A cor da aresta como literal, pro marcador de seta. Ela reage a troca de
+  // tema, entao as setas nao ficam na cor do tema anterior.
+  const corLigacao = useCorDoTema("--ligacao");
+  const visual = useMemo(
+    () => montarVisual(mapa, corLigacao),
+    [mapa, corLigacao]
+  );
   const nosPorId = useMemo(
     () => new Map(mapa.nos.map((no) => [no.id, no])),
     [mapa.nos],
@@ -534,12 +550,17 @@ function MapaCarregado({
       if (!noVisual) return;
       // No modo skills a selecao de no nao muda o painel: so centraliza.
       if (!mostrarSkills) setSelecionadoId(id);
+      // Clicar num no traz ele pro centro e SO ISSO: o zoom fica onde a pessoa
+      // deixou. Antes o clique forcava 0.9, entao quem estava lendo a rede
+      // inteira de longe levava um salto pra perto a cada no aberto, e perdia o
+      // enquadramento que tinha escolhido. O getZoom() e obrigatorio aqui:
+      // omitir a opcao nao preserva o zoom, o React Flow assume o maxZoom.
       void setCenter(noVisual.position.x + 130, noVisual.position.y + 72, {
-        zoom: 0.9,
+        zoom: getZoom(),
         duration: 400,
       });
     },
-    [mostrarSkills, setCenter, visual.nodes],
+    [getZoom, mostrarSkills, setCenter, visual.nodes],
   );
 
   return (
@@ -566,7 +587,7 @@ function MapaCarregado({
         >
           <Background
             variant={BackgroundVariant.Dots}
-            gap={26}
+            gap={20}
             size={1}
             color="var(--pontos-canvas)"
           />
@@ -672,7 +693,7 @@ function MapaCarregado({
                   Percurso da skill
                 </span>
                 <button
-                  className="mapa-painel-fechar"
+                  className="botao botao-fantasma botao-icone botao-p mapa-painel-fechar"
                   onClick={() => aoSelecionarSkill(null)}
                   aria-label="Limpar percurso"
                   title="Limpar"
@@ -720,7 +741,7 @@ function MapaCarregado({
                 {gruposPorId.get(selecionado.grupo)?.nome ?? selecionado.grupo}
               </span>
               <button
-                className="mapa-painel-fechar"
+                className="botao botao-fantasma botao-icone botao-p mapa-painel-fechar"
                 onClick={() => setSelecionadoId(null)}
                 aria-label="Fechar explicação"
                 title="Fechar"
@@ -862,22 +883,22 @@ export function TelaMapa() {
   }, []);
 
   return (
-    <div className="tela-fluxo tela-mapa">
-      <header className="tela-fluxo-topo mapa-topo">
-        <div>
+    <section className="tela tela-mapa">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
           <h1>{visao === "telas" ? "Mapa de telas" : "Mapa do sistema"}</h1>
-          <p className="subtitulo">
+          <p>
             {visao === "telas"
               ? "Todas as telas, rotas e estados do app, com a jornada e a conexão entre cada uma. É um espelho: não muda nada no sistema."
               : "Siga os pulsos e as setas para ver quem alimenta quem, ou ligue o percurso das skills para acompanhar a jornada completa de cada uma."}
           </p>
         </div>
         {mapa && (
-          <div className="mapa-topo-acoes">
+          <div className="tela-topo-acoes mapa-topo-acoes">
             {telasDisponivel && (
-              <div className="mapa-modos" aria-label="Visão do mapa">
+              <div className="segmentado mapa-modos" aria-label="Visão do mapa">
                 <button
-                  className={visao === "sistema" ? "ativo" : ""}
+                  className="segmento"
                   aria-pressed={visao === "sistema"}
                   onClick={() => setVisao("sistema")}
                   type="button"
@@ -885,7 +906,7 @@ export function TelaMapa() {
                   Sistema
                 </button>
                 <button
-                  className={visao === "telas" ? "ativo" : ""}
+                  className="segmento"
                   aria-pressed={visao === "telas"}
                   onClick={() => setVisao("telas")}
                   type="button"
@@ -896,9 +917,9 @@ export function TelaMapa() {
             )}
             {visao === "sistema" && (
             <>
-            <div className="mapa-modos" aria-label="Modos de visualização">
+            <div className="segmentado mapa-modos" aria-label="Modos de visualização">
               <button
-                className={mostrarTitulos ? "ativo" : ""}
+                className="segmento"
                 aria-pressed={mostrarTitulos}
                 onClick={() => setMostrarTitulos((valor) => !valor)}
                 type="button"
@@ -906,7 +927,7 @@ export function TelaMapa() {
                 Títulos
               </button>
               <button
-                className={mostrarDescricoes ? "ativo" : ""}
+                className="segmento"
                 aria-pressed={mostrarDescricoes}
                 onClick={() => setMostrarDescricoes((valor) => !valor)}
                 type="button"
@@ -914,7 +935,7 @@ export function TelaMapa() {
                 Descrições
               </button>
               <button
-                className={`mapa-modo-discreto${modoDiscreto ? " ativo" : ""}`}
+                className="segmento"
                 aria-pressed={modoDiscreto}
                 onClick={() => {
                   const mostrarTudo = modoDiscreto;
@@ -928,9 +949,9 @@ export function TelaMapa() {
               </button>
             </div>
             {skills.length > 0 && (
-              <div className="mapa-modos" aria-label="Percurso das skills">
+              <div className="segmentado mapa-modos" aria-label="Percurso das skills">
                 <button
-                  className={`mapa-modo-skills${mostrarSkills ? " ativo" : ""}`}
+                  className="segmento"
                   aria-pressed={mostrarSkills}
                   onClick={() => {
                     setMostrarSkills((valor) => {
@@ -946,7 +967,7 @@ export function TelaMapa() {
                   Percurso das skills
                 </button>
                 <button
-                  className={`mapa-modo-completa${visaoCompleta ? " ativo" : ""}`}
+                  className="segmento"
                   aria-pressed={visaoCompleta}
                   onClick={() => {
                     setVisaoCompleta((valor) => {
@@ -990,7 +1011,15 @@ export function TelaMapa() {
         </ReactFlowProvider>
       ) : (
         <div className="mapa-estado">
-          {estado === "carregando" && <div className="giro" />}
+          {/* Carregando: esqueleto no lugar em que o conteudo vem, nunca um
+              giro no meio da tela. */}
+          {estado === "carregando" && (
+            <div className="mapa-carregando" aria-busy="true" aria-label="Abrindo o mapa">
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+            </div>
+          )}
           {estado === "indisponivel" && (
             <>
               <h2>Mapa indisponível</h2>
@@ -1005,7 +1034,7 @@ export function TelaMapa() {
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

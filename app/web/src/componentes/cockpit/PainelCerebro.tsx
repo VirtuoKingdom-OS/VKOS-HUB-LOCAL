@@ -5,7 +5,7 @@ import { ErroApi } from "../../api/cliente";
 import { mensagemDeErro } from "../../util/erros";
 import { renderizarMarkdownLeve } from "../../util/markdownLeve";
 import { IconeCerebro, IconeLapis, IconeX } from "../comum/Icones";
-import "../../estilos/cerebro.css";
+import "./cerebro.css";
 
 type Modo = "leitura" | "edicao";
 
@@ -210,7 +210,7 @@ export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
           </h2>
           <div className="acoes-cerebro">
             {existe && !carregando && !erroCarga && (
-              <button className="botao-editar-cerebro" onClick={entrarEmEdicao}>
+              <button className="botao botao-neutro botao-p" onClick={entrarEmEdicao}>
                 <IconeLapis className="" style={{ width: 14, height: 14 }} />
                 Editar
               </button>
@@ -221,16 +221,25 @@ export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
           </div>
         </div>
         <div className="conteudo">
-          {carregando && <p style={{ color: "var(--texto-suave)" }}>Carregando o Cérebro.</p>}
+          {/* Area de conteudo carregando usa ESQUELETO, nunca giro: o giro no
+              meio da tela nao diz nada sobre o que esta chegando. */}
+          {carregando && (
+            <div aria-label="Carregando o Cérebro" aria-busy="true">
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+              <div className="esqueleto esqueleto-linha" />
+            </div>
+          )}
           {erroCarga && <div className="erro-linha">{erroCarga}</div>}
           {!carregando && !erroCarga && !existe && (
             <div className="vazio-cerebro">
-              <IconeCerebro className="" style={{ width: 32, height: 32, opacity: 0.6 }} />
+              <IconeCerebro className="" />
+              <h2>O Cérebro ainda não existe</h2>
               <p>
-                O Cérebro deste negócio ainda não existe. Crie agora para dar
-                identidade a todas as sessões de IA.
+                Ele é a identidade do negócio: quem atende, o que vende e com
+                que voz. Toda sessão de IA lê esse documento antes de gerar.
               </p>
-              <button className="botao-editar-cerebro" onClick={entrarEmEdicao}>
+              <button className="botao botao-principal" onClick={entrarEmEdicao}>
                 <IconeLapis className="" style={{ width: 14, height: 14 }} />
                 Criar Cérebro
               </button>

@@ -1,0 +1,456 @@
+/* ==========================================================================
+   O CHAT DO CRM: conversas, thread e contexto. Refeito na Fase 2 do redesign
+   v2 (2026-07-30).
+
+   O QUE MUDOU:
+
+   1. A COLUNA DA ESQUERDA VIROU LISTA DE VERDADE. Ela tinha item proprio,
+      badge propria, selo de status proprio e busca propria. Agora e
+      .item-lista mais .contagem mais .selo, e a conversa aberta se marca do
+      mesmo jeito de toda lista do app: superficie mais fio de tinta.
+   2. O FILTRO VIROU .segmentado. Eram quatro botoes soltos com pilula menta no
+      ativo, que foi um dos lugares onde o menta virou decoracao.
+   3. O BALAO E ACROMATICO. Quem falou se le por LADO e por superficie, nunca
+      por cor: aqui o conteudo do usuario e o texto, e ele nao pode brigar com
+      fundo colorido nenhum. So a nota interna tem tom proprio, porque ela e um
+      estado (so voce ve) e nao uma origem.
+   4. O MENTA SO DIZ O QUE ESTA VIVO: o ponto da janela de resposta aberta. Ele
+      saiu do filtro, do botao de mandar, do balao e do selo de status.
+
+   Aqui mora SO o layout dos tres paineis. O resto vem das primitivas.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. OS TRES PAINEIS
+
+   Largura fixa nas colunas de navegacao e de contexto, e o meio, que e onde o
+   texto mora, fica com tudo que sobra. Abaixo de 1180px o contexto sai: em
+   tela estreita ele espremia a thread ate a mensagem quebrar a cada tres
+   palavras, e o "Ficha completa" continua a um clique.
+   ========================================================================== */
+.cv-tela {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cv-erro {
+  flex: none;
+  margin: var(--esp-12) var(--esp-24) 0;
+}
+
+.cv-paineis {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 320px;
+}
+
+@media (max-width: 1180px) {
+  .cv-paineis {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .cv-contexto {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   2. COLUNA DA ESQUERDA: AS CONVERSAS
+   ========================================================================== */
+.cv-lista {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--superficie);
+  border-right: 1px solid var(--linha);
+}
+
+.cv-lista-topo {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  padding: var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+}
+.cv-lista-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+}
+.cv-lista-titulo h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+}
+
+.cv-busca {
+  width: 100%;
+}
+.cv-filtros {
+  display: flex;
+  width: 100%;
+}
+.cv-filtros .segmento {
+  flex: 1;
+}
+/* O filtro e um tablist, entao o estado ativo chega em aria-selected. A
+   primitiva marca por aria-pressed e por .ativo: esta linha liga o terceiro
+   caso, sem inventar aparencia nova. */
+.cv-filtros .segmento[aria-selected="true"] {
+  background: var(--superficie);
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+}
+
+.cv-escolher-contato {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.cv-escolher-lista {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.cv-lista-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cv-item {
+  align-items: flex-start;
+  gap: var(--esp-8);
+  border-bottom: 1px solid var(--linha);
+}
+.cv-item-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  min-width: 0;
+}
+.cv-item-hora {
+  flex: none;
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--tr-micro);
+  font-variant-numeric: tabular-nums;
+}
+/* Nao lida: o nome e a previa sobem de tinta e de peso. Ponto colorido aqui
+   seria menta dizendo "nao lida", e nao lida nao e estado vivo. */
+.cv-item.nao-lida .item-lista-titulo {
+  color: var(--texto);
+}
+.cv-item.nao-lida .item-lista-meta {
+  color: var(--texto-suave);
+  font-weight: var(--peso-medio);
+}
+.cv-marca-status {
+  align-self: flex-start;
+  margin-top: var(--esp-2);
+}
+
+/* ==========================================================================
+   3. COLUNA DO MEIO: A THREAD
+   ========================================================================== */
+.cv-thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--fundo);
+}
+.cv-thread-vazia {
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-thread-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-12);
+  min-height: calc(var(--base) * 14);
+  padding: var(--esp-8) var(--esp-16);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linha);
+}
+.cv-thread-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cv-thread-nome {
+  text-align: left;
+  color: var(--texto);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-thread-nome:hover {
+  text-decoration: underline;
+}
+.cv-thread-sub {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-thread-acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+.cv-adiar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+  padding: var(--esp-8) var(--esp-16);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linha);
+  animation: surgir var(--mov-padrao) var(--curva) both;
+}
+.cv-faixa {
+  flex: none;
+  margin: var(--esp-12) var(--esp-16) 0;
+}
+
+.cv-rolagem {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--esp-16);
+}
+.cv-mais-antigas {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--esp-16);
+}
+.cv-esqueleto-balao {
+  height: calc(var(--base) * 12);
+  max-width: 60%;
+  margin-bottom: var(--esp-12);
+  border-radius: var(--raio-g);
+}
+
+.cv-dia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.cv-dia + .cv-dia {
+  margin-top: var(--esp-16);
+}
+/* A marca do dia e um rotulo em cima de um fio que atravessa a coluna: sem o
+   fio, a data flutuava no meio das mensagens e lia como uma delas. */
+.cv-dia-marca {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  margin: var(--esp-8) 0;
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+.cv-dia-marca::before,
+.cv-dia-marca::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--linha);
+}
+
+/* --- O balao ------------------------------------------------------------
+   Quem falou se le por LADO e por superficie. Cor de origem gastaria o
+   orcamento de cor da casa numa informacao que a posicao ja da. */
+.cv-balao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  max-width: min(560px, 78%);
+  padding: var(--esp-8) var(--esp-12);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+}
+.cv-balao.entrada {
+  align-self: flex-start;
+  background: var(--superficie);
+}
+.cv-balao.saida {
+  align-self: flex-end;
+  background: var(--superficie-alta);
+}
+/* Nota interna e ESTADO, nao origem: so voce ve. Por isso ela tem tom. */
+.cv-balao.privada {
+  background: var(--aviso-tenue);
+  border-color: var(--aviso-linha);
+}
+.cv-balao.envio-falhou {
+  border-color: var(--alerta-linha);
+}
+.cv-texto {
+  color: var(--texto);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cv-anexos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  list-style: none;
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+.cv-balao-pe {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--esp-8);
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--tr-micro);
+}
+.cv-balao.envio-falhou .cv-estado {
+  color: var(--alerta);
+  font-weight: var(--peso-medio);
+}
+.cv-falhou-acoes {
+  display: flex;
+  gap: var(--esp-4);
+  margin-top: var(--esp-4);
+}
+
+/* --- O composer --------------------------------------------------------- */
+.cv-composer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  padding: var(--esp-12) var(--esp-16);
+  background: var(--superficie);
+  border-top: 1px solid var(--linha);
+}
+.cv-composer-opcoes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+}
+.cv-retroativo {
+  width: auto;
+}
+.cv-composer-linha {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-8);
+}
+.cv-composer-linha > textarea {
+  flex: 1;
+  min-height: var(--alt);
+  max-height: 180px;
+  resize: none;
+}
+.cv-mandar {
+  flex: none;
+}
+.cv-composer-fechado {
+  align-items: flex-start;
+}
+.cv-fechado-aviso {
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   4. COLUNA DA DIREITA: O CONTEXTO
+
+   E ela que separa isto de um clone de mensageiro. Nada aqui e cartao: sao
+   secoes empilhadas, e a unica caixa e a linha de negocio, que repete.
+   ========================================================================== */
+.cv-contexto {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--superficie);
+  border-left: 1px solid var(--linha);
+}
+.cv-contexto-topo {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  padding: var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+}
+.cv-contexto-id {
+  min-width: 0;
+}
+.cv-contexto-id h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+  font-weight: var(--peso-medio);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-contexto-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--esp-12);
+}
+.cv-negocio-novo {
+  display: flex;
+  gap: var(--esp-4);
+  margin-bottom: var(--esp-8);
+}
+.cv-negocio-novo > .campo {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   5. TELA BAIXA E MOVIMENTO REDUZIDO
+   ========================================================================== */
+@media (max-height: 780px) {
+  .cv-lista-topo,
+  .cv-contexto-topo {
+    padding-block: var(--esp-8);
+  }
+  .cv-rolagem {
+    padding-block: var(--esp-12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A faixa de adiar continua aparecendo, so que sem subir: o fade e o que diz
+     que ela chegou, e a rede do global.css preserva ele. */
+  .cv-adiar {
+    animation-name: none;
+  }
+}
+}

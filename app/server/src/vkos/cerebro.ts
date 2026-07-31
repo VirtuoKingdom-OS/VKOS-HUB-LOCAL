@@ -40,9 +40,72 @@ export interface CerebroLido {
   preenchido: boolean;
 }
 
-// Um Cerebro esta preenchido quando nao sobrou nenhum marcador de campo vazio.
+// UM CEREBRO ESTA PREENCHIDO QUANDO NENHUM BLOCO DELE ESTA VAZIO.
+//
+// A regra anterior era `!conteudo.includes(MARCADOR_VAZIO)`: um unico lapis em
+// qualquer lugar do arquivo derrubava o Cerebro inteiro. Ela quebrou em uso
+// real (Mãe Pixel, 2026-07-31): 12 KB escritos, os 13 blocos com conteudo, e
+// um bullet dentro do bloco 12 com "✍️ [a definir]" porque o link ainda nao
+// existia. O Hub dizia "Ainda em branco" e o portao das skills de geracao
+// continuava fechado.
+//
+// O defeito era de contrato, nao de digitacao: quem ESCREVE e quem LE
+// discordavam. O proprio /instalar manda deixar o marcador quando a pessoa nao
+// sabe responder ("marque como 'a definir' e siga. Nao trave a instalacao num
+// campo so"), ou seja, a skill produz de proposito exatamente o que o leitor
+// tratava como "nem comecou".
+//
+// A leitura certa e por BLOCO. Um bloco sem nenhuma linha de conteudo e um
+// bloco que a entrevista nao cobriu. Um bloco com paragrafo, lista e um
+// detalhe pendente e um bloco respondido, com um detalhe pendente.
+//
+// Linha que carrega o marcador nao conta como conteudo, mesmo tendo rotulo
+// junto ("- **Hub central:** ✍️ [a definir]" e um campo em aberto, nao uma
+// resposta). Isso deixa a regra conservadora na direcao segura: na duvida ela
+// diz que falta, e nunca libera geracao em cima de identidade vazia.
 export function cerebroPreenchido(conteudo: string): boolean {
-  return !conteudo.includes(MARCADOR_VAZIO);
+  // Arquivo vazio nunca esta preenchido. Parece obvio, e a regra antiga errava
+  // aqui: "" nao contem o marcador, entao ela respondia SIM. Nao aparecia
+  // porque lerCerebro trata o arquivo ausente antes de chegar nesta funcao,
+  // mas um arquivo que existe e esta vazio (gravacao truncada) passava.
+  if (!conteudo.trim()) return false;
+
+  const blocos = blocosDoCerebro(conteudo);
+  // Sem nenhum bloco reconhecivel, cai na regra antiga. Cobre Cerebro escrito
+  // a mao fora do template, que nao tem "## " nenhum: nesse caso o unico sinal
+  // disponivel continua sendo a ausencia de marcador.
+  if (blocos.length === 0) return !conteudo.includes(MARCADOR_VAZIO);
+  return blocos.every((bloco) => temConteudo(bloco));
+}
+
+// Corpo de cada bloco "## ..." do Cerebro, na ordem. O preambulo (o que vem
+// antes do primeiro "##", debaixo do titulo H1) NAO entra: ele e area de
+// titulo, e num Cerebro preenchido de verdade costuma estar vazio mesmo.
+function blocosDoCerebro(conteudo: string): string[] {
+  const blocos: string[] = [];
+  let atual: string[] | null = null;
+  for (const linha of conteudo.split("\n")) {
+    if (/^##\s+\S/.test(linha)) {
+      if (atual) blocos.push(atual.join("\n"));
+      atual = [];
+    } else if (atual) {
+      atual.push(linha);
+    }
+  }
+  if (atual) blocos.push(atual.join("\n"));
+  return blocos;
+}
+
+// O bloco tem ao menos uma linha de resposta? Nao conta linha em branco,
+// separador horizontal, nem linha que carrega o marcador de campo vazio.
+function temConteudo(bloco: string): boolean {
+  return bloco.split("\n").some((linha) => {
+    const limpa = linha.trim();
+    if (!limpa) return false;
+    if (/^[-*_]{3,}$/.test(limpa)) return false;
+    if (limpa.includes(MARCADOR_VAZIO)) return false;
+    return true;
+  });
 }
 
 // Le o cerebro/cerebro.md da pasta do VKOS. Se o arquivo nao existir, devolve

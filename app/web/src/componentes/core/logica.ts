@@ -138,25 +138,10 @@ export const ROTULO_ATIVIDADE: Record<EstadoAtividade, string> = {
   parado: "Parado",
 };
 
-// A frase que diz o que a tela chama de projeto ativo. O criterio aparece na
-// tela de proposito: numero sem criterio declarado nao da pra conferir.
-export function fraseDosProjetos(entrada: {
-  projetosAtivos: number;
-  total: number;
-  sessoesRodando: number;
-  janelaAtividadeDias: number;
-}): string {
-  if (entrada.total === 0) return "Nenhum workspace registrado ainda.";
-  if (entrada.sessoesRodando > 0) {
-    return entrada.sessoesRodando === 1
-      ? "1 sessão de IA rodando neste momento."
-      : `${entrada.sessoesRodando} sessões de IA rodando neste momento.`;
-  }
-  if (entrada.projetosAtivos === 0) {
-    return `Nenhum workspace com atividade nos últimos ${entrada.janelaAtividadeDias} dias.`;
-  }
-  return `Sem sessão rodando agora. Ativo é o que teve trabalho nos últimos ${entrada.janelaAtividadeDias} dias.`;
-}
+// A fraseDosProjetos saiu em 2026-07-27, a pedido do Jesse. Ela explicava o
+// criterio de "projeto ativo" embaixo do numero, e o Dashboard ficou apertado
+// demais pra caber explicacao de rotulo. O criterio continua declarado na dica
+// do bloco e na tela de Workspaces.
 
 // Tempo decorrido em linguagem curta. Data ausente ou invalida devolve null,
 // nunca "há 56 anos" por causa de um zero.
@@ -175,6 +160,27 @@ export function tempoRelativo(iso: string | null | undefined, agora: Date = new 
   if (meses < 12) return meses === 1 ? "há 1 mês" : `há ${meses} meses`;
   const anos = Math.floor(meses / 12);
   return anos === 1 ? "há 1 ano" : `há ${anos} anos`;
+}
+
+// Onde um workspace novo vai nascer, do jeito que o usuario le.
+//
+// Desde 2026-07-27 quem monta o caminho de verdade e o servidor, em
+// <raiz do projeto>/workspaces/<slug do nome>. O frontend nao compoe caminho
+// nem escolhe pasta: ele so ANUNCIA o destino, em relativo, pra pessoa nao
+// ficar no escuro sobre onde o dado dela vai parar. A regra do slug e a mesma
+// de server/src/workspaces/pastas.ts, de proposito, senao o anuncio mentiria.
+//
+// Nome vazio devolve so "workspaces/": antes de digitar nao ha o que prever, e
+// mostrar o fallback "workspace" ali pareceria um nome ja decidido.
+export function pastaPrevista(nome: string): string {
+  const limpo = (nome ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!nome.trim()) return "workspaces/";
+  return `workspaces/${limpo || "workspace"}`;
 }
 
 // Encurta um caminho longo pros ultimos dois segmentos, legivel.

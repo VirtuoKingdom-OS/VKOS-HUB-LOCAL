@@ -1,0 +1,224 @@
+/* ==========================================================================
+   STUDIO DO CARROSSEL. Fundação v2, redesenhado em 2026-07-30.
+
+   Tela cheia de edição: todas as páginas do carrossel lado a lado num iframe,
+   inspetor de propriedades à direita e uma barra flutuante de página e zoom.
+
+   A moldura não compete com a peça. O que era colorido e saiu: o zoom ativo
+   era pílula de menta, o número da página em foco era menta, o painel de IA
+   aberto pintava o botão de menta e o modelo escolhido era mais uma pílula
+   verde. Cinco vozes de menta ao lado de um carrossel que já é colorido. Agora
+   o único verde da tela é o contorno de seleção dentro da peça, que é
+   instrumentação, e o ponto de "a IA está trabalhando".
+
+   O que é compartilhado com o Studio de site e com o overlay do carrossel mora
+   em `componentes/editor/editor.css`: o inspetor, a coluna lateral, o palco,
+   as camadas, os controles de imagem e a galeria de fontes. Aqui fica só o que
+   é desta tela.
+   ========================================================================== */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler é a que vale, e o bundler não garante qual vem primeiro. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A tela compõe `.tela` e nasce OPACA. Enquanto um `opacity: 0` fecha, ela é
+   uma janela pro que está atrás, e o que está atrás é a tela anterior. */
+.tela-studio {
+  z-index: var(--z-camada);
+}
+
+/* ===== Barra de topo ===================================================== */
+
+/* A seta do voltar aponta pra trás. O botão em si é `.botao-neutro`: ele se
+   anuncia parado, com superfície e fio próprios. */
+.studio-voltar svg {
+  transform: rotate(180deg);
+}
+
+/* Faixa de erro logo abaixo da barra, na largura da tela. Ancorada onde o
+   problema está, não no topo do app. */
+.studio-faixa {
+  flex: none;
+  padding: var(--esp-8) var(--esp-24);
+}
+
+/* ===== Corpo: canvas central e coluna lateral ============================ */
+.studio-corpo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* O canvas rola nos dois eixos. "safe" é o que destrava a rolagem vertical no
+   zoom alto: com "center" puro, um palco mais alto que a área transborda pros
+   DOIS lados e o topo fica inalcançável, porque scrollTop não passa de zero.
+   Com "safe", assim que transborda o alinhamento cai pro início. */
+.studio-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: safe center;
+  justify-content: flex-start;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--esp-48) 0;
+  background: var(--fundo);
+  scroll-behavior: smooth;
+}
+
+.studio-palco {
+  margin: 0 auto;
+}
+
+/* Numeração discreta acima de cada página, fora do iframe: ela não toca o
+   HTML da peça e some na serialização. A página em foco ganha tinta cheia e
+   peso, não cor: número é dado, e o dado se destaca por peso. */
+.studio-num {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-24px);
+  height: 20px;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-fraco);
+  pointer-events: none;
+  transition: color var(--transicao), font-weight var(--transicao);
+}
+.studio-num.ativo {
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+}
+
+/* O véu de trabalho da IA cobre o canvas e para na coluna lateral: quem está
+   esperando continua vendo o painel que disparou a espera. 320px é a largura
+   de `.ed-lateral`, em editor.css. */
+.studio-travado {
+  right: 320px;
+}
+
+/* ===== Barra flutuante: página em foco e zoom ============================
+   Ela é filha do corpo inteiro (canvas mais coluna lateral), então o 50% dela
+   cai no meio dos dois. O recuo de meia coluna traz ela pro meio do CANVAS,
+   que é o que ela comanda. 320px é a largura de `.ed-lateral`. */
+.studio-corpo > .ed-flutuante {
+  left: calc(50% - 160px);
+}
+.studio-barra-pagina {
+  padding-left: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ===== Folha de atalhos ================================================== */
+.studio-atalhos-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-24);
+}
+/* Título de grupo da folha: "No canvas", "Com um elemento selecionado". Ele é
+   cabeçalho de conteúdo, não etiqueta de gaveta: quem não o ler perde em qual
+   contexto o atalho vale. Por isso não é caixa alta nem rótulo de grupo. */
+.studio-atalhos-grupo {
+  margin-bottom: var(--esp-8);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.studio-atalhos-corpo ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.studio-atalhos-corpo li {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-12);
+  min-height: var(--alt-p);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto);
+}
+.studio-atalhos-teclas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  flex: none;
+  width: 148px;
+}
+.studio-atalhos-teclas kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 var(--esp-4);
+  font-family: inherit;
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio-p);
+}
+.studio-atalhos-mais {
+  font-size: var(--txt-micro);
+  color: var(--texto-fraco);
+}
+.studio-atalhos-oque {
+  color: var(--texto-suave);
+}
+
+/* ===== Menu Baixar ======================================================= */
+/* Ancorado no botão. O inspetor não rola por baixo dele, então `absolute`
+   basta e o menu acompanha o botão. */
+.studio-baixar {
+  position: relative;
+}
+.studio-baixar-menu {
+  top: calc(100% + var(--esp-4));
+  right: 0;
+  left: auto;
+}
+.studio-baixar-seta {
+  width: 13px;
+  height: 13px;
+  transform: rotate(-90deg);
+}
+
+/* ===== Painel Ajustar com IA ============================================= */
+/* O ícone do cabeçalho é desenho, não estado: tinta fraca, nunca menta. */
+.studio-ajuste-icone {
+  width: 17px;
+  height: 17px;
+  color: var(--texto-fraco);
+}
+.studio-ajuste-campo {
+  min-height: calc(var(--base) * 32);
+}
+
+/* ===== Estado de erro da tela =========================================== */
+.tela-studio-erro {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Movimento reduzido: esta folha não declara nenhuma animação de posição. As
+   quatro que a tela usa (`surgir`, `surgir-ancorado`, `girar` e `pulsar`) vêm
+   das primitivas, que já declaram o substituto delas na camada `base`, que é
+   onde ele precisa estar pra vencer a rede geral do `global.css`. */
+
+} /* fim de @layer tela */

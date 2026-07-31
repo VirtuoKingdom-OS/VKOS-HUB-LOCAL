@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usarEstado } from "../../estado/contexto";
 import { mensagemDeErro } from "../../util/erros";
 import { escolherPastaNativa } from "../../api/cliente";
+// A previsao do caminho mora na logica do CORE, do lado da tela de Workspaces,
+// pra as duas telas anunciarem exatamente a mesma pasta.
+import { pastaPrevista } from "../core/logica";
+import { Botao } from "../comum/Botao";
 import {
   IconeAlerta,
   IconeCheck,
@@ -9,9 +13,10 @@ import {
   IconeLixeira,
   IconeMais,
   IconePasta,
+  IconeSeta,
   IconeX,
 } from "../comum/Icones";
-import "../../estilos/workspaces.css";
+import "./workspaces.css";
 
 // Quantos workspaces ate valer a busca por nome.
 const LIMITE_BUSCA = 6;
@@ -27,9 +32,20 @@ function encurtar(caminho: string): string {
 
 type Vista = "lista" | "adicionar" | "novo";
 
-// Switcher de workspace, dentro da secao Workspace da sidebar. Mostra o
-// workspace aberto e abre um painel pra trocar, adicionar, criar, renomear e
-// remover.
+// Seletor de workspace, no topo da barra do projeto. Mostra o workspace aberto
+// e abre um popover pra trocar, adicionar, criar, renomear e remover.
+//
+// REFEITO na Fase 2 do redesign v2 (2026-07-30). O que mudou, e por que:
+//
+// 1. ELE COMPOE .popover E .menu. Era um painel proprio, com a propria sombra,
+//    a propria animacao, o proprio item de lista e o proprio campo de busca.
+// 2. AS ACOES DE LINHA NASCEM VISIVEIS. Renomear e remover apareciam so no
+//    hover: nao existiam pro toque nem pra quem nunca passou o mouse ali.
+// 3. O BALAO "CONFIRMAR?" SUMIU. A confirmacao passou a ser dita na propria
+//    linha e o botao vira perigo, como na tela de Workspaces do CORE. Balao
+//    flutuante dentro de um popover ficava recortado pela borda dele.
+// 4. O WORKSPACE ABERTO NAO E MAIS VERDE. Ele se marca por superficie, fio a
+//    esquerda em --acao e o tique, que e a gramatica de selecionado do sistema.
 //
 // Os nomes das funcoes do contexto ainda dizem "Cliente". E de propria vontade:
 // o rotulo que o usuario le virou Workspace, mas identificador de codigo nao se
@@ -61,9 +77,8 @@ export function SeletorWorkspace() {
   const [nomeEdit, setNomeEdit] = useState("");
   // Confirmacao de remover em dois cliques.
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
-  // Form de workspace novo.
+  // Form de workspace novo. So o nome: a pasta e do servidor desde 2026-07-27.
   const [nomeNovo, setNomeNovo] = useState("");
-  const [pastaDestino, setPastaDestino] = useState<string | null>(null);
 
   const ativo = workspaces.find((w) => w.id === workspaceAtivo) ?? null;
   const nomeAtivo = ativo?.nome ?? "Selecionar workspace";
@@ -87,7 +102,6 @@ export function SeletorWorkspace() {
     setEditandoId(null);
     setConfirmandoId(null);
     setNomeNovo("");
-    setPastaDestino(null);
   }, []);
 
   // Esc e clique fora fecham o painel.
@@ -203,49 +217,16 @@ export function SeletorWorkspace() {
     }
   };
 
-  // Abre o seletor nativo pra escolher ONDE o cliente novo vai morar.
-  const aoEscolherDestino = async () => {
-    setErro(null);
-    try {
-      const caminho = await escolherPastaNativa(
-        "Escolha onde criar a pasta do workspace novo"
-      );
-      if (caminho) setPastaDestino(caminho);
-    } catch (e) {
-      setErro(mensagemDeErro(e));
-    }
-  };
-
-  // A pasta do workspace novo nasce DENTRO da pasta escolhida no navegador, com
-  // o nome dele em slug. O backend cria a pasta se nao existir, entao o usuario
-  // nao precisa criar nada no Explorer antes.
-  const slugPasta = (nome: string): string => {
-    const limpo = nome
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    return limpo || "workspace";
-  };
-
-  const destinoFinal = (): string | null => {
-    if (!pastaDestino) return null;
-    const separador = pastaDestino.includes("\\") ? "\\" : "/";
-    const base = pastaDestino.endsWith(separador)
-      ? pastaDestino.slice(0, -1)
-      : pastaDestino;
-    return `${base}${separador}${slugPasta(nomeNovo)}`;
-  };
-
+  // Criar pede so o nome. O destino nao e mais escolha da pessoa: o servidor
+  // monta <raiz do projeto>/workspaces/<slug do nome> sozinho, e a tela anuncia
+  // esse caminho enquanto ela digita.
   const aoCriar = async () => {
     const nome = nomeNovo.trim();
-    const destino = destinoFinal();
-    if (!nome || !destino) return;
+    if (!nome) return;
     setOcupado(true);
     setErro(null);
     try {
-      const retorno = await criarCliente(nome, destino);
+      const retorno = await criarCliente(nome);
       if (retorno.length > 0) setAvisos(retorno);
       fechar();
     } catch (e) {
@@ -255,46 +236,50 @@ export function SeletorWorkspace() {
     }
   };
 
+  const faixaErro = erro && (
+    <div className="faixa faixa-alerta sw-faixa" role="alert">
+      <IconeAlerta className="" />
+      <div className="faixa-texto">{erro}</div>
+    </div>
+  );
+
   return (
     <div className="seletor-workspace" ref={refRaiz}>
+      <span className="rotulo-grupo sw-rotulo">Workspace</span>
       <button
         className={`sw-trigger${aberto ? " aberto" : ""}`}
         onClick={() => (aberto ? fechar() : setAberto(true))}
         disabled={trocandoWorkspace}
+        aria-haspopup="menu"
+        aria-expanded={aberto}
         title={ativo?.pasta ?? "Nenhum workspace aberto"}
       >
-        <span className="sw-ponto" />
-        <span className="sw-trigger-texto">
-          <span className="sw-trigger-rotulo">Workspace</span>
-          <span className="sw-trigger-nome" title={nomeAtivo}>
-            {nomeAtivo}
-          </span>
-        </span>
+        <span className="sw-trigger-nome">{nomeAtivo}</span>
         <ChevronBaixo className="sw-chevron" />
       </button>
 
       {aberto && (
-        <div className="sw-painel">
+        <div className="popover sw-painel">
           {vista === "lista" && (
             <>
               {mostrarBusca && (
-                <div className="sw-busca">
-                  <input
-                    autoFocus
-                    value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                    placeholder="Buscar workspace"
-                  />
-                </div>
+                <input
+                  className="campo campo-p sw-busca"
+                  autoFocus
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar workspace"
+                  aria-label="Buscar workspace"
+                />
               )}
 
-              <div className="sw-lista">
+              <div className="menu sw-lista">
                 {filtrados.length === 0 ? (
-                  <div className="sw-vazio">
+                  <p className="sw-vazio">
                     {workspaces.length === 0
-                      ? "Nenhum workspace ainda."
-                      : "Nada encontrado."}
-                  </div>
+                      ? "Nenhum workspace ainda. Crie o primeiro aqui embaixo."
+                      : "Nada encontrado. Apague parte da busca."}
+                  </p>
                 ) : (
                   filtrados.map((w) => {
                     const ehAtivo = w.id === workspaceAtivo;
@@ -303,11 +288,11 @@ export function SeletorWorkspace() {
                     return (
                       <div
                         key={w.id}
-                        className={`sw-item${ehAtivo ? " ativo" : ""}`}
+                        className={`sw-linha${ehAtivo ? " aberto" : ""}`}
                       >
                         {editando ? (
                           <input
-                            className="sw-item-edit"
+                            className="campo campo-p sw-item-edit"
                             autoFocus
                             value={nomeEdit}
                             onChange={(e) => setNomeEdit(e.target.value)}
@@ -316,55 +301,60 @@ export function SeletorWorkspace() {
                               if (e.key === "Escape") setEditandoId(null);
                             }}
                             onBlur={() => void salvarEdicao()}
+                            aria-label="Novo nome do workspace"
                           />
                         ) : (
                           <button
-                            className="sw-item-principal"
+                            className="menu-item sw-item"
                             onClick={() => void selecionar(w.id)}
                           >
-                            <span
-                              className={`sw-item-ponto${ehAtivo ? " on" : ""}`}
-                            />
-                            <span className="sw-item-info">
+                            <span className="item-lista-texto">
                               <span className="sw-item-nome" title={w.nome}>
                                 {w.nome}
                               </span>
-                              <span className="sw-item-caminho" title={w.pasta}>
-                                {encurtar(w.pasta)}
+                              {/* Armado pra remover, a propria linha diz o que
+                                  vai acontecer: balao flutuante dentro de um
+                                  popover ficava recortado pela borda dele. */}
+                              <span
+                                className={`sw-item-caminho${armado ? " armado" : ""}`}
+                                title={w.pasta}
+                              >
+                                {armado
+                                  ? "Clique de novo para remover do Hub."
+                                  : encurtar(w.pasta)}
                               </span>
                             </span>
-                            {ehAtivo && (
-                              <IconeCheck className="sw-item-check" />
-                            )}
+                            {ehAtivo && <IconeCheck className="sw-check" />}
                           </button>
                         )}
 
                         {!editando && (
-                          <div className="sw-item-acoes">
-                            <button
-                              className="sw-acao"
+                          <div className="sw-linha-acoes">
+                            <Botao
+                              variante="fantasma"
+                              tamanho="p"
+                              soIcone
                               title="Renomear"
+                              aria-label={`Renomear ${w.nome}`}
                               onClick={() => iniciarEdicao(w.id, w.nome)}
                             >
                               <IconeLapis className="" />
-                            </button>
-                            <button
-                              className={`sw-acao sw-remover${
-                                armado ? " armado" : ""
-                              }`}
+                            </Botao>
+                            <Botao
+                              variante={armado ? "perigo" : "fantasma"}
+                              tamanho="p"
+                              soIcone
                               title={
                                 ehAtivo
                                   ? "Não dá pra remover o workspace aberto"
-                                  : "Remover workspace"
+                                  : "Remover workspace do registro"
                               }
+                              aria-label={`Remover ${w.nome}`}
                               disabled={ehAtivo}
                               onClick={() => clicarRemover(w.id)}
                             >
                               <IconeLixeira className="" />
-                              {armado && (
-                                <span className="sw-balao">Confirmar?</span>
-                              )}
-                            </button>
+                            </Botao>
                           </div>
                         )}
                       </div>
@@ -373,32 +363,28 @@ export function SeletorWorkspace() {
                 )}
               </div>
 
-              {erro && (
-                <div className="sw-erro">
-                  <IconeAlerta className="" />
-                  {erro}
-                </div>
-              )}
+              {faixaErro}
 
-              <div className="sw-rodape">
+              <div className="menu-separador" />
+              <div className="menu">
                 <button
-                  className="sw-acao-rodape"
+                  className="menu-item"
                   onClick={() => {
                     setErro(null);
                     setVista("adicionar");
                   }}
                 >
-                  <IconePasta className="" />
+                  <IconePasta className="sw-icone" />
                   Adicionar workspace
                 </button>
                 <button
-                  className="sw-acao-rodape"
+                  className="menu-item"
                   onClick={() => {
                     setErro(null);
                     setVista("novo");
                   }}
                 >
-                  <IconeMais className="" />
+                  <IconeMais className="sw-icone" />
                   Novo workspace
                 </button>
               </div>
@@ -408,90 +394,89 @@ export function SeletorWorkspace() {
           {vista === "adicionar" && (
             <div className="sw-form">
               <div className="sw-form-topo">
-                <button
-                  className="sw-voltar"
+                <Botao
+                  variante="fantasma"
+                  tamanho="p"
+                  soIcone
+                  aria-label="Voltar para a lista"
                   onClick={() => setVista("lista")}
                   disabled={ocupado}
                 >
-                  <IconeX className="" />
-                </button>
+                  <IconeSeta className="sw-voltar-seta" />
+                </Botao>
                 <h3>Adicionar workspace</h3>
               </div>
-              <p className="sw-ajuda">
+              <p className="dica">
                 Aponte a pasta VKOS de um projeto que já existe. O seletor do
                 Windows vai abrir.
               </p>
-              <button
-                className="botao botao-principal sw-botao-pasta"
+              <Botao
+                variante="principal"
+                className="sw-botao-pasta"
                 onClick={() => void aoEscolherEAdicionar()}
                 disabled={ocupado}
+                aria-busy={ocupado}
               >
-                <IconePasta className="" />
-                {ocupado ? "Aguardando o seletor..." : "Escolher pasta do workspace"}
-              </button>
-              {ocupado && <div className="sw-carregando">Registrando o workspace.</div>}
-              {erro && (
-                <div className="sw-erro">
-                  <IconeAlerta className="" />
-                  {erro}
-                </div>
+                <IconePasta className="sw-icone" />
+                Escolher pasta do workspace
+              </Botao>
+              {ocupado && (
+                <p className="dica">Aguardando o seletor do Windows.</p>
               )}
+              {faixaErro}
             </div>
           )}
 
           {vista === "novo" && (
             <div className="sw-form">
               <div className="sw-form-topo">
-                <button
-                  className="sw-voltar"
+                <Botao
+                  variante="fantasma"
+                  tamanho="p"
+                  soIcone
+                  aria-label="Voltar para a lista"
                   onClick={() => setVista("lista")}
                   disabled={ocupado}
                 >
-                  <IconeX className="" />
-                </button>
+                  <IconeSeta className="sw-voltar-seta" />
+                </Botao>
                 <h3>Novo workspace</h3>
               </div>
-              <p className="sw-ajuda">
-                Cria um workspace novo com a mesma estrutura do aberto e o Cérebro
-                em branco. Escolha o nome e a pasta onde ele vai morar.
+              <p className="dica">
+                Cria um workspace novo com a mesma estrutura do aberto e o
+                Cérebro em branco. Basta o nome: o Hub já sabe onde guardar.
               </p>
-              <input
-                className="sw-input"
-                value={nomeNovo}
-                onChange={(e) => setNomeNovo(e.target.value)}
-                placeholder="Nome do workspace"
-                disabled={ocupado}
-              />
-              <button
-                className="botao botao-neutro sw-botao-pasta"
-                onClick={() => void aoEscolherDestino()}
-                disabled={ocupado}
-              >
-                <IconePasta className="" />
-                {pastaDestino ? "Trocar a pasta" : "Escolher onde criar"}
-              </button>
-              <div className="sw-destino">
-                <span className="sw-destino-rotulo">Pasta do workspace</span>
-                <span className="sw-destino-valor">
-                  {destinoFinal()
-                    ? encurtar(destinoFinal() as string)
-                    : "Nenhuma escolhida ainda"}
+              <div className="grupo-campo">
+                <label className="rotulo" htmlFor="sw-nome-novo">
+                  Nome do workspace
+                </label>
+                <input
+                  className="campo campo-p"
+                  id="sw-nome-novo"
+                  value={nomeNovo}
+                  onChange={(e) => setNomeNovo(e.target.value)}
+                  placeholder="Padaria do Bairro"
+                  disabled={ocupado}
+                />
+                {/* A pessoa nao escolhe mais a pasta, mas nao pode ficar no
+                    escuro sobre onde o dado dela vai parar. */}
+                <span className="dica sw-destino">
+                  Vai nascer em{" "}
+                  <span className="sw-destino-valor">
+                    {pastaPrevista(nomeNovo)}
+                  </span>
                 </span>
               </div>
-              {erro && (
-                <div className="sw-erro">
-                  <IconeAlerta className="" />
-                  {erro}
-                </div>
-              )}
-              <div className="sw-form-acoes">
-                <button
-                  className="botao botao-principal"
+              {faixaErro}
+              <div className="acoes-formulario sw-form-acoes">
+                <Botao
+                  variante="principal"
                   onClick={() => void aoCriar()}
-                  disabled={ocupado || !nomeNovo.trim() || !pastaDestino}
+                  disabled={ocupado || !nomeNovo.trim()}
+                  aria-busy={ocupado}
                 >
-                  {ocupado ? "Criando" : "Criar workspace"}
-                </button>
+                  Criar workspace
+                </Botao>
               </div>
             </div>
           )}
@@ -499,19 +484,29 @@ export function SeletorWorkspace() {
       )}
 
       {avisos && (
-        <div className="sw-toast">
-          <div className="sw-toast-topo">
-            <IconeAlerta className="" />
-            <strong>Workspace criado, com pendências</strong>
-            <button className="sw-toast-x" onClick={() => setAvisos(null)}>
-              <IconeX className="" />
-            </button>
+        <div className="sw-toast faixa faixa-aviso" role="status">
+          <IconeAlerta className="" />
+          <div className="faixa-texto">
+            <strong className="sw-toast-titulo">
+              Workspace criado, com pendências
+            </strong>
+            <ul className="sw-toast-lista">
+              {avisos.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
           </div>
-          <ul className="sw-toast-lista">
-            {avisos.map((a, i) => (
-              <li key={i}>{a}</li>
-            ))}
-          </ul>
+          <div className="faixa-acoes">
+            <Botao
+              variante="fantasma"
+              tamanho="p"
+              soIcone
+              aria-label="Fechar aviso"
+              onClick={() => setAvisos(null)}
+            >
+              <IconeX className="" />
+            </Botao>
+          </div>
         </div>
       )}
     </div>
@@ -530,6 +525,7 @@ function ChevronBaixo({ className }: { className?: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      aria-hidden="true"
     >
       <path d="m6 9 6 6 6-6" />
     </svg>

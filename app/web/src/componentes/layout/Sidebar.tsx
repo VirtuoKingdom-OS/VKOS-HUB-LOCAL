@@ -3,9 +3,10 @@ import { usarEstado } from "../../estado/contexto";
 import { INFO_STATUS } from "../../config/status";
 import { ROTULO_TIPO } from "../telas/fluxos";
 import { Marca } from "../comum/Telas";
-import { IconeAlerta } from "../comum/Icones";
+import { IconeSeta } from "../comum/Icones";
 import { SeletorWorkspace } from "./SeletorWorkspace";
 import type { TipoContexto, TipoPeca } from "../../tipos/dominio";
+import "./barra.css";
 
 // Tipos de peca que a galeria unificada reune (imagem).
 const TIPOS_GALERIA: TipoPeca[] = ["carrossel", "post", "stories"];
@@ -29,31 +30,45 @@ interface Props {
   // "cockpit", "galerias", "fontes", "fluxo:<tipo>", "fonte:<tipo>",
   // "studio:<pasta>" (workspace).
   telaAtiva: string;
+  // Qual dos dois niveis esta aberto. Decide a barra inteira.
+  nivel: "core" | "workspace";
   aoNavegar: (tela: string) => void;
   ideAberta: boolean;
   aoAlternarIde: () => void;
   mapaDisponivel: boolean;
 }
 
-// Menu lateral fixo, em DOIS NIVEIS desde 2026-07-27.
+// Menu lateral fixo, com UM NIVEL DE CADA VEZ desde 2026-07-27.
 //
-// Em cima o CORE, o nivel do dono: Dashboard, Workspaces, CRM e Conexoes. Nada
-// ali muda quando se troca de workspace.
+// Ate esta rodada os dois niveis ficavam empilhados na mesma barra. Media-se
+// 650px de moldura fixa antes de sobrar espaco pro menu do projeto: num
+// notebook de 768px o menu do workspace virava uma fresta de 81px, e num de
+// 720px, 33px. A pessoa nao conseguia chegar nos proprios itens.
 //
-// Embaixo o WORKSPACE aberto, com o seletor logo abaixo do rotulo da secao. Foi
-// de proposito: o seletor dentro da secao mostra na hora que trocar de workspace
-// so mexe no que esta abaixo dele, e nao no Hub inteiro.
+// Agora o CORE e o WORKSPACE sao dois modos. No CORE aparecem so as cinco areas
+// do dono e a porta pro projeto aberto. Dentro de um projeto aparece so o
+// projeto, com a volta pro CORE no topo. Ver docs/decisoes/2026-07-27-um-nivel-por-vez.md.
+//
+// O seletor de workspace fica FORA da area que rola de proposito: um ancestral
+// com overflow recorta o popover dele.
 export function Sidebar({
   itensFluxo,
   itensFonte,
   telaAtiva,
+  nivel,
   aoNavegar,
   ideAberta,
   aoAlternarIde,
   mapaDisponivel,
 }: Props) {
-  const { ambiente, wsConectado, sessoes, estadoVkos, custos, workspaces } =
-    usarEstado();
+  const {
+    ambiente,
+    wsConectado,
+    sessoes,
+    estadoVkos,
+    custos,
+    workspaces,
+  } = usarEstado();
 
   const ativas = sessoes.filter((s) => INFO_STATUS[s.status].ativa).length;
   const claudeOk = ambiente?.claude.instalado ?? false;
@@ -101,85 +116,268 @@ export function Sidebar({
         `${custos.totalSessoes} sessões`
     : "Nenhuma sessão concluída ainda";
 
+  // A quebra por tipo de token e o total geral saíram das linhas soltas do
+  // rodapé e entraram aqui, na dica. Não é informação a menos: é a mesma
+  // informação, a um passar de mouse, num rodapé que precisava caber num
+  // notebook. O total geral também continua inteiro no Dashboard do CORE.
+  const dicaDoRodape = [
+    custoEstimado ? "Valor aproximado, estimado por tabela de preços." : "",
+    temTotalGeral
+      ? `Geral (todos os workspaces, inclusive os já removidos): ${
+          totalGeralEhPiso ? "no mínimo " : ""
+        }${totalGeralEstimado ? "~" : ""}$${totalGeral.toFixed(2)}.`
+      : "",
+    dicaTokens,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar sidebar-nivel-${nivel}`}>
       <div className="sidebar-marca-bloco">
         <div className="sidebar-marca">
           <Marca />
           <BotaoTema />
         </div>
+        {/* O triangulo de alerta saiu daqui pela regra 7 do contrato: ele marca
+            o que e alerta, e "Versão Beta" e nota permanente, nao evento. Um
+            triangulo fixo no canto de toda tela ensina a ignorar triangulo, e
+            ai o de verdade nao e mais lido. O texto e a dica continuam. */}
         <span
           className="sidebar-marca-beta"
           title="Versão em testes: alguns fluxos ainda podem apresentar erros."
         >
           Versão Beta
-          <IconeAlerta className="sidebar-marca-beta-icone" />
         </span>
       </div>
 
-      {/* Duas navegacoes, uma por nivel. Elas sao separadas por um motivo
-          concreto, nao so visual: a de baixo rola (overflow-y), e um filho
-          que rola recorta o popover do seletor de workspace. Com o seletor
-          FORA dela, o painel dele volta a poder passar da borda da sidebar,
-          como sempre passou. */}
-      <nav className="sidebar-nav sidebar-nav-core">
-        <div className="sidebar-secao sidebar-secao-nivel">
-          <span className="rotulo-secao">Core</span>
+      {nivel === "core" ? (
+        <NavegacaoCore
+          telaAtiva={telaAtiva}
+          aoNavegar={aoNavegar}
+          totalWorkspaces={workspaces.length}
+          mapaDisponivel={mapaDisponivel}
+          ideAberta={ideAberta}
+          aoAlternarIde={aoAlternarIde}
+        />
+      ) : (
+        <NavegacaoWorkspace
+          telaAtiva={telaAtiva}
+          aoNavegar={aoNavegar}
+          galeriasTotal={galeriasTotal}
+          itemSite={itemSite}
+          temConteudo={temConteudo}
+          temFontes={itensFonte.length > 0}
+          totalFontes={totalFontes}
+        />
+      )}
+
+      <div className="sidebar-rodape">
+        <div className="rodape-linha" title={claudeOk ? "Claude pronto" : "Claude fora"}>
+          <span className={`ponto-luz ${claudeOk ? "on" : "off"}`} />
+          <span>Claude {claudeOk ? "pronto" : "fora"}</span>
         </div>
-        <button
-          className={`item-nav${telaAtiva === "dashboard" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "dashboard" ? "page" : undefined}
-          onClick={() => aoNavegar("dashboard")}
+        <div
+          className="rodape-linha"
+          title={wsConectado ? "Conectado ao vivo" : "Reconectando"}
         >
-          <IconeDashboard />
-          <span className="item-nav-rotulo">Dashboard</span>
-        </button>
-        <button
-          className={`item-nav${telaAtiva === "workspaces" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "workspaces" ? "page" : undefined}
-          onClick={() => aoNavegar("workspaces")}
-        >
-          <IconeWorkspaces />
-          <span className="item-nav-rotulo">Workspaces</span>
-          {workspaces.length > 0 && (
-            <span className="item-nav-contagem">{workspaces.length}</span>
-          )}
-        </button>
-        <button
-          className={`item-nav${telaAtiva === "crm" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "crm" ? "page" : undefined}
-          onClick={() => aoNavegar("crm")}
-        >
-          <IconeCrm />
-          <span className="item-nav-rotulo">CRM</span>
-        </button>
-        <button
-          className={`item-nav${telaAtiva === "conexoes" ? " ativo" : ""}`}
-          aria-current={telaAtiva === "conexoes" ? "page" : undefined}
-          onClick={() => aoNavegar("conexoes")}
-        >
-          <IconeConexoes />
-          <span className="item-nav-rotulo">Conexões</span>
-        </button>
-        {mapaDisponivel && (
-          <button
-            className={`item-nav${telaAtiva === "mapa" ? " ativo" : ""}`}
-            aria-current={telaAtiva === "mapa" ? "page" : undefined}
-            onClick={() => aoNavegar("mapa")}
+          <span className={`ponto-luz ${wsConectado ? "on" : "off"}`} />
+          <span>{wsConectado ? "Ao vivo" : "Reconectando"}</span>
+          {/* O menta so pinta a contagem quando ha sessao viva. Verde fixo com
+              zero rodando e cor dizendo o contrario do numero ao lado. */}
+          <span
+            className={`rodape-sessoes${ativas > 0 ? " vivo" : ""}`}
+            title="Sessões ativas no limite de 5"
           >
-            <IconeMapa />
-            <span className="item-nav-rotulo">Mapa</span>
-          </button>
+            {ativas} / {LIMITE_SESSOES}
+          </span>
+        </div>
+
+        {/* O gasto do projeto so aparece dentro do projeto. No CORE quem manda
+            e o Dashboard, que mostra o total de todos os workspaces com muito
+            mais contexto do que caberia aqui. */}
+        {nivel === "workspace" && (
+          /* Um dado forte por bloco (regra 5 do contrato). O valor vem
+             primeiro, com tratamento de numero, e o rotulo corre depois dele
+             como frase normal. Antes era o contrario: "GASTO DESTE WORKSPACE"
+             em caixa alta a esquerda e o numero a direita, e numa barra de
+             248px o rotulo quebrava em duas linhas com o valor pendurado no
+             alto. A pasta perdeu a caixa monoespacada: e um dado que ninguem
+             edita, entao nao pode ter peso de campo. */
+          <div className="rodape-projeto" title={dicaDoRodape}>
+            <p className="rodape-projeto-linha">
+              <span className="rodape-projeto-valor">
+                {totalEhPiso ? "≥ " : ""}
+                {custoEstimado ? "~" : ""}${totalGasto.toFixed(2)}
+              </span>
+              <span className="rodape-projeto-rotulo">gasto neste workspace</span>
+            </p>
+            {/* O alerta de piso nunca sai. Ele e o que impede o numero de
+                parecer exato quando nao e. */}
+            {totalEhPiso && (
+              <p className="rodape-projeto-ressalva">
+                {turnosSemCusto === 1
+                  ? "1 turno gastou sem preço conhecido. O valor real é maior."
+                  : `${turnosSemCusto} turnos gastaram sem preço conhecido. O valor real é maior.`}
+              </p>
+            )}
+            <p className="rodape-projeto-pasta" title={estadoVkos?.pasta ?? ""}>
+              {nomePasta}
+            </p>
+          </div>
         )}
-
-      </nav>
-
-      <div className="sidebar-secao sidebar-secao-nivel">
-        <span className="rotulo-secao">Workspace</span>
       </div>
+    </aside>
+  );
+}
+
+// A barra do CORE: as areas do dono, em tres grupos por funcao. Nada aqui muda
+// quando se troca de workspace. Entra-se no projeto pela tela Workspaces.
+//
+// Os grupos existem porque a lista cresceu e uma pilha de sete itens iguais nao
+// diz o que e o que: CORE e onde se olha o negocio, GESTAO e onde se toca em
+// cliente e dinheiro, SISTEMA e a maquina do Hub. O separador e o mesmo fio do
+// rotulo de nivel, que ja nasceu sutil de proposito, entao nenhum grupo ganha
+// peso visual sobre o outro.
+function NavegacaoCore({
+  telaAtiva,
+  aoNavegar,
+  totalWorkspaces,
+  mapaDisponivel,
+  ideAberta,
+  aoAlternarIde,
+}: {
+  telaAtiva: string;
+  aoNavegar: (tela: string) => void;
+  totalWorkspaces: number;
+  mapaDisponivel: boolean;
+  ideAberta: boolean;
+  aoAlternarIde: () => void;
+}) {
+  return (
+    <nav className="sidebar-nav sidebar-nav-rolante">
+      <div className="sidebar-secao">
+        <span className="rotulo-grupo">Core</span>
+      </div>
+      <button
+        className={`item-nav${telaAtiva === "dashboard" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "dashboard" ? "page" : undefined}
+        onClick={() => aoNavegar("dashboard")}
+      >
+        <IconeDashboard />
+        <span className="item-nav-rotulo">Dashboard</span>
+      </button>
+      <button
+        className={`item-nav${telaAtiva === "clientes" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "clientes" ? "page" : undefined}
+        onClick={() => aoNavegar("clientes")}
+      >
+        <IconeClientes />
+        <span className="item-nav-rotulo">Clientes</span>
+      </button>
+      <button
+        className={`item-nav${telaAtiva === "workspaces" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "workspaces" ? "page" : undefined}
+        onClick={() => aoNavegar("workspaces")}
+      >
+        <IconeWorkspaces />
+        <span className="item-nav-rotulo">Workspaces</span>
+        {totalWorkspaces > 0 && (
+          <span className="contagem">{totalWorkspaces}</span>
+        )}
+      </button>
+
+      <div className="sidebar-secao">
+        <span className="rotulo-grupo">Gestão</span>
+      </div>
+      <button
+        className={`item-nav${telaAtiva === "crm" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "crm" ? "page" : undefined}
+        onClick={() => aoNavegar("crm")}
+      >
+        <IconeCrm />
+        <span className="item-nav-rotulo">CRM</span>
+      </button>
+      <button
+        className={`item-nav${telaAtiva === "financas" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "financas" ? "page" : undefined}
+        onClick={() => aoNavegar("financas")}
+      >
+        <IconeFinancas />
+        <span className="item-nav-rotulo">Finanças</span>
+      </button>
+
+      <div className="sidebar-secao">
+        <span className="rotulo-grupo">Sistema</span>
+      </div>
+      <button
+        className={`item-nav${telaAtiva === "conexoes" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "conexoes" ? "page" : undefined}
+        onClick={() => aoNavegar("conexoes")}
+      >
+        <IconeConexoes />
+        <span className="item-nav-rotulo">Conexões</span>
+      </button>
+      {mapaDisponivel && (
+        <button
+          className={`item-nav${telaAtiva === "mapa" ? " ativo" : ""}`}
+          aria-current={telaAtiva === "mapa" ? "page" : undefined}
+          onClick={() => aoNavegar("mapa")}
+        >
+          <IconeMapa />
+          <span className="item-nav-rotulo">Mapa</span>
+        </button>
+      )}
+
+      {/* A VKOS-IDE fica no pe da barra do CORE, ancorada no fim da navegacao
+          (margin-top:auto) e separada por uma borda, acima do rodape. Ela e
+          ferramenta do dono, nao item de projeto: por isso vive so aqui. */}
+      <div className="sidebar-nav-fim">
+        <button
+          className={`item-nav${ideAberta ? " ativo" : ""}`}
+          onClick={aoAlternarIde}
+          aria-pressed={ideAberta}
+        >
+          <IconeIde />
+          <span className="item-nav-rotulo">VKOS-IDE</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+// A barra do workspace: so o projeto aberto. A volta pro CORE fica no topo,
+// antes de qualquer coisa, porque sair do projeto e o gesto mais importante
+// desta barra.
+function NavegacaoWorkspace({
+  telaAtiva,
+  aoNavegar,
+  galeriasTotal,
+  itemSite,
+  temConteudo,
+  temFontes,
+  totalFontes,
+}: {
+  telaAtiva: string;
+  aoNavegar: (tela: string) => void;
+  galeriasTotal: number;
+  itemSite: ItemFluxo | undefined;
+  temConteudo: boolean;
+  temFontes: boolean;
+  totalFontes: number;
+}) {
+  return (
+    <>
+      <button className="sidebar-voltar-core" onClick={() => aoNavegar("dashboard")}>
+        <IconeSeta className="sidebar-voltar-seta" />
+        <span>Core</span>
+      </button>
+
+      {/* Fora da area que rola: o popover do seletor precisa poder passar da
+          borda da barra, e um ancestral com overflow recorta ele. */}
       <SeletorWorkspace />
 
-      <nav className="sidebar-nav sidebar-nav-workspace">
+      <nav className="sidebar-nav sidebar-nav-rolante">
         <button
           className={`item-nav${telaAtiva === "inicio" ? " ativo" : ""}`}
           aria-current={telaAtiva === "inicio" ? "page" : undefined}
@@ -200,7 +398,7 @@ export function Sidebar({
         {temConteudo && (
           <>
             <div className="sidebar-secao sidebar-subsecao">
-              <span className="rotulo-secao">Conteúdo</span>
+              <span className="rotulo-grupo">Conteúdo</span>
             </div>
             {galeriasTotal > 0 && (
               <button
@@ -210,7 +408,7 @@ export function Sidebar({
               >
                 <IconeGalerias />
                 <span className="item-nav-rotulo">Galerias</span>
-                <span className="item-nav-contagem">{galeriasTotal}</span>
+                <span className="contagem">{galeriasTotal}</span>
               </button>
             )}
             {itemSite && (
@@ -221,16 +419,16 @@ export function Sidebar({
               >
                 <IconeSitePagina />
                 <span className="item-nav-rotulo">{ROTULO_TIPO.site}</span>
-                <span className="item-nav-contagem">{itemSite.total}</span>
+                <span className="contagem">{itemSite.total}</span>
               </button>
             )}
           </>
         )}
 
-        {itensFonte.length > 0 && (
+        {temFontes && (
           <>
             <div className="sidebar-secao sidebar-subsecao">
-              <span className="rotulo-secao">Fontes de dados</span>
+              <span className="rotulo-grupo">Fontes de dados</span>
             </div>
             <button
               className={`item-nav${
@@ -247,107 +445,31 @@ export function Sidebar({
             >
               <IconeFontes />
               <span className="item-nav-rotulo">Fontes de dados</span>
-              <span className="item-nav-contagem">{totalFontes}</span>
+              <span className="contagem">{totalFontes}</span>
             </button>
           </>
         )}
 
-        {/* A VKOS-IDE fica sempre por ultimo, ancorada no fim da navegacao
-            (margin-top:auto) e separada por uma borda, acima do rodape. */}
-        <div className="sidebar-nav-fim">
-          <button
-            className={`item-nav${ideAberta ? " ativo" : ""}`}
-            onClick={aoAlternarIde}
-            aria-pressed={ideAberta}
-          >
-            <IconeIde />
-            <span className="item-nav-rotulo">VKOS-IDE</span>
-          </button>
-        </div>
       </nav>
-
-      <div className="sidebar-rodape">
-        <div className="rodape-linha" title={claudeOk ? "Claude pronto" : "Claude fora"}>
-          <span className={`ponto-luz ${claudeOk ? "on" : "off"}`} />
-          <span>Claude {claudeOk ? "pronto" : "fora"}</span>
-        </div>
-        <div
-          className="rodape-linha"
-          title={wsConectado ? "Conectado ao vivo" : "Reconectando"}
-        >
-          <span className={`ponto-luz ${wsConectado ? "on" : "off"}`} />
-          <span>{wsConectado ? "Ao vivo" : "Reconectando"}</span>
-          <span className="rodape-sessoes" title="Sessões ativas no limite de 5">
-            {ativas} / {LIMITE_SESSOES}
-          </span>
-        </div>
-        <div
-          className="rodape-custo"
-          title={
-            temTotalGeral
-              ? `Geral (todos os workspaces, incluindo os já removidos): ${
-                  totalGeralEhPiso ? "no mínimo " : ""
-                }${totalGeralEstimado ? "~" : ""}$${totalGeral.toFixed(2)}. ${dicaTokens}`
-              : dicaTokens
-          }
-        >
-          <div className="rodape-custo-linha">
-            <span className="rodape-custo-rotulo">Gasto deste workspace</span>
-            <span className="rodape-custo-valor">
-              {totalEhPiso ? "≥ " : ""}
-              {custoEstimado ? "~" : ""}${totalGasto.toFixed(2)}
-            </span>
-          </div>
-          {custoEstimado && (
-            <div className="rodape-custo-detalhe">valor aproximado, estimado por tabela de preços</div>
-          )}
-          {totalEhPiso && (
-            <div className="rodape-custo-alerta">
-              {turnosSemCusto === 1
-                ? "1 turno gastou sem preço conhecido. O valor real é maior."
-                : `${turnosSemCusto} turnos gastaram sem preço conhecido. O valor real é maior.`}
-            </div>
-          )}
-          {temTotalGeral && (
-            <div className="rodape-custo-detalhe">
-              Geral, todos os workspaces: {totalGeralEhPiso ? "≥ " : ""}
-              {totalGeralEstimado ? "~" : ""}${totalGeral.toFixed(2)}
-              {totalGeralEstimado ? ", aproximado" : ""}
-            </div>
-          )}
-          {temDetalheEntrada && (
-            <div className="rodape-custo-detalhe">
-              {fmtTokens(custos?.tokensEntradaNova)} novos,{" "}
-              <span className="tok-cache">{fmtTokens(cacheEscrita)} cache gravado</span>,{" "}
-              <span className="tok-cache">{fmtTokens(cacheLeitura)} cache lido</span>,{" "}
-              {fmtTokens(custos?.tokensSaida)} saída
-            </div>
-          )}
-        </div>
-        <div className="rodape-pasta" title={estadoVkos?.pasta ?? ""}>
-          {nomePasta}
-        </div>
-      </div>
-    </aside>
+    </>
   );
 }
 
-// Tres temas: "claro", "escuro" (o dark padrao novo) e "vkos" (o dark
-// original da VK). O tema vive em data-theme na raiz do documento e persiste
-// no localStorage; o index.html reaplica o salvo antes do bundle carregar,
-// entao nao ha flash na abertura. O clique abre um mini popover ancorado com
-// as tres opcoes; fecha ao clicar fora ou apertar Esc.
-type Tema = "claro" | "escuro" | "vkos";
+// Dois temas desde 2026-07-27: "claro", o padrao e a identidade, e "escuro".
+// O Dark VKOS se aposentou junto com a identidade antiga; um "vkos" salvo
+// migra pro escuro no index.html, antes do bundle carregar. O tema vive em
+// data-theme na raiz e persiste no localStorage; o index.html reaplica o
+// salvo antes do bundle, entao nao ha flash na abertura.
+type Tema = "claro" | "escuro";
 
 const OPCOES_TEMA: { id: Tema; nome: string }[] = [
   { id: "claro", nome: "Claro" },
   { id: "escuro", nome: "Escuro" },
-  { id: "vkos", nome: "Dark VKOS" },
 ];
 
 function lerTema(): Tema {
   const t = document.documentElement.dataset.theme;
-  return t === "claro" || t === "escuro" || t === "vkos" ? t : "escuro";
+  return t === "escuro" ? "escuro" : "claro";
 }
 
 function BotaoTema() {
@@ -386,8 +508,10 @@ function BotaoTema() {
 
   return (
     <div className="tema-caixa" ref={refCaixa}>
+      {/* O botao e o menu vestem as primitivas: .botao e .popover mais .menu.
+          A folha da casca so ancora o popover no canto do botao. */}
       <button
-        className="botao-tema"
+        className="botao botao-fantasma botao-icone botao-p"
         onClick={() => setAberto((v) => !v)}
         title="Trocar o tema"
         aria-label="Trocar o tema"
@@ -397,19 +521,21 @@ function BotaoTema() {
         {tema === "claro" ? <IconeSol /> : <IconeLua />}
       </button>
       {aberto && (
-        <div className="tema-menu" role="menu">
-          {OPCOES_TEMA.map((opcao) => (
-            <button
-              key={opcao.id}
-              className={`tema-menu-item${tema === opcao.id ? " ativo" : ""}`}
-              onClick={() => escolher(opcao.id)}
-              role="menuitemradio"
-              aria-checked={tema === opcao.id}
-            >
-              <span className="tema-menu-nome">{opcao.nome}</span>
-              {tema === opcao.id && <IconeCheck />}
-            </button>
-          ))}
+        <div className="popover barra-tema-menu" role="menu">
+          <div className="menu">
+            {OPCOES_TEMA.map((opcao) => (
+              <button
+                key={opcao.id}
+                className="menu-item"
+                onClick={() => escolher(opcao.id)}
+                role="menuitemradio"
+                aria-checked={tema === opcao.id}
+              >
+                {opcao.nome}
+                {tema === opcao.id && <IconeCheck />}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -475,6 +601,36 @@ function IconeCrm() {
       <path d="M3.5 19c.7-3 2.9-4.5 5.5-4.5S13.8 16 14.5 19" />
       <circle cx="17" cy="9" r="2.4" />
       <path d="M16 14.6c2.3.2 3.9 1.5 4.5 3.9" />
+    </svg>
+  );
+}
+
+// Clientes: uma ficha, com a pessoa de um lado e os dados do outro.
+//
+// A primeira versao eram duas pessoas lado a lado, e na barra ficou quase
+// identica ao icone do CRM, que tambem e feito de duas pessoas. Dois itens
+// vizinhos com a mesma silhueta obrigam a ler o rotulo pra saber qual e qual, e
+// ai o icone virou enfeite. A ficha diz cadastro, que e o que a tela vai ser, e
+// nao se confunde com o funil.
+function IconeClientes() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="4.5" width="19" height="15" rx="2" />
+      <circle cx="8.5" cy="10.5" r="2" />
+      <path d="M5.5 16c.5-1.7 1.6-2.5 3-2.5s2.5.8 3 2.5" />
+      <path d="M14.8 10h3.7M14.8 13.5h2.7" />
+    </svg>
+  );
+}
+
+// Financas: uma nota com a cifra. Dinheiro que entra e sai, nao grafico: o
+// grafico ja e a linguagem do gasto com IA no Dashboard.
+function IconeFinancas() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6 10v4M18 10v4" />
     </svg>
   );
 }

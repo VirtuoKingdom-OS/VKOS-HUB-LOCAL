@@ -7,17 +7,17 @@ Vale para pessoa e para IA. Quem não segue isto não fecha rodada.
 Leia, nesta ordem:
 
 1. [CLAUDE.md](CLAUDE.md), as regras da casa.
-2. `contexto/visao.md`, `contexto/arquitetura.md` e `contexto/roadmap.md`.
-3. A pasta `decisoes/`, se o assunto já foi debatido antes.
+2. `docs/contexto/visao.md`, `docs/contexto/arquitetura.md` e `docs/contexto/roadmap.md`.
+3. A pasta `docs/decisoes/`, se o assunto já foi debatido antes.
 
 Não confirme a leitura. Use o que leu.
 
 ## Fluxo de uma rodada
 
-1. **Rodada grande nasce de um plano.** Uma pasta em `planos/nome-da-rodada/` com visão, arquitetura e execução. O plano é auditado antes de virar código.
+1. **Rodada grande nasce de um plano.** Uma pasta em `docs/planos/nome-da-rodada/` com visão, arquitetura e execução. O plano é auditado antes de virar código.
 2. **Executa por fase.** Cada fase termina verde: typecheck, testes e build.
-3. **Registra a decisão.** Toda escolha de produto ou técnica vira `decisoes/AAAA-MM-DD-titulo.md`, com contexto, decisão e por quê.
-4. **Atualiza o contexto vivo.** Fase fechada ou arquitetura mudada significa editar o arquivo correspondente em `contexto/`, na linha que mudou. Não reescreva o arquivo inteiro.
+3. **Registra a decisão.** Toda escolha de produto ou técnica vira `docs/decisoes/AAAA-MM-DD-titulo.md`, com contexto, decisão e por quê.
+4. **Atualiza o contexto vivo.** Fase fechada ou arquitetura mudada significa editar o arquivo correspondente em `docs/contexto/`, na linha que mudou. Não reescreva o arquivo inteiro.
 5. **Atualiza o mapa.** Criou, removeu, renomeou ou mudou a responsabilidade de um módulo, tela, integração ou fluxo? `interno/mapa-sistema.json` é atualizado na mesma tarefa. O mapa é contrato vivo, não documentação opcional.
 6. **Apaga o plano.** Rodada fechada, pasta do plano some.
 
@@ -49,7 +49,11 @@ VKOS_DADOS_TESTE=/tmp/dados-de-teste VKOS_PORT=4702 npx tsx server/src/index.ts
 node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
 ```
 
-Ela abre a interface num navegador de verdade, percorre as telas, pega erro de console, tela que não renderiza e rolagem horizontal, e guarda uma foto de cada. Rode nos três temas com `--tema dark-vkos` e `--tema claro`.
+Ela abre a interface num navegador de verdade e percorre **13 telas em três tamanhos** (1440x900, 1366x768 e 1280x720, que é o notebook comum). Reprova por: erro de console, tela que não renderiza, tela sem botão, rolagem horizontal, elemento estourando pra direita, alvo de toque abaixo de 24px, texto abaixo do piso de 11px da escala, e item de menu fora do alcance. Rode nos dois temas: o padrão já é o Claro, e o segundo passa com `--tema escuro`.
+
+**Ela mede altura, e isso não é detalhe.** Em 2026-07-27 a barra lateral empilhava os dois níveis de navegação e sobrava 33px pro menu do projeto num notebook de 720px. Compilava, passava nos cinco portões, e a pessoa não conseguia clicar nos próprios itens. Nenhum teste via isso porque nenhum teste tinha altura. Ver `docs/decisoes/2026-07-27-um-nivel-por-vez.md`.
+
+Além do sintoma, ela checa o mecanismo: o menu tem que ser quem cede altura quando falta espaço, e o resto da barra não. Essa checagem pega o defeito **antes** de existir conteúdo bastante pra ele aparecer, que é como ele passou batido da primeira vez.
 
 Isso não substitui o olho. Guarde as fotos de antes, faça a mudança, gere as de depois e compare. Diferença que você não sabe explicar é regressão até prova em contrário. Detalhes em `ferramentas/LEIA-ME.md`.
 

@@ -5,7 +5,9 @@ import { baseNome } from "./fluxos";
 import { CartaoPeca } from "../pecas/CartaoPeca";
 import { Lightbox } from "../pecas/Lightbox";
 import { IconeGaleria } from "../comum/Icones";
-import "../../estilos/dashboard.css";
+import "../workspace/dashboard.css";
+import { irParaPeca } from "../layout/rotas";
+import "./telas.css";
 
 interface EstadoVisor {
   peca: Peca;
@@ -17,8 +19,8 @@ const TIPOS_GALERIA: TipoPeca[] = ["carrossel", "post", "stories"];
 
 type Filtro = "todos" | TipoPeca;
 
-// Rotulo curto de cada chip de filtro.
-const ROTULO_CHIP: Record<Filtro, string> = {
+// Rotulo curto de cada filtro.
+const ROTULO_FILTRO: Record<Filtro, string> = {
   todos: "Todos",
   carrossel: "Carrosséis",
   post: "Posts",
@@ -30,12 +32,12 @@ const ROTULO_CHIP: Record<Filtro, string> = {
 
 // Navega pro Studio de uma peca fonteHtml (pasta URL-encoded no hash).
 function irParaStudio(pasta: string) {
-  window.location.hash = "#/studio/" + encodeURIComponent(pasta);
+  irParaPeca("studio", pasta);
 }
 
 // Galeria unificada de todas as pecas de imagem (carrossel, post, stories).
-// Reaproveita CartaoPeca e Lightbox como a TelaFluxo faz, com chips de filtro
-// por tipo. Editar de peca fonteHtml leva ao Studio, nao abre mais overlay.
+// A moldura desta tela e acromatica de proposito: quem tem cor aqui e a peca
+// do usuario. Editar peca fonteHtml leva ao Studio.
 export function TelaGalerias() {
   const { pecas } = usarEstado();
   const [visor, setVisor] = useState<EstadoVisor | null>(null);
@@ -47,8 +49,8 @@ export function TelaGalerias() {
     [pecas]
   );
 
-  // Tipos que tem ao menos uma peca, na ordem canonica: define quais chips
-  // aparecem (chip so existe se o tipo tem peca).
+  // Tipos que tem ao menos uma peca, na ordem canonica: define quais filtros
+  // aparecem (filtro so existe se o tipo tem peca).
   const tiposPresentes = useMemo(
     () => TIPOS_GALERIA.filter((t) => itensImagem.some((p) => p.tipo === t)),
     [itensImagem]
@@ -67,71 +69,69 @@ export function TelaGalerias() {
   );
 
   const contagem = itens.length;
-  const rotuloContagem =
-    contagem === 1 ? "1 peça" : `${contagem} peças`;
+  const rotuloContagem = contagem === 1 ? "1 peça" : `${contagem} peças`;
 
-  // Carrossel/stories rendem uma tira maior por card, como na tela de fluxo.
-  const empilhado =
-    filtroValido === "carrossel" || filtroValido === "stories";
+  // Carrossel e stories rendem uma tira maior por cartao.
+  const empilhado = filtroValido === "carrossel" || filtroValido === "stories";
 
-  // So no filtro "Todos" o card fica condensado (rodada 14): nos filtros por
-  // tipo o card ja empilha e usa a tira grande, como nas telas de fluxo.
+  // So no filtro "Todos" o cartao fica condensado: nos filtros por tipo ele ja
+  // empilha e usa a tira grande.
   const condensado = filtroValido === "todos";
 
+  const filtros: Filtro[] = ["todos", ...tiposPresentes];
+
   return (
-    <section className="tela-fluxo tela-galerias">
-      <header className="tela-fluxo-topo">
-        <div className="galerias-topo-linha">
+    <section className="tela tela-galerias">
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
           <h1>Galerias</h1>
-          <p className="subtitulo">{rotuloContagem}</p>
+          <p>{rotuloContagem}</p>
         </div>
-        {tiposPresentes.length > 0 && (
-          <div className="galerias-chips" role="tablist" aria-label="Filtrar por tipo">
-            <button
-              className={`chip-filtro${filtroValido === "todos" ? " ativo" : ""}`}
-              onClick={() => setFiltro("todos")}
-              role="tab"
-              aria-selected={filtroValido === "todos"}
-            >
-              {ROTULO_CHIP.todos}
-            </button>
-            {tiposPresentes.map((t) => (
+      </header>
+
+      {tiposPresentes.length > 0 && (
+        <div className="telas-abas">
+          <div className="abas" role="tablist" aria-label="Filtrar por tipo">
+            {filtros.map((t) => (
               <button
+                type="button"
                 key={t}
-                className={`chip-filtro${filtroValido === t ? " ativo" : ""}`}
-                onClick={() => setFiltro(t)}
+                className="aba"
                 role="tab"
                 aria-selected={filtroValido === t}
+                onClick={() => setFiltro(t)}
               >
-                {ROTULO_CHIP[t]}
+                {ROTULO_FILTRO[t]}
               </button>
             ))}
           </div>
-        )}
-      </header>
-
-      {contagem === 0 ? (
-        <div className="fluxo-vazio">
-          <IconeGaleria className="icone-vazio" style={{ width: 40, height: 40 }} />
-          <h2>Nenhuma peça de imagem ainda</h2>
-          <p>
-            Crie um carrossel pelo Dashboard e ele aparece aqui, pronto pra ver,
-            baixar e editar.
-          </p>
-        </div>
-      ) : (
-        <div className={`tela-fluxo-corpo${empilhado ? " empilhado" : ""}`}>
-          {itens.map((peca) => (
-            <CartaoPeca
-              key={peca.pasta}
-              peca={peca}
-              aoAmpliar={(peca, indice) => setVisor({ peca, indice })}
-              aoEditar={(pasta) => irParaStudio(pasta)}
-              condensado={condensado}
-            />
-          ))}
         </div>
       )}
+
+      <div className="tela-corpo">
+        {contagem === 0 ? (
+          <div className="vazio">
+            <IconeGaleria className="" />
+            <h2>Nenhuma peça de imagem ainda</h2>
+            <p>
+              Crie um carrossel pelo Dashboard e ele aparece aqui, pronto para
+              ver, baixar e editar.
+            </p>
+          </div>
+        ) : (
+          <div className={`telas-grade${empilhado ? " empilhada" : ""}`}>
+            {itens.map((peca) => (
+              <CartaoPeca
+                key={peca.pasta}
+                peca={peca}
+                aoAmpliar={(peca, indice) => setVisor({ peca, indice })}
+                aoEditar={(pasta) => irParaStudio(pasta)}
+                condensado={condensado}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {visor && (
         <Lightbox

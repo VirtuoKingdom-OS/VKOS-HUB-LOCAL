@@ -1,0 +1,166 @@
+/* ==========================================================================
+   AS TELAS DE COLECAO: Galerias, um fluxo, Fontes de dados e uma fonte.
+
+   REDESENHADAS na Fase 2 do redesign v2 (2026-07-30).
+
+   O QUE MUDOU, e por que:
+
+   - A moldura destas quatro telas morava no legado.css, com cabecalho de 96px
+     de faixa translucida e titulo em peso 700. Agora as quatro usam .tela,
+     .tela-topo e .tela-corpo das primitivas: uma linha de 56px, titulo em 500,
+     a contagem por baixo.
+   - A GALERIA E A PECA. A moldura desta tela e acromatica de ponta a ponta,
+     porque o que tem cor aqui e o carrossel do usuario. Os chips de filtro
+     viraram .aba, que se marca por fio embaixo e peso: a pilula menta do chip
+     ativo era a maior mancha de cor de uma tela cheia de imagem colorida.
+   - O hub de Fontes virou .lista com .item-lista. Sao tres alvos de navegacao
+     com uma contagem cada: lista densa diz a mesma coisa em um terco da
+     altura, e cada linha ja nasce com superficie e fio, sem depender do hover.
+   - A fonte continua em cartao, e aqui ele e legitimo: objeto repetido,
+     independente, com previa de imagem de verdade dentro.
+   - O prompt de nova fonte virou .veu-modal mais .modal das primitivas.
+   - Os estados vazios viraram .vazio, que ENSINA a proxima acao em vez de
+     dizer que nao tem nada.
+
+   O QUE ESTA FOLHA ESCREVE: so o layout destas telas. Botao, campo, cartao,
+   aba, lista, modal e estado vazio vem das primitivas.
+
+   O QUE ELA NAO TOCA: o .cartao-peca, que e do componente pecas/ e e
+   compartilhado com o Cockpit e com o Studio.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* O REMENDO CONTRA O legado.css MORREU EM 2026-07-30, na varredura final da
+   Fase 2. Ele devolvia a altura e o raio do campo dentro de ".tela-fonte",
+   porque o legado vestia input POR ELEMENTO na camada tela e vencia a base
+   onde as primitivas moram. O legado.css foi demolido e a regra saiu. */
+
+/* A barra de filtros fica colada embaixo do cabecalho, na mesma coluna dele. */
+.telas-abas {
+  flex: none;
+  padding: 0 var(--esp-24);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--linha);
+}
+
+/* Grade das pecas. Sem breakpoint: a coluna se acomoda sozinha. */
+.telas-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--esp-16);
+  align-content: start;
+}
+/* Carrossel e stories rendem uma tira larga: uma peca por linha, e a coluna
+   trava, porque tira de 1400px de largura nao ajuda ninguem a escolher. */
+.telas-grade.empilhada {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 960px;
+  gap: var(--esp-24);
+}
+
+/* ===== O hub das fontes ===== */
+/* O icone do tipo e a seta sao decoracao de apoio: o nome e a contagem que
+   carregam a informacao. */
+.tela-fontes .item-lista > svg,
+.tela-fontes .fontes-seta {
+  color: var(--texto-fraco);
+}
+
+/* ===== Uma fonte de dados ===== */
+/* O caminho de volta fica ACIMA do titulo, alinhado com ele: e navegacao, nao
+   acao da tela. O recuo negativo tira o padding do proprio botao pra letra
+   nascer na mesma coluna do titulo. */
+.fonte-voltar {
+  margin-left: calc(var(--esp-8) * -1);
+  margin-bottom: var(--esp-2);
+  color: var(--texto-suave);
+}
+
+/* ===== Cartao de uma fonte de dados ===== */
+.fonte-data {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+.fonte-previa {
+  flex: 1;
+  min-height: calc(var(--base) * 20);
+}
+.fonte-acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+.fonte-acoes .botao:first-child {
+  flex: 1;
+}
+
+/* Previa de texto: as primeiras linhas, uma por linha, cortadas no fim. */
+.fonte-previa-texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.fonte-previa-texto p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Previa de imagens: ate quatro miniaturas quadradas. */
+.fonte-previa-imagens {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--esp-8);
+}
+.fonte-previa-mini {
+  aspect-ratio: 1;
+  border-radius: var(--raio-p);
+  overflow: hidden;
+  border: 1px solid var(--linha);
+  background: var(--superficie-alta);
+}
+.fonte-previa-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Previa de links: os primeiros itens. */
+.fonte-previa-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+}
+.fonte-previa-links li {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-width: 0;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.fonte-previa-links svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--texto-fraco);
+}
+.fonte-previa-link-texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fonte-previa-vazia {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+} /* fim de @layer tela */

@@ -6,7 +6,7 @@ import type { FSWatcher } from "node:fs";
 import { join } from "node:path";
 import type { Peca, TipoPeca } from "../tipos.js";
 import { obterPastaVkos } from "./estado.js";
-import { transmitir } from "../ws.js";
+import { transmitir } from "../nucleo/ws.js";
 import { emitir } from "../eventos/barramento.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { auditarSiteEstatico } from "./siteEstatico.js";

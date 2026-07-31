@@ -1,0 +1,1442 @@
+/* O MAPA: o mapa do sistema e o mapa de telas, as duas visoes do mesmo canvas.
+
+   Fundacao v2, Fase 2, onda B (2026-07-30). O Mapa e um diagrama, e diagrama
+   so serve se for lido de longe. As decisoes desta passada:
+
+   1. O PLANO DO GRAFO E O MESMO DO COCKPIT. Os dois canvas do app usavam
+      cinzas diferentes de fundo e de ponto. Agora os dois se apoiam em
+      --canvas-fundo com a mesma grade de --pontos-canvas, e a ligacao usa
+      --ligacao, o token de aresta, medido em 3:1 contra o canvas nos dois
+      temas. Antes a linha era --linha-forte, que e fio de CONTROLE.
+   2. O MENTA SAIU DA MOLDURA. Ele pintava o modo ligado, o numero do passo, o
+      cartao do percurso e a aresta selecionada, o que dava um tabuleiro verde
+      onde nada estava vivo. Ficou em um lugar so: o ponto que CORRE a ligacao
+      em foco, que e literalmente o dado andando pelo sistema.
+   3. SELECAO E FIO, NAO COR. No selecionado e aresta em foco usam --acao, a
+      tinta da acao, que e o mesmo contrato da linha selecionada das listas.
+   4. OS CONTROLES VIRARAM PRIMITIVA. Os modos sao .segmentado, os botoes de
+      abrir sao .botao, e o que sobrou aqui e layout de canvas e de painel. */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e as telas carregam sob demanda. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+.tela-mapa {
+  overflow: hidden;
+}
+
+.mapa-topo-acoes {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mapa-modos svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Contagem de nos: numero, entao tabular, e o rotulo ao lado em frase. */
+.mapa-total {
+  flex-shrink: 0;
+  padding: var(--esp-4) var(--esp-8);
+  color: var(--texto-suave);
+  background: var(--neutro-tenue);
+  border-radius: var(--raio-p);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-corpo {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 0;
+}
+
+/* O plano do grafo, o mesmo do Cockpit: --canvas-fundo liso, com a grade vindo
+   do <Background> do React Flow (gap 20, ponto de 1px, cor em
+   --pontos-canvas). A grade nao e background deste elemento porque assim ela
+   acompanha o zoom; as duas juntas dariam moire. */
+.mapa-rede {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--canvas-fundo);
+  border-right: 1px solid var(--linha);
+
+  --xy-background-color: var(--canvas-fundo);
+  --xy-edge-stroke: var(--ligacao);
+  --xy-node-background-color: var(--superficie);
+  --xy-handle-background-color: var(--linha-forte);
+  --xy-handle-border-color: var(--canvas-fundo);
+}
+
+/* O React Flow desenha o proprio fundo por cima do nosso. */
+.mapa-rede .react-flow,
+.mapa-rede .react-flow__background {
+  background: transparent;
+}
+
+.mapa-rede .react-flow__node {
+  cursor: default;
+}
+
+.mapa-rede .react-flow__edge,
+.mapa-rede .react-flow__handle {
+  cursor: default;
+}
+
+/* Os controles de zoom flutuam por cima do canvas, entao esta e uma das tres
+   sombras legitimas da tela. Fio forte porque e grupo de controle. */
+.mapa-rede .react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio-p);
+  box-shadow: var(--sombra-popover);
+}
+
+.mapa-rede .react-flow__controls-button {
+  width: var(--alt-p);
+  height: var(--alt-p);
+  color: var(--texto-suave);
+  background: var(--superficie-flutuante);
+  border-bottom-color: var(--linha);
+}
+
+.mapa-rede .react-flow__controls-button:hover {
+  color: var(--texto);
+  background: var(--superficie-alta);
+}
+
+.mapa-rede .react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+/* O CARTAO DO NO.
+
+   Ele NAO ganha sombra, e a pergunta e legitima porque um no de grafo parece
+   flutuar. Ele nao flutua: ele E o conteudo do canvas, do mesmo jeito que um
+   cartao e o conteudo de uma lista. O que flutua POR CIMA dele sao a legenda,
+   a barra de skills e os controles de zoom, e sao esses tres que levam sombra.
+   A separacao do no vem da escada: --fundo no canvas, --superficie no cartao,
+   mais o fio de --linha e o fio de 3px da cor do grupo no topo. */
+.mapa-no {
+  --mapa-cor: var(--texto-suave);
+  width: 260px;
+  min-height: 126px;
+  padding: var(--esp-12);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  transition: border-color var(--transicao);
+}
+
+.mapa-no.sem-resumo {
+  min-height: 76px;
+}
+
+.mapa-no.sem-titulo:not(.discreto) {
+  min-height: 102px;
+}
+
+.mapa-no.discreto {
+  width: 58px;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--superficie);
+  border: 1px solid var(--mapa-cor);
+  border-radius: 50%;
+}
+
+.mapa-no-neuronio {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: var(--mapa-cor);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: var(--op-plena);
+}
+
+/* O ponto de conexao. O anel de menta de 3px que ele tinha era decoracao pura:
+   o handle nao recebe clique (pointer-events: none) e ja se separa do cartao
+   pelo aro de 2px na cor da superficie. */
+.mapa-handle {
+  width: 11px;
+  height: 11px;
+  background: var(--mapa-cor);
+  border: 2px solid var(--superficie);
+  pointer-events: none;
+}
+
+.mapa-handle-entrada {
+  left: -6px;
+}
+
+.mapa-handle-saida {
+  right: -6px;
+}
+
+.react-flow__node.mapa-no-atenuado {
+  opacity: var(--op-fantasma);
+  filter: saturate(0.4);
+}
+
+.mapa-no:hover {
+  border-color: var(--linha-forte);
+}
+
+/* Selecionado e FIO, nunca preenchimento: o mesmo contrato da linha aberta de
+   uma lista. O fio interno de 2px engrossa sem mudar a caixa, senao o cartao
+   pularia 1px ao ser escolhido. */
+.mapa-no.selecionado {
+  border-color: var(--acao);
+  box-shadow: inset 0 0 0 1px var(--acao);
+}
+
+/* O grupo do no. Ele e a etiqueta redundante do cartao: o fio de 3px no topo
+   ja da a cor do grupo, e a legenda do canto liga cor e nome. Por isso ele
+   perdeu a versal, o negrito e a cor, e ficou onde rotulo redundante deve
+   ficar, abaixo do nome na ordem de leitura mesmo estando acima na tela. */
+/* A cor do grupo virou um PONTO ao lado do rotulo, e nao mais um fio de 3px
+   no topo do cartao. Sao a mesma informacao, mas o fio grosso e acento
+   colorido em cartao, que a fundacao proibe acima de 1px, e ele repetia vinte
+   vezes no canvas. O ponto e o mesmo signo da legenda do canto, entao a
+   ligacao entre cor e nome do grupo fica direta. */
+.mapa-no-grupo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  margin-bottom: var(--esp-4);
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-normal);
+}
+
+.mapa-no-grupo::before,
+.mapa-no-tela-zona::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--mapa-cor);
+  border-radius: var(--raio-pilula);
+}
+
+/* O dado forte do cartao. */
+.mapa-no strong {
+  display: block;
+  color: var(--texto);
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  font-weight: var(--peso-forte);
+}
+
+.mapa-no p {
+  margin-top: var(--esp-4);
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: 1.45;
+}
+
+.mapa-ligacao-halo,
+.mapa-ligacao-caminho {
+  fill: none;
+  pointer-events: visibleStroke;
+}
+
+/* O halo e so area de acerto do mouse com um reforco visual minimo. Ele nao
+   pode ter cor de estado: quarenta halos verdes no canvas nao dizem nada. */
+.mapa-ligacao-halo {
+  stroke: rgba(var(--acao-rgb), 0.06);
+  stroke-width: 9;
+}
+
+/* Tracejado estatico: o mesmo visual sem a marcha continua. Animar
+   stroke-dashoffset repinta a linha inteira a cada frame (nao e compositavel),
+   o que pesava com dezenas de ligacoes. O movimento fica so no pulso.
+
+   Isto e tracado de aresta de grafo, nao borda de estado vazio: a regra 4 do
+   ajuste fino fala de `border: dashed` em caixa, e nao existe nenhuma aqui. */
+.mapa-ligacao-caminho {
+  stroke: var(--ligacao);
+  stroke-width: 1.6;
+  stroke-dasharray: 7 5;
+}
+
+/* Ponto que corre a ligacao. Ele e o unico menta do mapa: e o dado andando
+   pelo sistema, e e o que a fundacao chama de vivo. Sem drop-shadow: filtro
+   em elemento animado repinta uma area grande sem cache. */
+.mapa-pulso {
+  fill: var(--ligacao);
+  pointer-events: none;
+}
+
+.mapa-ligacao-ativa .mapa-pulso {
+  fill: var(--ligacao-viva);
+}
+
+.mapa-ligacao-rotulo {
+  position: absolute;
+  padding: 3px 6px;
+  color: var(--texto-fraco);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-micro);
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.mapa-ligacao-atenuada {
+  opacity: var(--op-fantasma);
+}
+
+/* A ligacao em foco (a do no aberto) engrossa e vai pra tinta da acao. */
+.mapa-ligacao-ativa .mapa-ligacao-caminho {
+  stroke: var(--acao);
+  stroke-width: 2.4;
+  stroke-dasharray: none;
+}
+
+.mapa-ligacao-ativa .mapa-ligacao-halo {
+  stroke: rgba(var(--acao-rgb), 0.12);
+  stroke-width: 12;
+}
+
+.mapa-ligacao-ativa .mapa-ligacao-rotulo {
+  color: var(--texto);
+  border-color: var(--linha-forte);
+  font-weight: var(--peso-forte);
+}
+
+@keyframes mapa-fluxo {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+/* ===== Percurso das skills (sobreposicao visual) ===== */
+
+/* Flutua POR CIMA do canvas: uma das tres sombras legitimas da tela. */
+.mapa-skills-barra {
+  position: absolute;
+  top: var(--esp-16);
+  left: var(--esp-16);
+  z-index: var(--z-fixo);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-8);
+  max-width: min(560px, calc(100% - 90px));
+  padding: var(--esp-8);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-popover);
+}
+
+.mapa-skill-chip {
+  --mapa-cor: var(--texto-suave);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: 26px;
+  padding: var(--esp-4) var(--esp-12);
+  color: var(--texto-suave);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-legenda);
+  font-weight: var(--peso-medio);
+  transition: color var(--transicao), border-color var(--transicao),
+    background var(--transicao);
+}
+
+.mapa-skill-chip i {
+  width: 8px;
+  height: 8px;
+  background: var(--mapa-cor);
+  border-radius: 50%;
+}
+
+.mapa-skill-chip:hover {
+  color: var(--texto);
+  border-color: var(--linha-forte);
+}
+
+/* Ligado. Superficie mais fio da tinta, como toda escolha do Hub: o
+   preenchimento tingido na cor da skill dizia "selecionado" com cor, e cor
+   aqui ja significa outra coisa (de que skill e o percurso). O ponto ao lado
+   continua carregando essa cor. */
+.mapa-skill-chip.ativo {
+  color: var(--texto);
+  background: var(--superficie-alta);
+  border-color: var(--acao);
+  box-shadow: inset 0 0 0 1px var(--acao);
+  font-weight: var(--peso-forte);
+}
+
+.mapa-rota-halo,
+.mapa-rota-caminho {
+  fill: none;
+  pointer-events: none;
+}
+
+.mapa-rota-halo {
+  stroke: var(--mapa-cor);
+  stroke-width: 11;
+  opacity: var(--op-fantasma);
+}
+
+.mapa-rota-caminho {
+  stroke: var(--mapa-cor);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 9 7;
+  animation: mapa-fluxo 0.9s linear infinite;
+}
+
+.mapa-rota-pulso {
+  fill: var(--mapa-cor);
+  pointer-events: none;
+}
+
+/* No que participa do percurso. O fio inteiro vai pra tinta da acao, que e
+   como o Hub inteiro marca "este e o que voce escolheu". */
+.react-flow__node.mapa-no-rota .mapa-no {
+  border-color: var(--acao);
+}
+
+/* O numero do passo. Ele e DADO (a ordem), entao e tinta cheia com a cor de
+   cima da acao, e nao a cor do grupo: em --texto-fraco com texto claro por
+   cima ele nao passava de 2:1 no tema Claro. */
+.mapa-no-passo {
+  position: absolute;
+  top: -11px;
+  left: -11px;
+  z-index: var(--z-fixo);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--sobre-acao);
+  background: var(--acao);
+  border: 2px solid var(--superficie);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-passos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  margin-top: var(--esp-24);
+}
+
+/* O passo abre um no do mapa, entao ele se anuncia PARADO: superficie e fio
+   proprios. Antes so o hover pintava fundo, e quem chega por teclado ou por
+   toque nunca via que a linha era clicavel. */
+.mapa-passo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-12);
+  width: 100%;
+  padding: var(--esp-8);
+  color: var(--texto-suave);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  transition: color var(--transicao), background var(--transicao),
+    border-color var(--transicao);
+}
+
+/* O trilho vertical que liga um passo ao proximo. Ele vive na folga entre as
+   duas linhas, e nao mais por dentro delas. */
+.mapa-passo:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: calc(100% + 1px);
+  height: var(--esp-4);
+  width: 2px;
+  background: var(--linha-forte);
+}
+
+.mapa-passo-num {
+  z-index: var(--z-fixo);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--alt-p);
+  height: var(--alt-p);
+  color: var(--sobre-acao);
+  background: var(--acao);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-passo-nome {
+  font-size: var(--txt-corpo);
+  font-weight: var(--peso-medio);
+}
+
+.mapa-passo:hover {
+  color: var(--texto);
+  background: var(--superficie-alta);
+  border-color: var(--linha-forte);
+}
+
+/* ===== Visao completa (todas as rotas de uma vez) ===== */
+
+/* Ligacoes base recuam pra as rotas coloridas serem o destaque. */
+.mapa-ligacao-fundo {
+  opacity: var(--op-apagada);
+}
+
+/* Numeros grandes da complexidade. */
+.mapa-numeros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--esp-8);
+  margin-top: var(--esp-24);
+}
+
+.mapa-numero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  padding: var(--esp-12) var(--esp-16);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+}
+
+/* Numero grande de painel pesa 600: 700 fica so pra .contagem, que e a pilula
+   numerica ao lado de um rotulo. Em 30px o peso 600 ja manda sozinho. */
+.mapa-numero b {
+  color: var(--texto);
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-numero small {
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-normal);
+}
+
+.mapa-skills-legenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  margin-top: var(--esp-8);
+}
+
+/* O item da legenda ja tem o ponto na cor da skill; o fio de 3px na lateral
+   era a mesma informacao pela segunda vez, e em espessura de acento. */
+.mapa-skills-legenda-item {
+  --mapa-cor: var(--texto-suave);
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  padding: var(--esp-8) var(--esp-12);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+}
+
+.mapa-skills-legenda-item i {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  background: var(--mapa-cor);
+  border-radius: 50%;
+}
+
+.mapa-skills-legenda-item b {
+  flex: 1;
+  color: var(--texto);
+  font-size: var(--txt-legenda);
+  font-weight: var(--peso-forte);
+}
+
+.mapa-skills-legenda-item small {
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* No proprio de cada skill (coluna da esquerda na visao completa). A cor vem
+   da classe mapa-cor-* na mesma tag; nao redefinir --mapa-cor aqui.
+
+   O nome manda, e o que era etiqueta em versal por cima mais contagem por
+   baixo virou uma sublinha unica em frase, no desenho do cartao de workspace:
+   "Skill, 3 passos". */
+.mapa-no-skill {
+  position: relative;
+  width: 156px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  padding: var(--esp-12);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+
+/* A cor da skill entra por um ponto antes do nome, do mesmo jeito que no no
+   do sistema: acento colorido de 3px em cartao e o que a fundacao proibe. */
+.mapa-no-skill strong::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: var(--esp-4);
+  background: var(--mapa-cor);
+  border-radius: var(--raio-pilula);
+}
+
+.mapa-no-skill strong {
+  display: block;
+  color: var(--texto);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+}
+
+.mapa-no-skill small {
+  display: block;
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Modo discreto: a skill colapsa pra um circulo com so o icone, como os nos
+   do sistema. Nada de nome, etiqueta nem contagem. */
+.mapa-no-skill.discreto {
+  width: 52px;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--superficie);
+  border: 1px solid var(--mapa-cor);
+  border-left: 1px solid var(--mapa-cor);
+  border-radius: 50%;
+}
+
+.mapa-no-skill-icone {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--mapa-cor);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: var(--op-plena);
+}
+
+/* Ligacao leve e estatica entre a skill e os nos do percurso. A cor herda do
+   --mapa-cor da classe mapa-cor-* posta na aresta (grupo pai). */
+.mapa-skilllink-caminho {
+  fill: none;
+  stroke: var(--mapa-cor, var(--texto-suave));
+  stroke-width: 1.5;
+  opacity: var(--op-fraca);
+  pointer-events: none;
+}
+
+/* ===== Visao Telas (espelho das telas do app) ===== */
+/* A cor vem da classe mapa-cor-* na mesma tag; nao redefinir --mapa-cor aqui. */
+
+.mapa-no-tela {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  padding: var(--esp-12);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  transition: border-color var(--transicao);
+}
+
+.mapa-no-tela:hover {
+  border-color: var(--linha-forte);
+}
+
+.mapa-no-tela.selecionado {
+  border-color: var(--acao);
+  box-shadow: inset 0 0 0 1px var(--acao);
+}
+
+/* Mesma decisao do grupo do no: a zona carrega a cor num ponto, nao num fio
+   grosso no topo do cartao. */
+.mapa-no-tela-zona {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-normal);
+}
+
+.mapa-no-tela-nome {
+  color: var(--texto);
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  font-weight: var(--peso-forte);
+}
+
+.mapa-no-tela-rota {
+  align-self: flex-start;
+  padding: 2px 6px;
+  color: var(--texto-fraco);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  font-family: var(--mono);
+  font-size: var(--txt-micro);
+}
+
+.mapa-no-tela-resumo {
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: 1.45;
+}
+
+.mapa-no-tela-estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+}
+
+.mapa-no-tela-estados.no-painel {
+  margin-top: var(--esp-8);
+}
+
+.mapa-no-tela-estado {
+  padding: 3px 7px;
+  color: var(--texto-fraco);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-micro);
+  font-weight: var(--peso-normal);
+}
+
+.mapa-no-tela-mais {
+  color: var(--texto-suave);
+}
+
+/* Botao NEUTRO de proposito, e o layout e o unico que mora aqui: ele aparece
+   uma vez por cartao e o canvas tem dezenas. A acao principal da tela e o
+   "Abrir esta tela" do painel, e ela precisa ser a unica peca escura. */
+.mapa-no-tela-abrir {
+  margin-top: var(--esp-4);
+  align-self: flex-start;
+}
+
+.mapa-no-tela-abrir svg,
+.mapa-abrir-grande svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Mini esqueleto da tela: diagrama do layout, nunca screenshot. */
+.mapa-esq {
+  height: 104px;
+  padding: var(--esp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  overflow: hidden;
+}
+
+.esq-bloco {
+  display: block;
+  background: var(--linha-forte);
+  border-radius: 4px;
+  opacity: var(--op-fraca);
+}
+
+.esq-linha {
+  height: 10px;
+}
+
+.esq-linha-curta {
+  height: 10px;
+  width: 60%;
+}
+
+.esq-topo {
+  height: 16px;
+  border-radius: 6px;
+}
+
+.esq-campo {
+  height: 14px;
+  border-radius: 5px;
+}
+
+.esq-botao {
+  height: 15px;
+  width: 42%;
+  background: var(--mapa-cor);
+  opacity: var(--op-secundaria);
+}
+
+.esq-passos {
+  display: flex;
+  gap: var(--esp-4);
+}
+
+.esq-p {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.esq-rodape {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.mapa-esq-splash {
+  align-items: center;
+  justify-content: center;
+}
+
+.esq-alvo {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--mapa-cor);
+  opacity: var(--op-fraca);
+}
+
+.esq-grade2 {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  gap: var(--esp-4);
+}
+
+.esq-card {
+  border-radius: 6px;
+}
+
+.esq-grade3 {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: var(--esp-4);
+}
+
+.esq-tile {
+  border-radius: 5px;
+}
+
+.esq-canvas {
+  position: relative;
+  flex: 1;
+  border-radius: 6px;
+  background-image: radial-gradient(var(--linha) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.esq-no {
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  width: 40px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--superficie);
+  border: 1px solid var(--mapa-cor);
+}
+
+.esq-no-2 {
+  left: auto;
+  top: auto;
+  right: 12px;
+  bottom: 12px;
+}
+
+.esq-colunas {
+  flex: 1;
+  display: flex;
+  gap: var(--esp-4);
+}
+
+.esq-coluna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  padding: var(--esp-4);
+  background: var(--superficie);
+  border-radius: 5px;
+}
+
+.esq-card-mini {
+  height: 14px;
+  border-radius: 4px;
+}
+
+.esq-mes {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  gap: var(--esp-4);
+}
+
+.esq-dia {
+  background: var(--linha-forte);
+  border-radius: 3px;
+  opacity: var(--op-apagada);
+}
+
+.esq-mapa {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.esq-mno {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--mapa-cor);
+}
+
+.esq-mlinha {
+  width: 40px;
+  height: 2px;
+  background: var(--mapa-cor);
+  opacity: var(--op-fraca);
+}
+
+.esq-terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  padding: var(--esp-8);
+  background: var(--fundo);
+  border-radius: 5px;
+}
+
+.esq-term {
+  height: 8px;
+  width: 80%;
+  background: var(--menta);
+  opacity: var(--op-apagada);
+  border-radius: 3px;
+}
+
+.esq-term-curto {
+  width: 45%;
+}
+
+.esq-editor,
+.esq-split {
+  flex: 1;
+  display: flex;
+  gap: var(--esp-4);
+}
+
+.esq-editor-canvas,
+.esq-split-preview {
+  flex: 1;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+}
+
+.esq-editor-painel {
+  width: 30%;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+}
+
+.esq-split-painel {
+  width: 34%;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+}
+
+/* Aresta de gesto: estatica, com o rotulo do gesto que causa a navegacao. */
+.mapa-gesto-caminho {
+  fill: none;
+  stroke: var(--linha-forte);
+  stroke-width: 1.6;
+  pointer-events: none;
+}
+
+.react-flow__edge.mapa-gesto-ativa .mapa-gesto-caminho {
+  stroke: var(--menta);
+  stroke-width: 2.6;
+}
+
+.react-flow__edge.mapa-gesto-atenuada {
+  opacity: var(--op-fantasma);
+}
+
+.mapa-gesto-rotulo {
+  position: absolute;
+  padding: 3px 7px;
+  color: var(--texto-fraco);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-pilula);
+  font-size: var(--txt-micro);
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.react-flow__edge.mapa-gesto-ativa .mapa-gesto-rotulo {
+  color: var(--menta);
+  border-color: rgba(var(--menta-rgb), 0.35);
+}
+
+/* Painel de detalhe da tela. */
+.mapa-painel-rota {
+  display: inline-block;
+  margin-top: var(--esp-8);
+  padding: 3px 8px;
+  color: var(--texto-fraco);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  font-family: var(--mono);
+  font-size: var(--txt-micro);
+}
+
+/* A ACAO PRINCIPAL DO PAINEL, e a unica peca escura da tela. A aparencia vem
+   de .botao-principal; aqui so o lugar dela. */
+.mapa-abrir-grande {
+  margin-top: var(--esp-16);
+}
+
+/* Nota neutra, nao alerta. Sem icone de triangulo e sem cor de estado: ela
+   explica por que nao da pra abrir, e isso nao e uma falha do usuario. */
+.mapa-abrir-aviso {
+  margin-top: var(--esp-16);
+  padding: var(--esp-8) var(--esp-12);
+  color: var(--texto-fraco);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  font-size: var(--txt-legenda);
+  line-height: 1.5;
+}
+
+.mapa-cor-menta {
+  --mapa-cor: var(--menta);
+}
+
+.mapa-cor-amarelo {
+  --mapa-cor: var(--aviso);
+}
+
+.mapa-cor-alerta {
+  --mapa-cor: var(--alerta);
+}
+
+.mapa-cor-suave {
+  --mapa-cor: var(--texto-suave);
+}
+
+.mapa-cor-fraco {
+  --mapa-cor: var(--texto-fraco);
+}
+
+/* Flutua POR CIMA do canvas: a terceira sombra legitima da tela. */
+.mapa-legenda {
+  position: absolute;
+  right: var(--esp-16);
+  bottom: var(--esp-16);
+  z-index: var(--z-fixo);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--esp-8) var(--esp-12);
+  max-width: min(620px, calc(100% - 100px));
+  padding: var(--esp-8) var(--esp-12);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-popover);
+  pointer-events: none;
+}
+
+.mapa-legenda-item {
+  --mapa-cor: var(--texto-suave);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  color: var(--texto-suave);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+}
+
+.mapa-legenda-item i {
+  width: 7px;
+  height: 7px;
+  background: var(--mapa-cor);
+  border-radius: 50%;
+}
+
+.mapa-legenda.discreta {
+  gap: var(--esp-8);
+  padding: var(--esp-8);
+}
+
+.mapa-legenda.discreta .mapa-legenda-item {
+  gap: 0;
+}
+
+.mapa-legenda.discreta .mapa-legenda-item i {
+  width: 9px;
+  height: 9px;
+}
+
+.mapa-painel {
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--esp-24) var(--esp-24) var(--esp-48);
+  color: var(--texto);
+  background: var(--fundo);
+}
+
+.mapa-painel-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-12);
+  margin-bottom: var(--esp-12);
+}
+
+/* O grupo, de novo em frase normal. Aqui ele tambem largou a cor da classe
+   mapa-cor-*: --mapa-cor pode ser o vermelho de alerta, e vermelho num rotulo
+   de secao diz "deu errado" quando o texto so diz de que grupo a coisa e. */
+.mapa-painel-grupo {
+  --mapa-cor: var(--texto-fraco);
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  font-weight: var(--peso-normal);
+}
+
+.mapa-painel-fechar svg,
+.mapa-conversas-lista svg,
+.mapa-painel-vazio svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mapa-painel h2 {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+}
+
+/* A LINHA DE ENTRADA do painel. Ela era menta e negrito em 13px, ou seja,
+   menor que a descricao logo abaixo e mais pesada que ela: hierarquia ao
+   contrario. Agora ela e o degrau de leitura, e a descricao desce um degrau
+   de tamanho e de tinta. */
+.mapa-painel-resumo {
+  margin-top: var(--esp-8);
+  color: var(--texto);
+  font-size: var(--txt-leitura);
+  line-height: var(--lh-leitura);
+  letter-spacing: var(--tr-leitura);
+  font-weight: var(--peso-normal);
+}
+
+.mapa-painel-descricao {
+  margin-top: var(--esp-16);
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: 1.65;
+}
+
+.mapa-conversas {
+  margin-top: var(--esp-24);
+  padding-top: var(--esp-16);
+  border-top: 1px solid var(--linha);
+}
+
+/* Titulo de secao do painel, em frase normal. */
+.mapa-conversas h3 {
+  color: var(--texto-fraco);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  letter-spacing: 0;
+}
+
+.mapa-conversas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  margin-top: var(--esp-8);
+}
+
+.mapa-conversas-lista button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  width: 100%;
+  padding: var(--esp-8) var(--esp-12);
+  color: var(--texto-suave);
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  transition: color var(--transicao), background var(--transicao),
+    border-color var(--transicao);
+}
+
+.mapa-conversas-lista button > span {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.mapa-conversas-lista button b {
+  overflow: hidden;
+  color: var(--texto);
+  font-size: var(--txt-corpo);
+  font-weight: var(--peso-forte);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapa-conversas-lista button small {
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+}
+
+/* O hover reforca, nao revela, e nao move a linha de lugar. */
+.mapa-conversas-lista button:hover {
+  color: var(--texto);
+  background: var(--superficie-alta);
+  border-color: var(--linha-forte);
+}
+
+.mapa-conversas-lista svg {
+  flex-shrink: 0;
+}
+
+.mapa-painel-vazio,
+.mapa-estado {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mapa-painel-vazio {
+  color: var(--texto-fraco);
+}
+
+.mapa-painel-protegido {
+  min-height: 100%;
+}
+
+/* Icone de estado vazio e desenho, nao estado: sai do menta e fica no fio
+   forte, que e o patamar de contorno. */
+.mapa-painel-vazio svg {
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--esp-12);
+  color: var(--linha-forte);
+}
+
+.mapa-painel-vazio h2 {
+  color: var(--texto);
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+}
+
+.mapa-painel-vazio p,
+.mapa-estado p {
+  max-width: 250px;
+  margin-top: var(--esp-8);
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: 1.5;
+}
+
+.mapa-estado {
+  flex: 1;
+  gap: var(--esp-8);
+}
+
+/* Carregando: esqueleto, nunca giro. O giro no meio de uma area de conteudo
+   nao diz nada sobre o que esta chegando. */
+.mapa-carregando {
+  width: min(320px, 60%);
+}
+
+.mapa-estado h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+}
+
+@media (max-width: 980px) {
+  .mapa-topo {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mapa-topo-acoes {
+    width: 100%;
+  }
+
+  .mapa-modos {
+    flex: 1;
+  }
+
+  .mapa-corpo {
+    grid-template-columns: minmax(0, 1fr) 285px;
+  }
+
+  .mapa-painel {
+    padding-inline: var(--esp-16);
+  }
+}
+
+@media (max-width: 760px) {
+  .mapa-topo-acoes {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mapa-modos {
+    overflow-x: auto;
+  }
+
+  .mapa-total {
+    align-self: flex-start;
+  }
+
+  .mapa-corpo {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(420px, 1fr) auto;
+    overflow-y: auto;
+  }
+
+  .mapa-rede {
+    min-height: 480px;
+    border-right: 0;
+    border-bottom: 1px solid var(--linha);
+  }
+
+  .mapa-painel {
+    min-height: 230px;
+    overflow: visible;
+  }
+
+  .mapa-painel-vazio {
+    min-height: 180px;
+  }
+
+  .mapa-legenda {
+    left: 58px;
+    right: 10px;
+    bottom: 10px;
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
+
+/* Movimento reduzido SUBSTITUI, nao apaga.
+
+   O que era a lista de transicoes a desligar saiu daqui: a camada tema ja
+   troca transition-property no seletor universal, com !important, e nenhuma
+   transicao desta folha move alguma coisa de lugar. O que sobra e o que so o
+   Mapa tem, e as duas coisas sao ANIMACAO e nao transicao.
+
+   O pulso que corre a ligacao nao vira fade, ele SOME, e some sem perda: ele
+   e decoracao de direcao, e a direcao ja esta na seta da ponta da aresta. O
+   caso do fade e o sinal de sessao viva, que aqui nao existe.
+
+   O hover que subia o cartao 2px e o que deslizava a linha 2px sairam de vez
+   nesta passada, entao nao ha mais o que desligar aqui. */
+@media (prefers-reduced-motion: reduce) {
+  .mapa-ligacao-caminho,
+  .mapa-rota-caminho {
+    animation: none;
+  }
+
+  .mapa-pulso,
+  .mapa-rota-pulso {
+    display: none;
+  }
+}
+} /* fim de @layer tela */

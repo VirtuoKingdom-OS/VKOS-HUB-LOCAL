@@ -12,19 +12,19 @@ Público: dono de negócio ou prestador de serviço, não desenvolvedor. Local-f
 
 No início de cada sessão, ler:
 
-- `contexto/visao.md`
-- `contexto/arquitetura.md`
-- `contexto/roadmap.md`
+- `docs/contexto/visao.md`
+- `docs/contexto/arquitetura.md`
+- `docs/contexto/roadmap.md`
 
-Ler `contexto/ecossistema.md` só quando a tarefa tocar o produto VKOS ou o posicionamento.
+Ler `docs/contexto/ecossistema.md` só quando a tarefa tocar o produto VKOS ou o posicionamento.
 
 Não confirmar a leitura. Só usar o que leu.
 
 ## Registro de decisões
 
-Toda decisão de produto ou técnica tomada junto com o Jesse vira um arquivo curto em `decisoes/AAAA-MM-DD-titulo.md`. Cada arquivo tem três partes: contexto, decisão, por quê.
+Toda decisão de produto ou técnica tomada junto com o Jesse vira um arquivo curto em `docs/decisoes/AAAA-MM-DD-titulo.md`. Cada arquivo tem três partes: contexto, decisão, por quê.
 
-Antes de reabrir um debate já fechado, checar a pasta `decisoes/`. Se já existe decisão registrada, seguir ela em vez de discutir de novo.
+Antes de reabrir um debate já fechado, checar a pasta `docs/decisoes/`. Se já existe decisão registrada, seguir ela em vez de discutir de novo.
 
 ## Manter o contexto vivo
 
@@ -51,23 +51,85 @@ Em decisões estratégicas ele gosta de debater antes de travar. Apresentar opç
 
 Em execução ele quer velocidade e iteração. Quando ele disser "bora torar", é pra construir, não pra planejar mais.
 
-Motion e UI caprichados importam muito para ele. A identidade da VK é minimalista, verde-menta (o menta real dos temas é #2fd4a7, mais suave que o histórico #00C896), glow sutil, contraste confortável (nunca extremo). O app tem três temas: Escuro (o padrão, grafite neutro com menta de destaque), Dark VKOS (o escuro original da identidade) e Claro. Toda cor passa pelos tokens de tema, nunca hardcoded no componente. Toda interface nasce dentro desse padrão e funciona nos três temas.
+Motion e UI caprichados importam muito para ele.
 
-Desde 2026-07-27 o padrão tem regras concretas, e elas valem para toda tela nova:
+**A IDENTIDADE VISUAL DO HUB FOI REESCRITA DO ZERO EM 2026-07-30.** O Jesse
+revogou o design system anterior por inteiro: as regras de design que moravam
+aqui e todas as decisões `docs/decisoes/2026-07-27-*` NÃO valem mais, não
+devem ser seguidas nem citadas como justificativa, e nenhum valor delas se
+herda. Ver `docs/decisoes/2026-07-30-redesign-v2-fundacao.md`.
 
-- **A profundidade vem da escada de superfície, nunca de sombra.** Quatro degraus sólidos: `--fundo` (área de trabalho), `--superficie` (sidebar, cartão, painel, barra de topo), `--superficie-alta` (hover, item selecionado, campo) e `--superficie-flutuante` (popover, menu, modal). Junto vem o fio de `--linha`. Sombra só onde o elemento flutua de verdade sobre outro conteúdo, e são três tokens: `--sombra-popover`, `--sombra-modal` e `--sombra-arrasto`.
-- **A borda tem dois trabalhos e duas cores.** `--linha` é decoração e separação, sutil de propósito. `--linha-forte` é o contorno de controle, obrigada a 3:1 contra a superfície. Campo, botão neutro, trilho de interruptor e caixa de seleção usam a forte, sem exceção. `estilos/contraste.test.ts` trava 48 verificações nos três temas.
-- **O glow marca estado, nunca decora.** São três: `--glow-vivo` (sessão rodando, conexão ligada), `--glow-foco` (foco de teclado) e `--glow-acao` (a ação principal da tela, uma por tela). Nunca em superfície grande, texto corrido, borda decorativa, hover de cartão ou item selecionado. Ver `decisoes/2026-07-27-o-glow-so-marca-estado.md`.
-- **As escalas são fechadas e moram no `global.css`, na camada base.** Espaçamento em 8 degraus derivados de `--base`, tipografia em 7, peso em 4 (400, 500, 600, 700), raio em 5, movimento em 3 durações e 2 curvas, empilhamento em 7 níveis. `estilos/escalas.test.ts` trava, inclusive que o `visual-hub.css` não redeclare escala: lá só entra cor.
-- **A fonte é embarcada**, o Inter variável em `web/src/fontes/`, sob SIL OFL 1.1. Nada de CDN e nada de depender de fonte do sistema, que falha em silêncio. Ver `decisoes/2026-07-27-a-fonte-embarcada.md`.
-- **Movimento reduzido substitui, não apaga.** O movimento de posição some, o feedback de cor e opacidade fica, e o que pulsa vira fade. Quem liga movimento reduzido continua sabendo que a IA está trabalhando.
-- **Minimalismo aqui é tirar ruído, não tirar informação.** O Hub é ferramenta de trabalho pesado com muita coisa na tela. Nenhum controle perde sinalizador em nome da limpeza.
+**O contrato de interface agora é um arquivo só: `docs/planos/redesign-v2/00-fundacao.md`.**
+Leia ele inteiro antes de tocar em qualquer tela. Ele traz a paleta dos dois
+temas com contraste medido, as escalas com valor exato e quando usar cada
+degrau, a camada de primitivas com a receita de cada componente, as regras de
+densidade, de motion e de canvas, as proibições e o checklist de migração por
+tela.
 
-O contrato completo, com o número medido de cada decisão, está em `planos/vkos-hub-local-v1/05-design-system.md`.
+O resumo em cinco linhas, que não substitui a leitura:
 
-A cascata do CSS tem quatro camadas declaradas com `@layer`, da que perde para a que vence: `base` (`app/web/src/estilos/global.css`, o reset e a base dos tokens), `externo` (o CSS do React Flow, que entra por `estilos/externo.css`), `tela` (as 16 folhas de tela) e `tema` (`app/web/src/estilos/visual-hub.css`, o valor final de cada token por tema).
+- **A interface é acromática e o conteúdo do usuário é a única coisa colorida
+  na tela.** Dois temas, Claro (o padrão) e Escuro, os dois em neutro frio.
+- **O menta tem um emprego só: dizer o que está vivo.** Não pinta botão,
+  título, ícone, hover, cartão selecionado nem aba ativa. A ação principal é
+  tinta sólida, uma por tela.
+- **A tela não inventa componente.** Ela compõe `app/web/src/estilos/primitivas.css`
+  e escreve só o layout dela. Primitiva faltando sobe pra lá, nunca vira classe
+  local.
+- **Conteúdo não nasce dentro de cartão**, e cartão dentro de cartão nunca é
+  certo. A densidade se decide na altura de controle (28/32/40px), não no
+  tamanho da letra (o corpo é 14px).
+- **Cor só por token, sempre.** Nenhum hex em folha de componente, e as travas
+  em `app/web/src/estilos/*.test.ts` reprovam.
 
-Duas regras que não se quebram, e `estilos/camadas.test.ts` trava as duas. A linha `@layer base, externo, tela, tema;` fica no topo de toda folha, antes de qualquer regra: a primeira que o navegador lê é a que fixa a ordem, e o bundler não garante qual vem primeiro. E cada folha declara todo o seu conteúdo dentro da camada dela, porque regra fora de camada vence qualquer camada. Folha nova nasce assim. Ver `decisoes/2026-07-27-ordem-da-cascata-com-layer.md`.
+A Fase 2 do redesign TERMINOU em 2026-07-30: as 21 folhas migraram, o
+`estilos/legado.css` foi demolido classe por classe e a constante `PENDENTES`,
+em `app/web/src/estilos/folhas.ts`, está vazia. As travas de conteúdo varrem o
+app inteiro. O registro do que saiu está em
+`docs/decisoes/2026-07-30-a-demolicao-do-legado.md` e em
+`docs/planos/redesign-v2/01-pendencias-por-tela.md`. `PENDENTES` continua
+existindo para dívida DECLARADA: folha nova que precise ficar fora das travas
+por uma rodada entra ali com data e motivo, nunca em silêncio.
+
+A cascata do CSS tem quatro camadas declaradas com `@layer`, da que perde pra
+que vence: `base` (`estilos/global.css`, o reset, as escalas e o contrato de
+nome dos tokens, mais `estilos/primitivas.css`, os componentes
+compartilhados), `externo` (o CSS do React Flow, que entra por
+`estilos/externo.css`), `tela` (a folha de cada tela, mais `canvas.css`, que
+veste o canvas de grafo do Cockpit e do Mapa) e `tema`
+(`estilos/visual-hub.css`, que declara COR e só cor).
+
+Duas regras que não se quebram, e `estilos/camadas.test.ts` trava as duas. A
+linha `@layer base, externo, tela, tema;` fica no topo de toda folha, antes de
+qualquer regra: as telas carregam sob demanda, e a primeira declaração que o
+navegador lê é a que fixa a ordem. E cada folha declara todo o conteúdo dela
+dentro da camada dela, porque regra fora de camada vence qualquer camada.
+
+## Onde as coisas moram
+
+Reorganizado em 2026-07-27. Ver `docs/decisoes/2026-07-27-onde-as-coisas-moram.md`.
+
+```
+app/                    o produto. O nome não muda: o instalador e o
+  server/src/           integrado.ts procuram app/ ao lado de VKOS/
+    index.ts            entrada
+    tipos.ts            contrato compartilhado
+    nucleo/             transporte: ws.ts e spa.ts
+    crm/ sessoes/ ...   um módulo por domínio, sempre com rotas.ts
+  web/src/
+    estilos/            a fundação: global, primitivas, externo, tema
+                        (mais legado e canvas, os dois sacos temporários)
+    componentes/<area>/ o componente e a folha de estilo dele, juntos
+docs/                   contexto, decisões e planos
+interno/                dados que o app LÊ rodando. Não é documentação.
+ferramentas/            scripts de conferência, fora do produto
+```
+
+Três regras que decorrem disso:
+
+- **Folha de estilo mora ao lado do componente que ela veste.** `crm.css` fica em `componentes/crm/`. Em `estilos/` só entra o que é de todo mundo. As travas de cascata e de escala varrem `web/src` inteiro por `estilos/folhas.ts`, então folha nova em qualquer pasta já nasce coberta.
+- **Módulo do servidor é uma pasta com `rotas.ts`**, nunca um arquivo solto na raiz de `src/`.
+- **`interno/` não é `docs/`.** O `mapa/rotas.ts` lê aqueles JSON em execução. Documentação é o que se lê; aquilo o app carrega.
 
 ## Código
 
@@ -75,7 +137,7 @@ O código do app vive em `app/` (server Fastify + web React/Vite). O contrato t�
 
 Regras que já custaram caro e não se repetem:
 
-- **Nenhum valor multilinha em argumento de processo filho.** No Windows, sob shell, o `cmd.exe` corta na primeira quebra de linha e leva junto o resto da linha de comando, em silêncio. Use stdin ou arquivo. Ver `decisoes/2026-07-26-instrucoes-extras-por-stdin.md`.
+- **Nenhum valor multilinha em argumento de processo filho.** No Windows, sob shell, o `cmd.exe` corta na primeira quebra de linha e leva junto o resto da linha de comando, em silêncio. Use stdin ou arquivo. Ver `docs/decisoes/2026-07-26-instrucoes-extras-por-stdin.md`.
 - **Teste de injeção afirma o conteúdo injetado**, não só o entorno. Teste que passaria com a injeção apagada não é teste.
 
 ## Licença e repositório

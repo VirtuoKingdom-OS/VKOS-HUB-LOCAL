@@ -10,7 +10,11 @@
       "Bash(node -e ' *)",
       "PowerShell(Get-ChildItem vkos2\\\\.claude\\\\skills -Directory | Where-Object Name -in 'revisar-design','refinar','enxuto','enxuto-revisao','projeto' | ForEach-Object { $f = Join-Path $_.FullName 'SKILL.md'; if \\(Test-Path $f\\) { \"$\\($_.Name\\): $\\(\\(Get-Content $f | Measure-Object -Line\\).Lines\\) linhas\" } else { \"$\\($_.Name\\): SEM SKILL.md\" } })",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4600/api/leads)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4600/api/leads)",
+      "Bash(awk '{print $2}')",
+      "Bash(grep -iE \"mensagens|conexoes/\\(catalogo|rotas|estado\\)\\\\.ts$|index\\\\.ts$|nucleo/spa\\\\.ts$|componentes/crm/\\(ThreadConversa|TelaConversas|conversas\\)|componentes/conexoes/\\(TelaConexoes|conexoes\\\\.css\\)|api/\\(mensagens|conexoes\\)\\\\.ts$|tipos/mensagens\\\\.ts$|CLAUDE\\\\.md$|docs/contexto/arquitetura\\\\.md$|docs/decisoes/2026-07-27-webhook|docs/decisoes/2026-07-27-whatsapp|interno/mapa-sistema\\\\.json$\")",
+      "Bash(netstat -ano)",
+      "Bash(node .claude/skills/impeccable/scripts/context.mjs --target app/web/src/componentes/crm)"
     ]
   }
 }

@@ -103,7 +103,7 @@ Em sequência, para quem precisa saber o que mudou:
 - **Motion e UI caprichados importam muito.** Toda interface nasce nos três temas, com cor só por token, nunca hardcoded.
 - **Git:** nunca commit, push ou PR sem ordem explícita dele.
 - **Escrita, em qualquer texto do projeto:** português brasileiro, frase curta e direta, sem jargão de startup. **Nunca usar travessão nem ponto centrado**, usar vírgula, ponto ou dois-pontos.
-- **Decisões viram registro:** toda decisão de produto ou técnica vira um arquivo curto em `decisoes/AAAA-MM-DD-titulo.md` com contexto, decisão e por quê.
+- **Decisões viram registro:** toda decisão de produto ou técnica vira um arquivo curto em `docs/decisoes/AAAA-MM-DD-titulo.md` com contexto, decisão e por quê.
 
 ## 8. Princípios que não se negociam no produto
 
@@ -116,7 +116,7 @@ Em sequência, para quem precisa saber o que mudou:
 
 ## 9. Onde as coisas moram
 
-- **Repositório de desenvolvimento** (privado): `vkos-hub` no GitHub, conta OJESSEGOMES-VKOS. O código do app fica em `app/`, o contrato técnico em `app/CONTRATO.md`, o contexto vivo em `contexto/`, as decisões em `decisoes/`, o material interno em `interno/`.
+- **Repositório de desenvolvimento** (privado): `vkos-hub` no GitHub, conta OJESSEGOMES-VKOS. O código do app fica em `app/`, o contrato técnico em `app/CONTRATO.md`, o contexto vivo em `docs/contexto/`, as decisões em `docs/decisoes/`, o material interno em `interno/`.
 - **Repositório público:** `vkos-hub-beta`, o pacote cru que o cliente baixa, sob AGPL-3.0.
 - **Workspaces reais em uso:** OJESSEGOMES (marca pessoal) e Estúdio Aura.
 - **Referências externas:** `vkos/` (o VKOS v1) e `outros/` (pacotes de referência estudados; o Twenty é AGPL e nunca teve código copiado, só conceitos de produto destilados).

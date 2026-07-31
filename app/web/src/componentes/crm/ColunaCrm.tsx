@@ -88,7 +88,7 @@ export function ColunaCrm({
           {editando ? (
             <input
               ref={campo}
-              className="crm-coluna-input"
+              className="campo campo-p crm-coluna-input"
               value={rascunho}
               maxLength={60}
               onChange={(e) => setRascunho(e.target.value)}
@@ -111,20 +111,21 @@ export function ColunaCrm({
               {coluna.nome}
             </button>
           )}
-          <span className="crm-coluna-contagem">{contatos.length}</span>
-        </div>
-        <div className="crm-coluna-rodape">
+          <span className="contagem">{contatos.length}</span>
           <span className="crm-coluna-total">{formatarReais(total)}</span>
-          <span className="crm-coluna-mover">
-            <button className="crm-acao-icone" disabled={indice === 0} onClick={() => aoMoverColuna(coluna.id, -1)} title="Mover coluna pra esquerda" aria-label={`Mover ${coluna.nome} pra esquerda`} type="button">
-              <IconeChevron className="" />
-            </button>
-            <button className="crm-acao-icone" disabled={indice === totalColunas - 1} onClick={() => aoMoverColuna(coluna.id, 1)} title="Mover coluna pra direita" aria-label={`Mover ${coluna.nome} pra direita`} type="button">
-              <IconeChevron className="crm-chevron-direita" />
-            </button>
-          </span>
+        </div>
+        {/* As acoes da coluna nascem VISIVEIS. Enquanto elas apareciam so no
+            hover, mover, ajustar e excluir uma coluna nao existia pra teclado
+            nem pra toque. */}
+        <div className="crm-coluna-acoes">
+          <button className="botao botao-p botao-icone botao-fantasma" disabled={indice === 0} onClick={() => aoMoverColuna(coluna.id, -1)} title="Mover coluna pra esquerda" aria-label={`Mover ${coluna.nome} pra esquerda`} type="button">
+            <IconeChevron className="" />
+          </button>
+          <button className="botao botao-p botao-icone botao-fantasma" disabled={indice === totalColunas - 1} onClick={() => aoMoverColuna(coluna.id, 1)} title="Mover coluna pra direita" aria-label={`Mover ${coluna.nome} pra direita`} type="button">
+            <IconeChevron className="crm-chevron-direita" />
+          </button>
           <button
-            className="crm-acao-inline"
+            className="botao botao-p botao-fantasma"
             onClick={() => setAjustando((atual) => !atual)}
             aria-expanded={ajustando}
             title="Semântica do estágio e limite de esfriamento"
@@ -134,7 +135,7 @@ export function ColunaCrm({
           </button>
           {podeExcluir && (
             <BotaoConfirmar
-              className="crm-excluir-coluna"
+              className="botao botao-p botao-icone botao-fantasma crm-excluir-coluna"
               titulo="Excluir esta coluna"
               aviso="Excluir coluna?"
               aoConfirmar={() => aoExcluir(coluna.id)}
@@ -148,9 +149,10 @@ export function ColunaCrm({
             ganho e nada esfriaria nunca. */}
         {ajustando && (
           <div className="crm-coluna-ajustes">
-            <label className="crm-campo">
-              <span className="crm-rotulo">O que este estágio significa</span>
+            <label className="grupo-campo">
+              <span className="rotulo">O que este estágio significa</span>
               <select
+                className="campo campo-p"
                 value={coluna.tipo}
                 onChange={(e) => void aoAjustar(coluna.id, { tipo: e.target.value as TipoColuna })}
               >
@@ -159,9 +161,10 @@ export function ColunaCrm({
                 <option value="perdido">Perdido</option>
               </select>
             </label>
-            <label className="crm-campo">
-              <span className="crm-rotulo">Esfria sem contato há (dias)</span>
+            <label className="grupo-campo">
+              <span className="rotulo">Esfria sem contato há (dias)</span>
               <input
+                className="campo campo-p"
                 type="number"
                 min={1}
                 max={3650}

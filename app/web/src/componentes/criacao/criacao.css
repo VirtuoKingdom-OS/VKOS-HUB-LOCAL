@@ -1,0 +1,682 @@
+/* ==========================================================================
+   CRIACAO GUIADA: os tres wizards (carrossel/post/story e Site Guiado).
+   Redesenhada na Fase 2, Onda B do redesign v2 (2026-07-30).
+
+   O QUE ESTA FOLHA E, E O QUE ELA NAO E. Ela nao desenha componente: o
+   assistente inteiro e composicao de primitivas. Modal, campo, rotulo, dica,
+   erro, grupo de opcoes, interruptor, lista, faixa, selo, botao e barra de
+   progresso vem todos de primitivas.css. O que sobra aqui e LAYOUT do wizard:
+   a largura da caixa, a barra de etapas colada no topo, a grade das
+   miniaturas de modelo, a area de soltar imagem e o modo compacto que roda
+   dentro de um no do cockpit.
+
+   O QUE MUDOU DE FATO. A versao anterior tinha um "card de opcao" proprio
+   (.criacao-card-op) que era o tijolo do assistente inteiro e que se pintava
+   de menta quando escolhido: era cartao dentro de cartao, e era menta
+   decorando. Agora escolha unica e <fieldset class="opcoes"> com radio de
+   verdade por baixo, e o escolhido se le por superficie mais fio, como manda
+   a fundacao. O interruptor, o stepper e o chip locais sairam: .interruptor,
+   .botao-icone e .segmentado fazem o mesmo trabalho e ja tem todos os
+   estados.
+   ========================================================================== */
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ==========================================================================
+   1. A CASCA DO ASSISTENTE
+
+   Ele e um dos poucos modais legitimos do Hub: um fluxo com passos, que exige
+   uma decisao antes de continuar. Para em 720px, que e onde formulario e
+   prosa param no sistema inteiro.
+   ========================================================================== */
+.criacao-modal {
+  width: min(720px, 100%);
+  max-height: min(88vh, 760px);
+}
+
+/* O topo do wizard e UMA linha de 56px: a marca da jornada de um lado, o
+   contador de etapa e o fechar do outro. O titulo de verdade e a pergunta da
+   etapa, e ela mora no corpo, porque pertence ao passo e nao a caixa. */
+.criacao-modal > .modal-topo {
+  min-height: calc(var(--base) * 14);
+  padding: 0 var(--esp-12) 0 var(--esp-24);
+  border-bottom: 1px solid var(--linha);
+}
+.criacao-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  flex: 1;
+  min-width: 0;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+.criacao-marca > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-fraco);
+}
+
+/* A barra de etapas cola no fio do topo, sem raio e sem margem: ela e a
+   continuacao do cabecalho, nao um enfeite solto no corpo. */
+.criacao-progresso {
+  flex: none;
+  border-radius: 0;
+}
+
+/* Corpo rolante da etapa. O padding e o mesmo --esp-24 do corpo de tela, pra
+   a pergunta alinhar na coluna da marca do topo. */
+.criacao-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--esp-24);
+}
+
+/* Rodape de navegacao: Voltar recuado a esquerda, a acao principal a direita,
+   sempre no mesmo lugar. */
+.criacao-rodape {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-12);
+  padding: var(--esp-12) var(--esp-24);
+  border-top: 1px solid var(--linha);
+}
+
+/* ==========================================================================
+   2. A PERGUNTA DA ETAPA
+
+   Uma pergunta por etapa, e ela e a maior coisa da tela. O contador vive na
+   mesma linha, a direita, em tinta fraca: ele responde "quanto falta" sem
+   disputar com a pergunta.
+   ========================================================================== */
+.criacao-cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: var(--esp-12);
+  margin-bottom: var(--esp-16);
+}
+.criacao-pergunta {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+.criacao-contador {
+  flex: none;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-fraco);
+}
+
+/* A troca de etapa desliza no sentido da navegacao: o movimento diz de onde a
+   etapa veio, que e a unica coisa que ele tem que dizer. Substituto de
+   movimento reduzido no fim do arquivo. */
+.criacao-etapa.da-frente {
+  animation: criacao-vem-da-direita var(--mov-padrao) var(--curva) both;
+}
+.criacao-etapa.da-tras {
+  animation: criacao-vem-da-esquerda var(--mov-padrao) var(--curva) both;
+}
+@keyframes criacao-vem-da-direita {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes criacao-vem-da-esquerda {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Os blocos de uma etapa. O respiro entre eles e --esp-16; o proprio
+   .grupo-campo ja empilha rotulo, controle e dica com --esp-4 por dentro.
+   A margem que a primitiva poe entre dois .grupo-campo irmaos zera aqui,
+   senao ela somaria com o gap e daria 32px entre perguntas. */
+.criacao-campos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-16);
+}
+/* A primitiva separa dois .grupo-campo irmaos com margem. Dentro do assistente
+   quem separa e o gap do container, e a margem sobrando faz duas coisas
+   erradas: soma 32px entre perguntas empilhadas, e desalinha a segunda e a
+   terceira coluna de uma grade de campos (fundo, destaque, texto saiam em tres
+   alturas diferentes, medido). */
+.criacao-corpo .grupo-campo + .grupo-campo {
+  margin-top: 0;
+}
+/* O segmentado e inline-flex, mas dentro de um .grupo-campo (que e uma coluna
+   flex) ele estica na largura toda mesmo assim, e um trilho de 670px com
+   quatro palavras coladas na ponta esquerda le como barra quebrada. Ele volta
+   a ter a largura do proprio conteudo. */
+.criacao-campos .segmentado {
+  align-self: flex-start;
+}
+
+/* O rotulo de um grupo de opcoes e um <span> ligado por aria-labelledby, e nao
+   um <legend>. O legend nao participa do fluxo do fieldset: dentro de um
+   fieldset em grid ou flex ele sai do layout e o espaco embaixo dele deixa de
+   ser previsivel. O span dentro do .grupo-campo empilha como qualquer rotulo,
+   e o leitor de tela anuncia o grupo do mesmo jeito. */
+
+/* A SECAO 2.1 DESTA FOLHA MORREU EM 2026-07-30, na varredura final da Fase 2.
+   Ela devolvia a escala de campo, textarea, select e interruptor dentro de
+   ".criacao-modal" e ".etapas-no", porque o legado.css declarava um
+   "input, textarea, select" global (40px de altura, raio 10px, sombra
+   interna) na MESMA camada tela: qual das duas vencia dependia de qual tela a
+   pessoa tinha aberto primeiro, porque as telas carregam por import dinamico.
+   O legado.css foi demolido e as onze regras de remendo sairam com ele. */
+
+/* A primeira pergunta do Site Guiado convida um texto maior que o tema de um
+   post: a caixa nasce mais alta, pra a frase inteira caber sem rolar. */
+.criacao-modal .criacao-textarea-alta,
+.etapas-no .criacao-textarea-alta {
+  min-height: calc(var(--base) * 22);
+}
+
+/* Acao secundaria solta dentro de um .grupo-campo (buscar imagem nas Fontes).
+   Ela nao estica na largura do campo: botao largo le como acao principal. */
+.criacao-fontes-acao {
+  align-self: flex-start;
+  margin-top: var(--esp-4);
+}
+
+/* ==========================================================================
+   3. QUANTIDADE DE PAGINAS
+
+   Sao DOIS controles, nao dois nomes da mesma coisa: ou o Hub decide, ou voce
+   escolhe o numero. O segmentado diz qual dos dois manda, e o contador de
+   menos e mais so aparece quando a escolha e manual.
+   ========================================================================== */
+.criacao-paginas {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-12);
+  flex-wrap: wrap;
+}
+.criacao-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-4);
+}
+.criacao-stepper-valor {
+  min-width: calc(var(--base) * 8);
+  text-align: center;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}
+
+/* ==========================================================================
+   4. AS MINIATURAS DE MODELO
+
+   Cada modelo e uma opcao de escolha unica com previa. A hierarquia dentro do
+   bloco e miniatura, nome (peso 600) e uma linha de descricao em tinta suave.
+   A previa e o conteudo colorido do usuario: ela e a unica coisa colorida
+   deste wizard, e por isso o bloco em volta e neutro.
+   ========================================================================== */
+.criacao-modelos {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.criacao-modelos > .opcao {
+  padding: var(--esp-8);
+  gap: var(--esp-8);
+}
+/* A descricao de modelo vem do backend e varia de uma linha a cinco. Sem
+   limite, cada bloco da grade fica com uma altura, e a fileira de miniaturas
+   perde a linha de base comum, que e justamente o que faz comparar modelo com
+   modelo ser rapido. Duas linhas bastam pra decidir; o resto e detalhe que a
+   previa ja mostra melhor que a frase. */
+.criacao-modelos .opcao-descricao {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* O nome do modelo nunca quebra em duas linhas por causa de uma palavra
+   longa: ele trunca, e o titulo completo continua no atributo title. */
+.criacao-modelos .opcao-titulo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .criacao-modelos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* A moldura da previa. Fundo de --papel porque o que entra ali e a pagina do
+   cliente, que renderiza branca independente do tema do Hub. */
+.criacao-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--raio-p);
+  overflow: hidden;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+}
+.criacao-thumb-vazia,
+.criacao-thumb-falhou {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--superficie-alta);
+  color: var(--texto-fraco);
+}
+.criacao-thumb-falhou {
+  position: absolute;
+  inset: 0;
+}
+.criacao-thumb-vazia > svg,
+.criacao-thumb-falhou > svg {
+  width: 20px;
+  height: 20px;
+}
+.criacao-thumb-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  border: 0;
+  pointer-events: none;
+  background: var(--papel);
+}
+
+/* Opcao indisponivel. A primitiva nao desenha o estado desabilitado, porque
+   nem todo grupo tem um; aqui tem (o modelo de IA trava quando o Aprimorar
+   esta desligado, e a geracao de imagem so existe no Codex). Ela nao apaga:
+   o rotulo continua legivel e o que muda e a superficie, mesma regra do
+   botao desabilitado. */
+.opcao:has(> input:disabled) {
+  cursor: not-allowed;
+  background: var(--superficie-alta);
+  border-color: var(--linha);
+}
+.opcao:has(> input:disabled) .opcao-titulo {
+  color: var(--texto-fraco);
+}
+.opcao:has(> input:disabled):hover {
+  background: var(--superficie-alta);
+}
+
+/* Etiqueta de canto que explica POR QUE a opcao esta indisponivel. Nao e
+   alerta, e explicacao: selo neutro. */
+.criacao-opcao-nota {
+  position: absolute;
+  top: var(--esp-8);
+  right: var(--esp-8);
+}
+
+/* ==========================================================================
+   5. IMAGENS: AREA DE SOLTAR E LISTA DE ANEXOS
+   ========================================================================== */
+
+/* A area de soltar se anuncia PARADA: superficie, fio de controle e um rotulo
+   que diz as duas formas de usar. O TRACEJADO so existe durante o arraste,
+   que e o unico lugar do sistema onde ele significa alguma coisa: "solte o
+   arquivo nesta area". Ele esta nomeado em TRACEJADO_AUTORIZADO,
+   em estilos/densidade.test.ts. */
+.criacao-soltar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2);
+  width: 100%;
+  min-height: calc(var(--base) * 22);
+  padding: var(--esp-16);
+  text-align: center;
+  background: var(--superficie);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  cursor: pointer;
+  transition: background var(--transicao), border-color var(--transicao);
+}
+.criacao-soltar:hover {
+  background: var(--superficie-alta);
+}
+.criacao-soltar-titulo {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.criacao-soltar-dica {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.criacao-soltar.arrastando {
+  border-color: var(--menta-linha);
+  border-style: dashed;
+  background: var(--menta-tenue);
+}
+
+/* A lista de imagens ja anexadas. Lista densa da casa: uma linha por arquivo,
+   nome truncado e o remover VISIVEL, nunca so no hover. */
+.criacao-anexos {
+  max-height: calc(var(--base) * 44);
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   6. VISUAL PERSONALIZADO
+   ========================================================================== */
+.criacao-cores {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--esp-12);
+}
+.criacao-fontes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--esp-12);
+}
+/* O seletor de cor nativo herda o desenho do campo (com .campo-g, porque a
+   amostra precisa de area pra ser lida como cor); o que muda e que a amostra
+   ocupa a caixa inteira. */
+.criacao-campo-cor {
+  padding: var(--esp-4);
+  cursor: pointer;
+}
+@media (max-width: 560px) {
+  .criacao-cores,
+  .criacao-fontes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Linha do interruptor "Aprimorar com IA". Sem caixa em volta: o fio de cima
+   ja separa do bloco anterior, e um cartao aqui seria cartao dentro de modal.
+   O alvo clicavel e a linha inteira. */
+.criacao-linha-interruptor {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-16);
+  padding-top: var(--esp-16);
+  border-top: 1px solid var(--linha);
+  cursor: pointer;
+}
+.criacao-linha-interruptor-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+.criacao-linha-interruptor-titulo {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+/* Previa do prompt, so no modo compacto do no. Mono pequena e caixa rolavel:
+   informa sem competir com os campos. */
+.criacao-previa {
+  font-family: var(--mono);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  color: var(--texto-fraco);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  padding: var(--esp-8) var(--esp-12);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: calc(var(--base) * 30);
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   7. A TELA DE GERACAO
+
+   O estado tem que ser legivel sem ninguem explicar: em que fase esta, ha
+   quanto tempo, e o que fazer agora. Por isso o tempo decorrido aparece na
+   tela, e por isso a acao principal aqui e "Minimizar": ela e a resposta pra
+   pergunta que a pessoa esta fazendo, que e "preciso ficar olhando isto?".
+   ========================================================================== */
+.criacao-geracao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-16);
+}
+.criacao-geracao-texto {
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  max-width: 60ch;
+}
+.criacao-geracao-tempo {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-fraco);
+}
+
+/* As fases. Uma linha por fase, o ponto de vida na que esta acontecendo e o
+   visto nas que ja passaram. O visto NAO e menta: fase concluida nao e estado
+   vivo, e o menta so fala do que esta acontecendo agora. */
+.criacao-fases {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-8);
+  list-style: none;
+}
+.criacao-fase {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-fraco);
+}
+.criacao-fase > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-suave);
+}
+/* Marcador vazio das fases que ainda nao chegaram. Ele ocupa a mesma caixa do
+   visto e do ponto vivo, pra os rotulos alinharem na mesma coluna. */
+.criacao-fase-espera {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.criacao-fase-espera::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--raio-pilula);
+  background: var(--linha-forte);
+}
+.criacao-fase.feita {
+  color: var(--texto-suave);
+}
+.criacao-fase.atual {
+  color: var(--texto);
+  font-weight: var(--peso-medio);
+}
+/* O ponto vivo vem da primitiva e ja e menor que a caixa de 16px: a margem o
+   centraliza na coluna dos vistos. */
+.criacao-fase .ponto-vivo {
+  margin: 0 calc((16px - 7px) / 2);
+}
+
+/* ==========================================================================
+   8. O CARTAO FLUTUANTE DA GERACAO MINIMIZADA
+
+   Ele fica parado no canto enquanto o app inteiro se move por baixo, entao
+   ele flutua de verdade e tem direito a sombra.
+   ========================================================================== */
+.geracao-flutuante {
+  position: fixed;
+  right: var(--esp-24);
+  bottom: var(--esp-24);
+  z-index: var(--z-popover);
+  width: 300px;
+  max-width: calc(100vw - var(--esp-48));
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-12);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-popover);
+  animation: criacao-sobe var(--mov-padrao) var(--curva) both;
+}
+@keyframes criacao-sobe {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.geracao-flutuante-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+.geracao-flutuante-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.geracao-flutuante-titulo {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+.geracao-flutuante-tema,
+.geracao-flutuante-fase {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.geracao-flutuante-erro {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+.geracao-flutuante-editar {
+  width: 100%;
+}
+
+/* ==========================================================================
+   9. MODO COMPACTO: as mesmas etapas dentro de um no do cockpit
+
+   O no ja da o gutter dele, entao aqui os paddings horizontais zeram e o
+   conteudo alinha no gutter. So espaco muda: nenhum controle encolhe, porque
+   alvo menor que 28px nao existe neste app, dentro ou fora de um no.
+   ========================================================================== */
+.etapas-no {
+  display: flex;
+  flex-direction: column;
+}
+.criacao-corpo.compacto {
+  padding: var(--esp-12) 0 var(--esp-4);
+  /* Rola por dentro quando a etapa passa da altura (ex: os 14 modelos), pra o
+     no nao crescer sem limite. O nowheel do TSX evita o zoom do canvas. */
+  max-height: 46vh;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.criacao-progresso.compacto {
+  border-radius: var(--raio-pilula);
+}
+.criacao-corpo.compacto .criacao-pergunta {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  letter-spacing: var(--tr-titulo-p);
+}
+.criacao-corpo.compacto .criacao-cabeca {
+  margin-bottom: var(--esp-12);
+}
+.criacao-corpo.compacto .criacao-modelos {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* Previa mais baixa no no: a miniatura ainda mostra o topo do modelo, e a
+   etapa inteira cabe sem virar uma coluna alta demais. */
+.criacao-corpo.compacto .criacao-thumb {
+  aspect-ratio: auto;
+  height: calc(var(--base) * 20);
+}
+.criacao-rodape.compacto {
+  padding: var(--esp-12) 0 0;
+  border-top: none;
+}
+.criacao-rodape.compacto .botao-principal {
+  flex: 1;
+}
+
+/* ==========================================================================
+   10. MOVIMENTO REDUZIDO
+
+   Substitui, nao apaga: a etapa continua entrando (a pessoa precisa perceber
+   que a tela trocou), so que sem deslocamento.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes criacao-vem-da-direita {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes criacao-vem-da-esquerda {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes criacao-sobe {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+} /* fim de @layer tela */

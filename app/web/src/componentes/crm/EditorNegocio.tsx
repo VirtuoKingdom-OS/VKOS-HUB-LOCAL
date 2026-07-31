@@ -111,11 +111,12 @@ export function LinhaNegocio({
   }
 
   return (
-    <article className={`crm-negocio-linha${destaque ? " destaque" : ""} status-${negocio.status}`}>
-      <input value={titulo} onChange={(e) => setTitulo(e.target.value)} onBlur={salvarTitulo} aria-label="Título do negócio" maxLength={200} />
-      <div className="crm-negocio-campos">
-        <input value={valor} onChange={(e) => setValor(e.target.value)} onBlur={salvarValor} inputMode="decimal" aria-label="Valor estimado do negócio" placeholder={formatarReais(0)} />
+    <article className={`cartao crm-negocio${destaque ? " destaque" : ""} status-${negocio.status}`}>
+      <div className="crm-negocio-linha">
+        <input className="campo campo-p crm-negocio-titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} onBlur={salvarTitulo} aria-label="Título do negócio" maxLength={200} />
+        <input className="campo campo-p crm-negocio-valor" value={valor} onChange={(e) => setValor(e.target.value)} onBlur={salvarValor} inputMode="decimal" aria-label="Valor estimado do negócio" placeholder={formatarReais(0)} />
         <select
+          className="campo campo-p crm-negocio-status"
           value={negocio.status}
           onChange={(e) => void aoAtualizar(negocio.id, { status: e.target.value as StatusNegocio }).catch(() => undefined)}
           aria-label="Status do negócio"
@@ -123,22 +124,22 @@ export function LinhaNegocio({
           {STATUS_NEGOCIO.map((item) => <option key={item.valor} value={item.valor}>{item.rotulo}</option>)}
         </select>
         {negocio.status === "aberto" && (
-          <button className="crm-acao-inline crm-marcar-ganho" onClick={marcarGanho} type="button" title="Fechar como ganho">
+          <button className="botao botao-p botao-neutro" onClick={marcarGanho} type="button" title="Fechar como ganho">
             <IconeCheck className="" /> Ganho
           </button>
         )}
-        <BotaoConfirmar className="crm-excluir-negocio" titulo="Excluir negócio" aviso="Excluir negócio?" aoConfirmar={() => aoExcluir(negocio.id)}>
+        <BotaoConfirmar className="botao botao-p botao-icone botao-fantasma crm-excluir-negocio" titulo="Excluir negócio" aviso="Excluir negócio?" aoConfirmar={() => aoExcluir(negocio.id)}>
           <IconeLixeira className="" />
         </BotaoConfirmar>
       </div>
       <div className="crm-negocio-acao">
-        <label className="crm-campo">
-          <span className="crm-rotulo">Próxima ação</span>
-          <input type="datetime-local" value={proximaAcao} onChange={(e) => setProximaAcao(e.target.value)} onBlur={salvarProximaAcao} />
+        <label className="grupo-campo">
+          <span className="rotulo">Próxima ação</span>
+          <input className="campo campo-p" type="datetime-local" value={proximaAcao} onChange={(e) => setProximaAcao(e.target.value)} onBlur={salvarProximaAcao} />
         </label>
-        <label className="crm-campo">
-          <span className="crm-rotulo">O que fazer</span>
-          <input value={proximaAcaoTexto} onChange={(e) => setProximaAcaoTexto(e.target.value)} onBlur={salvarProximaAcaoTexto} placeholder="Ex: mandar a proposta" maxLength={300} />
+        <label className="grupo-campo">
+          <span className="rotulo">O que fazer</span>
+          <input className="campo campo-p" value={proximaAcaoTexto} onChange={(e) => setProximaAcaoTexto(e.target.value)} onBlur={salvarProximaAcaoTexto} placeholder="Ex: mandar a proposta" maxLength={300} />
         </label>
       </div>
       <Orcamentos
@@ -191,57 +192,60 @@ export function Orcamentos({
   return (
     <div className="crm-orcamentos">
       <div className="crm-orcamentos-topo">
-        <span className="crm-rotulo">Orçamentos</span>
-        <button className="crm-acao-inline" onClick={() => setCriando((atual) => !atual)} aria-expanded={criando} type="button">
+        <span className="rotulo">Orçamentos</span>
+        <button className="botao botao-p botao-fantasma" onClick={() => setCriando((atual) => !atual)} aria-expanded={criando} type="button">
           {criando ? "Cancelar" : "Novo orçamento"}
         </button>
       </div>
 
       {criando && (
         <div className="crm-orcamento-novo">
-          <label className="crm-campo">
-            <span className="crm-rotulo">Valor (R$)</span>
-            <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" autoFocus />
+          <label className="grupo-campo">
+            <span className="rotulo">Valor (R$)</span>
+            <input className="campo campo-p" value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" autoFocus />
           </label>
-          <label className="crm-campo">
-            <span className="crm-rotulo">Válido até</span>
-            <input type="date" value={validoAte} onChange={(e) => setValidoAte(e.target.value)} />
+          <label className="grupo-campo">
+            <span className="rotulo">Válido até</span>
+            <input className="campo campo-p" type="date" value={validoAte} onChange={(e) => setValidoAte(e.target.value)} />
           </label>
-          <button className="botao botao-neutro crm-botao-compacto" onClick={() => void criar()} disabled={numeroOuNulo(valor) === null || salvando} type="button">
-            {salvando ? "Criando..." : "Criar"}
+          <button className="botao botao-p botao-neutro" onClick={() => void criar()} disabled={numeroOuNulo(valor) === null || salvando} type="button" aria-busy={salvando || undefined}>
+            Criar
           </button>
         </div>
       )}
 
       {orcamentos.length === 0 && !criando && <p className="crm-vazio-inline">Nenhum orçamento ainda.</p>}
 
-      <ul className="crm-orcamentos-lista">
-        {orcamentos.map((orcamento) => (
-          <li className={`crm-orcamento status-${orcamento.status}`} key={orcamento.id}>
-            <span className="crm-orcamento-dados">
-              <b>{formatarReais(orcamento.valor)}</b>
-              <small>
-                {STATUS_ORCAMENTO.find((item) => item.valor === orcamento.status)?.rotulo}
-                {orcamento.validoAte ? ` até ${formatarDataHora(orcamento.validoAte)}` : ""}
-              </small>
-            </span>
-            <span className="crm-orcamento-acoes">
-              <select
-                value={orcamento.status}
-                onChange={(e) => void aoAtualizar(orcamento.id, { status: e.target.value as StatusOrcamento }).catch(() => undefined)}
-                aria-label={`Status do orçamento de ${formatarReais(orcamento.valor)}`}
-              >
-                {STATUS_ORCAMENTO.map((item) => <option key={item.valor} value={item.valor}>{item.rotulo}</option>)}
-              </select>
-              <button className="crm-acao-inline" onClick={() => void aoAtualizar(orcamento.id, { status: "aceito" }).catch(() => undefined)} type="button">Aceito</button>
-              <button className="crm-acao-inline" onClick={() => void aoAtualizar(orcamento.id, { status: "recusado" }).catch(() => undefined)} type="button">Recusado</button>
-              <button className="crm-acao-icone" onClick={() => void aoExcluir(orcamento.id).catch(() => undefined)} aria-label={`Excluir orçamento de ${formatarReais(orcamento.valor)}`} type="button">
-                <IconeLixeira className="" />
-              </button>
-            </span>
-          </li>
-        ))}
-      </ul>
+      {orcamentos.length > 0 && (
+        <ul className="lista crm-orcamentos-lista">
+          {orcamentos.map((orcamento) => (
+            <li className="item-lista" key={orcamento.id}>
+              <span className="item-lista-texto">
+                <span className="item-lista-titulo">{formatarReais(orcamento.valor)}</span>
+                <span className="item-lista-meta">
+                  {STATUS_ORCAMENTO.find((item) => item.valor === orcamento.status)?.rotulo}
+                  {orcamento.validoAte ? ` até ${formatarDataHora(orcamento.validoAte)}` : ""}
+                </span>
+              </span>
+              <span className="item-lista-acoes">
+                <select
+                  className="campo campo-p crm-orcamento-status"
+                  value={orcamento.status}
+                  onChange={(e) => void aoAtualizar(orcamento.id, { status: e.target.value as StatusOrcamento }).catch(() => undefined)}
+                  aria-label={`Status do orçamento de ${formatarReais(orcamento.valor)}`}
+                >
+                  {STATUS_ORCAMENTO.map((item) => <option key={item.valor} value={item.valor}>{item.rotulo}</option>)}
+                </select>
+                <button className="botao botao-p botao-fantasma" onClick={() => void aoAtualizar(orcamento.id, { status: "aceito" }).catch(() => undefined)} type="button">Aceito</button>
+                <button className="botao botao-p botao-fantasma" onClick={() => void aoAtualizar(orcamento.id, { status: "recusado" }).catch(() => undefined)} type="button">Recusado</button>
+                <button className="botao botao-p botao-icone botao-fantasma" onClick={() => void aoExcluir(orcamento.id).catch(() => undefined)} aria-label={`Excluir orçamento de ${formatarReais(orcamento.valor)}`} type="button">
+                  <IconeLixeira className="" />
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -266,12 +270,12 @@ export function EditorTags({
   }
 
   return (
-    <div className="crm-campo">
-      <span className="crm-rotulo">Tags</span>
+    <div className="grupo-campo">
+      <span className="rotulo">Tags</span>
       <div className="crm-tags-lista">
         {contato.tags.length === 0 && <span className="crm-vazio-inline">Nenhuma tag ainda.</span>}
         {contato.tags.map((tag) => (
-          <span className="crm-tag crm-tag-editavel" key={tag}>
+          <span className="selo crm-tag-editavel" key={tag}>
             {tag}
             <button
               className="crm-tag-x"
@@ -286,6 +290,7 @@ export function EditorTags({
       </div>
       <div className="crm-tag-nova">
         <input
+          className="campo campo-p"
           value={nova}
           onChange={(e) => setNova(e.target.value)}
           onKeyDown={(e) => {
@@ -297,7 +302,7 @@ export function EditorTags({
           placeholder="Adicionar tag"
           maxLength={40}
         />
-        <button className="botao botao-neutro crm-add-tag" onClick={adicionar} disabled={!nova.trim()} type="button">
+        <button className="botao botao-p botao-icone botao-neutro" onClick={adicionar} disabled={!nova.trim()} aria-label="Adicionar tag" type="button">
           <IconeMais className="" />
         </button>
       </div>

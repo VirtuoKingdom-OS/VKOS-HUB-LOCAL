@@ -10,7 +10,7 @@ import {
 
 // Registro local do que ja saiu de cada peca. Desde 2026-07-26 guarda somente a
 // exportacao: a publicacao integrada no GitHub e na Netlify saiu do produto (ver
-// decisoes/2026-07-26-fim-da-publicacao-integrada.md). O arquivo mantem o nome
+// docs/decisoes/2026-07-26-fim-da-publicacao-integrada.md). O arquivo mantem o nome
 // antigo de proposito: entradas velhas com github e netlify sao simplesmente
 // ignoradas na leitura, sem migracao.
 const NOME_ARQUIVO = "publicacoes.json";

@@ -46,6 +46,7 @@ import { ID_DESTA_ABA, gravando } from "../../api/aba";
 import { usarEstado } from "../../estado/contexto";
 import { ColunaCrm } from "./ColunaCrm";
 import { BuscaLeads } from "./BuscaLeads";
+import { LeadsFormulario } from "./LeadsFormulario";
 import { PainelContato } from "./PainelContato";
 import { TelaConversas } from "./TelaConversas";
 import { VisaoHoje, type AcoesDoDia } from "./VisaoHoje";
@@ -58,20 +59,32 @@ import {
   type ItemDia,
 } from "./logica";
 import { formatarDataHora, formatarReais, iniciais } from "./formatos";
-import { IconeMais, IconeX } from "../comum/Icones";
-import "../../estilos/crm.css";
+import { IconeAlerta, IconeMais, IconeX } from "../comum/Icones";
+import "./crm.css";
 
 // O chat mora DENTRO do CRM, como aba, e nao como tela propria na barra
 // lateral. Conversa nao existe sem contato, e uma caixa de entrada em outro
 // canto da navegacao viraria exatamente a segunda caixa de entrada paralela ao
 // funil que este modulo existe pra curar.
-type AbaCrm = "hoje" | "conversas" | "quadro" | "contatos" | "leads";
+type AbaCrm =
+  | "hoje"
+  | "conversas"
+  | "quadro"
+  | "contatos"
+  | "formulario"
+  | "leads";
 
+// "Formulário" vem logo depois de "Hoje", por pedido do Jesse em 2026-07-30:
+// quem preencheu o formulário levantou a mão sozinho, então é a primeira coisa
+// a olhar depois do dia. "Buscar leads" fica no fim: é a porta outbound, a que
+// eu aciono quando quero, não a que me chama. As duas terminam no mesmo lugar,
+// criando Contato.
 const ROTULO_ABA: Record<AbaCrm, string> = {
   hoje: "Hoje",
   conversas: "Conversas",
   quadro: "Quadro",
   contatos: "Contatos",
+  formulario: "Formulário",
   leads: "Buscar leads",
 };
 type Ordenacao = "nome" | "interacao" | "valor";
@@ -897,10 +910,39 @@ export function TelaCrm() {
     document.body.style.removeProperty("--crm-altura-arrasto");
   }, []);
 
-  if (carregando) return <section className="tela-fluxo crm-tela"><div className="crm-carregando">Carregando o CRM...</div></section>;
+  // Area de conteudo carregando usa ESQUELETO, nunca giro: um giro no meio da
+  // tela nao diz nada sobre o que esta chegando.
+  if (carregando) {
+    return (
+      <section className="tela crm-tela">
+        <header className="tela-topo">
+          <div className="tela-topo-texto">
+            <h1>CRM</h1>
+            <p>Contatos, negócios e próximos passos.</p>
+          </div>
+        </header>
+        <div className="tela-corpo" aria-busy="true">
+          <span className="so-leitor">Carregando o CRM</span>
+          <div className="lista" aria-hidden="true">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div className="item-lista" key={i}>
+                <span className="esqueleto crm-esqueleto-linha" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
   if (erro && !estado) return (
-    <section className="tela-fluxo crm-tela">
-      <div className="crm-erro-cheio"><p>{erro}</p><button className="botao botao-neutro" onClick={() => void carregar()} type="button">Tentar de novo</button></div>
+    <section className="tela crm-tela">
+      <div className="tela-corpo">
+        <div className="vazio">
+          <h2>Não deu pra abrir o CRM.</h2>
+          <p>{erro}</p>
+          <button className="botao botao-principal" onClick={() => void carregar()} type="button">Tentar de novo</button>
+        </div>
+      </div>
     </section>
   );
   if (!estado) return null;
@@ -908,14 +950,16 @@ export function TelaCrm() {
   const arrastado = arrasto.current;
 
   return (
-    <section className="tela-fluxo crm-tela" ref={telaRef}>
-      <header className="tela-fluxo-topo crm-topo">
-        <div className="crm-topo-titulo">
+    <section className="tela crm-tela" ref={telaRef}>
+      <header className="tela-topo">
+        <div className="tela-topo-texto">
           <h1>CRM</h1>
-          <p className="subtitulo">Relacionamentos, oportunidades e próximos passos em um só lugar.</p>
+          <p>Contatos, negócios e próximos passos.</p>
         </div>
-        {aba !== "leads" && (
-          <div className="crm-topo-acoes">
+        {/* As duas portas de entrada de lead trazem busca e ações próprias:
+            a do topo filtraria uma lista que nem está na tela. */}
+        {aba !== "leads" && aba !== "formulario" && (
+          <div className="tela-topo-acoes">
             {/* A busca so aparece onde ela filtra alguma coisa. Na tela do dia
                 ela existia sem fazer nada. */}
             {aba !== "hoje" && <Busca valor={busca} aoMudar={setBusca} />}
@@ -926,15 +970,25 @@ export function TelaCrm() {
         )}
       </header>
 
-      <nav className="crm-abas" role="tablist" aria-label="Visoes do CRM">
-        {(["hoje", "conversas", "quadro", "contatos", "leads"] as AbaCrm[]).map((item) => (
-          <button className={aba === item ? "ativa" : ""} onClick={() => setAba(item)} type="button" role="tab" aria-selected={aba === item} key={item}>
+      <nav className="abas crm-abas" role="tablist" aria-label="Visões do CRM">
+        {(["hoje", "formulario", "conversas", "quadro", "contatos", "leads"] as AbaCrm[]).map((item) => (
+          <button className="aba" onClick={() => setAba(item)} type="button" role="tab" aria-selected={aba === item} key={item}>
             {ROTULO_ABA[item]}
           </button>
         ))}
       </nav>
 
-      {erro && <div className="crm-erro-faixa" role="alert">{erro}<button onClick={() => setErro(null)} aria-label="Fechar aviso" type="button"><IconeX className="" /></button></div>}
+      {erro && (
+        <div className="crm-faixa-erro">
+          <div className="faixa faixa-alerta" role="alert">
+            <IconeAlerta className="" />
+            <div className="faixa-texto">{erro}</div>
+            <div className="faixa-acoes">
+              <button className="botao botao-p botao-icone botao-fantasma" onClick={() => setErro(null)} aria-label="Fechar aviso" type="button"><IconeX className="" /></button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {aba === "hoje" && (
         <VisaoHoje
@@ -990,17 +1044,17 @@ export function TelaCrm() {
           <div className="crm-coluna crm-coluna-nova">
             {criandoColuna ? (
               <div className="crm-nova-coluna-form">
-                <input autoFocus value={nomeColuna} maxLength={60} onChange={(e) => setNomeColuna(e.target.value)} onKeyDown={(e) => {
+                <input className="campo campo-p" autoFocus value={nomeColuna} maxLength={60} onChange={(e) => setNomeColuna(e.target.value)} onKeyDown={(e) => {
                   if (e.key === "Enter") void criarColuna();
                   if (e.key === "Escape") setCriandoColuna(false);
-                }} placeholder="Nome da coluna" />
+                }} placeholder="Nome da coluna" aria-label="Nome da coluna nova" />
                 <div className="crm-nova-coluna-acoes">
-                  <button className="botao botao-principal" onClick={() => void criarColuna()} disabled={!nomeColuna.trim()} type="button">Criar</button>
-                  <button className="botao botao-fantasma" onClick={() => setCriandoColuna(false)} type="button">Cancelar</button>
+                  <button className="botao botao-p botao-neutro" onClick={() => void criarColuna()} disabled={!nomeColuna.trim()} type="button">Criar</button>
+                  <button className="botao botao-p botao-fantasma" onClick={() => setCriandoColuna(false)} type="button">Cancelar</button>
                 </div>
               </div>
             ) : (
-              <button className="crm-add-coluna" onClick={() => setCriandoColuna(true)} type="button"><IconeMais className="" /> Nova coluna</button>
+              <button className="botao botao-p botao-fantasma crm-add-coluna" onClick={() => setCriandoColuna(true)} type="button"><IconeMais className="" /> Nova coluna</button>
             )}
           </div>
         </div>
@@ -1016,6 +1070,8 @@ export function TelaCrm() {
           aoAbrir={abrirContato}
         />
       )}
+
+      {aba === "formulario" && <LeadsFormulario aoImportar={sincronizarCrm} />}
 
       {aba === "leads" && <BuscaLeads aoImportar={sincronizarCrm} />}
 
@@ -1050,28 +1106,30 @@ export function TelaCrm() {
 
       {novoNegocio.aberto && (
         <ModalCrm
-          titulo="Novo negocio"
+          titulo="Novo negócio"
           sobre="Oportunidade"
           temConteudo={!!(novoNegocio.contatoTexto.trim() || novoNegocio.titulo.trim() || novoNegocio.valor.trim())}
           aoFechar={() => setNovoNegocio((atual) => ({ ...atual, aberto: false }))}
           aoEnviar={() => void salvarNovoNegocio()}
           rodape={
-            <button className="botao botao-principal" disabled={!novoNegocio.contatoTexto.trim() || !novoNegocio.titulo.trim() || salvandoNegocio} type="submit">
-              {salvandoNegocio ? "Criando..." : "Criar negocio"}
+            <button className="botao botao-principal" disabled={!novoNegocio.contatoTexto.trim() || !novoNegocio.titulo.trim() || salvandoNegocio} aria-busy={salvandoNegocio || undefined} type="submit">
+              Criar negócio
             </button>
           }
         >
-          <div className="crm-campo crm-autocomplete">
-            <label htmlFor="crm-contato-negocio" className="crm-rotulo">Contato</label>
-            <input id="crm-contato-negocio" value={novoNegocio.contatoTexto} onChange={(e) => {
+          <div className="grupo-campo crm-autocomplete">
+            <label htmlFor="crm-contato-negocio" className="rotulo">Contato</label>
+            <input className="campo" id="crm-contato-negocio" value={novoNegocio.contatoTexto} onChange={(e) => {
               setNovoNegocio((atual) => ({ ...atual, contatoTexto: e.target.value, contatoId: "" }));
             }} placeholder="Busque ou escreva um nome novo" autoComplete="off" autoFocus required aria-controls="crm-contatos-resultados" aria-expanded={sugestoesContato.length > 0} />
             {sugestoesContato.length > 0 && (
-              <div className="crm-autocomplete-lista" id="crm-contatos-resultados" role="listbox" aria-label="Contatos encontrados">
+              <div className="popover crm-autocomplete-lista" id="crm-contatos-resultados" role="listbox" aria-label="Contatos encontrados">
                 {sugestoesContato.map((contato) => (
-                  <button className="crm-autocomplete-opcao" key={contato.id} onClick={() => setNovoNegocio((atual) => ({ ...atual, contatoId: contato.id, contatoTexto: contato.nome }))} type="button" role="option" aria-selected="false">
-                    <span>{contato.nome}</span>
-                    {nomeOrganizacao(contato) && <small>{nomeOrganizacao(contato)}</small>}
+                  <button className="menu-item" key={contato.id} onClick={() => setNovoNegocio((atual) => ({ ...atual, contatoId: contato.id, contatoTexto: contato.nome }))} type="button" role="option" aria-selected="false">
+                    <span className="item-lista-texto">
+                      <span className="item-lista-titulo">{contato.nome}</span>
+                      {nomeOrganizacao(contato) && <span className="item-lista-meta">{nomeOrganizacao(contato)}</span>}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -1080,16 +1138,19 @@ export function TelaCrm() {
               const contato = contatosPorId.get(novoNegocio.contatoId);
               if (!contato) return null;
               return (
-                <div className="crm-contato-selecionado">
-                  <span><b>{contato.nome}</b>{nomeOrganizacao(contato) && <small>{nomeOrganizacao(contato)}</small>}</span>
-                  <button onClick={() => setNovoNegocio((atual) => ({ ...atual, contatoId: "", contatoTexto: "" }))} type="button">Trocar</button>
+                <div className="crm-contato-escolhido">
+                  <span className="item-lista-texto">
+                    <span className="item-lista-titulo">{contato.nome}</span>
+                    {nomeOrganizacao(contato) && <span className="item-lista-meta">{nomeOrganizacao(contato)}</span>}
+                  </span>
+                  <button className="botao botao-p botao-fantasma" onClick={() => setNovoNegocio((atual) => ({ ...atual, contatoId: "", contatoTexto: "" }))} type="button">Trocar</button>
                 </div>
               );
             })()}
-            <span className="crm-ajuda">Escolha um resultado. Se apenas escrever um nome, uma ficha nova será criada.</span>
+            <span className="dica">Escolha um resultado. Se apenas escrever um nome, uma ficha nova será criada.</span>
           </div>
-          <label className="crm-campo"><span className="crm-rotulo">Titulo do negocio</span><input value={novoNegocio.titulo} onChange={(e) => setNovoNegocio((atual) => ({ ...atual, titulo: e.target.value }))} placeholder="Ex: Ensaio da equipe" maxLength={200} required /></label>
-          <label className="crm-campo"><span className="crm-rotulo">Valor estimado (R$)</span><input value={novoNegocio.valor} onChange={(e) => setNovoNegocio((atual) => ({ ...atual, valor: e.target.value }))} inputMode="decimal" placeholder="Opcional" /></label>
+          <label className="grupo-campo"><span className="rotulo">Título do negócio</span><input className="campo" value={novoNegocio.titulo} onChange={(e) => setNovoNegocio((atual) => ({ ...atual, titulo: e.target.value }))} placeholder="Ex: Ensaio da equipe" maxLength={200} required /></label>
+          <label className="grupo-campo"><span className="rotulo">Valor estimado (R$)</span><input className="campo" value={novoNegocio.valor} onChange={(e) => setNovoNegocio((atual) => ({ ...atual, valor: e.target.value }))} inputMode="decimal" placeholder="Opcional" /></label>
         </ModalCrm>
       )}
 
@@ -1101,18 +1162,18 @@ export function TelaCrm() {
           aoFechar={() => setNovoContatoForm((atual) => ({ ...atual, aberto: false }))}
           aoEnviar={() => void salvarNovoContato()}
           rodape={
-            <button className="botao botao-principal" disabled={!novoContatoForm.nome.trim() || salvandoContato} type="submit">
-              {salvandoContato ? "Criando..." : "Criar contato"}
+            <button className="botao botao-principal" disabled={!novoContatoForm.nome.trim() || salvandoContato} aria-busy={salvandoContato || undefined} type="submit">
+              Criar contato
             </button>
           }
         >
-          <label className="crm-campo"><span className="crm-rotulo">Nome</span><input value={novoContatoForm.nome} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, nome: e.target.value }))} placeholder="Quem é a pessoa ou o negócio" maxLength={200} autoFocus required /></label>
-          <label className="crm-campo"><span className="crm-rotulo">Empresa</span><input value={novoContatoForm.empresa} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, empresa: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
+          <label className="grupo-campo"><span className="rotulo">Nome</span><input className="campo" value={novoContatoForm.nome} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, nome: e.target.value }))} placeholder="Quem é a pessoa ou o negócio" maxLength={200} autoFocus required /></label>
+          <label className="grupo-campo"><span className="rotulo">Empresa</span><input className="campo" value={novoContatoForm.empresa} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, empresa: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
           <div className="crm-campos-grade">
-            <label className="crm-campo"><span className="crm-rotulo">Telefone</span><input type="tel" value={novoContatoForm.telefone} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, telefone: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
-            <label className="crm-campo"><span className="crm-rotulo">Email</span><input type="email" value={novoContatoForm.email} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, email: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
+            <label className="grupo-campo"><span className="rotulo">Telefone</span><input className="campo" type="tel" value={novoContatoForm.telefone} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, telefone: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
+            <label className="grupo-campo"><span className="rotulo">Email</span><input className="campo" type="email" value={novoContatoForm.email} onChange={(e) => setNovoContatoForm((atual) => ({ ...atual, email: e.target.value }))} placeholder="Opcional" maxLength={200} /></label>
           </div>
-          <span className="crm-ajuda">Só o nome é obrigatório. O resto você completa na ficha quando quiser.</span>
+          <span className="dica">Só o nome é obrigatório. O resto você completa na ficha quando quiser.</span>
         </ModalCrm>
       )}
 
@@ -1125,7 +1186,7 @@ export function TelaCrm() {
             transform: `translate3d(${arrastado.x - arrastado.offX}px, ${arrastado.y - arrastado.offY}px, 0)`,
           }}
         >
-          <article className="crm-cartao">
+          <article className="cartao crm-cartao">
             <div className="crm-cartao-topo">
               <span className="crm-avatar">{iniciais(arrastado.contato.nome)}</span>
               <div className="crm-cartao-id">
@@ -1175,23 +1236,29 @@ function ModalCrm({
   }, [tentarFechar]);
 
   return (
-    <div className="crm-modal-fundo" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) tentarFechar(); }}>
-      <form className="crm-modal" role="dialog" aria-modal="true" aria-label={titulo} onSubmit={(e) => { e.preventDefault(); aoEnviar(); }}>
-        <div className="crm-secao-topo">
-          <div><span className="crm-painel-sobre">{sobre}</span><h2>{titulo}</h2></div>
-          <button className="crm-painel-fechar" onClick={tentarFechar} aria-label="Fechar" type="button"><IconeX className="" /></button>
-        </div>
-        {children}
-        {avisando && (
-          <div className="crm-modal-aviso" role="alert">
-            <span>Você digitou algo. Descartar mesmo assim?</span>
-            <span className="crm-modal-aviso-acoes">
-              <button className="botao botao-fantasma" onClick={() => setAvisando(false)} type="button">Continuar editando</button>
-              <button className="botao botao-neutro" onClick={aoFechar} type="button">Descartar</button>
-            </span>
+    <div className="veu-modal" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) tentarFechar(); }}>
+      <form className="modal" role="dialog" aria-modal="true" aria-label={titulo} onSubmit={(e) => { e.preventDefault(); aoEnviar(); }}>
+        <div className="modal-topo">
+          <div className="crm-modal-titulo">
+            <span className="rotulo">{sobre}</span>
+            <h2>{titulo}</h2>
           </div>
-        )}
-        <div className="crm-modal-acoes">
+          <button className="botao botao-p botao-icone botao-fantasma" onClick={tentarFechar} aria-label="Fechar" type="button"><IconeX className="" /></button>
+        </div>
+        <div className="modal-corpo">
+          {children}
+          {avisando && (
+            <div className="faixa faixa-aviso crm-modal-aviso" role="alert">
+              <IconeAlerta className="" />
+              <div className="faixa-texto">Você digitou algo. Descartar mesmo assim?</div>
+              <div className="faixa-acoes">
+                <button className="botao botao-p botao-fantasma" onClick={() => setAvisando(false)} type="button">Continuar editando</button>
+                <button className="botao botao-p botao-neutro" onClick={aoFechar} type="button">Descartar</button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal-rodape">
           <button className="botao botao-fantasma" onClick={tentarFechar} type="button">Cancelar</button>
           {rodape}
         </div>
@@ -1202,10 +1269,10 @@ function ModalCrm({
 
 function Busca({ valor, aoMudar }: { valor: string; aoMudar: (valor: string) => void }) {
   return (
-    <div className="crm-busca">
+    <div className="campo-com-icone crm-busca">
       <Lupa />
-      <input value={valor} onChange={(e) => aoMudar(e.target.value)} placeholder="Nome, telefone, email ou empresa" aria-label="Buscar no CRM" />
-      {valor && <button className="crm-busca-limpar" onClick={() => aoMudar("")} aria-label="Limpar busca" type="button"><IconeX className="" /></button>}
+      <input className="campo" value={valor} onChange={(e) => aoMudar(e.target.value)} placeholder="Nome, telefone, email ou empresa" aria-label="Buscar no CRM" />
+      {valor && <button className="botao botao-p botao-icone botao-fantasma crm-busca-limpar" onClick={() => aoMudar("")} aria-label="Limpar busca" type="button"><IconeX className="" /></button>}
     </div>
   );
 }
@@ -1258,39 +1325,52 @@ function ListaContatos({
   }
 
   return (
-    <div className="crm-contatos-visao">
-      <div className="crm-filtros">
-        <label><span>Tag</span><select value={tag} onChange={(e) => setTag(e.target.value)}><option value="">Todas</option>{tags.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label><span>Estágio no funil</span><select value={coluna} onChange={(e) => setColuna(e.target.value)}><option value="">Todos</option>{colunas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>
+    <div className="tela-corpo crm-contatos">
+      <div className="barra-ferramentas">
+        <label className="crm-filtro">
+          <span className="rotulo">Tag</span>
+          <select className="campo campo-p" value={tag} onChange={(e) => setTag(e.target.value)}><option value="">Todas</option>{tags.map((item) => <option key={item}>{item}</option>)}</select>
+        </label>
+        <label className="crm-filtro">
+          <span className="rotulo">Estágio no funil</span>
+          <select className="campo campo-p" value={coluna} onChange={(e) => setColuna(e.target.value)}><option value="">Todos</option>{colunas.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select>
+        </label>
+        <span className="barra-ferramentas-espaco" />
         <span className="crm-resultados">{dados.length} {dados.length === 1 ? "contato" : "contatos"}</span>
       </div>
-      <div className="crm-tabela-caixa">
-        <table className="crm-tabela">
-          <thead>
-            <tr>
-              <th><button onClick={() => ordenar("nome")} type="button">Nome {ordem === "nome" ? (direcao === 1 ? "↑" : "↓") : ""}</button></th>
-              <th>Empresa</th>
-              <th>Tags</th>
-              <th><button onClick={() => ordenar("interacao")} type="button">Último toque {ordem === "interacao" ? (direcao === 1 ? "↑" : "↓") : ""}</button></th>
-              <th>Próximo contato</th>
-              <th><button onClick={() => ordenar("valor")} type="button">Negócios {ordem === "valor" ? (direcao === 1 ? "↑" : "↓") : ""}</button></th>
-            </tr>
-          </thead>
-          <tbody>
-            {dados.map(({ contato, negocios, empresa, ultima, valor }) => (
-              <tr onClick={() => aoAbrir(contato.id)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") aoAbrir(contato.id); }} key={contato.id}>
-                <td><span className="crm-tabela-pessoa"><span className="crm-avatar">{iniciais(contato.nome)}</span><b>{contato.nome}</b></span></td>
-                <td>{empresa || <span className="crm-vazio-inline">Sem empresa</span>}</td>
-                <td><span className="crm-tabela-tags">{contato.tags.slice(0, 3).map((item) => <span className="crm-tag" key={item}>{item}</span>)}</span></td>
-                <td>{ultima ? formatarDataHora(ultima) : <span className="crm-vazio-inline">Nunca</span>}</td>
-                <td>{contato.proximoContato ? formatarDataHora(contato.proximoContato) : <span className="crm-vazio-inline">Não definido</span>}</td>
-                <td><b>{negocios.length}</b><small>{formatarReais(valor)}</small></td>
+      {dados.length === 0 ? (
+        <div className="vazio">
+          <h2>Nenhum contato com esses filtros.</h2>
+          <p>Afrouxe a busca do topo ou volte a tag e o estágio para Todos.</p>
+        </div>
+      ) : (
+        <div className="crm-tabela-caixa">
+          <table className="tabela crm-tabela">
+            <thead>
+              <tr>
+                <th><button className="crm-ordenar" onClick={() => ordenar("nome")} type="button">Nome {ordem === "nome" ? (direcao === 1 ? "↑" : "↓") : ""}</button></th>
+                <th>Empresa</th>
+                <th>Tags</th>
+                <th><button className="crm-ordenar" onClick={() => ordenar("interacao")} type="button">Último toque {ordem === "interacao" ? (direcao === 1 ? "↑" : "↓") : ""}</button></th>
+                <th>Próximo contato</th>
+                <th className="num"><button className="crm-ordenar" onClick={() => ordenar("valor")} type="button">Negócios {ordem === "valor" ? (direcao === 1 ? "↑" : "↓") : ""}</button></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {dados.length === 0 && <div className="crm-lista-vazia">Nenhum contato encontrado com esses filtros.</div>}
-      </div>
+            </thead>
+            <tbody>
+              {dados.map(({ contato, negocios, empresa, ultima, valor }) => (
+                <tr onClick={() => aoAbrir(contato.id)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") aoAbrir(contato.id); }} key={contato.id}>
+                  <td><span className="crm-tabela-pessoa"><span className="crm-avatar">{iniciais(contato.nome)}</span><b>{contato.nome}</b></span></td>
+                  <td>{empresa || <span className="crm-vazio-inline">Sem empresa</span>}</td>
+                  <td><span className="crm-tabela-tags">{contato.tags.slice(0, 3).map((item) => <span className="selo" key={item}>{item}</span>)}</span></td>
+                  <td>{ultima ? formatarDataHora(ultima) : <span className="crm-vazio-inline">Nunca</span>}</td>
+                  <td>{contato.proximoContato ? formatarDataHora(contato.proximoContato) : <span className="crm-vazio-inline">Não definido</span>}</td>
+                  <td className="num"><span className="crm-tabela-negocios"><b>{negocios.length}</b><small>{formatarReais(valor)}</small></span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,173 @@
+/* Markdown renderizado das mensagens da IA (componente comum/Markdown).
+   Tipografia compacta de conversa, nao de documento: margens curtas, tudo
+   pelos tokens de tema, funciona em qualquer tema. */
+
+/* Ordem das camadas de cascata. Repetida em toda folha porque a primeira que o
+   navegador ler e a que vale, e o bundler nao garante qual vem primeiro.
+   Ver decisoes/2026-07-27-ordem-da-cascata-com-layer.md. */
+@layer base, externo, tela, tema;
+
+@layer tela {
+.md {
+  line-height: 1.55;
+  word-break: break-word;
+  /* Os baloes de conversa usam pre-wrap pro texto cru. Aqui o markdown ja
+     cuida das quebras: sem resetar, cada quebra viraria espaco em dobro. */
+  white-space: normal;
+}
+
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+
+.md p {
+  margin: 0 0 0.55em;
+}
+
+/* Titulos em escala de conversa: pouco maiores que o corpo, nunca gritados. */
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  margin: 0.9em 0 0.35em;
+  /* 600, nao 700. Regra 3 do contrato de 2026-07-27: peso 700 e de numero e
+     wordmark. Num balao de conversa, onde o titulo e so um pouco maior que o
+     corpo, o peso 700 fazia o cabecalho gritar dentro do proprio paragrafo. */
+  font-weight: var(--peso-forte);
+  line-height: 1.3;
+  color: var(--texto);
+}
+.md h1 {
+  font-size: 1.15em;
+}
+.md h2 {
+  font-size: 1.08em;
+}
+.md h3 {
+  font-size: 1.02em;
+}
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 1em;
+}
+
+.md strong {
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+.md a {
+  color: var(--menta);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(var(--menta-rgb), 0.35);
+  transition: border-color var(--transicao);
+}
+.md a:hover {
+  border-bottom-color: var(--menta);
+}
+
+.md ul,
+.md ol {
+  margin: 0.35em 0 0.65em;
+  padding-left: 1.35em;
+}
+.md li {
+  margin: 0.18em 0;
+}
+.md li > p {
+  margin: 0;
+}
+.md li::marker {
+  color: var(--texto-fraco);
+}
+
+/* Lista de tarefas do GFM: sem bullet duplo, checkbox alinhada. */
+.md li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.1em;
+}
+.md input[type="checkbox"] {
+  accent-color: var(--menta);
+  margin-right: 0.45em;
+  vertical-align: -0.1em;
+  pointer-events: none;
+}
+
+.md code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--neutro-tenue);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  padding: 0.1em 0.35em;
+}
+
+/* O bloco de codigo sobe um degrau da escada de superficie, como qualquer
+   outra caixa do Hub. Ele usava o scrim a 35%, que e a cor do veu de modal: no
+   tema Claro isso pintava um retangulo cinza-escuro no meio do balao branco,
+   com muito mais peso do que o codigo dentro dele merece. */
+.md pre {
+  margin: 0.55em 0 0.75em;
+  padding: 0.7em 0.85em;
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-p);
+  overflow-x: auto;
+}
+.md pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.84em;
+  line-height: 1.5;
+}
+
+.md blockquote {
+  margin: 0.55em 0 0.75em;
+  padding: 0.15em 0 0.15em 0.8em;
+  /* O fio da citacao e estrutura, nao voz colorida: menta aqui pintava de
+     verde toda citacao que a IA escreve, sem marcar estado nenhum. */
+  border-left: 2px solid var(--linha-forte);
+  color: var(--texto-suave);
+}
+.md blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.md hr {
+  border: none;
+  border-top: 1px solid var(--linha);
+  margin: 0.9em 0;
+}
+
+/* Tabela: rola dentro do balao, nunca estoura a largura da conversa. */
+.md table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.55em 0 0.75em;
+  font-size: 0.92em;
+}
+.md th,
+.md td {
+  border: 1px solid var(--linha);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+.md th {
+  background: var(--neutro-tenue);
+  font-weight: var(--peso-forte);
+}
+
+.md img {
+  max-width: 100%;
+  border-radius: var(--raio-p);
+}
+} /* fim de @layer tela */

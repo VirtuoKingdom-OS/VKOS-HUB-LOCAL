@@ -7,6 +7,11 @@
 //   deixava agir;
 // - o contador diz o total de verdade, e o corte de 10 vem com "ver todos";
 // - o funil separa aberto, ganho e perdido, em vez de somar os tres.
+//
+// Redesign v2 (2026-07-30): cada bloco virou .secao, e nao cartao. As linhas
+// viraram .lista mais .item-lista, com as acoes VISIVEIS. O funil perdeu o
+// menta: a barra de cada estagio usa --linha-forte, porque ela e dado, nao
+// estado vivo.
 
 import { useEffect, useRef, useState } from "react";
 
@@ -60,16 +65,21 @@ export function VisaoHoje({
     estado.contatos.filter((contato) => contato.colunaId === colunaId);
   const maximo = Math.max(1, ...colunas.map((coluna) => contatosDaColuna(coluna.id).length));
 
+  // O estado vazio ENSINA: o que e um contato aqui e qual e o proximo passo. A
+  // acao dele e neutra de proposito, porque a mesma acao ja e a principal do
+  // cabecalho, a 60px daqui, e duas tintas escuras na mesma tela competem.
   if (estado.contatos.length === 0) {
     return (
-      <div className="crm-hero crm-hero-hoje">
-        <p className="crm-hero-titulo">Seu CRM está pronto para o primeiro contato.</p>
-        <p className="crm-hero-texto">
-          Crie uma ficha. Depois você liga negócios, interações, tarefas e próximos passos a ela.
-        </p>
-        <button className="botao botao-principal" onClick={acoes.aoCriarContato} type="button">
-          <IconeMais className="" /> Criar primeiro contato
-        </button>
+      <div className="tela-corpo">
+        <div className="vazio">
+          <h2>Seu CRM está pronto para o primeiro contato.</h2>
+          <p>
+            Crie uma ficha. Depois você liga negócios, interações, tarefas e próximos passos a ela.
+          </p>
+          <button className="botao botao-neutro" onClick={acoes.aoCriarContato} type="button">
+            <IconeMais className="" /> Criar primeiro contato
+          </button>
+        </div>
       </div>
     );
   }
@@ -77,10 +87,12 @@ export function VisaoHoje({
   const comItens = blocos.filter((bloco) => bloco.total > 0);
 
   return (
-    <div className="crm-hoje">
+    <div className="tela-corpo crm-hoje">
       {comItens.length === 0 && (
-        <section className="crm-hoje-bloco crm-hoje-limpo">
-          <p className="crm-hoje-limpo-titulo">Nada pendente para hoje.</p>
+        <section className="secao">
+          <div className="secao-topo">
+            <h2>Nada pendente para hoje.</h2>
+          </div>
           <p className="crm-vazio-inline">
             Quando um follow-up, uma tarefa ou um orçamento vencer, ele aparece aqui.
           </p>
@@ -91,40 +103,53 @@ export function VisaoHoje({
         <BlocoDoDia key={bloco.chave} bloco={bloco} acoes={acoes} />
       ))}
 
-      <section className="crm-hoje-bloco crm-hoje-funil">
-        <div className="crm-hoje-topo">
-          <div>
-            <strong>{formatarReais(funil.emAberto)}</strong>
-            <h2>Em aberto</h2>
-          </div>
-          <span>
+      <section className="secao crm-funil">
+        <div className="secao-topo">
+          <h2>Funil</h2>
+          <p>
             {funil.negociosAbertos} {funil.negociosAbertos === 1 ? "negócio" : "negócios"} no funil
-          </span>
+          </p>
         </div>
-        <div className="crm-funil-placar">
-          <span className="crm-placar-ganho">
-            <b>{formatarReais(funil.ganhoNoMes)}</b>
-            <small>ganho no mês ({funil.negociosGanhosNoMes})</small>
-          </span>
-          <span className="crm-placar-perdido">
-            <b>{formatarReais(funil.perdidoNoMes)}</b>
-            <small>perdido no mês ({funil.negociosPerdidosNoMes})</small>
-          </span>
+
+        <div className="crm-placar">
+          <div className="crm-placar-item">
+            <span className="crm-numero">{formatarReais(funil.emAberto)}</span>
+            <span className="crm-numero-rotulo">em aberto</span>
+          </div>
+          <div className="crm-placar-item">
+            <span className="crm-numero">{formatarReais(funil.ganhoNoMes)}</span>
+            <span className="crm-numero-rotulo">
+              ganho no mês ({funil.negociosGanhosNoMes})
+            </span>
+          </div>
+          <div className="crm-placar-item">
+            <span className="crm-numero">{formatarReais(funil.perdidoNoMes)}</span>
+            <span className="crm-numero-rotulo">
+              perdido no mês ({funil.negociosPerdidosNoMes})
+            </span>
+          </div>
         </div>
-        <button className="crm-funil-lista" onClick={acoes.aoAbrirQuadro} type="button">
+
+        <ul className="lista crm-funil-lista">
           {colunas.map((coluna) => {
             const total = contatosDaColuna(coluna.id).length;
             return (
-              <span className="crm-funil-linha" key={coluna.id}>
-                <span>
-                  <b>{coluna.nome}</b>
-                  <small>{total} {total === 1 ? "contato" : "contatos"}</small>
-                </span>
-                <i style={{ width: `${Math.max(4, (total / maximo) * 100)}%` }} />
-              </span>
+              <li key={coluna.id}>
+                <button className="item-lista crm-funil-linha" onClick={acoes.aoAbrirQuadro} type="button">
+                  <span className="item-lista-texto">
+                    <span className="item-lista-titulo">{coluna.nome}</span>
+                    <span className="item-lista-meta">
+                      {total} {total === 1 ? "contato" : "contatos"}
+                    </span>
+                  </span>
+                  <span className="crm-barra" aria-hidden="true">
+                    <span style={{ width: `${Math.max(4, (total / maximo) * 100)}%` }} />
+                  </span>
+                </button>
+              </li>
             );
           })}
-        </button>
+        </ul>
       </section>
     </div>
   );
@@ -136,22 +161,20 @@ function BlocoDoDia({ bloco, acoes }: { bloco: BlocoDia; acoes: AcoesDoDia }) {
   const escondidos = bloco.total - bloco.itens.length;
 
   return (
-    <section className={`crm-hoje-bloco crm-bloco-${bloco.chave}`}>
-      <div className="crm-hoje-topo">
-        <div>
-          <strong>{bloco.total}</strong>
-          <h2>{bloco.titulo}</h2>
-        </div>
-        <span>{bloco.descricao}</span>
+    <section className="secao">
+      <div className="secao-topo">
+        <h2>{bloco.titulo}</h2>
+        <span className="contagem">{bloco.total}</span>
+        <p>{bloco.descricao}</p>
       </div>
-      <ul className="crm-hoje-lista">
+      <ul className="lista crm-lista-dia">
         {itens.map((item) => (
           <ItemDoDia key={item.id} item={item} acoes={acoes} />
         ))}
       </ul>
       {escondidos > 0 && (
         <button
-          className="crm-ver-todos"
+          className="botao botao-p botao-fantasma crm-ver-todos"
           onClick={() => setExpandido((atual) => !atual)}
           type="button"
           aria-expanded={expandido}
@@ -179,32 +202,41 @@ function ItemDoDia({ item, acoes }: { item: ItemDia; acoes: AcoesDoDia }) {
   }
 
   return (
-    <li className={`crm-item-dia${item.atrasado ? " atrasado" : ""}`}>
+    <li className="item-lista crm-item-dia">
       {item.tarefaId ? (
-        <label className="crm-item-dia-check">
+        <label className="crm-item-check">
           <input
+            className="caixa"
             type="checkbox"
             checked={false}
             disabled={ocupado}
             onChange={() => void correr(() => acoes.aoConcluirTarefa(item.tarefaId as string))}
           />
-          <span className="crm-so-leitor">Concluir {item.titulo}</span>
+          <span className="so-leitor">Concluir {item.titulo}</span>
         </label>
       ) : (
-        <span className="crm-item-dia-marca" aria-hidden="true" />
+        <span className="crm-item-marca" aria-hidden="true" />
       )}
 
-      <span className="crm-item-dia-texto">
-        <b>{item.titulo}</b>
-        <small>{item.subtitulo}</small>
+      <span className="item-lista-texto">
+        <span className="item-lista-titulo">{item.titulo}</span>
+        <span className="item-lista-meta">{item.subtitulo}</span>
       </span>
 
-      {item.quando && <time dateTime={item.quando}>{formatarDataHoraCurta(item.quando)}</time>}
+      {item.quando && (
+        <time
+          className={`crm-item-quando${item.atrasado ? " atrasado" : ""}`}
+          dateTime={item.quando}
+          title={item.atrasado ? "Atrasado" : undefined}
+        >
+          {formatarDataHoraCurta(item.quando)}
+        </time>
+      )}
 
-      <span className="crm-item-dia-acoes">
+      <span className="item-lista-acoes">
         {!item.tarefaId && (
           <button
-            className="crm-acao-inline"
+            className="botao botao-p botao-neutro"
             onClick={() => void correr(() => acoes.aoRegistrarContato(item))}
             disabled={ocupado}
             type="button"
@@ -219,7 +251,7 @@ function ItemDoDia({ item, acoes }: { item: ItemDia; acoes: AcoesDoDia }) {
           aoAdiar={(quando) => void correr(() => acoes.aoAdiar(item, quando))}
         />
         <button
-          className="crm-acao-inline crm-acao-secundaria"
+          className="botao botao-p botao-fantasma"
           onClick={() => acoes.aoAbrirContato(item.contatoId)}
           disabled={!item.contatoId}
           type="button"
@@ -264,7 +296,7 @@ function BotaoAdiar({
   return (
     <span className="crm-adiar" ref={caixa}>
       <button
-        className="crm-acao-inline"
+        className="botao botao-p botao-neutro"
         onClick={() => setAberto((atual) => !atual)}
         disabled={ocupado}
         aria-expanded={aberto}
@@ -274,11 +306,11 @@ function BotaoAdiar({
         Adiar
       </button>
       {aberto && (
-        <span className="crm-adiar-menu" role="menu" aria-label={`Adiar ${item.titulo}`}>
+        <span className="popover crm-adiar-menu" role="menu" aria-label={`Adiar ${item.titulo}`}>
           {PRESETS_SNOOZE.map((preset) => (
             <button
               key={preset.chave}
-              className="crm-adiar-opcao"
+              className="menu-item"
               onClick={() => {
                 setAberto(false);
                 aoAdiar(dataDoSnooze(new Date(), preset));

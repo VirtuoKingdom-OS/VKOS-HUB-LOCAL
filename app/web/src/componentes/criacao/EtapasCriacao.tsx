@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -16,7 +17,6 @@ import { lerBase64 } from "../../util/arquivo";
 import { mensagemDeErro } from "../../util/erros";
 import {
   IconeCarrossel,
-  IconeClipe,
   IconeGaleria,
   IconePost,
   IconeRaio,
@@ -26,7 +26,7 @@ import {
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
 import { ehImagem } from "../telas/fontes";
 import type { DadosCriacao, ModoImagem, OrigemImagem } from "./prompt";
-import "../../estilos/criacao.css";
+import "./criacao.css";
 
 // Um anexo ja enviado pro backend: nome do arquivo e caminho relativo devolvido.
 // Serializavel, entao sobrevive no node data e no rascunho do dashboard.
@@ -197,7 +197,7 @@ const FONTES = [
 // As tres opcoes de imagem da etapa 3.
 const MODOS_IMAGEM: { id: ModoImagem; titulo: string; desc: string }[] = [
   { id: "sem", titulo: "Sem imagens", desc: "Só texto, o modelo cuida do visual." },
-  { id: "com", titulo: "Com imagens", desc: "Imagens nas páginas do carrossel." },
+  { id: "com", titulo: "Com imagens", desc: "As suas fotos entram nas páginas." },
   {
     id: "intercalado",
     titulo: "Intercalado",
@@ -246,9 +246,16 @@ export function EtapasCriacao({
     carregando: carregandoModelos,
   } = usarProvedoresIA();
   const cfg = CONFIG_TIPO[tipo];
+  // Prefixo unico de id: as mesmas etapas rodam duas vezes na tela quando ha um
+  // node do cockpit aberto atras do wizard, e id repetido quebra o <label for>.
+  const id = useId();
 
   const [etapa, setEtapa] = useState(0);
   const [direcao, setDirecao] = useState<"frente" | "tras">("frente");
+  // O aviso de tema vazio so aparece depois que a pessoa mexeu no campo e saiu
+  // dele. Antes ele nascia junto com a etapa, em cima de um formulario que
+  // ninguem tinha tocado ainda: era uma reclamacao antes de haver erro.
+  const [temaTocado, setTemaTocado] = useState(false);
 
   // Upload de imagens da etapa 3: progresso e erro sao UI local; os anexos em si
   // moram em `dados`.
@@ -283,6 +290,7 @@ export function EtapasCriacao({
         : etapa === TOTAL_ETAPAS - 1
           ? !!dados.modelo
           : true;
+  const modeloTravado = dados.aprimorarComIA === false;
 
   useEffect(() => {
     if (modelos.length === 0 || modelos.some((m) => m.alias === dados.modelo)) return;
@@ -397,8 +405,8 @@ export function EtapasCriacao({
     }
   };
 
-  // Arrastar e soltar imagens na dropzone. stopPropagation pra nao vazar pro
-  // handler de anexar-material do node por baixo.
+  // Arrastar e soltar imagens na area de soltar. stopPropagation pra nao vazar
+  // pro handler de anexar-material do node por baixo.
   const aoSoltar = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -421,533 +429,644 @@ export function EtapasCriacao({
 
   return (
     <>
-      {/* Indicador de passos. */}
-      <div className={`criacao-passos${c}`} aria-hidden="true">
-        {rotulosEtapa.map((_, i) => (
-          <span
-            key={i}
-            className={`criacao-passo${i === etapa ? " atual" : ""}${
-              i < etapa ? " feito" : ""
-            }`}
-          />
-        ))}
+      {/* Progresso da coleta. O numero exato esta escrito ao lado da pergunta,
+          entao a barra e reforco visual e nao carrega informacao sozinha. */}
+      <div className={`progresso criacao-progresso${c}`} aria-hidden="true">
+        <div
+          className="progresso-barra"
+          style={{ width: `${((etapa + 1) / TOTAL_ETAPAS) * 100}%` }}
+        />
       </div>
 
-      <div
-        key={etapa}
-        className={`criacao-etapa da-${direcao}${c}${compacto ? " nowheel" : ""}`}
-      >
-        <h2 className="criacao-titulo">{rotulosEtapa[etapa]}</h2>
+      <div className={`criacao-corpo${c}${compacto ? " nowheel" : ""}`}>
+        <div key={etapa} className={`criacao-etapa da-${direcao}`}>
+          <div className="criacao-cabeca">
+            <h2 className="criacao-pergunta">{rotulosEtapa[etapa]}</h2>
+            <span className="criacao-contador">
+              Etapa {etapa + 1} de {TOTAL_ETAPAS}
+            </span>
+          </div>
 
-        {/* Etapa 1: o que criar. */}
-        {etapa === 0 && (
-          <div className="criacao-campos">
-            <label className="criacao-rotulo">
-              {cfg.rotuloTema}
-              <input
-                ref={refTema}
-                className="criacao-input-grande nodrag"
-                placeholder="Ex: 5 erros de logo que espantam cliente"
-                value={dados.tema}
-                onChange={(e) => aoMudar({ tema: e.target.value })}
-              />
-            </label>
-            {!temaValido && (
-              <span className="criacao-hint">Escreva o tema pra continuar.</span>
-            )}
-
-            {/* Quantidade de paginas: so no carrossel. */}
-            {tipo === "carrossel" && (
-              <div className="criacao-bloco">
-                <span className="criacao-rotulo-mini">Quantidade de páginas</span>
-                <div className="criacao-paginas">
-                  <button
-                    className={`criacao-chip${dados.paginas === null ? " ativo" : ""}`}
-                    onClick={() => aoMudar({ paginas: null })}
-                  >
-                    Auto
-                  </button>
-                  <div
-                    className={`criacao-stepper${dados.paginas !== null ? " ativo" : ""}`}
-                  >
-                    <button
-                      className="criacao-stepper-btn"
-                      aria-label="Menos páginas"
-                      onClick={() =>
-                        aoMudar({
-                          paginas: Math.max(
-                            PAGINAS_MIN,
-                            (dados.paginas ?? PAGINAS_PADRAO) - 1
-                          ),
-                        })
-                      }
-                    >
-                      −
-                    </button>
-                    <span className="criacao-stepper-valor">
-                      {dados.paginas ?? "Auto"}
-                    </span>
-                    <button
-                      className="criacao-stepper-btn"
-                      aria-label="Mais páginas"
-                      onClick={() =>
-                        aoMudar({
-                          paginas: Math.min(
-                            PAGINAS_MAX,
-                            (dados.paginas ?? PAGINAS_PADRAO - 1) + 1
-                          ),
-                        })
-                      }
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="criacao-bloco">
-              <span className="criacao-rotulo-mini">Modelo de IA</span>
-              <div className="criacao-cards-lin">
-                {modelos.map((m) => (
-                  <button
-                    key={m.alias}
-                    className={`criacao-card-op${dados.modelo === m.alias ? " ativo" : ""}`}
-                    onClick={() => aoMudar({ modelo: m.alias })}
-                    title={m.observacaoCusto}
-                    disabled={dados.aprimorarComIA === false}
-                  >
-                    <span className="criacao-card-nome">{m.rotulo}</span>
-                    <span className="criacao-card-desc">{m.observacaoCusto}</span>
-                  </button>
-                ))}
-                {carregandoModelos && modelos.length === 0 && (
-                  <span className="criacao-card-desc">Carregando modelos...</span>
+          {/* Etapa 1: o que criar. */}
+          {etapa === 0 && (
+            <div className="criacao-campos">
+              <div className="grupo-campo">
+                <label className="rotulo" htmlFor={`${id}-tema`}>
+                  {cfg.rotuloTema}
+                </label>
+                <input
+                  ref={refTema}
+                  id={`${id}-tema`}
+                  className="campo campo-g nodrag"
+                  placeholder="Ex: 5 erros de logo que espantam cliente"
+                  value={dados.tema}
+                  onChange={(e) => aoMudar({ tema: e.target.value })}
+                  onBlur={() => setTemaTocado(true)}
+                  aria-invalid={temaTocado && !temaValido}
+                  aria-describedby={
+                    temaTocado && !temaValido ? `${id}-tema-erro` : undefined
+                  }
+                />
+                {temaTocado && !temaValido && (
+                  <span className="erro-campo" id={`${id}-tema-erro`}>
+                    Escreva o tema pra continuar.
+                  </span>
                 )}
               </div>
-              {dados.aprimorarComIA === false && (
-                <span className="criacao-hint">
-                  O Aprimorar com IA está desligado: a geração usa o modelo
-                  econômico. Ligue de novo na última etapa pra escolher o modelo.
-                </span>
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* Etapa 2: a cara. */}
-        {etapa === 1 && (
-          <div className="criacao-campos">
-            {tipo === "carrossel" ? (
-              <>
-                <div className="criacao-bloco criacao-modelos-grupo">
-                  <span className="criacao-rotulo-mini">Capa</span>
-                  <div className="criacao-modelos-grade">
-                    <button
-                      className={`criacao-card-op com-thumb${
-                        estiloCapa === "" ? " ativo" : ""
-                      }`}
-                      onClick={() => {
-                        paginasTocadasRef.current = false;
-                        aoMudar({ estilo: "", estiloCapa: "", estiloPaginas: "" });
-                      }}
-                    >
-                      <span className="criacao-modelo-thumb vazia">
-                        <IconeRaio className="" />
-                      </span>
-                      <span className="criacao-card-nome">Deixar a IA escolher</span>
-                      <span className="criacao-card-desc">
-                        O sistema decide os dois estilos.
-                      </span>
-                    </button>
-                    {modelosCarrossel.map((mc) => (
+              {/* Quantidade de paginas: so no carrossel. Dois controles, nao
+                  dois nomes da mesma coisa: ou o Hub decide a quantidade, ou
+                  voce escolhe o numero. */}
+              {tipo === "carrossel" && (
+                <div className="grupo-campo">
+                  <span className="rotulo" id={`${id}-paginas`}>
+                    Quantidade de páginas
+                  </span>
+                  <div className="criacao-paginas">
+                    <div className="segmentado" aria-labelledby={`${id}-paginas`}>
                       <button
-                        key={mc.id}
-                        className={`criacao-card-op com-thumb${
-                          estiloCapa === mc.id ? " ativo" : ""
-                        }`}
+                        className="segmento"
+                        aria-pressed={dados.paginas === null}
+                        onClick={() => aoMudar({ paginas: null })}
+                      >
+                        Automático
+                      </button>
+                      <button
+                        className="segmento"
+                        aria-pressed={dados.paginas !== null}
                         onClick={() =>
-                          aoMudar({
-                            estilo: "",
-                            estiloCapa: mc.id,
-                            ...(!paginasTocadasRef.current
-                              ? { estiloPaginas: mc.id }
-                              : {}),
-                          })
+                          aoMudar({ paginas: dados.paginas ?? PAGINAS_PADRAO })
                         }
                       >
-                        <MiniModelo id={mc.id} slide={1} />
-                        <span className="criacao-card-nome">{mc.nome}</span>
-                        {mc.descricao && (
-                          <span className="criacao-card-desc">{mc.descricao}</span>
-                        )}
+                        Escolher
                       </button>
-                    ))}
-                  </div>
-                </div>
-                <div
-                  className={`criacao-bloco criacao-modelos-grupo${
-                    estiloCapa === "" ? " desabilitado" : ""
-                  }`}
-                >
-                  <span className="criacao-rotulo-mini">Páginas de conteúdo</span>
-                  <div className="criacao-modelos-grade">
-                    {modelosCarrossel.map((mc) => (
-                      <button
-                        key={mc.id}
-                        disabled={estiloCapa === ""}
-                        className={`criacao-card-op com-thumb${
-                          estiloPaginas === mc.id ? " ativo" : ""
-                        }`}
-                        onClick={() => {
-                          paginasTocadasRef.current = true;
-                          aoMudar({ estilo: "", estiloPaginas: mc.id });
-                        }}
-                      >
-                        <MiniModelo id={mc.id} slide={2} />
-                        <span className="criacao-card-nome">{mc.nome}</span>
-                        {mc.descricao && (
-                          <span className="criacao-card-desc">{mc.descricao}</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="criacao-bloco">
-                <span className="criacao-rotulo-mini">Estilo</span>
-                <div className="criacao-modelos-grade">
-                  <button
-                    className={`criacao-card-op com-thumb${
-                      dados.estilo === "" ? " ativo" : ""
-                    }`}
-                    onClick={() => aoMudar({ estilo: "" })}
-                  >
-                    <span className="criacao-modelo-thumb vazia">
-                      <IconeRaio className="" />
-                    </span>
-                    <span className="criacao-card-nome">Deixar a IA escolher</span>
-                    <span className="criacao-card-desc">O sistema decide o modelo.</span>
-                  </button>
-                  {modelosCarrossel.map((mc) => (
-                    <button
-                      key={mc.id}
-                      className={`criacao-card-op com-thumb${
-                        dados.estilo === mc.id ? " ativo" : ""
-                      }`}
-                      onClick={() => aoMudar({ estilo: mc.id })}
-                    >
-                      <MiniModelo id={mc.id} />
-                      <span className="criacao-card-nome">{mc.nome}</span>
-                      {mc.descricao && (
-                        <span className="criacao-card-desc">{mc.descricao}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Dimensao: so no carrossel. Post e story sao proporcao fixa. */}
-            {tipo === "carrossel" && (
-              <div className="criacao-bloco">
-                <span className="criacao-rotulo-mini">Dimensão</span>
-                <div className="criacao-cards-lin">
-                  {PROPORCOES.map((p) => (
-                    <button
-                      key={p.id}
-                      className={`criacao-card-op${
-                        proporcaoEfetiva === p.id ? " ativo" : ""
-                      }`}
-                      onClick={() => aoMudar({ proporcao: p.id })}
-                    >
-                      <span className="criacao-card-nome">{p.rotulo}</span>
-                      <span className="criacao-card-desc">{p.descricao}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Etapa 3: imagens. */}
-        {etapa === 2 && (
-          <div className="criacao-campos">
-            <div className="criacao-cards-lin">
-              {MODOS_IMAGEM.map((m) => (
-                <button
-                  key={m.id}
-                  className={`criacao-card-op alto${
-                    dados.modoImagem === m.id ? " ativo" : ""
-                  }`}
-                  onClick={() => aoMudar({ modoImagem: m.id })}
-                >
-                  <span className="criacao-card-nome">{m.titulo}</span>
-                  <span className="criacao-card-desc">{m.desc}</span>
-                </button>
-              ))}
-            </div>
-
-            {dados.modoImagem !== "sem" && (
-              <div className="criacao-origem">
-                <span className="criacao-rotulo-mini">De onde vêm as imagens</span>
-                <button
-                  type="button"
-                  className="botao botao-neutro criacao-fontes-acao"
-                  onClick={() => {
-                    aoMudar({ origemImagem: "usuario" });
-                    setGaleriaAberta(true);
-                  }}
-                  disabled={!temImagensNasFontes || enviandoAnexo}
-                >
-                  <IconeGaleria className="" />
-                  Escolher das Fontes de dados
-                </button>
-                {!temImagensNasFontes && (
-                  <span className="criacao-hint">Nenhuma imagem nas fontes ainda.</span>
-                )}
-                <div className="criacao-cards-lin">
-                  <button
-                    className={`criacao-card-op${
-                      dados.origemImagem === "ia" ? " ativo" : ""
-                    }${provedorAtivo !== "codex" ? " desabilitado" : ""}`}
-                    disabled={provedorAtivo !== "codex"}
-                    onClick={() => aoMudar({ origemImagem: "ia", anexos: [] })}
-                    title={
-                      provedorAtivo === "codex"
-                        ? "O Codex cria as imagens durante a geracao"
-                        : "Disponivel quando o Codex estiver conectado"
-                    }
-                  >
-                    <span className="criacao-card-nome">Gerar com IA</span>
-                    <span className="criacao-card-desc">Imagens criadas na hora.</span>
-                    {provedorAtivo !== "codex" && (
-                      <span className="criacao-badge-breve">Use o Codex</span>
-                    )}
-                  </button>
-                  <div
-                    className={`criacao-card-op criacao-dropzone${
-                      arrastando ? " arrastando" : ""
-                    }${dados.origemImagem !== "ia" ? " ativo" : ""}`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      aoMudar({ origemImagem: "usuario" });
-                      refArquivo.current?.click();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        aoMudar({ origemImagem: "usuario" });
-                        refArquivo.current?.click();
-                      }
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setArrastando(true);
-                    }}
-                    onDragLeave={(e) => {
-                      e.stopPropagation();
-                      setArrastando(false);
-                    }}
-                    onDrop={aoSoltar}
-                  >
-                    <span className="criacao-card-nome">Enviar minhas imagens</span>
-                    <span className="criacao-card-desc">
-                      {enviandoAnexo
-                        ? "Enviando..."
-                        : arrastando
-                          ? "Solte as imagens aqui."
-                          : "Arraste aqui ou clique pra escolher."}
-                    </span>
-                  </div>
-                </div>
-                <input
-                  ref={refArquivo}
-                  type="file"
-                  multiple
-                  hidden
-                  accept="image/*"
-                  onChange={(e) => {
-                    void enviarArquivos(Array.from(e.target.files ?? []));
-                    e.target.value = "";
-                  }}
-                />
-                {erroAnexo && <span className="criacao-hint erro">{erroAnexo}</span>}
-                {dados.origemImagem !== "ia" && dados.anexos.length > 0 && (
-                  <div className="criacao-anexos">
-                    {dados.anexos.map((a) => (
-                      <span className="criacao-chip-anexo" key={a.caminhoRelativo}>
-                        <IconeClipe className="" />
-                        <span className="criacao-nome-anexo" title={a.nome}>
-                          {a.nome}
+                    </div>
+                    {dados.paginas !== null && (
+                      <div className="criacao-stepper">
+                        <button
+                          className="botao botao-p botao-icone botao-neutro"
+                          aria-label="Menos páginas"
+                          disabled={dados.paginas <= PAGINAS_MIN}
+                          onClick={() =>
+                            aoMudar({
+                              paginas: Math.max(PAGINAS_MIN, (dados.paginas ?? PAGINAS_PADRAO) - 1),
+                            })
+                          }
+                        >
+                          −
+                        </button>
+                        <span
+                          className="criacao-stepper-valor"
+                          aria-live="polite"
+                          aria-label={`${dados.paginas} páginas`}
+                        >
+                          {dados.paginas}
                         </span>
                         <button
-                          className="criacao-remover-anexo"
-                          onClick={() => removerAnexo(a.caminhoRelativo)}
-                          aria-label="Remover imagem"
-                          title="Remover imagem"
+                          className="botao botao-p botao-icone botao-neutro"
+                          aria-label="Mais páginas"
+                          disabled={dados.paginas >= PAGINAS_MAX}
+                          onClick={() =>
+                            aoMudar({
+                              paginas: Math.min(PAGINAS_MAX, (dados.paginas ?? PAGINAS_PADRAO) + 1),
+                            })
+                          }
                         >
-                          <IconeX className="" />
+                          +
                         </button>
-                      </span>
-                    ))}
+                      </div>
+                    )}
                   </div>
+                  <span className="dica">
+                    {dados.paginas === null
+                      ? "O Hub escolhe quantas páginas o tema pede."
+                      : `O carrossel sai com ${dados.paginas} páginas.`}
+                  </span>
+                </div>
+              )}
+
+              <div className="grupo-campo">
+                <span className="rotulo" id={`${id}-r-modelo`}>
+                  Modelo de IA
+                </span>
+                <fieldset className="opcoes" aria-labelledby={`${id}-r-modelo`}>
+                  {modelos.map((m) => (
+                    <label className="opcao" key={m.alias}>
+                      <input
+                        type="radio"
+                        name={`${id}-modelo`}
+                        value={m.alias}
+                        checked={dados.modelo === m.alias}
+                        disabled={modeloTravado}
+                        onChange={() => aoMudar({ modelo: m.alias })}
+                      />
+                      <span className="opcao-titulo">{m.rotulo}</span>
+                      <span className="opcao-descricao">{m.observacaoCusto}</span>
+                    </label>
+                  ))}
+                </fieldset>
+                {carregandoModelos && modelos.length === 0 && (
+                  <span className="dica">Carregando modelos...</span>
                 )}
-                <GaleriaFontes
-                  aberta={galeriaAberta}
-                  aoFechar={() => setGaleriaAberta(false)}
-                  aoEscolher={escolherDaFonte}
-                />
+                {modeloTravado && (
+                  <span className="dica">
+                    O Aprimorar com IA está desligado, então a geração usa o
+                    modelo econômico. Ligue de novo na última etapa pra escolher.
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Etapa 4: visual. */}
-        {etapa === 3 && (
-          <div className="criacao-campos">
-            <div className="criacao-cards-lin">
-              <button
-                className={`criacao-card-op alto${
-                  dados.visualModo === "negocio" ? " ativo" : ""
-                }`}
-                onClick={() => aoMudar({ visualModo: "negocio" })}
-              >
-                <span className="criacao-card-nome">Usar o visual do negócio</span>
-                <span className="criacao-card-desc">
-                  Cores e fontes do Cérebro, com a cara da marca.
-                </span>
-              </button>
-              <button
-                className={`criacao-card-op alto${
-                  dados.visualModo === "personalizado" ? " ativo" : ""
-                }`}
-                onClick={() => aoMudar({ visualModo: "personalizado" })}
-              >
-                <span className="criacao-card-nome">Personalizar</span>
-                <span className="criacao-card-desc">
-                  Escolha as cores e as fontes desta geração.
-                </span>
-              </button>
             </div>
+          )}
 
-            {dados.visualModo === "personalizado" && (
-              <div className="criacao-visual">
-                <div className="criacao-cores">
-                  <label className="criacao-cor">
-                    <span>Fundo</span>
-                    <input
-                      type="color"
-                      value={dados.corFundo}
-                      onChange={(e) => aoMudar({ corFundo: e.target.value })}
-                    />
-                  </label>
-                  <label className="criacao-cor">
-                    <span>Destaque</span>
-                    <input
-                      type="color"
-                      value={dados.corDestaque}
-                      onChange={(e) => aoMudar({ corDestaque: e.target.value })}
-                    />
-                  </label>
-                  <label className="criacao-cor">
-                    <span>Texto</span>
-                    <input
-                      type="color"
-                      value={dados.corTexto}
-                      onChange={(e) => aoMudar({ corTexto: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <div className="criacao-fontes">
-                  <label className="criacao-rotulo">
-                    Fonte dos títulos
-                    <select
-                      className="nodrag"
-                      value={dados.fonteTitulos}
-                      onChange={(e) => aoMudar({ fonteTitulos: e.target.value })}
+          {/* Etapa 2: a cara. */}
+          {etapa === 1 && (
+            <div className="criacao-campos">
+              {tipo === "carrossel" ? (
+                <>
+                  <div className="grupo-campo">
+                    <span className="rotulo" id={`${id}-r-capa`}>
+                      Capa
+                    </span>
+                    <fieldset
+                      className="opcoes criacao-modelos"
+                      aria-labelledby={`${id}-r-capa`}
                     >
-                      {FONTES.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
+                      <label className="opcao">
+                        <input
+                          type="radio"
+                          name={`${id}-capa`}
+                          checked={estiloCapa === ""}
+                          onChange={() => {
+                            paginasTocadasRef.current = false;
+                            aoMudar({ estilo: "", estiloCapa: "", estiloPaginas: "" });
+                          }}
+                        />
+                        <span className="criacao-thumb criacao-thumb-vazia">
+                          <IconeRaio className="" />
+                        </span>
+                        <span className="opcao-titulo">Deixar a IA escolher</span>
+                        <span className="opcao-descricao">
+                          O sistema decide os dois estilos.
+                        </span>
+                      </label>
+                      {modelosCarrossel.map((mc) => (
+                        <label className="opcao" key={mc.id}>
+                          <input
+                            type="radio"
+                            name={`${id}-capa`}
+                            checked={estiloCapa === mc.id}
+                            onChange={() =>
+                              aoMudar({
+                                estilo: "",
+                                estiloCapa: mc.id,
+                                ...(!paginasTocadasRef.current
+                                  ? { estiloPaginas: mc.id }
+                                  : {}),
+                              })
+                            }
+                          />
+                          <MiniModelo id={mc.id} slide={1} />
+                          <span className="opcao-titulo">{mc.nome}</span>
+                          {mc.descricao && (
+                            <span className="opcao-descricao">{mc.descricao}</span>
+                          )}
+                        </label>
                       ))}
-                    </select>
-                  </label>
-                  <label className="criacao-rotulo">
-                    Fonte do corpo
-                    <select
-                      className="nodrag"
-                      value={dados.fonteCorpo}
-                      onChange={(e) => aoMudar({ fonteCorpo: e.target.value })}
+                    </fieldset>
+                  </div>
+
+                  <div className="grupo-campo">
+                    <span className="rotulo" id={`${id}-r-paginas-estilo`}>
+                      Páginas de conteúdo
+                    </span>
+                    {estiloCapa === "" && (
+                      <span className="dica">
+                        Escolha uma capa acima pra liberar o estilo das páginas.
+                      </span>
+                    )}
+                    <fieldset
+                      className="opcoes criacao-modelos"
+                      aria-labelledby={`${id}-r-paginas-estilo`}
                     >
-                      {FONTES.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
+                      {modelosCarrossel.map((mc) => (
+                        <label className="opcao" key={mc.id}>
+                          <input
+                            type="radio"
+                            name={`${id}-paginas-estilo`}
+                            checked={estiloPaginas === mc.id}
+                            disabled={estiloCapa === ""}
+                            onChange={() => {
+                              paginasTocadasRef.current = true;
+                              aoMudar({ estilo: "", estiloPaginas: mc.id });
+                            }}
+                          />
+                          <MiniModelo id={mc.id} slide={2} />
+                          <span className="opcao-titulo">{mc.nome}</span>
+                          {mc.descricao && (
+                            <span className="opcao-descricao">{mc.descricao}</span>
+                          )}
+                        </label>
                       ))}
-                    </select>
-                  </label>
+                    </fieldset>
+                  </div>
+                </>
+              ) : (
+                <div className="grupo-campo">
+                  <span className="rotulo" id={`${id}-r-estilo`}>
+                    Estilo
+                  </span>
+                  <fieldset
+                    className="opcoes criacao-modelos"
+                    aria-labelledby={`${id}-r-estilo`}
+                  >
+                    <label className="opcao">
+                      <input
+                        type="radio"
+                        name={`${id}-estilo`}
+                        checked={dados.estilo === ""}
+                        onChange={() => aoMudar({ estilo: "" })}
+                      />
+                      <span className="criacao-thumb criacao-thumb-vazia">
+                        <IconeRaio className="" />
+                      </span>
+                      <span className="opcao-titulo">Deixar a IA escolher</span>
+                      <span className="opcao-descricao">O sistema decide o modelo.</span>
+                    </label>
+                    {modelosCarrossel.map((mc) => (
+                      <label className="opcao" key={mc.id}>
+                        <input
+                          type="radio"
+                          name={`${id}-estilo`}
+                          checked={dados.estilo === mc.id}
+                          onChange={() => aoMudar({ estilo: mc.id })}
+                        />
+                        <MiniModelo id={mc.id} />
+                        <span className="opcao-titulo">{mc.nome}</span>
+                        {mc.descricao && (
+                          <span className="opcao-descricao">{mc.descricao}</span>
+                        )}
+                      </label>
+                    ))}
+                  </fieldset>
                 </div>
+              )}
+
+              {/* Dimensao: so no carrossel. Post e story sao proporcao fixa. */}
+              {tipo === "carrossel" && (
+                <div className="grupo-campo">
+                  <span className="rotulo" id={`${id}-r-proporcao`}>
+                    Dimensão
+                  </span>
+                  <fieldset
+                    className="opcoes"
+                    aria-labelledby={`${id}-r-proporcao`}
+                  >
+                    {PROPORCOES.map((p) => (
+                      <label className="opcao" key={p.id}>
+                        <input
+                          type="radio"
+                          name={`${id}-proporcao`}
+                          checked={proporcaoEfetiva === p.id}
+                          onChange={() => aoMudar({ proporcao: p.id })}
+                        />
+                        <span className="opcao-titulo">{p.rotulo}</span>
+                        <span className="opcao-descricao">{p.descricao}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Etapa 3: imagens. */}
+          {etapa === 2 && (
+            <div className="criacao-campos">
+              <div className="grupo-campo">
+                <span className="rotulo" id={`${id}-r-modo`}>
+                  Imagens nas páginas
+                </span>
+                <fieldset className="opcoes" aria-labelledby={`${id}-r-modo`}>
+                  {MODOS_IMAGEM.map((m) => (
+                    <label className="opcao" key={m.id}>
+                      <input
+                        type="radio"
+                        name={`${id}-modo-imagem`}
+                        checked={dados.modoImagem === m.id}
+                        onChange={() => aoMudar({ modoImagem: m.id })}
+                      />
+                      <span className="opcao-titulo">{m.titulo}</span>
+                      <span className="opcao-descricao">{m.desc}</span>
+                    </label>
+                  ))}
+                </fieldset>
               </div>
-            )}
 
-            <label className="criacao-rotulo">
-              Instruções finais (opcional)
-              <textarea
-                className="criacao-textarea nodrag nowheel"
-                placeholder="Ex: use exatamente o roteiro abaixo; deixe o texto mais direto; não use amarelo; a capa precisa destacar esta frase..."
-                value={dados.detalhes}
-                onChange={(e) => aoMudar({ detalhes: e.target.value })}
-              />
-              <span className="criacao-hint">
-                Última chance de definir conteúdo, tom e exceções antes de gerar.
-              </span>
-            </label>
+              {dados.modoImagem !== "sem" && (
+                <>
+                  <div className="grupo-campo">
+                    <span className="rotulo" id={`${id}-r-origem`}>
+                      De onde vêm as imagens
+                    </span>
+                    <fieldset
+                      className="opcoes"
+                      aria-labelledby={`${id}-r-origem`}
+                    >
+                      <label className="opcao">
+                        <input
+                          type="radio"
+                          name={`${id}-origem`}
+                          checked={dados.origemImagem !== "ia"}
+                          onChange={() => aoMudar({ origemImagem: "usuario" })}
+                        />
+                        <span className="opcao-titulo">São minhas</span>
+                        <span className="opcao-descricao">
+                          Envie do computador ou pegue das Fontes de dados.
+                        </span>
+                      </label>
+                      <label className="opcao">
+                        <input
+                          type="radio"
+                          name={`${id}-origem`}
+                          checked={dados.origemImagem === "ia"}
+                          disabled={provedorAtivo !== "codex"}
+                          onChange={() => aoMudar({ origemImagem: "ia", anexos: [] })}
+                        />
+                        <span className="opcao-titulo">Gerar com IA</span>
+                        <span className="opcao-descricao">Imagens criadas na hora.</span>
+                        {provedorAtivo !== "codex" && (
+                          <span className="selo criacao-opcao-nota">Use o Codex</span>
+                        )}
+                      </label>
+                    </fieldset>
+                  </div>
 
-            {/* Interruptor do modo economico. Ligado (padrao): fluxo atual.
-                Desligado: montagem direta num modelo economico. */}
-            <div className="criacao-aprimorar">
-              <div className="criacao-aprimorar-texto">
-                <span className="criacao-aprimorar-titulo">Aprimorar com IA</span>
-                <span className="criacao-hint">
-                  Ligado, a IA capricha no design com o modelo escolhido.
-                  Desligado, um modelo econômico só monta o template com o seu
-                  conteúdo: bem mais barato, resultado mais simples.
+                  {dados.origemImagem !== "ia" && (
+                    <div className="grupo-campo">
+                      <span className="rotulo">Suas imagens</span>
+                      <div
+                        className={`criacao-soltar${arrastando ? " arrastando" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Enviar imagens do computador"
+                        onClick={() => refArquivo.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            refArquivo.current?.click();
+                          }
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setArrastando(true);
+                        }}
+                        onDragLeave={(e) => {
+                          e.stopPropagation();
+                          setArrastando(false);
+                        }}
+                        onDrop={aoSoltar}
+                      >
+                        <span className="criacao-soltar-titulo">
+                          {enviandoAnexo
+                            ? "Enviando..."
+                            : arrastando
+                              ? "Solte as imagens aqui"
+                              : "Arraste imagens aqui"}
+                        </span>
+                        <span className="criacao-soltar-dica">
+                          Ou clique pra escolher no computador.
+                        </span>
+                      </div>
+                      <input
+                        ref={refArquivo}
+                        type="file"
+                        multiple
+                        hidden
+                        accept="image/*"
+                        onChange={(e) => {
+                          void enviarArquivos(Array.from(e.target.files ?? []));
+                          e.target.value = "";
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="botao botao-p botao-neutro criacao-fontes-acao"
+                        onClick={() => setGaleriaAberta(true)}
+                        disabled={!temImagensNasFontes || enviandoAnexo}
+                      >
+                        <IconeGaleria className="" />
+                        Escolher das Fontes de dados
+                      </button>
+                      {!temImagensNasFontes && (
+                        <span className="dica">Nenhuma imagem nas fontes ainda.</span>
+                      )}
+                      {erroAnexo && <span className="erro-campo">{erroAnexo}</span>}
+                      {dados.anexos.length > 0 && (
+                        <ul className="lista criacao-anexos">
+                          {dados.anexos.map((a) => (
+                            <li className="item-lista" key={a.caminhoRelativo}>
+                              <span className="item-lista-texto">
+                                <span className="item-lista-titulo" title={a.nome}>
+                                  {a.nome}
+                                </span>
+                              </span>
+                              <span className="item-lista-acoes">
+                                <button
+                                  className="botao botao-p botao-icone botao-fantasma"
+                                  onClick={() => removerAnexo(a.caminhoRelativo)}
+                                  aria-label={`Remover ${a.nome}`}
+                                >
+                                  <IconeX className="" />
+                                </button>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <GaleriaFontes
+                        aberta={galeriaAberta}
+                        aoFechar={() => setGaleriaAberta(false)}
+                        aoEscolher={escolherDaFonte}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Etapa 4: visual. */}
+          {etapa === 3 && (
+            <div className="criacao-campos">
+              <div className="grupo-campo">
+                <span className="rotulo" id={`${id}-r-visual`}>
+                  Cores e fontes
+                </span>
+                <fieldset className="opcoes" aria-labelledby={`${id}-r-visual`}>
+                  <label className="opcao">
+                    <input
+                      type="radio"
+                      name={`${id}-visual`}
+                      checked={dados.visualModo === "negocio"}
+                      onChange={() => aoMudar({ visualModo: "negocio" })}
+                    />
+                    <span className="opcao-titulo">Usar o visual do negócio</span>
+                    <span className="opcao-descricao">
+                      Cores e fontes do Cérebro, com a cara da marca.
+                    </span>
+                  </label>
+                  <label className="opcao">
+                    <input
+                      type="radio"
+                      name={`${id}-visual`}
+                      checked={dados.visualModo === "personalizado"}
+                      onChange={() => aoMudar({ visualModo: "personalizado" })}
+                    />
+                    <span className="opcao-titulo">Personalizar</span>
+                    <span className="opcao-descricao">
+                      Escolha as cores e as fontes desta geração.
+                    </span>
+                  </label>
+                </fieldset>
+              </div>
+
+              {dados.visualModo === "personalizado" && (
+                <>
+                  <div className="criacao-cores">
+                    <div className="grupo-campo">
+                      <label className="rotulo" htmlFor={`${id}-cor-fundo`}>
+                        Fundo
+                      </label>
+                      <input
+                        id={`${id}-cor-fundo`}
+                        type="color"
+                        className="campo campo-g criacao-campo-cor nodrag"
+                        value={dados.corFundo}
+                        onChange={(e) => aoMudar({ corFundo: e.target.value })}
+                      />
+                    </div>
+                    <div className="grupo-campo">
+                      <label className="rotulo" htmlFor={`${id}-cor-destaque`}>
+                        Destaque
+                      </label>
+                      <input
+                        id={`${id}-cor-destaque`}
+                        type="color"
+                        className="campo campo-g criacao-campo-cor nodrag"
+                        value={dados.corDestaque}
+                        onChange={(e) => aoMudar({ corDestaque: e.target.value })}
+                      />
+                    </div>
+                    <div className="grupo-campo">
+                      <label className="rotulo" htmlFor={`${id}-cor-texto`}>
+                        Texto
+                      </label>
+                      <input
+                        id={`${id}-cor-texto`}
+                        type="color"
+                        className="campo campo-g criacao-campo-cor nodrag"
+                        value={dados.corTexto}
+                        onChange={(e) => aoMudar({ corTexto: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="criacao-fontes">
+                    <div className="grupo-campo">
+                      <label className="rotulo" htmlFor={`${id}-fonte-titulos`}>
+                        Fonte dos títulos
+                      </label>
+                      <select
+                        id={`${id}-fonte-titulos`}
+                        className="campo nodrag"
+                        value={dados.fonteTitulos}
+                        onChange={(e) => aoMudar({ fonteTitulos: e.target.value })}
+                      >
+                        {FONTES.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grupo-campo">
+                      <label className="rotulo" htmlFor={`${id}-fonte-corpo`}>
+                        Fonte do corpo
+                      </label>
+                      <select
+                        id={`${id}-fonte-corpo`}
+                        className="campo nodrag"
+                        value={dados.fonteCorpo}
+                        onChange={(e) => aoMudar({ fonteCorpo: e.target.value })}
+                      >
+                        {FONTES.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="grupo-campo">
+                <label className="rotulo" htmlFor={`${id}-detalhes`}>
+                  Instruções finais (opcional)
+                </label>
+                <textarea
+                  id={`${id}-detalhes`}
+                  className="campo nodrag nowheel"
+                  placeholder="Ex: use exatamente o roteiro abaixo; deixe o texto mais direto; não use amarelo; a capa precisa destacar esta frase..."
+                  value={dados.detalhes}
+                  onChange={(e) => aoMudar({ detalhes: e.target.value })}
+                />
+                <span className="dica">
+                  Última chance de definir conteúdo, tom e exceções antes de gerar.
                 </span>
               </div>
-              <label className="criacao-switch">
+
+              {/* Interruptor do modo economico. Ligado (padrao): fluxo atual.
+                  Desligado: montagem direta num modelo economico. */}
+              <label className="criacao-linha-interruptor">
+                <span className="criacao-linha-interruptor-texto">
+                  <span className="criacao-linha-interruptor-titulo">
+                    Aprimorar com IA
+                  </span>
+                  <span className="dica">
+                    Ligado, a IA capricha no design com o modelo escolhido.
+                    Desligado, um modelo econômico só monta o template com o seu
+                    conteúdo: bem mais barato, resultado mais simples.
+                  </span>
+                </span>
                 <input
                   type="checkbox"
+                  className="interruptor"
                   checked={dados.aprimorarComIA !== false}
                   onChange={(e) => aoMudar({ aprimorarComIA: e.target.checked })}
                   aria-label="Aprimorar com IA"
                 />
-                <span className="criacao-switch-trilho">
-                  <span className="criacao-switch-bola" />
-                </span>
               </label>
-            </div>
-            {dados.aprimorarComIA === false && dados.detalhes.trim() === "" && (
-              <span className="criacao-aviso" role="status">
-                Sem instruções, o modo econômico escreve um conteúdo básico. Pra
-                um resultado caprichado, ligue o Aprimorar ou descreva o conteúdo.
-              </span>
-            )}
+              {modeloTravado && dados.detalhes.trim() === "" && (
+                <div className="faixa faixa-aviso" role="status">
+                  <div className="faixa-texto">
+                    Sem instruções, o modo econômico escreve um conteúdo básico.
+                    Pra um resultado caprichado, ligue o Aprimorar ou descreva o
+                    conteúdo acima.
+                  </div>
+                </div>
+              )}
 
-            {/* Previa discreta do prompt, so na ultima etapa e so quando o dono
-                passa uma (o node). O wizard do dashboard nao passa: fica limpo. */}
-            {previa && (
-              <div className="criacao-previa nowheel" title={previa}>
-                {previa}
-              </div>
-            )}
-          </div>
-        )}
+              {/* Previa discreta do prompt, so na ultima etapa e so quando o
+                  dono passa uma (o node). O wizard nao passa: fica limpo. */}
+              {previa && (
+                <div className="criacao-previa nowheel" title={previa}>
+                  {previa}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Rodape de navegacao. */}
@@ -983,7 +1102,7 @@ export function EtapasCriacao({
 // IntersectionObserver (nao carrega todos de uma vez). Fallback elegante quando
 // o preview nao existe (404) ou nao tem .slide.
 function MiniModelo({ id, slide = 1 }: { id: string; slide?: number }) {
-  const refCaixa = useRef<HTMLDivElement>(null);
+  const refCaixa = useRef<HTMLSpanElement>(null);
   const refIframe = useRef<HTMLIFrameElement>(null);
   const [visivel, setVisivel] = useState(false);
   const [dims, setDims] = useState<{ largura: number; altura: number } | null>(null);
@@ -1035,15 +1154,15 @@ function MiniModelo({ id, slide = 1 }: { id: string; slide?: number }) {
   const url = `/modelos-html/${encodeURIComponent(id)}/preview?slide=${slide}`;
 
   return (
-    <span className="criacao-modelo-thumb" ref={refCaixa}>
+    <span className="criacao-thumb" ref={refCaixa}>
       {falhou || !visivel ? (
-        <span className="criacao-modelo-fallback">
+        <span className="criacao-thumb-falhou">
           <IconeCarrossel className="" />
         </span>
       ) : (
         <iframe
           ref={refIframe}
-          className="criacao-modelo-frame"
+          className="criacao-thumb-frame"
           src={url}
           title=""
           tabIndex={-1}

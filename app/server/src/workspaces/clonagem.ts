@@ -19,6 +19,7 @@ import { isAbsolute, join } from "node:path";
 import { obterPastaVkos } from "../vkos/estado.js";
 import { registrarEAtivar } from "./ativacao.js";
 import { lerRegistro, workspacePorPasta, type RegistroWorkspaces, type Workspace } from "./estado.js";
+import { destinoPadraoWorkspace } from "./pastas.js";
 
 // Erro de negocio com status HTTP, pra virar resposta clara na rota.
 export class ErroWorkspace extends Error {
@@ -74,8 +75,15 @@ function esqueletoCerebro(origem: string): string {
 }
 
 // Valida a pasta destino: absoluta, e nao existente ou existente e vazia. Cria
-// a pasta se ainda nao existe.
-function prepararDestino(pastaDestino: string): void {
+// a pasta (e os pais que faltarem) se ainda nao existe.
+//
+// O montadoPeloServidor troca a mensagem de erro, nao a regra. Quando o caminho
+// veio do nome do workspace, "a pasta destino precisa estar vazia" nao ajuda
+// ninguem: quem digitou um nome nao escolheu pasta nenhuma. A causa real e que
+// ja existe um workspace com aquele nome.
+//
+// Exportada pra o teste exercitar a validacao sem clonar uma instalacao inteira.
+export function prepararDestino(pastaDestino: string, montadoPeloServidor = false): void {
   if (!pastaDestino || !isAbsolute(pastaDestino)) {
     throw new ErroWorkspace(400, "Informe um caminho absoluto para a pasta do novo workspace.");
   }
@@ -84,7 +92,12 @@ function prepararDestino(pastaDestino: string): void {
       throw new ErroWorkspace(400, "O destino existe e nao e uma pasta.");
     }
     if (readdirSync(pastaDestino).length > 0) {
-      throw new ErroWorkspace(400, "A pasta destino precisa estar vazia.");
+      throw new ErroWorkspace(
+        400,
+        montadoPeloServidor
+          ? "Ja existe um workspace com esse nome. Escolha outro nome."
+          : "A pasta destino precisa estar vazia.",
+      );
     }
   } else {
     mkdirSync(pastaDestino, { recursive: true });
@@ -132,11 +145,19 @@ function ligarNodeModules(origem: string, destino: string): string[] {
   }
 }
 
-// Cria um cliente novo: valida o destino, clona a estrutura, gera o cerebro em
+// Cria um cliente novo: resolve o destino, clona a estrutura, gera o cerebro em
 // branco, liga o node_modules, registra e ativa. Devolve o registro e os avisos.
+//
+// pastaDestino e OPCIONAL desde 2026-07-27: sem ela o servidor monta
+// <raiz>/workspaces/<slug do nome> sozinho, que e o caminho normal. Informar
+// uma pasta continua valendo, como valvula de escape pra quem guarda cliente em
+// outro disco.
+//
+// raiz so existe pro teste: raizProjeto() e constante e aponta pro projeto real.
 export function criarWorkspaceNovo(entrada: {
   nome: string;
-  pastaDestino: string;
+  pastaDestino?: string;
+  raiz?: string;
 }): { registro: RegistroWorkspaces; avisos: string[]; workspace: Workspace | null } {
   const nome = (entrada.nome ?? "").trim();
   if (!nome) {
@@ -148,8 +169,9 @@ export function criarWorkspaceNovo(entrada: {
     throw new ErroWorkspace(400, "Nenhum workspace aberto pra clonar a estrutura.");
   }
 
-  const pastaDestino = entrada.pastaDestino ?? "";
-  prepararDestino(pastaDestino);
+  const informada = (entrada.pastaDestino ?? "").trim();
+  const pastaDestino = informada || destinoPadraoWorkspace(nome, entrada.raiz);
+  prepararDestino(pastaDestino, !informada);
 
   copiarEstrutura(origem, pastaDestino);
   copiarArquivosRaiz(origem, pastaDestino);

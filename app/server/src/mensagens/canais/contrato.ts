@@ -10,7 +10,7 @@
 // nada agora: envio assincrono com status mudando por callback, template quando
 // a janela de 24 horas fecha, e recebimento por webhook. A regra do produto e
 // que biblioteca nao oficial de WhatsApp esta proibida no caminho padrao (ver
-// decisoes/2026-07-27-whatsapp-api-oficial-e-coexistence.md).
+// docs/decisoes/2026-07-27-whatsapp-api-oficial-e-coexistence.md).
 //
 // METODO OPCIONAL AUSENTE SIGNIFICA "ESTE CANAL NAO FAZ ISSO". Quem chama
 // confere antes; ninguem finge que fez.

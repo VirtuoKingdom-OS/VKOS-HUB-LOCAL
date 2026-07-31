@@ -11,6 +11,13 @@ import {
   type ConfigApp,
 } from "./api/cliente";
 import type { ProvedorIA } from "./tipos/dominio";
+import { CAMINHO_SETUP, EVENTO_ROTA, rotaAtual } from "./componentes/layout/rotas";
+
+// O setup esta aberto? Ele e a unica coisa que substitui o Hub inteiro, entao
+// a decisao e por caminho, nao por tela.
+function ehCaminhoDoSetup(rota: string): boolean {
+  return rota === CAMINHO_SETUP || rota.startsWith(`${CAMINHO_SETUP}/`);
+}
 
 export function App() {
   usarImersao();
@@ -22,7 +29,7 @@ export function App() {
   } = usarEstado();
   const [config, setConfig] = useState<ConfigApp | null>(null);
   const [configCarregada, setConfigCarregada] = useState(false);
-  const [hash, setHash] = useState(window.location.hash);
+  const [rota, setRota] = useState(rotaAtual);
 
   const carregarConfig = useCallback(async () => {
     setConfigCarregada(false);
@@ -36,9 +43,13 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const aoMudarHash = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", aoMudarHash);
-    return () => window.removeEventListener("hashchange", aoMudarHash);
+    const aoMudarRota = () => setRota(rotaAtual());
+    window.addEventListener("popstate", aoMudarRota);
+    window.addEventListener(EVENTO_ROTA, aoMudarRota);
+    return () => {
+      window.removeEventListener("popstate", aoMudarRota);
+      window.removeEventListener(EVENTO_ROTA, aoMudarRota);
+    };
   }, []);
 
   useEffect(() => {
@@ -50,12 +61,12 @@ export function App() {
       configCarregada &&
       config &&
       !config.provedorPadrao &&
-      !/^#\/setup(?:$|\/)/.test(hash)
+      !ehCaminhoDoSetup(rota)
     ) {
-      history.replaceState(null, "", "#/setup");
-      setHash("#/setup");
+      history.replaceState(null, "", CAMINHO_SETUP);
+      setRota(CAMINHO_SETUP);
     }
-  }, [configCarregada, config, hash]);
+  }, [configCarregada, config, rota]);
 
   if (!servidorOnline) {
     return <ServidorForaDoAr aoTentar={() => void recarregarInicial()} />;
@@ -73,7 +84,7 @@ export function App() {
   }
 
   const primeiraExecucao = !config.provedorPadrao;
-  const setupAberto = /^#\/setup(?:$|\/)/.test(hash);
+  const setupAberto = ehCaminhoDoSetup(rota);
 
   if (primeiraExecucao || setupAberto) {
     return (
@@ -85,9 +96,9 @@ export function App() {
           // grava escolha parcial na config.
           const atualizada = await atualizarConfig({ provedorPadrao: provedor });
           setConfig(atualizada);
-          const destino = primeiraExecucao ? "#/dashboard" : "#/conexoes";
+          const destino = primeiraExecucao ? "/dashboard" : "/conexoes";
           history.replaceState(null, "", destino);
-          setHash(destino);
+          setRota(destino);
           await recarregarInicial();
         }}
       />

@@ -11,6 +11,7 @@ import {
 } from "../telas/fluxos";
 import { IconeArquivo, IconeLapis, IconeLixeira, IconeSeta } from "../comum/Icones";
 import { IconeBaixar } from "../telas/icones";
+import "./pecas.css";
 
 interface Props {
   peca: Peca;
@@ -90,8 +91,11 @@ export function BotaoExcluirPeca({ pasta }: { pasta: string }) {
 
   return (
     <button
-      className={`botao botao-excluir-peca${armado ? " armado" : ""}${apagando ? " apagando" : ""}`}
+      className={`botao botao-p botao-icone botao-fantasma botao-excluir-peca${
+        armado ? " armado" : ""
+      }${apagando ? " apagando" : ""}`}
       onClick={aoClicar}
+      aria-label={armado ? "Clique de novo pra apagar de vez" : "Excluir esta geração"}
       title={armado ? "Clique de novo pra apagar de vez" : "Excluir esta geração"}
     >
       <IconeLixeira className="" />
@@ -126,16 +130,22 @@ export function CartaoPeca({
 
   return (
     <article
-      className={`cartao-peca${imagem ? " grande" : ""}${condensado ? " condensado" : ""}`}
+      className={`cartao cartao-peca${imagem ? " grande" : ""}${
+        condensado ? " condensado" : ""
+      }`}
     >
       <header className="cartao-peca-topo">
         <div className="cartao-peca-titulo">
           <h3>{tema}</h3>
           {data && <span className="cartao-peca-data">{data}</span>}
         </div>
+        {/* As acoes viajam JUNTAS quando a linha quebra. Soltas, o
+            "space-between" empurrava a lixeira pra ponta oposta da segunda
+            linha, longe do botao que ela acompanha. */}
+        <div className="cartao-peca-acoes">
         {imagem && peca.fonteHtml && aoEditar && (
           <button
-            className="botao botao-neutro botao-editar-peca"
+            className="botao botao-p botao-neutro"
             onClick={() => aoEditar(peca.pasta)}
             title="Abrir no Studio"
           >
@@ -143,9 +153,11 @@ export function CartaoPeca({
             Editar no Studio
           </button>
         )}
+        {/* Neutro, nao principal: sao ate trinta cartoes iguais na mesma tela,
+            e trinta acoes principais nao e uma acao principal. */}
         {peca.tipo === "site" && aoAbrirSite && (
           <button
-            className="botao botao-principal botao-abrir-site"
+            className="botao botao-p botao-neutro"
             onClick={() => aoAbrirSite(peca.pasta)}
             title="Abrir a tela do site"
           >
@@ -155,7 +167,7 @@ export function CartaoPeca({
         )}
         {imagem && (
           <a
-            className="botao botao-neutro botao-baixar-tudo"
+            className="botao botao-p botao-neutro"
             href={urlZip}
             download
             title="Baixar todas as imagens em um zip"
@@ -164,7 +176,8 @@ export function CartaoPeca({
             {rotuloBaixarTudo(peca)}
           </a>
         )}
-        <BotaoExcluirPeca pasta={peca.pasta} />
+          <BotaoExcluirPeca pasta={peca.pasta} />
+        </div>
       </header>
       {corpo(peca, tema, base, imagem, aoAmpliar)}
     </article>
@@ -191,6 +204,7 @@ function corpo(
             <a
               className="baixar-mini"
               href={urlPngPagina(peca.pasta, i)}
+              aria-label={`Baixar o PNG da página ${i + 1}`}
               title="Baixar o PNG desta página"
             >
               <IconeBaixar className="" />
@@ -222,6 +236,7 @@ function corpo(
               className="baixar-mini"
               href={url}
               download={nomeDownload(base, i, url)}
+              aria-label={`Baixar a imagem ${i + 1}`}
               title="Baixar esta imagem"
             >
               <IconeBaixar className="" />

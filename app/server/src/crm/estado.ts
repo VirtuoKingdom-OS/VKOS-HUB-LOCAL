@@ -56,8 +56,10 @@ import {
   colunasPadrao,
   gerarId,
   ordenarColunas,
+  saneiaDadosFormulario,
   type Coluna,
   type Contato,
+  type DadosFormulario,
   type DadosLead,
   type EstadoCrm,
   type Interacao,
@@ -77,6 +79,7 @@ export { ErroCrm, VERSAO_CRM_ATUAL } from "./modelo.js";
 export type {
   Coluna,
   Contato,
+  DadosFormulario,
   DadosLead,
   EstadoCrm,
   Interacao,
@@ -597,6 +600,8 @@ export function criarContato(corpo: Record<string, unknown>): Contato {
   if (corpo.arquivado === true) contato.arquivado = true;
   const lead = saneiaDadosLead(corpo.lead);
   if (lead) contato.lead = lead;
+  const formulario = saneiaDadosFormulario(corpo.formulario);
+  if (formulario) contato.formulario = formulario;
   estado.contatos.push(contato);
   salvar(estado);
   registrarEstagio(contato, acharColuna(estado, contato.colunaId), agora);

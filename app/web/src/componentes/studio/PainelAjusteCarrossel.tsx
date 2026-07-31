@@ -47,27 +47,40 @@ export function PainelAjusteCarrossel({
   }, [economico, modelo, aoMudarModelo]);
 
   return (
-    <aside className="studio-ajuste">
-      <header className="studio-ajuste-topo">
-        <div>
-          <IconeRaio className="" />
-          <h2>Ajustar com IA</h2>
-        </div>
-        <button onClick={aoFechar} title="Fechar" disabled={ajustando}>
+    <aside className="ed-lateral studio-ajuste" aria-label="Ajustar com IA">
+      <header className="ed-lateral-topo">
+        <h2>
+          <IconeRaio className="studio-ajuste-icone" />
+          Ajustar com IA
+        </h2>
+        {/* Sem disabled, nunca. Fechar o painel so tira ele da tela: a IA
+            continua trabalhando e o estado volta quando o painel reabre. Com
+            disabled aqui, uma sessao que nao terminava prendia o usuario. */}
+        <button
+          className="botao botao-p botao-icone botao-fantasma"
+          onClick={aoFechar}
+          title="Fechar"
+          aria-label="Fechar"
+        >
           <IconeX className="" />
         </button>
       </header>
 
-      <div className="studio-ajuste-corpo">
-        <label htmlFor="studio-pedido-ia">O que você quer mudar?</label>
-        <textarea
-          id="studio-pedido-ia"
-          value={pedido}
-          onChange={(e) => aoMudarPedido(e.target.value)}
-          placeholder="Ex: deixe a página 3 mais limpa, aumente o contraste do título e preserve o restante."
-          disabled={ajustando}
-          rows={6}
-        />
+      <div className="ed-lateral-corpo">
+        <div className="grupo-campo">
+          <label className="rotulo" htmlFor="studio-pedido-ia">
+            O que você quer mudar?
+          </label>
+          <textarea
+            className="campo studio-ajuste-campo"
+            id="studio-pedido-ia"
+            value={pedido}
+            onChange={(e) => aoMudarPedido(e.target.value)}
+            placeholder="Ex: deixe a página 3 mais limpa, aumente o contraste do título e preserve o restante."
+            disabled={ajustando}
+            rows={6}
+          />
+        </div>
 
         <AnexosAjuste
           pasta={pasta}
@@ -76,36 +89,61 @@ export function PainelAjusteCarrossel({
           desabilitado={ajustando}
         />
 
-        <span className="studio-ajuste-rotulo">Modelo</span>
-        <div className="studio-ajuste-modelos">
-          {modelos.map((item) => (
-            <button
-              key={item.alias}
-              className={modelo === item.alias ? "ativo" : ""}
-              onClick={() => aoMudarModelo(item.alias)}
-              disabled={ajustando}
-              title={item.observacaoCusto}
-            >
-              {item.rotulo}
-            </button>
-          ))}
+        {/* Escolha única entre opções curtas: é o trabalho do segmentado. Em
+            pílula de menta, o modelo escolhido virava mais uma voz colorida ao
+            lado de um carrossel que já é colorido. */}
+        <div className="grupo-campo">
+          <span className="rotulo" id="studio-rotulo-modelo">
+            Modelo
+          </span>
+          <div className="segmentado" role="group" aria-labelledby="studio-rotulo-modelo">
+            {modelos.map((item) => (
+              <button
+                key={item.alias}
+                className="segmento"
+                aria-pressed={modelo === item.alias}
+                onClick={() => aoMudarModelo(item.alias)}
+                disabled={ajustando}
+                title={item.observacaoCusto}
+              >
+                {item.rotulo}
+              </button>
+            ))}
+          </div>
+          <span className="dica">
+            Comece pelo econômico. Se o resultado não convencer, repita o pedido
+            num modelo maior.
+          </span>
         </div>
-        <p className="studio-ajuste-nota">
-          Comece pelo econômico. Se o resultado não convencer, repita o pedido num
-          modelo maior.
-        </p>
 
-        {ajustando && <div className="studio-ajuste-progresso"><span /></div>}
-        {ajustando && <p className="studio-ajuste-nota">A IA está ajustando somente este carrossel.</p>}
-        {concluido && !ajustando && <p className="studio-ajuste-ok">Pronto. O carrossel foi atualizado.</p>}
-        {erro && !ajustando && <p className="studio-ajuste-erro">{erro}</p>}
+        {/* O sinal de que a IA está trabalhando é o giro mais a frase. Ele não
+            é barra de progresso porque não há progresso pra medir, e porque o
+            giro das primitivas já tem o substituto de movimento reduzido
+            declarado na camada onde ele consegue valer. */}
+        {ajustando && (
+          <p className="ed-trabalhando" role="status">
+            <span className="girinho" />
+            A IA está ajustando somente este carrossel.
+          </p>
+        )}
+        {concluido && !ajustando && (
+          <p className="ed-ok" role="status">
+            Pronto. O carrossel foi atualizado.
+          </p>
+        )}
+        {erro && !ajustando && (
+          <p className="ed-erro" role="alert">
+            {erro}
+          </p>
+        )}
 
         <button
-          className="botao botao-principal studio-ajuste-enviar"
+          className="botao botao-principal ed-enviar"
           onClick={aoAjustar}
           disabled={ajustando || pedido.trim() === "" || !modelo}
+          aria-busy={ajustando}
         >
-          {ajustando ? "Ajustando..." : "Ajustar"}
+          {ajustando ? "Ajustando" : "Ajustar"}
         </button>
       </div>
     </aside>

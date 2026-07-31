@@ -1,7 +1,7 @@
 // Guarda do bug provado em 2026-07-26: instrucao extra de sessao viajando como
 // argumento de linha de comando era cortada na primeira quebra de linha sob
 // shell no Windows, e levava junto --mcp-config e --allowedTools, em silencio.
-// Ver decisoes/2026-07-26-instrucoes-extras-por-stdin.md.
+// Ver docs/decisoes/2026-07-26-instrucoes-extras-por-stdin.md.
 
 import assert from "node:assert/strict";
 import test from "node:test";

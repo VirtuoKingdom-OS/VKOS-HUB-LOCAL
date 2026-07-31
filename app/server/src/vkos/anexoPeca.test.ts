@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { LIMITE_ANEXO_BYTES } from "../anexos.js";
+import { LIMITE_ANEXO_BYTES } from "../anexos/rotas.js";
 import { ErroCarrossel } from "./carrossel.js";
 import { salvarAnexoPeca } from "./anexoPeca.js";
 

@@ -11,19 +11,24 @@ import {
   useReactFlow,
   type Connection,
   type Edge,
+  type EdgeTypes,
   type Node,
   type NodeTypes,
 } from "@xyflow/react";
 import * as api from "../../api/cliente";
 import { usarEstado } from "../../estado/contexto";
+import { lerBase64 } from "../../util/arquivo";
+import { mensagemDeErro } from "../../util/erros";
 import { FLUXOS_VISIVEIS } from "../../config/fluxos";
 import type { TipoContexto } from "../../tipos/dominio";
 import { PopoverFluxos } from "./PopoverFluxos";
 import { CerimoniaCerebro } from "./CerimoniaCerebro";
+import { ehDocumentoDeCerebro, type DocumentoCerebro } from "./cerebroDocumento";
 import { NoCerebro } from "./NoCerebro";
 import { NoSessao } from "./NoSessao";
 import { NoContexto } from "./NoContexto";
 import { NoContainer } from "./NoContainer";
+import { ArestaCockpit } from "./ArestaCockpit";
 import { PainelCerebro } from "./PainelCerebro";
 import { MenuContexto, type ItemMenu } from "../comum/MenuContexto";
 import { useCorDoTema } from "../comum/useCorDoTema";
@@ -32,6 +37,7 @@ import { CanvasContexto, type ApiCanvas } from "./canvasContexto";
 import { IconeRecarregar } from "./iconesCockpit";
 import {
   IconeAlvo,
+  IconeArquivo,
   IconeDuplicar,
   IconeFluxo,
   IconeGaleria,
@@ -49,6 +55,14 @@ const tiposNo: NodeTypes = {
   sessao: NoSessao,
   contexto: NoContexto,
   container: NoContainer,
+};
+
+// Troca a aresta PADRAO do React Flow pela nossa. Nenhuma aresta do canvas
+// declara type, entao todas caem em "default" e todas ganham a faixa de acerto
+// larga e o corte no meio do caminho, sem tocar nas fabricas nem no formato do
+// canvas.json (que nunca gravou o tipo da aresta).
+const tiposAresta: EdgeTypes = {
+  default: ArestaCockpit,
 };
 
 // Tipo de peca (o contêiner) que corresponde ao fluxo de uma sessao. Os ids de
@@ -192,20 +206,23 @@ const CAMPOS_SESSAO = [
   "etapas",
 ] as const;
 
-function arestaCerebro(idSessao: string, corMenta: string): Edge {
+// A aresta do Cerebro pra uma sessao. Ela nasce PARADA: acromatica e sem
+// marcha. O menta e a animacao entram so enquanto aquela sessao esta mesmo
+// rodando, que e o que a fundacao v2 pede do menta (ele diz o que esta vivo,
+// e nada mais). Quem liga e desliga isso e o efeito de vida, mais abaixo.
+//
+// A cor vai como LITERAL, nao como var(): o React Flow monta o id do <marker>
+// concatenando o valor da cor, e um id com parenteses corta o url(#...) que
+// aponta pra ele, entao a seta some em silencio. Conferido no navegador. O
+// literal vem do token por useCorDoTema, que reage a troca de tema.
+function arestaCerebro(idSessao: string, cor: string, viva = false): Edge {
   return {
     id: `aresta-${idSessao}`,
     source: "cerebro",
     target: idSessao,
-    animated: true,
-    className: "aresta-viva",
-    // Aqui morava "#00c896", o menta historico, que nao e o menta do app
-    // desde 2026-07-17. Nao da pra mandar var(--menta) direto: o React Flow
-    // monta o id do <marker> concatenando o valor da cor, e um id com
-    // parenteses corta o url(#...) que aponta pra ele, entao a seta some em
-    // silencio. Conferido no navegador. O literal vem do token, por
-    // useCorDoTema, que reage a troca de tema.
-    markerEnd: { type: MarkerType.ArrowClosed, color: corMenta },
+    animated: viva,
+    className: viva ? "aresta-viva" : "aresta-cerebro",
+    markerEnd: { type: MarkerType.ArrowClosed, color: cor },
   };
 }
 
@@ -342,6 +359,43 @@ function CanvasCockpit() {
   // vez do popover de fluxos.
   const [cerimoniaAberta, setCerimoniaAberta] = useState(false);
   const abrirCerimonia = useCallback(() => setCerimoniaAberta(true), []);
+
+  // A terceira porta do Cerebro: um .md que a pessoa ja tinha escrito. Ele sobe
+  // pro workspace e semeia a cerimonia, que passa a ler em vez de perguntar do
+  // zero. Guardamos o documento aqui, e nao dentro da cerimonia, porque quem
+  // recebe o arquivo e o cartao de boas-vindas, que vive neste componente.
+  const [documentoCerebro, setDocumentoCerebro] =
+    useState<DocumentoCerebro | null>(null);
+  const [enviandoDocumento, setEnviandoDocumento] = useState(false);
+  const [erroDocumento, setErroDocumento] = useState<string | null>(null);
+  const [arrastandoDocumento, setArrastandoDocumento] = useState(false);
+  const refArquivoCerebro = useRef<HTMLInputElement>(null);
+
+  const receberDocumentoCerebro = useCallback(async (arquivo: File | undefined) => {
+    if (!arquivo || enviandoDocumento) return;
+    // So .md. Aceitar txt ou pdf aqui seria prometer um processamento que a
+    // cerimonia nao faz: o /instalar le markdown do workspace, e um pdf
+    // chegaria como binario ilegivel no meio da entrevista.
+    if (!ehDocumentoDeCerebro(arquivo.name)) {
+      setErroDocumento("Por enquanto o Cérebro só nasce de arquivo .md.");
+      return;
+    }
+    setEnviandoDocumento(true);
+    setErroDocumento(null);
+    try {
+      const conteudoBase64 = await lerBase64(arquivo);
+      const { caminhoRelativo } = await api.enviarAnexo({
+        nome: arquivo.name,
+        conteudoBase64,
+      });
+      setDocumentoCerebro({ caminho: caminhoRelativo, nome: arquivo.name });
+      setCerimoniaAberta(true);
+    } catch (e) {
+      setErroDocumento(mensagemDeErro(e));
+    } finally {
+      setEnviandoDocumento(false);
+    }
+  }, [enviandoDocumento]);
   const cerebroPreenchidoAgora = estado.estadoVkos?.cerebroPreenchido ?? false;
   // O callback do no do Cerebro le o estado FRESCO por um ref, com identidade
   // estavel. Guardar o closure direto no data do no ja causou bug real: a
@@ -374,22 +428,60 @@ function CanvasCockpit() {
   ]);
   const [edges, setEdges, aoMudarArestas] = useEdgesState<Edge>([]);
 
-  // O menta do tema, como literal. Ele so existe aqui porque o marcador de
-  // seta do React Flow nao aceita var(). Ver comum/useCorDoTema.ts.
-  const corMenta = useCorDoTema("--menta");
+  // As duas cores de aresta, como literal. Elas so existem aqui porque o
+  // marcador de seta do React Flow nao aceita var(). Ver comum/useCorDoTema.
+  const corLigacao = useCorDoTema("--ligacao");
+  const corLigacaoViva = useCorDoTema("--ligacao-viva");
 
-  // A troca de tema muda o menta. As arestas ja no canvas guardam o literal
-  // antigo no markerEnd, entao elas precisam ser reescritas, senao a seta fica
-  // no verde do tema anterior ate a proxima sessao nascer.
+  // Quais sessoes estao trabalhando AGORA. E daqui que sai o unico menta do
+  // canvas: a linha entre o Cerebro e a sessao que ele esta alimentando.
+  const sessoesVivas = useMemo(
+    () =>
+      new Set(
+        estado.sessoes
+          .filter(
+            (s) =>
+              s.status === "rodando" ||
+              s.status === "iniciando" ||
+              s.status === "fila"
+          )
+          .map((s) => s.id)
+      ),
+    [estado.sessoes]
+  );
+
+  // Efeito de vida das arestas do Cerebro. Ele tambem e o que conserta a cor
+  // depois de uma troca de tema: as arestas ja no canvas guardam o literal
+  // antigo no markerEnd e ficariam na cor do tema anterior.
+  //
+  // Ele depende de nodes (uma sessao nova precisa acender), entao roda tambem
+  // durante o arrasto. Por isso devolve a MESMA referencia quando nada mudou:
+  // sem isso, cada frame de arrasto viraria re-render e autosave.
   useEffect(() => {
-    setEdges((atuais) =>
-      atuais.map((a) =>
-        a.className === "aresta-viva"
-          ? { ...a, markerEnd: { type: MarkerType.ArrowClosed, color: corMenta } }
-          : a
-      )
-    );
-  }, [corMenta, setEdges]);
+    setEdges((atuais) => {
+      let mudou = false;
+      const proximas = atuais.map((a) => {
+        if (a.source !== "cerebro") return a;
+        const no = nodes.find((n) => n.id === a.target);
+        const idSessao = (no?.data as { idSessao?: string } | undefined)?.idSessao;
+        const viva = Boolean(idSessao && sessoesVivas.has(idSessao));
+        const cor = viva ? corLigacaoViva : corLigacao;
+        const classe = viva ? "aresta-viva" : "aresta-cerebro";
+        const corAtual = (a.markerEnd as { color?: string } | undefined)?.color;
+        if (a.className === classe && a.animated === viva && corAtual === cor) {
+          return a;
+        }
+        mudou = true;
+        return {
+          ...a,
+          animated: viva,
+          className: classe,
+          markerEnd: { type: MarkerType.ArrowClosed, color: cor },
+        };
+      });
+      return mudou ? proximas : atuais;
+    });
+  }, [nodes, sessoesVivas, corLigacao, corLigacaoViva, setEdges]);
 
   const contador = useRef(0);
   const prontoParaSalvar = useRef(false);
@@ -512,7 +604,7 @@ function CanvasCockpit() {
         ) {
           return null;
         }
-        return arestaCerebro(a.target, corMenta);
+        return arestaCerebro(a.target, corLigacao);
       })
       .filter((e): e is Edge => e !== null);
     setEdges(arestas);
@@ -835,7 +927,7 @@ function CanvasCockpit() {
         ...atuais,
         { id, type: "sessao", position: pos, data: { idFluxo } },
       ]);
-      setEdges((atuais) => [...atuais, arestaCerebro(id, corMenta)]);
+      setEdges((atuais) => [...atuais, arestaCerebro(id, corLigacao)]);
     },
     [setNodes, setEdges, getNodes]
   );
@@ -861,9 +953,19 @@ function CanvasCockpit() {
     [getNode, getNodes, estado]
   );
 
+  // Corta uma aresta e marca o corte pra sobreviver ao sync e ao reload.
+  // Fica antes do apiCanvas porque ele entrega esta funcao pras arestas: o
+  // botao de corte no meio do caminho chama daqui.
+  const desconectarAresta = useCallback((idAresta: string) => {
+    setEdges((es) => es.filter((e) => e.id !== idAresta));
+    setArestasRemovidas((prev) =>
+      prev.includes(idAresta) ? prev : [...prev, idAresta]
+    );
+  }, [setEdges]);
+
   const apiCanvas = useMemo<ApiCanvas>(
-    () => ({ criarContextoConectado }),
-    [criarContextoConectado]
+    () => ({ criarContextoConectado, desconectarAresta }),
+    [criarContextoConectado, desconectarAresta]
   );
 
   const criarContextoTipado = useCallback(
@@ -909,7 +1011,7 @@ function CanvasCockpit() {
         ...atuais,
         { id, type: "sessao", position: pos, data: dadosLimpos },
       ]);
-      setEdges((atuais) => [...atuais, arestaCerebro(id, corMenta)]);
+      setEdges((atuais) => [...atuais, arestaCerebro(id, corLigacao)]);
     },
     [setNodes, setEdges]
   );
@@ -942,17 +1044,6 @@ function CanvasCockpit() {
       setEdges((es) => es.filter((e) => e.source !== idNo && e.target !== idNo));
     },
     [setNodes, setEdges]
-  );
-
-  // Corta uma aresta e marca o corte pra sobreviver ao sync e ao reload.
-  const desconectarAresta = useCallback(
-    (idAresta: string) => {
-      setEdges((es) => es.filter((e) => e.id !== idAresta));
-      setArestasRemovidas((prev) =>
-        prev.includes(idAresta) ? prev : [...prev, idAresta]
-      );
-    },
-    [setEdges]
   );
 
   const excluirNoSessao = useCallback(
@@ -998,6 +1089,22 @@ function CanvasCockpit() {
   }, []);
 
   // Liga um no de contexto a uma sessao ao arrastar entre os handles.
+  // A MESMA regra que o onConnect aplica, mas entregue ao React Flow ANTES do
+  // gesto terminar. Sem isto o canvas deixava a pessoa puxar a linha ate um
+  // alvo que ele ia recusar, e recusava calado: o gesto acabava, nada
+  // acontecia e ninguem dizia por que. Com isto a alca invalida nao acende, a
+  // linha em voo se marca como invalida e o onConnect nem chega a ser chamado.
+  const conexaoValida = useCallback(
+    (conexao: Connection | Edge) => {
+      const origem = conexao.source;
+      const destino = conexao.target;
+      if (!origem || !destino) return false;
+      if (!origem.startsWith("ctx-")) return false;
+      return getNode(destino)?.type === "sessao";
+    },
+    [getNode]
+  );
+
   const aoConectar = useCallback(
     (conexao: Connection) => {
       if (!conexao.source || !conexao.target) return;
@@ -1231,9 +1338,15 @@ function CanvasCockpit() {
           nodes={nodes}
           edges={edges}
           nodeTypes={tiposNo}
+          edgeTypes={tiposAresta}
           onNodesChange={aoMudarNos}
           onEdgesChange={aoMudarArestas}
           onConnect={aoConectar}
+          isValidConnection={conexaoValida}
+          /* O ima de soltar a linha, em unidades do CANVAS e nao da tela: com
+             o canvas afastado ele encolhe junto. 90 deixa o gesto confortavel
+             no zoom de trabalho e ainda generoso quando se afasta. */
+          connectionRadius={90}
           onNodeDragStart={aoComecarArrasto}
           onNodeDragStop={aoTerminarArrasto}
           onSelectionDragStart={aoComecarArrasto}
@@ -1276,7 +1389,7 @@ function CanvasCockpit() {
               temas. Como var(), ele acompanha o tema. */}
           <Background
             variant={BackgroundVariant.Dots}
-            gap={26}
+            gap={20}
             size={1}
             color="var(--pontos-canvas)"
           />
@@ -1297,8 +1410,11 @@ function CanvasCockpit() {
 
         {/* Indicador discreto de boot: some quando o primeiro sync termina. */}
         {(!canvasCarregado || estado.carregandoInicial) && (
-          <div className="boot-canvas">
-            <span className="pulso-boot" />
+          <div className="boot-canvas" role="status">
+            {/* O ponto que pulsa e o das primitivas: com movimento reduzido
+                ele vira fade em vez de sumir, entao continua dizendo que o
+                Hub esta trabalhando. */}
+            <span className="ponto-vivo" />
             Carregando o cockpit
           </div>
         )}
@@ -1326,6 +1442,76 @@ function CanvasCockpit() {
                     <IconeLapis className="" />
                     Prefiro escrever à mão
                   </button>
+
+                  {/* A terceira porta. Ela nasce de um fato: muita gente chega
+                      com o negócio já escrito, e responder 13 blocos de novo é
+                      trabalho repetido. Fica embaixo das outras duas porque é a
+                      que menos gente tem em mãos, não porque é a pior: pra quem
+                      tem o arquivo, é a mais rápida das três. */}
+                  <div className="bv-divisor">
+                    <span>ou</span>
+                  </div>
+
+                  <div
+                    className={`bv-soltar${arrastandoDocumento ? " arrastando" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Enviar um arquivo .md com a identidade do negócio"
+                    aria-busy={enviandoDocumento}
+                    onClick={() => refArquivoCerebro.current?.click()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        refArquivoCerebro.current?.click();
+                      }
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setArrastandoDocumento(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.stopPropagation();
+                      setArrastandoDocumento(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setArrastandoDocumento(false);
+                      void receberDocumentoCerebro(e.dataTransfer.files?.[0]);
+                    }}
+                  >
+                    <IconeArquivo className="bv-soltar-icone" />
+                    <span className="bv-soltar-titulo">
+                      {enviandoDocumento
+                        ? "Enviando o documento..."
+                        : arrastandoDocumento
+                          ? "Solte o arquivo aqui"
+                          : "Já tenho tudo escrito num .md"}
+                    </span>
+                    <span className="bv-soltar-dica">
+                      {arrastandoDocumento
+                        ? "Por enquanto só arquivo .md."
+                        : "Arraste o arquivo aqui, ou clique pra escolher. O Hub lê, monta o Cérebro e só pergunta o que faltar."}
+                    </span>
+                  </div>
+
+                  {erroDocumento && (
+                    <span className="bv-erro" role="alert">
+                      {erroDocumento}
+                    </span>
+                  )}
+
+                  <input
+                    ref={refArquivoCerebro}
+                    type="file"
+                    hidden
+                    accept=".md,text/markdown"
+                    onChange={(e) => {
+                      void receberDocumentoCerebro(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
                 </>
               ) : (
                 <>
@@ -1362,9 +1548,18 @@ function CanvasCockpit() {
 
         {cerimoniaAberta && (
           <CerimoniaCerebro
-            aoFechar={() => setCerimoniaAberta(false)}
+            documento={documentoCerebro}
+            aoFechar={() => {
+              setCerimoniaAberta(false);
+              // O documento e semente de UMA cerimonia. Mantê-lo depois de
+              // fechar faria a proxima abertura tentar semear de novo por cima
+              // de uma entrevista que ja existe. O arquivo continua no
+              // workspace, entao nada se perde.
+              setDocumentoCerebro(null);
+            }}
             aoCriarFluxo={() => {
               setCerimoniaAberta(false);
+              setDocumentoCerebro(null);
               abrirPopoverFluxos();
             }}
           />

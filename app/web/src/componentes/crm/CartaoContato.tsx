@@ -8,6 +8,11 @@ import { formatarReais, iniciais } from "./formatos";
 // O cartao era um <article> com onPointerDown e mais nada: sem foco, sem papel,
 // sem teclado. Nao dava pra abrir nem mover um cartao sem mouse. Agora ele e um
 // botao de verdade: Enter e Espaco abrem a ficha, as setas movem no quadro.
+//
+// Ele e a UNICA caixa do quadro. A coluna deixou de ser cartao no redesign v2:
+// cartao dentro de cartao dava tres molduras entre o plano e o nome da pessoa.
+// O valor subiu pra linha do nome, entao o cartao fechou de tres linhas pra
+// duas e cabe mais gente na mesma altura de tela.
 export function CartaoContato({
   contato,
   valorTotal,
@@ -50,7 +55,7 @@ export function CartaoContato({
 
   return (
     <article
-      className={`crm-cartao${arrastando ? " arrastando" : ""}${selecionado ? " selecionado" : ""}`}
+      className={`cartao cartao-alvo crm-cartao${arrastando ? " arrastando" : ""}${selecionado ? " selecionado" : ""}`}
       data-cartao={contato.id}
       role="button"
       tabIndex={0}
@@ -64,18 +69,13 @@ export function CartaoContato({
           <span className="crm-cartao-nome">{contato.nome}</span>
           {subtitulo && <span className="crm-cartao-empresa">{subtitulo}</span>}
         </div>
+        {valorTotal > 0 && <span className="crm-cartao-valor">{formatarReais(valorTotal)}</span>}
       </div>
-
-      {valorTotal > 0 && (
-        <div className="crm-cartao-meta">
-          <span className="crm-valor">{formatarReais(valorTotal)}</span>
-        </div>
-      )}
 
       {contato.tags.length > 0 && (
         <div className="crm-cartao-tags">
           {contato.tags.slice(0, 3).map((tag) => (
-            <span className="crm-tag" key={tag}>{tag}</span>
+            <span className="selo" key={tag}>{tag}</span>
           ))}
         </div>
       )}
