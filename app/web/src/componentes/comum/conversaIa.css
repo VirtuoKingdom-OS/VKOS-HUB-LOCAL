@@ -1,0 +1,203 @@
+/* ==========================================================================
+   A CONVERSA COM A IA. Folha do componente compartilhado Conversa.tsx.
+
+   NENHUMA REGRA AQUI É QUALIFICADA POR ANCESTRAL, e essa é a decisão que
+   organiza a folha inteira. O chat da IDE hoje veste os modos compacto e
+   minimizado dele com `.tela-ide.ide-compacta .ide-chat-topo`, e é exatamente
+   por isso que aquele painel não sai da janela dele: tirar o chat da IDE
+   significaria perder metade do estilo. Aqui, quem quiser um painel mais
+   apertado escreve a exceção na folha DELE, com nome e motivo, e a exceção fica
+   visível onde ela é decidida.
+
+   Ela só declara o que é da CONVERSA: a coluna, os turnos, a linha de
+   ferramenta e a barra de envio. Campo, botão, faixa e ponto vivo vêm das
+   primitivas. Quem decide largura, altura e posição do painel é a tela que
+   monta o componente, porque isso é layout dela.
+   ========================================================================== */
+
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* A coluna inteira: cabeçalho parado, rolagem no meio, envio parado embaixo. */
+.conversa-ia {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Cabeçalho ========================================================= */
+.conversa-ia-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-height: var(--alt);
+  padding: 0 var(--esp-8) 0 var(--esp-16);
+  border-bottom: 1px solid var(--linha);
+}
+
+/* Quem cede espaço é o título, e ele cede cortando com reticências. As ações do
+   lado são alvos de toque e não podem encolher. */
+.conversa-ia-titulo {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversa-ia-acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  margin-left: auto;
+}
+
+/* Botão de ação do cabeçalho nunca encolhe. Num painel estreito o flex aperta
+   o alvo até abaixo dos 24px do critério 2.5.8 do WCAG 2.2, e o que tem que
+   ceder é o título, que já sabe cortar com reticências. */
+.conversa-ia-acoes > .botao {
+  flex: none;
+}
+
+/* ===== A transcrição ===================================================== */
+.conversa-ia-rolagem {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-16) var(--esp-16) var(--esp-8);
+}
+
+/* O turno da IA NÃO tem caixa: resposta de IA é documento, e documento se lê
+   sem moldura. */
+.conversa-ia-turno-ia {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-leitura);
+  color: var(--texto);
+  overflow-wrap: anywhere;
+}
+
+/* A fala do dono tem caixa, à direita. É o que separa pergunta de resposta sem
+   precisar de um rótulo em cima de cada turno. */
+.conversa-ia-turno-usuario {
+  align-self: flex-end;
+  max-width: 88%;
+  padding: var(--esp-8) var(--esp-12);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Ainda não chegou ao servidor. O texto mais fraco é o único sinal, porque a
+   fala vai virar turno confirmado em um segundo. */
+.conversa-ia-turno-usuario.pendente {
+  color: var(--texto-suave);
+}
+
+/* Nota de máquina no meio da transcrição, tipo a correção automática do Hub. */
+.conversa-ia-turno-interno {
+  align-self: center;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* ===== A ferramenta rodando AGORA ========================================
+   Este é o único menta do painel, e ele obedece a regra: menta diz o que está
+   VIVO. A linha some quando o turno termina. */
+.conversa-ia-ferramenta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-4);
+  max-width: 100%;
+  padding: var(--esp-2) var(--esp-8);
+  border-radius: var(--raio-p);
+  background: var(--neutro-tenue);
+  font-family: var(--mono);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+.conversa-ia-ferramenta > svg {
+  flex: none;
+  color: var(--menta);
+}
+
+.conversa-ia-ferramenta-nome {
+  flex: none;
+  color: var(--texto);
+  font-weight: var(--peso-forte);
+}
+
+.conversa-ia-ferramenta-alvo {
+  min-width: 0;
+  color: var(--texto-fraco);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A IA trabalhando: uma frase e o ponto vivo da primitiva, que continua
+   pulsando em opacidade quando o movimento reduzido está ligado. */
+.conversa-ia-trabalhando {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+/* ===== O que fica entre a rolagem e o campo ============================== */
+.conversa-ia-erro {
+  flex: none;
+  margin: 0 var(--esp-12) var(--esp-8);
+}
+
+/* ===== O envio ===========================================================
+   O campo cresce, o botão fica do tamanho do campo. */
+.conversa-ia-envio {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-8);
+  padding: var(--esp-12);
+  border-top: 1px solid var(--linha);
+}
+
+.conversa-ia-campo {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--alt-g);
+  resize: none;
+}
+
+.conversa-ia-enviar {
+  flex: none;
+}
+
+.conversa-ia-enviar svg {
+  width: 16px;
+  height: 16px;
+}
+
+} /* fim de @layer tela */

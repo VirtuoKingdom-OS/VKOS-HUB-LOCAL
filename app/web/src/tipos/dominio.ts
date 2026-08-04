@@ -17,6 +17,8 @@ export interface Sessao {
   titulo: string;
   prompt: string;
   skill?: string;
+  workspaceId?: string;
+  instrucoesExtras?: string;
   status: StatusSessao;
   criadaEm: string;
   atualizadaEm: string;
@@ -76,7 +78,14 @@ export interface ModeloCarrossel {
   pedeImagem: boolean;
 }
 
-export type TipoPeca = "carrossel" | "post" | "stories" | "site" | "texto" | "outro";
+export type TipoPeca =
+  | "carrossel"
+  | "post"
+  | "stories"
+  | "site"
+  | "anuncio"
+  | "texto"
+  | "outro";
 
 export interface Peca {
   pasta: string;
@@ -97,6 +106,14 @@ export interface Peca {
     valido: boolean;
     erros: string[];
     avisos: string[];
+  };
+  // Diagnostico da forma do anuncio.json, calculado pelo servidor. Presente
+  // somente em pecas do tipo anuncio, e sempre presente nelas. valido false quer
+  // dizer que o arquivo existe e nao passa no schema: a peca aparece na lista,
+  // mas nao pode ser anunciada como campanha pronta.
+  anuncio?: {
+    valido: boolean;
+    erro?: string;
   };
 }
 

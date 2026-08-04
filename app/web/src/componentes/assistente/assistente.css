@@ -1,0 +1,427 @@
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+.tela-assistente .tela-corpo {
+  overflow: hidden;
+  padding: var(--esp-16);
+}
+
+.tela-assistente .tela-kicker,
+.assistente-kicker {
+  display: block;
+  color: var(--texto-rotulo);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: 0.1em;
+}
+
+.assistente-corpo {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) minmax(420px, 1fr) minmax(260px, 320px);
+  gap: var(--esp-16);
+  align-items: stretch;
+}
+
+.assistente-coluna {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+}
+
+.assistente-coluna-topo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  min-height: var(--alt-g);
+  padding: var(--esp-8) var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+}
+
+.assistente-coluna-topo h2 {
+  margin-top: var(--esp-2);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+
+.assistente-custo,
+.assistente-contagem {
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  white-space: nowrap;
+}
+
+.assistente-laterais-toggle {
+  display: none;
+  gap: var(--esp-4);
+}
+
+.assistente-lista,
+.assistente-rastro-lista,
+.assistente-fila-lista {
+  min-height: 0;
+  overflow: auto;
+}
+
+.assistente-lista {
+  flex: 1;
+  padding: var(--esp-4);
+}
+
+.assistente-vazio {
+  margin: var(--esp-16);
+  color: var(--texto-suave);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+}
+
+.assistente-conversa-item {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--linha);
+}
+
+.assistente-conversa-item.selecionada {
+  background: var(--superficie-alta);
+  border-left: 2px solid var(--linha-forte);
+}
+
+.assistente-conversa-abertura {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--esp-2);
+  justify-content: center;
+  padding: var(--esp-8);
+  text-align: left;
+  color: var(--texto);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.assistente-conversa-abertura:hover,
+.assistente-conversa-abertura:focus-visible {
+  background: var(--superficie-alta);
+  outline: none;
+}
+
+.assistente-conversa-abertura strong,
+.assistente-conversa-abertura span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistente-conversa-abertura strong {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+}
+
+.assistente-conversa-abertura span {
+  color: var(--texto-suave);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+}
+
+.assistente-apagar-conversa {
+  flex: none;
+  align-self: center;
+  margin-right: var(--esp-2);
+}
+
+.assistente-coluna-conversa {
+  background: var(--fundo);
+}
+
+.assistente-coluna-conversa .conversa-ia {
+  min-height: 0;
+}
+
+.assistente-coluna-conversa .conversa-ia-topo {
+  min-height: var(--alt-g);
+  padding-inline: var(--esp-16);
+  background: var(--superficie);
+}
+
+.assistente-coluna-conversa .conversa-ia-rolagem {
+  padding: var(--esp-16);
+}
+
+.assistente-coluna-conversa .conversa-ia-envio {
+  padding: var(--esp-12);
+  background: var(--superficie);
+  border-top: 1px solid var(--linha);
+}
+
+.assistente-primeiro-passo {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--esp-8);
+  max-width: 420px;
+  margin: auto;
+  padding: var(--esp-24);
+}
+
+.assistente-primeiro-passo h2 {
+  font-size: var(--txt-titulo-p);
+  line-height: var(--lh-titulo-p);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+
+.assistente-primeiro-passo p {
+  margin-bottom: var(--esp-8);
+  color: var(--texto-suave);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+}
+
+.assistente-coluna-direita {
+  gap: var(--esp-16);
+  overflow: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.assistente-fila,
+.assistente-painel-rastro {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+}
+
+.assistente-fila {
+  flex: 1;
+}
+
+.assistente-painel-rastro {
+  flex: 0 1 42%;
+}
+
+.assistente-fila-lista {
+  flex: 1;
+}
+
+.assistente-lote {
+  padding: var(--esp-12);
+  border-bottom: 1px solid var(--linha);
+}
+
+.assistente-lote-topo,
+.assistente-lote-acoes,
+.assistente-tarefa,
+.assistente-rastro-item {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+.assistente-lote-topo {
+  justify-content: space-between;
+  margin-bottom: var(--esp-8);
+}
+
+.assistente-lote-topo strong {
+  display: block;
+  margin-top: var(--esp-2);
+  color: var(--texto);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+}
+
+.assistente-tarefas {
+  display: grid;
+  gap: var(--esp-4);
+}
+
+.assistente-tarefa {
+  justify-content: space-between;
+  padding: var(--esp-8) 0;
+  border-top: 1px solid var(--linha);
+}
+
+.assistente-tarefa > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.assistente-tarefa strong,
+.assistente-tarefa span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistente-tarefa strong {
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto);
+}
+
+.assistente-tarefa > div > span {
+  color: var(--texto-suave);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+}
+
+.assistente-estado {
+  flex: none;
+  color: var(--texto-suave);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+}
+
+.assistente-estado.estado-rodando,
+.assistente-estado.estado-na-fila {
+  color: var(--menta);
+}
+
+.assistente-lote-acoes {
+  flex-wrap: wrap;
+  margin-top: var(--esp-8);
+}
+
+.assistente-rastro-lista {
+  flex: 1;
+  padding: var(--esp-4) var(--esp-12);
+}
+
+.assistente-rastro-item {
+  align-items: flex-start;
+  padding: var(--esp-8) 0;
+  border-bottom: 1px solid var(--linha);
+}
+
+.assistente-rastro-item > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.assistente-rastro-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  font-weight: var(--peso-medio);
+}
+
+.assistente-rastro-item span:not(.assistente-rastro-hora) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto-suave);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+}
+
+.assistente-rastro-hora {
+  flex: none;
+  min-width: 34px;
+  color: var(--texto-fraco);
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+}
+
+.assistente-alerta {
+  flex: none;
+  margin: var(--esp-12) var(--esp-16) 0;
+}
+
+/* A recusa do lote fica colada no campo da conversa, e nao no topo da tela: o
+   conserto e uma mensagem pra IA, entao o aviso mora onde a pessoa escreve. */
+.assistente-erro-lote {
+  flex: none;
+  margin: 0 var(--esp-16) var(--esp-8);
+}
+
+@media (max-width: 1199px) {
+  .assistente-laterais-toggle {
+    display: flex;
+  }
+
+  .assistente-corpo {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assistente-lista-conversas,
+  .assistente-coluna-direita {
+    display: none;
+  }
+
+  .assistente-corpo.lateral-conversas .assistente-lista-conversas,
+  .assistente-corpo.lateral-fila .assistente-coluna-direita {
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: flex;
+    width: min(320px, 82%);
+    z-index: var(--z-modal);
+    box-shadow: var(--sombra-modal);
+  }
+
+  .assistente-corpo.lateral-fila .assistente-coluna-direita {
+    inset: 0 0 0 auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .tela-assistente .tela-corpo {
+    padding: var(--esp-8);
+  }
+
+  .tela-assistente .tela-topo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--esp-8);
+    padding-inline: var(--esp-12);
+  }
+
+  .tela-assistente .tela-topo-acoes {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .tela-assistente .tela-topo p {
+    display: none;
+  }
+
+  .assistente-custo {
+    display: none;
+  }
+
+  .assistente-laterais-toggle .botao {
+    padding-inline: var(--esp-4);
+  }
+}
+
+}

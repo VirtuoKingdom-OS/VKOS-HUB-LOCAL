@@ -49,6 +49,8 @@
    cockpit por baixo enquanto o chunk carregava: o "fantasma". */
 .camada-cockpit.oculta {
   visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* A IDE e uma camada universal. Fechada, continua montada pra preservar o
@@ -104,11 +106,19 @@
    2. A BARRA LATERAL
 
    Ela e MOLDURA, entao usa o --chassi e recua: quem manda na tela e o trabalho
-   ao lado. 240px e o ponto onde o nome de workspace mais longo do registro
+   ao lado.
+
+   A largura fecha na grade de 4px, como todo o resto do sistema: 60 degraus de
+   --base dao 240px, o ponto onde o nome de workspace mais longo do registro
    ainda cabe sem cortar.
+
+   Ela chegou a 276 em 2026-07-31 e voltou no mesmo dia. O que faltava nao era
+   largura de coluna, era tamanho de alvo: com o item de menu no degrau grande
+   (40px) e mais recuo lateral, a barra estreita ja respira. Coluna larga com
+   linha baixa parece vazia, e foi por isso que o primeiro passo nao resolveu.
    ========================================================================== */
 .sidebar {
-  width: 240px;
+  width: calc(var(--base) * 60);
   flex: none;
   height: 100%;
   display: flex;
@@ -180,9 +190,9 @@
   align-items: center;
   gap: var(--esp-8);
   width: 100%;
-  min-height: var(--alt);
+  min-height: var(--alt-g);
   margin-bottom: var(--esp-8);
-  padding: 0 var(--esp-8);
+  padding: 0 var(--esp-12);
   border-radius: var(--raio);
   color: var(--texto-suave);
   font-size: var(--txt-corpo);
@@ -197,8 +207,8 @@
   color: var(--texto);
 }
 .sidebar-voltar-seta {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   transform: rotate(180deg);
 }
 
@@ -236,17 +246,25 @@
   padding-top: var(--esp-12);
 }
 
-/* O ITEM DE MENU. Altura de controle padrao (32px), tinta suave parado, e
-   selecionado por superficie mais fio a esquerda em --acao, exatamente como
-   .item-lista. O preenchimento menta com glow que ele tinha antes gastava a
-   voz colorida do sistema numa lista parada. */
+/* O ITEM DE MENU. Tinta suave parado, e selecionado por superficie mais fio a
+   esquerda em --acao, exatamente como .item-lista. O preenchimento menta com
+   glow que ele tinha antes gastava a voz colorida do sistema numa lista parada.
+
+   ALTURA GRANDE (40px) desde 2026-07-31. Ele estava na altura padrao (32px), e
+   isso deixava o menu MENOR que o seletor de workspace logo acima dele, que ja
+   era 40. Duas alturas de controle na mesma coluna estreita nao leem como
+   hierarquia, leem como desalinho. Agora a barra inteira bate no mesmo degrau.
+
+   A densidade sobe pela ALTURA DE CONTROLE, nunca pela letra: o corpo continua
+   em 14px, como em todo o resto do app. E a regra da fundacao, e ela existe
+   porque letra maior num lugar so e o comeco de ter oito tamanhos de fonte. */
 .item-nav {
   display: flex;
   align-items: center;
   gap: var(--esp-8);
   width: 100%;
-  min-height: var(--alt);
-  padding: 0 var(--esp-8);
+  min-height: var(--alt-g);
+  padding: 0 var(--esp-12);
   border-radius: var(--raio);
   color: var(--texto-suave);
   font-size: var(--txt-corpo);
@@ -257,9 +275,11 @@
   transition: background var(--transicao), color var(--transicao),
     box-shadow var(--transicao);
 }
+/* O icone cresce junto com a linha. Icone de 16 numa linha de 40 fica boiando,
+   e a coluna dos icones e o que da o alinhamento vertical do menu inteiro. */
 .item-nav svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 .item-nav:hover {
   background: var(--superficie-alta);
@@ -408,6 +428,50 @@
   }
   .rodape-projeto-pasta {
     display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell-assistente .sidebar {
+    width: calc(var(--base) * 14);
+    padding-inline: var(--esp-4);
+  }
+
+  .shell-assistente .sidebar-marca-bloco,
+  .shell-assistente .sidebar-secao,
+  .shell-assistente .sidebar-nav-fim,
+  .shell-assistente .sidebar-rodape {
+    padding-inline: 0;
+  }
+
+  .shell-assistente .sidebar-marca {
+    justify-content: center;
+  }
+
+  .shell-assistente .sidebar-marca .tema-caixa,
+  .shell-assistente .sidebar-marca-beta,
+  .shell-assistente .rotulo-grupo,
+  .shell-assistente .item-nav-rotulo,
+  .shell-assistente .item-nav > .contagem,
+  .shell-assistente .sidebar-rodape .rodape-linha > span:not(.ponto-luz) {
+    display: none;
+  }
+
+  .shell-assistente .marca-logo {
+    width: 22px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .shell-assistente .item-nav,
+  .shell-assistente .sidebar-secao,
+  .shell-assistente .sidebar-rodape,
+  .shell-assistente .rodape-linha {
+    justify-content: center;
+  }
+
+  .shell-assistente .item-nav {
+    padding-inline: 0;
   }
 }
 

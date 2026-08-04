@@ -22,9 +22,29 @@ import {
 import { obterProvedorAtivo } from "../provedores/index.js";
 import { montarResumoCrm } from "../crm/resumo.js";
 import { custosVazios, lerCustos, totalGeral } from "./custos.js";
+import {
+  ehConversaDeAnuncio,
+  ehGeracaoDeAnuncio,
+  ErroGeracaoAnuncio,
+  prepararConversaAnuncio,
+  prepararGeracaoAnuncio,
+} from "./geracao-anuncio.js";
+import { gravarVinculo } from "../anuncios/vinculo.js";
+import { dispararGeracao, ErroDisparo, type PedidoDeGeracao } from "./disparo.js";
 
-const SKILLS_QUE_EXIGEM_CEREBRO = new Set(["carrossel", "site"]);
+// Skills de criacao guiada. Estar aqui liga duas coisas de uma vez, e as duas
+// sao desejadas: a guarda de Cerebro vazio (409) e a trava de uma criacao
+// guiada por vez.
+const SKILLS_QUE_EXIGEM_CEREBRO = new Set(["carrossel", "site", "anuncio"]);
 const STATUS_EM_EXECUCAO = new Set(["fila", "iniciando", "rodando"]);
+
+// Como cada criacao guiada se chama na mensagem da trava. Sem isto o anuncio
+// seria anunciado como "conteudo visual", que e outra coisa.
+const ROTULO_CRIACAO_GUIADA: Record<string, string> = {
+  site: "site",
+  anuncio: "anúncio",
+  carrossel: "conteúdo visual",
+};
 
 export function skillExigeCerebro(skill: unknown): boolean {
   return typeof skill === "string" && SKILLS_QUE_EXIGEM_CEREBRO.has(skill);
@@ -115,7 +135,10 @@ export function resolverPastaAlvoGeracaoSite(parametros: {
 export const rotasSessoes: FastifyPluginAsync = async (app) => {
   // Lista as sessoes do workspace ativo. ?todas=1 devolve as de todos (pro futuro).
   app.get("/sessoes", async (requisicao) => {
-    const q = (requisicao.query ?? {}) as { todas?: string };
+    const q = (requisicao.query ?? {}) as { todas?: string; escopo?: string };
+    if (q.escopo === "core") {
+      return { sessoes: gerenciador.listar("") };
+    }
     if (q.todas === "1" || q.todas === "true") {
       return { sessoes: gerenciador.listar() };
     }
@@ -180,143 +203,27 @@ export const rotasSessoes: FastifyPluginAsync = async (app) => {
 
   // Cria e inicia (ou enfileira) uma sessao nova.
   app.post("/sessoes", async (requisicao, resposta) => {
-    const corpo = (requisicao.body ?? {}) as {
-      titulo?: string;
-      prompt?: string;
-      skill?: string;
-      modelo?: string;
-      permissao?: string;
-      escopoPeca?: EscopoPecaSolicitado;
-      pastaAlvo?: string;
-      // "projeto" faz a sessao rodar na raiz da instalacao em vez da pasta do
-      // workspace. Quem usa e o chat da VKOS-IDE, pra conversar sobre os mesmos
-      // arquivos que a arvore dela mostra. Sem isto, a IDE listava o projeto e a
-      // IA respondia sobre outra pasta, o que e pior que nao ter a IDE.
-      escopo?: string;
-    };
-
-    let prompt = typeof corpo.prompt === "string" ? corpo.prompt.trim() : "";
-    if (!prompt) {
-      return resposta.code(400).send({ erro: "prompt e obrigatorio" });
-    }
-
-    // Modelo e opcional. Se veio, precisa pertencer ao provedor ativo.
-    const provedorAtivo = obterProvedorAtivo();
-    const aliasesValidos = provedorAtivo.modelos().map((item) => item.alias);
-    let modelo: string | undefined;
-    if (corpo.modelo !== undefined) {
-      if (typeof corpo.modelo !== "string" || !aliasesValidos.includes(corpo.modelo)) {
-        return resposta.code(400).send({
-          erro: `modelo invalido para ${provedorAtivo.id}. Use: ${aliasesValidos.join(", ")}.`,
-        });
-      }
-      modelo = corpo.modelo;
-    }
-
-    // Permissao e opcional. Se veio, precisa ser padrao ou total.
-    let permissao: "padrao" | "total" | undefined;
-    if (corpo.permissao !== undefined) {
-      if (corpo.permissao !== "padrao" && corpo.permissao !== "total") {
-        return resposta.code(400).send({ erro: "permissao invalida. Use padrao ou total." });
-      }
-      permissao = corpo.permissao;
-    }
-
+    const corpo = (requisicao.body ?? {}) as Partial<PedidoDeGeracao>;
     const pasta = obterPastaVkos();
     if (!pasta) {
       return resposta.code(400).send({ erro: "nenhuma pasta VKOS escolhida" });
-    }
-    // Carrossel e site dependem da identidade do negocio. Sem esta guarda, os
-    // provedores encerram o turno com uma explicacao, a sessao vira concluida e
-    // o frontend fica esperando um arquivo que nunca sera criado.
-    if (skillExigeCerebro(corpo.skill) && !lerCerebro(pasta).preenchido) {
-      return resposta.code(409).send({
-        erro:
-          "O Cérebro deste negócio ainda está em branco. Monte o Cérebro antes de gerar carrosséis ou sites.",
-      });
     }
     const workspaceId = idWorkspaceAtivo();
     if (!workspaceId) {
       return resposta.code(400).send({ erro: "nenhum workspace ativo" });
     }
-
-    const escopoProjeto = ehEscopoProjeto(corpo.escopo);
-    if (escopoProjeto && corpo.escopoPeca !== undefined) {
-      return resposta.code(400).send({
-        erro: "escopo de projeto nao aceita escopoPeca junto.",
-      });
-    }
-
-    let pastaTrabalho = escopoProjeto ? raizProjeto() : pasta;
-    let skill = corpo.skill;
-    // Peca de site ajustada com IA tambem passa pela conferencia. A pasta vem do
-    // escopo ja resolvido e confinado pelo servidor, nunca do corpo HTTP.
-    let pastaAlvoDaPeca: string | undefined;
-    if (corpo.escopoPeca !== undefined) {
-      try {
-        const escopo = resolverEscopoPeca(pasta, corpo.escopoPeca);
-        pastaTrabalho = escopo.pastaTrabalho;
-        skill = escopo.skill;
-        pastaAlvoDaPeca = pastaAlvoDoEscopo(escopo);
-        const principios = escopo.revisaoDesign
-          ? lerPrincipiosVisuaisSite(pasta)
-          : undefined;
-        prompt = montarPromptAjustePeca(
-          prompt,
-          escopo,
-          lerCerebro(pasta).conteudo,
-          principios,
-        );
-      } catch (erro) {
-        if (erro instanceof ErroEscopoPeca) {
-          return resposta.code(erro.status).send({ erro: erro.message });
-        }
-        throw erro;
-      }
-    }
-
-    if (skillExigeCerebro(skill)) {
-      const emAndamento = geracaoVisualEmAndamento(gerenciador.listar());
-      if (emAndamento) {
-        const tipo = emAndamento.skill === "site" ? "site" : "conteúdo visual";
-        return resposta.code(409).send({
-          erro:
-            `Já existe uma geração de ${tipo} em andamento. ` +
-            "Finalize ou cancele essa criação antes de iniciar outra.",
-          sessaoId: emAndamento.id,
-          tipo: emAndamento.skill,
-        });
-      }
-    }
-
-    const contextoCrm = promptCitaCrm(prompt) ? montarResumoCrm() ?? undefined : undefined;
-    let pastaAlvo: string | undefined;
     try {
-      pastaAlvo = resolverPastaAlvoGeracaoSite({
-        skill,
-        prompt,
-        pastaAlvo: corpo.pastaAlvo,
-        temEscopoPeca: corpo.escopoPeca !== undefined,
-      });
+      const resultado = dispararGeracao(
+        { workspaceId, pastaVkos: pasta },
+        { ...corpo, prompt: typeof corpo.prompt === "string" ? corpo.prompt : "" },
+      );
+      return resposta.code(201).send(resultado);
     } catch (erro) {
-      return resposta.code(400).send({
-        erro: erro instanceof Error ? erro.message : "pastaAlvo invalida",
-      });
+      if (erro instanceof ErroDisparo) {
+        return resposta.code(erro.status).send({ erro: erro.message, ...(erro.dados ?? {}) });
+      }
+      throw erro;
     }
-    if (pastaAlvoDaPeca) pastaAlvo = pastaAlvoDaPeca;
-    const sessao = gerenciador.criar({
-      titulo: corpo.titulo,
-      prompt,
-      skill,
-      pastaTrabalho,
-      modelo,
-      workspaceId,
-      permissao,
-      contextoCrm,
-      pastaAlvo,
-    });
-
-    return resposta.code(201).send({ sessao });
   });
 
   // Continua uma sessao existente com um texto novo, via --resume.

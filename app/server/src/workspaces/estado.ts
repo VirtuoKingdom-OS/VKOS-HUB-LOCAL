@@ -8,7 +8,7 @@
 
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { quarentenarComErro } from "../util/quarentena.js";
@@ -118,10 +118,55 @@ export function lerRegistro(): RegistroWorkspaces {
   return cache;
 }
 
+// Guarda uma copia datada quando o registro PERDE workspace.
+//
+// O registro nunca teve backup, e ele e a unica memoria de quais projetos
+// existem. As pastas de trabalho sobrevivem a qualquer coisa, mas sem este
+// arquivo o Hub esquece ONDE elas estao, e o dono abre a barra vazia.
+//
+// Em 2026-08-01 isso aconteceu de verdade: tres projetos sumiram de uma vez e
+// so voltaram porque o conteudo antigo do arquivo ainda estava numa conversa.
+// O modo de falha ja tinha aparecido em 2026-07-27, do outro lado (clientes
+// fantasma, ver o comentario de raizDados), e as pastas de estado orfas
+// daquele dia continuam em app/dados/workspaces/.
+//
+// Perder um workspace de cada vez e gesto normal: o dono clica em remover.
+// Cair de tres para zero nao e. A copia so nasce quando a conta diminui, entao
+// ativar workspace e renomear, que gravam a mesma quantidade, nao sujam nada.
+export function guardarCopiaSeEncolheu(
+  caminho: string,
+  novo: RegistroWorkspaces,
+  agora = new Date(),
+): string | null {
+  let anterior: RegistroWorkspaces | null = null;
+  try {
+    anterior = lerRegistroDeArquivo(caminho);
+  } catch {
+    // Registro ilegivel ja tem quarentena propria na leitura. Gravar por cima de
+    // lixo e o certo, e travar a gravacao aqui deixaria o Hub sem escrever nunca.
+    return null;
+  }
+  if (!anterior || novo.workspaces.length >= anterior.workspaces.length) return null;
+
+  const carimbo = agora.toISOString().replace(/[:.]/g, "-");
+  const destino = `${caminho}.perdeu-${carimbo}`;
+  try {
+    copyFileSync(caminho, destino);
+    console.warn(
+      `[workspaces] o registro caiu de ${anterior.workspaces.length} para ${novo.workspaces.length}. Copia guardada em ${destino}`,
+    );
+    return destino;
+  } catch (erro) {
+    console.error("[workspaces] nao deu pra guardar a copia do registro:", erro);
+    return null;
+  }
+}
+
 // Grava o registro em memoria e no disco.
 export function salvarRegistro(reg: RegistroWorkspaces): void {
   cache = reg;
   garantirPastaDados();
+  guardarCopiaSeEncolheu(caminhoRegistroAtual(), reg);
   gravarJsonAtomico(caminhoRegistroAtual(), reg);
   raizDoCache = raizDados();
 }

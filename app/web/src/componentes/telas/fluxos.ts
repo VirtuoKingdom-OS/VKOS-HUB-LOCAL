@@ -9,6 +9,7 @@ export const ORDEM_TIPOS: TipoPeca[] = [
   "post",
   "stories",
   "site",
+  "anuncio",
   "texto",
   "outro",
 ];
@@ -19,6 +20,7 @@ export const ROTULO_TIPO: Record<TipoPeca, string> = {
   post: "Posts",
   stories: "Stories",
   site: "Site e páginas",
+  anuncio: "Anúncios",
   texto: "Textos",
   outro: "Outros",
 };

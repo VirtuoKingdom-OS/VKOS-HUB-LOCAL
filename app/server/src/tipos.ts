@@ -11,12 +11,17 @@ export type StatusSessao =
 
 export type ProvedorIA = "claude" | "codex";
 
-// Estado do laco de conformidade pos-geracao de site.
-// conferindo: a auditoria completa esta rodando.
-// corrigindo: a auditoria reprovou e a mesma sessao foi retomada pra corrigir.
-// aprovada: a auditoria passou, o site esta pronto.
-// pendencias: parou (2 voltas sem passar, ou nao deu pra verificar). Nao bloqueia
-// abrir o site; a barreira de publicacao segue conferindo de novo no deploy.
+// Estado do laco de conformidade pos-geracao. O nome fala de site porque foi
+// dele que nasceu, mas desde a Fase 5 do fluxo de anuncios ele tambem carrega o
+// laco do anuncio.json: sao os mesmos quatro estados, o mesmo teto de 2 voltas
+// e o mesmo campo na sessao. Renomear custaria uma migracao de dado persistido
+// pra ganhar so a palavra certa.
+// conferindo: a conferencia esta rodando.
+// corrigindo: ela reprovou e a mesma sessao foi retomada pra corrigir.
+// aprovada: passou. O site ou a campanha estao prontos.
+// pendencias: parou (2 voltas sem passar, ou nao deu pra verificar). No site nao
+// bloqueia abrir, e a barreira de publicacao reconfere no deploy. No anuncio quem
+// diz se a campanha pode ser aberta como pronta e o campo `anuncio` da peca.
 export interface ConferenciaSite {
   estado: "conferindo" | "corrigindo" | "aprovada" | "pendencias";
   // Quantas voltas de correcao ja foram feitas (0 antes da primeira correcao).
@@ -77,6 +82,9 @@ export interface Sessao {
   // Resumo agregado e sem telefone/email, capturado quando o pedido cita CRM.
   // Persiste para a mesma protecao e o mesmo contexto voltarem no resume.
   contextoCrm?: string;
+  // Briefing de uma sessão CORE. Viaja por stdin, nunca por argumento de
+  // processo, e persiste para uma retomada continuar vendo o mesmo Hub.
+  instrucoesExtras?: string;
   // Laco de conformidade de site: pasta alvo da peca (subpasta de conteudo/) que
   // a geracao guiada de site vai criar. So a skill "site" do wizard preenche.
   // E a chave que o laco usa pra auditar a peca certa depois que a sessao conclui.
@@ -110,7 +118,14 @@ export interface ModeloCarrossel {
   pedeImagem: boolean;
 }
 
-export type TipoPeca = "carrossel" | "stories" | "post" | "site" | "texto" | "outro";
+export type TipoPeca =
+  | "carrossel"
+  | "stories"
+  | "post"
+  | "site"
+  | "anuncio"
+  | "texto"
+  | "outro";
 
 export interface Peca {
   pasta: string;
@@ -132,6 +147,17 @@ export interface Peca {
     valido: boolean;
     erros: string[];
     avisos: string[];
+  };
+  // Diagnostico da forma do anuncio.json. Presente somente em pecas do tipo
+  // anuncio, e sempre presente nelas.
+  //
+  // valido false quer dizer que o arquivo existe mas nao passa no schema. A
+  // peca continua aparecendo na lista, com o erro literal do campo, e NUNCA
+  // pode ser apresentada como campanha pronta: era esse o buraco antes da Fase
+  // 5, quando um anuncio.json corrompido virava "pronto" so por existir.
+  anuncio?: {
+    valido: boolean;
+    erro?: string;
   };
 }
 

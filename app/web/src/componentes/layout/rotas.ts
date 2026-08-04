@@ -6,6 +6,7 @@ import type { TipoGeracao } from "../../estado/geracao";
 // a dos tres grupos da barra: Core, Gestao e Sistema.
 export const TELAS_CORE = [
   "dashboard",
+  "assistente",
   "clientes",
   "workspaces",
   "crm",
@@ -30,6 +31,7 @@ const TIPOS_CRIACAO = new Set<TipoGeracao>([
   "post",
   "story",
   "site",
+  "anuncio",
 ]);
 
 function tipoCriacaoValido(valor: string): valor is TipoGeracao {
@@ -49,6 +51,7 @@ export function telaParaCaminho(tela: string): string {
   if (tela.startsWith("fonte:")) return `/fonte/${tela.slice("fonte:".length)}`;
   if (tela.startsWith("studio:")) return `/studio/${tela.slice("studio:".length)}`;
   if (tela.startsWith("site:")) return `/site/${tela.slice("site:".length)}`;
+  if (tela.startsWith("anuncio:")) return `/anuncio/${tela.slice("anuncio:".length)}`;
   if (tela.startsWith("criar:")) {
     const tipo = tela.slice("criar:".length);
     if (tipoCriacaoValido(tipo)) return `/criar/${tipo}`;
@@ -65,6 +68,7 @@ export function caminhoParaTela(caminho: string): string {
   if (rota.startsWith("fonte/")) return `fonte:${rota.slice("fonte/".length)}`;
   if (rota.startsWith("studio/")) return `studio:${rota.slice("studio/".length)}`;
   if (rota.startsWith("site/")) return `site:${rota.slice("site/".length)}`;
+  if (rota.startsWith("anuncio/")) return `anuncio:${rota.slice("anuncio/".length)}`;
   if (rota.startsWith("criar/")) {
     const tipo = rota.slice("criar/".length);
     if (tipoCriacaoValido(tipo)) return `criar:${tipo}`;
@@ -126,8 +130,8 @@ export function irParaTela(tela: string): void {
   irParaCaminho(telaParaCaminho(tela));
 }
 
-// Atalho pros dois destinos de peca, que aparecem em oito telas diferentes.
-export function irParaPeca(tipo: "studio" | "site", pasta: string): void {
+// Atalho pros tres destinos de peca, que aparecem em oito telas diferentes.
+export function irParaPeca(tipo: "studio" | "site" | "anuncio", pasta: string): void {
   irParaTela(`${tipo}:${encodeURIComponent(pasta)}`);
 }
 
@@ -148,5 +152,6 @@ export function retornoSeguroDaCriacao(valor: unknown): string {
 
 export function destinoAposCriacao(tipo: TipoGeracao, pasta: string): string {
   const segmento = encodeURIComponent(pasta);
+  if (tipo === "anuncio") return `anuncio:${segmento}`;
   return tipo === "site" ? `site:${segmento}` : `studio:${segmento}`;
 }

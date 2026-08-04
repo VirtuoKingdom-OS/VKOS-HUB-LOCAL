@@ -26,6 +26,7 @@ const ROTULO_FILTRO: Record<Filtro, string> = {
   post: "Posts",
   stories: "Stories",
   site: "Site",
+  anuncio: "Anúncios",
   texto: "Textos",
   outro: "Outros",
 };

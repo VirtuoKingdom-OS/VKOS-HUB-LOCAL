@@ -4,31 +4,36 @@
 // quanto tempo, e o que fazer quando terminar. Le tudo do estado global de
 // geracao, sem logica propria.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { createPortal } from "react-dom";
-import { usarGeracao, LARGURA_FASE } from "../../estado/geracao";
+import { usarGeracao, LARGURA_FASE, type TipoGeracao } from "../../estado/geracao";
 import { IconeLapis, IconeOlho, IconeX } from "../comum/Icones";
 import { formatarDecorrido, inicioDaGeracao } from "./tempoDecorrido";
 import "./criacao.css";
 import { irParaPeca } from "../layout/rotas";
 
 // Rotulos curtos por tipo, pro titulo do cartao.
-const ROTULO_TIPO: Record<string, string> = {
+const ROTULO_TIPO: Record<TipoGeracao, string> = {
   carrossel: "carrossel",
   post: "post",
   story: "story",
   site: "site",
+  anuncio: "anúncio",
 };
 
-// Vai pro Studio de uma peca (pasta URL-encoded no hash).
-function irParaStudio(pasta: string) {
-  irParaPeca("studio", pasta);
-}
-
-// Vai pra tela do site de uma peca (pasta URL-encoded no hash).
-function irParaSite(pasta: string) {
-  irParaPeca("site", pasta);
-}
+// A saida de cada jornada quando a peca fica pronta: o rotulo do botao, o icone
+// e pra onde ele leva. Exaustiva sobre TipoGeracao, entao tipo novo sem saida e
+// erro de compilacao, e nao um botao que nao leva a lugar nenhum.
+const SAIDA_TIPO: Record<
+  TipoGeracao,
+  { rotulo: string; Icone: (p: { className?: string }) => ReactElement; ir: (pasta: string) => void }
+> = {
+  carrossel: { rotulo: "Editar no Studio", Icone: IconeLapis, ir: (p) => irParaPeca("studio", p) },
+  post: { rotulo: "Editar no Studio", Icone: IconeLapis, ir: (p) => irParaPeca("studio", p) },
+  story: { rotulo: "Editar no Studio", Icone: IconeLapis, ir: (p) => irParaPeca("studio", p) },
+  site: { rotulo: "Ver o site", Icone: IconeOlho, ir: (p) => irParaPeca("site", p) },
+  anuncio: { rotulo: "Ver a campanha", Icone: IconeOlho, ir: (p) => irParaPeca("anuncio", p) },
+};
 
 export function GeracaoFlutuante() {
   const {
@@ -38,6 +43,7 @@ export function GeracaoFlutuante() {
     fases,
     falhou,
     erro,
+    erroPeca,
     pastaPronta,
     faseConferencia,
     conferenciaDemorou,
@@ -56,8 +62,8 @@ export function GeracaoFlutuante() {
   // que mostra o progresso.
   if (!ativa || !minimizada) return null;
 
-  const ehSite = ativa.tipo === "site";
-  const rotulo = ROTULO_TIPO[ativa.tipo] ?? "carrossel";
+  const saida = SAIDA_TIPO[ativa.tipo];
+  const rotulo = ROTULO_TIPO[ativa.tipo];
   const pronta = pastaPronta !== null;
   const decorrido = formatarDecorrido(agora - inicioDaGeracao(ativa.sessaoId));
 
@@ -95,17 +101,18 @@ export function GeracaoFlutuante() {
         <button
           className="botao botao-principal geracao-flutuante-editar"
           onClick={() => {
-            if (ehSite) irParaSite(pastaPronta);
-            else irParaStudio(pastaPronta);
+            saida.ir(pastaPronta);
             limpar();
           }}
         >
-          {ehSite ? <IconeOlho className="" /> : <IconeLapis className="" />}
-          {ehSite ? "Ver o site" : "Editar no Studio"}
+          <saida.Icone className="" />
+          {saida.rotulo}
         </button>
       ) : falhou ? (
         <p className="geracao-flutuante-erro">
-          {erro ?? "A sessão parou antes de terminar. Tente de novo pelo Criar."}
+          {/* O erro da peca vem primeiro quando existe: ele diz QUAL campo do
+              arquivo saiu errado, e isso e mais util que qualquer frase geral. */}
+          {erro ?? erroPeca ?? "A sessão parou antes de terminar. Tente de novo pelo Criar."}
         </p>
       ) : (
         <>

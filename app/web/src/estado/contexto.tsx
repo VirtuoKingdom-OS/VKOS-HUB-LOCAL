@@ -57,10 +57,23 @@ interface ValorContexto {
   // repassa, porque so a tela sabe qual thread esta aberta e se ha campo sendo
   // editado no painel de contexto.
   avisoMensagens: AvisoMensagens | null;
+  // Quantas vezes o observador de arquivos avisou que uma peca mudou em disco.
+  //
+  // A lista `pecas` nao serve pra isso: o conteudo DENTRO de uma peca muda sem
+  // a lista mudar de forma, e uma tela que abre o arquivo da peca (a campanha de
+  // anuncio, por exemplo) precisa saber que o arquivo dela e outro agora. Um
+  // contador e o sinal mais barato que existe: ele muda a cada aviso, e quem
+  // nao liga pra isso simplesmente nao le.
+  //
+  // O observador tem debounce de 1 segundo. Quem depende deste aviso pra
+  // "atualizar sozinho" espera ate um segundo, e isso e de propósito.
+  avisoPecas: number;
+  avisoAssistente: number;
   ambiente: Ambiente | null;
   estadoVkos: EstadoVkos | null;
   cockpitLiberado: boolean;
   sessoes: Sessao[];
+  sessoesCore: Sessao[];
   streams: Record<string, EstadoStream>;
   pecas: Peca[];
   contextos: Contexto[];
@@ -89,6 +102,7 @@ interface ValorContexto {
   renomearCliente: (id: string, nome: string) => Promise<void>;
   removerCliente: (id: string) => Promise<void>;
   recarregarInicial: () => Promise<void>;
+  recarregarSessoesCore: () => Promise<void>;
   recarregarAmbiente: () => Promise<void>;
   definirPastaVkos: (caminho: string) => Promise<EstadoVkos>;
   liberarCockpit: () => void;
@@ -199,6 +213,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const [estadoVkos, setEstadoVkos] = useState<EstadoVkos | null>(null);
   const [cockpitLiberado, setCockpitLiberado] = useState(false);
   const [sessoes, setSessoes] = useState<Sessao[]>([]);
+  const [sessoesCore, setSessoesCore] = useState<Sessao[]>([]);
   const [streams, setStreams] = useState<Record<string, EstadoStream>>({});
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [contextos, setContextos] = useState<Contexto[]>([]);
@@ -211,6 +226,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const [sessoesProntas, setSessoesProntas] = useState(false);
   const [avisoCrm, setAvisoCrm] = useState<AvisoCrm | null>(null);
   const [avisoMensagens, setAvisoMensagens] = useState<AvisoMensagens | null>(null);
+  const [avisoPecas, setAvisoPecas] = useState(0);
+  const [avisoAssistente, setAvisoAssistente] = useState(0);
   // Espelho do ativo pra ler dentro de closures do WS sem recriar callbacks e
   // pra reivindicar a troca de forma sincrona (evita recarga dupla).
   const workspaceAtivoRef = useRef<string | null>(null);
@@ -234,6 +251,15 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
       setSessoesProntas(true);
     } catch {
       // ignora, o websocket reconcilia
+    }
+  }, []);
+
+  const recarregarSessoesCore = useCallback(async () => {
+    try {
+      const { sessoes: lista } = await api.listarSessoesCore();
+      setSessoesCore(lista);
+    } catch {
+      // O historico do CORE e secundario para as telas de workspace.
     }
   }, []);
 
@@ -317,6 +343,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
         await recarregarWorkspaces();
         setCockpitLiberado(true);
         await recarregarSessoes();
+        await recarregarSessoesCore();
         await recarregarPecas();
         await recarregarContextos();
         await recarregarCustos();
@@ -333,6 +360,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   }, [
     recarregarWorkspaces,
     recarregarSessoes,
+    recarregarSessoesCore,
     recarregarPecas,
     recarregarContextos,
     recarregarCustos,
@@ -344,6 +372,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   const recarregarTudo = useCallback(async () => {
     await Promise.all([
       recarregarSessoes(),
+      recarregarSessoesCore(),
       recarregarPecas(),
       recarregarContextos(),
       recarregarCustos(),
@@ -359,6 +388,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     ]);
   }, [
     recarregarSessoes,
+    recarregarSessoesCore,
     recarregarPecas,
     recarregarContextos,
     recarregarCustos,
@@ -382,9 +412,10 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     setCockpitLiberado(true);
     void recarregarWorkspaces();
     void recarregarSessoes();
+    void recarregarSessoesCore();
     void recarregarPecas();
     void recarregarContextos();
-  }, [recarregarWorkspaces, recarregarSessoes, recarregarPecas, recarregarContextos]);
+  }, [recarregarWorkspaces, recarregarSessoes, recarregarSessoesCore, recarregarPecas, recarregarContextos]);
 
   const criarSessao = useCallback(
     async (dados: {
@@ -621,23 +652,24 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
         // Guarda o session_id do claude quando aparece no init.
         const idClaude = mensagem.evento.session_id;
         if (idClaude) {
-          setSessoes((antes) =>
-            antes.map((s) =>
-              s.id === mensagem.id && !s.sessionIdClaude
-                ? { ...s, sessionIdClaude: idClaude }
-                : s
-            )
+          const atualizarIdClaude = (antes: Sessao[]) => antes.map((s) =>
+            s.id === mensagem.id && !s.sessionIdClaude
+              ? { ...s, sessionIdClaude: idClaude }
+              : s
           );
+          if (mensagem.workspaceId) setSessoes(atualizarIdClaude);
+          else setSessoesCore(atualizarIdClaude);
         }
         return;
       }
 
       if (mensagem.tipo === "sessao:status") {
-        setSessoes((antes) => {
+        const atualizarStatus = (antes: Sessao[]) => {
           const existe = antes.some((s) => s.id === mensagem.id);
           if (!existe) {
             // Sessao desconhecida, busca a lista completa.
-            void recarregarSessoes();
+            if (mensagem.workspaceId) void recarregarSessoes();
+            else void recarregarSessoesCore();
             return antes;
           }
           return antes.map((s) =>
@@ -650,7 +682,9 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
                 }
               : s
           );
-        });
+        };
+        if (mensagem.workspaceId) setSessoes(atualizarStatus);
+        else setSessoesCore(atualizarStatus);
         // Sessao encerrada: busca modelo, tokens e custo finais do backend,
         // e atualiza o total gasto.
         if (
@@ -658,7 +692,8 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
           mensagem.status === "erro" ||
           mensagem.status === "parada"
         ) {
-          void recarregarSessoes();
+          if (mensagem.workspaceId) void recarregarSessoes();
+          else void recarregarSessoesCore();
           void recarregarCustos();
         }
         return;
@@ -676,6 +711,11 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
 
       if (mensagem.tipo === "pecas:atualizadas") {
         void recarregarPecas();
+        setAvisoPecas((n) => n + 1);
+      }
+
+      if ((mensagem as unknown as { tipo?: string }).tipo === "assistente:atualizado") {
+        setAvisoAssistente((n) => n + 1);
       }
 
       // O CRM e do CORE: o aviso vale pra qualquer aba, com ou sem cliente
@@ -700,7 +740,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
         });
       }
     },
-    [recarregarSessoes, recarregarPecas, recarregarCustos, aplicarTrocaLocal]
+    [recarregarSessoes, recarregarSessoesCore, recarregarPecas, recarregarCustos, aplicarTrocaLocal]
   );
 
   // Reconexao do WebSocket: recarrega o estado (sessoes, pecas, contextos,
@@ -708,6 +748,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   // Uma reconexao dispara uma recarga, sem loop.
   const aoReconectar = useCallback(() => {
     void recarregarTudo();
+    void recarregarSessoesCore();
     void recarregarWorkspaces();
     // O CRM tambem ficou desatualizado em silencio enquanto o socket esteve
     // fora, e nao da pra saber o que passou: o escopo "tudo" manda reler o
@@ -717,7 +758,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     // "nao da pra saber qual mudou": qualquer thread aberta rele, e a lista
     // junto.
     setAvisoMensagens({ tipo: "mensagens:atualizadas", escopo: "thread" });
-  }, [recarregarTudo, recarregarWorkspaces]);
+  }, [recarregarTudo, recarregarSessoesCore, recarregarWorkspaces]);
 
   usarWebSocket(aoReceber, setWsConectado, aoReconectar, workspaceAtivo);
 
@@ -746,10 +787,13 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     wsConectado,
     avisoCrm,
     avisoMensagens,
+    avisoPecas,
+    avisoAssistente,
     ambiente,
     estadoVkos,
     cockpitLiberado,
     sessoes,
+    sessoesCore,
     streams,
     pecas,
     contextos,
@@ -767,6 +811,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
     renomearCliente,
     removerCliente,
     recarregarInicial,
+    recarregarSessoesCore,
     recarregarAmbiente,
     definirPastaVkos,
     liberarCockpit,

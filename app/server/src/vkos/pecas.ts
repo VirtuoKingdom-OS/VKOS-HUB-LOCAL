@@ -10,6 +10,8 @@ import { transmitir } from "../nucleo/ws.js";
 import { emitir } from "../eventos/barramento.js";
 import { idWorkspaceAtivo } from "../workspaces/estado.js";
 import { auditarSiteEstatico } from "./siteEstatico.js";
+import { NOME_ARQUIVO_ANUNCIO } from "../anuncios/modelo.js";
+import { diagnosticarAnuncio } from "../anuncios/armazenamento.js";
 
 // Le todas as pecas da pasta do VKOS, mais recente primeiro.
 export function lerPecas(pastaVkos: string): Peca[] {
@@ -85,6 +87,13 @@ function montarPeca(pastaConteudo: string, nomePasta: string): Peca {
       avisos: auditoriaSite.avisos,
     };
   }
+  // A peca de anuncio carrega o veredito da propria forma. A classificacao
+  // acima olha so o NOME do arquivo, entao sem isto um anuncio.json corrompido
+  // chegaria na tela como campanha pronta e o erro so apareceria depois, no
+  // 422 da tela do anuncio.
+  if (tipo === "anuncio") {
+    peca.anuncio = diagnosticarAnuncio(join(pastaConteudo, nomePasta));
+  }
   const criadoEm = lerCriadoEm(join(pastaConteudo, nomePasta));
   if (criadoEm) {
     peca.criadoEm = criadoEm;
@@ -137,23 +146,47 @@ export function classificarPeca(
   const htmls = internos.filter((c) => terminaCom(c, ".html")).sort(compararNatural);
   const mds = internos.filter((c) => terminaCom(c, ".md"));
 
-  if (pngsInstagram.length > 0) {
-    return { tipo: "carrossel", internosPreview: pngsInstagram };
-  }
   if (pngsStories.length > 0) {
     return { tipo: "stories", internosPreview: pngsStories };
   }
   if (pngsPost.length > 0) {
     return { tipo: "post", internosPreview: pngsPost };
   }
-  // NOVO: sem PNG legado, um carrossel.html na raiz da subpasta vira peca
-  // HTML-first. O PNG so existe quando o usuario baixa (render sob demanda).
+  // Um anuncio.json na raiz DEFINE a peca como anuncio, e a regra vem antes de
+  // qualquer .html e de qualquer .md. Sem essa ordem, uma pasta de anuncio com
+  // um rascunho .md dentro viraria "texto" e a tela do anuncio nunca abriria.
+  // Peca de anuncio nao tem preview de imagem: a lista vazia leva montarPeca
+  // pelo ramo comum, sem quebrar nada.
+  if (internos.some((c) => c.toLowerCase() === NOME_ARQUIVO_ANUNCIO)) {
+    return { tipo: "anuncio", internosPreview: [] };
+  }
+  // O carrossel.html na raiz da subpasta faz a peca ser HTML-first, e ele vence
+  // o PNG de instagram/ quando os dois existem.
+  //
+  // A ORDEM AQUI E O QUE DECIDE SE A PECA ABRE NO STUDIO, e ela ja custou caro.
+  // Ate 2026-08-04 o PNG vinha primeiro: peca com instagram/ era classificada
+  // como legado, legado nao carrega fonteHtml, e sem fonteHtml o Studio recusa
+  // abrir. Toda peca que nascesse com o Passo 5 da skill rodado (o render)
+  // nascia sem edicao, e foi assim que os dois primeiros carrosseis do
+  // Assistente chegaram travados.
+  //
+  // Trocar a ordem e o que a decisao do HTML-first ja dizia: a fonte da verdade
+  // e o carrossel.html, e o PNG so nasce quando o dono baixa. PNG velho ao lado
+  // de um HTML editado mente sobre o conteudo, e o proprio save apaga essas
+  // subpastas na primeira gravacao.
+  //
+  // Stories e post ficam ACIMA de proposito: eles tambem tem carrossel.html na
+  // pasta, e passar na frente deles transformaria um story em carrossel.
   const temCarrosselRaiz = internos.some((c) => c.toLowerCase() === "carrossel.html");
   if (temCarrosselRaiz && pastaAbsolutaPeca) {
     const paginas = contarPaginasCarrossel(join(pastaAbsolutaPeca, "carrossel.html"));
     if (paginas > 0) {
       return { tipo: "carrossel", internosPreview: [], fonteHtml: true, paginas };
     }
+  }
+  // Legado de verdade: PNG em instagram/ sem carrossel.html legivel ao lado.
+  if (pngsInstagram.length > 0) {
+    return { tipo: "carrossel", internosPreview: pngsInstagram };
   }
   if (htmls.length > 0) {
     return { tipo: "site", internosPreview: htmls };

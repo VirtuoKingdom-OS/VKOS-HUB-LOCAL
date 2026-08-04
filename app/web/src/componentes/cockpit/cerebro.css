@@ -20,6 +20,40 @@
   gap: var(--esp-8);
 }
 
+/* As guias Ler e Chat. Elas ficam na largura do painel, coladas embaixo do
+   cabecalho, e a primitiva ja traz o fio da aba ativa. */
+.abas-cerebro {
+  flex: none;
+  padding: 0 var(--esp-16);
+}
+
+.abas-cerebro .aba {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+/* O chat ocupa o painel inteiro abaixo das guias: quem esta conversando quer
+   ver a conversa, e o documento fica a um clique na guia do lado. */
+.chat-cerebro {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.chat-cerebro > .conversa-ia {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-cerebro-faixa {
+  margin: 0 var(--esp-16) var(--esp-8);
+}
+
+.chat-cerebro-vazio {
+  padding: var(--esp-24) var(--esp-16);
+}
+
 .meta-cerebro {
   margin-bottom: var(--esp-16);
   padding-bottom: var(--esp-8);

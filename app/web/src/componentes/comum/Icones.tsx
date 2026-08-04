@@ -62,6 +62,16 @@ export function IconeSite({ className, style }: PropsIcone) {
   );
 }
 
+// Megafone: o anuncio pago. Traco unico, mesma familia dos outros.
+export function IconeAnuncio({ className, style }: PropsIcone) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} style={style} {...base}>
+      <path d="M4 10v4a1 1 0 0 0 1 1h3l6 4V5L8 9H5a1 1 0 0 0-1 1Z" />
+      <path d="M18 9.5a3.5 3.5 0 0 1 0 5" />
+    </svg>
+  );
+}
+
 export function IconePasta({ className, style }: PropsIcone) {
   return (
     <svg viewBox="0 0 24 24" className={className} style={style} {...base}>
@@ -263,5 +273,6 @@ export function IconeFluxo({ id, className }: { id: string; className?: string }
   if (id === "post") return <IconePost className={className} />;
   if (id === "stories") return <IconeStories className={className} />;
   if (id === "site") return <IconeSite className={className} />;
+  if (id === "anuncio") return <IconeAnuncio className={className} />;
   return <IconeRaio className={className} />;
 }

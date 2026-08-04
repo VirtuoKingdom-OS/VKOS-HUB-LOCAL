@@ -11,8 +11,8 @@ import {
   tipoCriacaoDaTela,
 } from "./rotas";
 
-test("as quatro criações guiadas têm rota própria e reversível", () => {
-  for (const tipo of ["carrossel", "post", "story", "site"]) {
+test("as cinco criações guiadas têm rota própria e reversível", () => {
+  for (const tipo of ["carrossel", "post", "story", "site", "anuncio"]) {
     const tela = `criar:${tipo}`;
     const caminho = `/criar/${tipo}`;
     assert.equal(telaParaCaminho(tela), caminho);
@@ -31,6 +31,16 @@ test("rotas de peças continuam preservadas", () => {
   assert.equal(caminhoParaTela("/site/site-novo"), "site:site-novo");
   assert.equal(telaParaCaminho("site:site-novo"), "/site/site-novo");
   assert.equal(caminhoParaTela("/studio/carrossel-novo"), "studio:carrossel-novo");
+});
+
+test("a tela do anúncio tem rota própria, ida e volta", () => {
+  const pasta = "2026-07-31-anuncio-combo";
+  assert.equal(telaParaCaminho(`anuncio:${pasta}`), `/anuncio/${pasta}`);
+  assert.equal(caminhoParaTela(`/anuncio/${pasta}`), `anuncio:${pasta}`);
+  // Pasta com espaço e acento viaja codificada, e volta igual ao que saiu.
+  const segmento = encodeURIComponent("minha campanha de anúncio");
+  assert.equal(caminhoParaTela(telaParaCaminho(`anuncio:${segmento}`)), `anuncio:${segmento}`);
+  assert.equal(decodeURIComponent(segmento), "minha campanha de anúncio");
 });
 
 test("cancelamento nunca retorna para outra criação, e cai no workspace", () => {
@@ -54,7 +64,7 @@ test("cada tela fixa mora em um nível só, e a divisão é a do HUB CORE", () =
   // ordem é a dos três grupos da barra: Core, Gestão e Sistema.
   assert.deepEqual(
     [...TELAS_CORE],
-    ["dashboard", "clientes", "workspaces", "crm", "financas", "conexoes", "mapa"],
+    ["dashboard", "assistente", "clientes", "workspaces", "crm", "financas", "conexoes", "mapa"],
   );
   // O workspace é o nível do projeto aberto.
   assert.deepEqual([...TELAS_WORKSPACE], ["inicio", "cockpit", "galerias", "fontes"]);
@@ -111,4 +121,20 @@ test("conclusão troca a criação pelo editor correto", () => {
   assert.equal(destinoAposCriacao("carrossel", "minha peça"), "studio:minha%20pe%C3%A7a");
   assert.equal(destinoAposCriacao("post", "post"), "studio:post");
   assert.equal(destinoAposCriacao("story", "story"), "studio:story");
+});
+
+test("anúncio pronto termina na página da campanha", () => {
+  // A Fase 3 do fluxo de anúncios trocou o destino temporário (as galerias, onde
+  // a peça de anúncio nem aparece) pela tela dela. O caminho gerado precisa ser
+  // uma rota de verdade: destino inventado cai no dashboard em silêncio, e o
+  // dono acha que a peça sumiu.
+  assert.equal(
+    destinoAposCriacao("anuncio", "2026-07-31-anuncio-combo"),
+    "anuncio:2026-07-31-anuncio-combo",
+  );
+  assert.equal(
+    telaParaCaminho(destinoAposCriacao("anuncio", "combo de estreia")),
+    "/anuncio/combo%20de%20estreia",
+  );
+  assert.notEqual(telaParaCaminho(destinoAposCriacao("anuncio", "qualquer")), "/dashboard");
 });

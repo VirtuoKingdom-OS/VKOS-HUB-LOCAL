@@ -59,8 +59,10 @@ export function TelaFluxo({ tipo }: Props) {
                 aoEditar={(pasta) => {
                   irParaPeca("studio", pasta);
                 }}
-                aoAbrirSite={(pasta) => {
-                  irParaPeca("site", pasta);
+                aoAbrir={(pasta) => {
+                  // Cada tipo tem a tela dele. Sem este desvio, a peça de
+                  // anúncio abriria a tela do site e não acharia página nenhuma.
+                  irParaPeca(peca.tipo === "anuncio" ? "anuncio" : "site", pasta);
                 }}
               />
             ))}

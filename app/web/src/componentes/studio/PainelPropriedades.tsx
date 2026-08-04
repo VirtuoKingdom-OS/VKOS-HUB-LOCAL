@@ -3,6 +3,7 @@ import { IconeDuplicar, IconeLixeira, IconeSubir } from "../comum/Icones";
 import type { MotorEdicao } from "../editor/motor";
 import { ControlesImagem, MenuAdicionarImagem } from "../editor/ControlesImagem";
 import { PainelCamadas } from "../editor/PainelCamadas";
+import { AcoesDaCaixa } from "../editor/AcoesDaCaixa";
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "../editor/GaleriaFontes";
 import { usarGeracaoImagemIA } from "../editor/usarGeracaoImagem";
 import {
@@ -189,6 +190,19 @@ export function PainelPropriedades({
                 </button>
               )}
             </div>
+
+            {/* As tres partes da caixa: a pele, o vinculo com o pai e o
+                proprio agrupamento. Ver AcoesDaCaixa.tsx. */}
+            <AcoesDaCaixa
+              temPele={sel.temPele}
+              peleLimpa={sel.peleLimpa}
+              podeSoltar={sel.podeSoltar}
+              podeDesagrupar={sel.podeDesagrupar}
+              filhosConteudo={sel.filhosConteudo}
+              aoAlternarPele={motor.alternarPele}
+              aoSoltar={motor.soltarDoConteiner}
+              aoDesagrupar={motor.desagrupar}
+            />
 
             <label className="grupo-campo">
               <span className="rotulo">Texto</span>
@@ -393,8 +407,9 @@ export function PainelPropriedades({
         <PainelCamadas
           itens={camadas}
           selecionadoId={sel?.vkId || null}
+          modo="empilhamento"
           aoSelecionar={motor.selecionarPorId}
-          aoMover={motor.moverCamada}
+          aoReordenar={motor.reordenarCamada}
         />
       </section>
 

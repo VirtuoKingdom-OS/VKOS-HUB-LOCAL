@@ -2,7 +2,7 @@
 // Recebe eventos do provedor, transmite eventos e status pelo WebSocket,
 // respeita o limite de sessoes simultaneas e persiste o indice.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { basename } from "node:path";
 
@@ -24,6 +24,13 @@ import {
   skillPassaPelaConferencia,
   type LacoConformidade,
 } from "./conformidade-site.js";
+import {
+  criarLacoAnuncio,
+  deveDispararLacoAnuncio,
+  type LacoAnuncio,
+  type ResultadoConformidadeAnuncio,
+} from "../anuncios/conformidade.js";
+import { diagnosticarAnuncio } from "../anuncios/armazenamento.js";
 import { obterProvedorAtivo, obterProvedorDaSessao } from "../provedores/index.js";
 import { prepararPromptEWorkspace } from "../provedores/skills.js";
 import { transmitir, transmitirPara } from "../nucleo/ws.js";
@@ -34,6 +41,7 @@ import { registrarResult, registrarTurnoSemMedicao } from "./custos.js";
 import {
   garantirPastaDadosWorkspace,
   listarIdsWorkspaces,
+  pastaDadosHub,
   pastaDadosWorkspace,
 } from "../workspaces/estado.js";
 import { montarConfigMcp } from "../conexoes/mcp.js";
@@ -81,6 +89,26 @@ export function resolverModeloDaExecucao(
   // O Claude historicamente omite --model depois de um restart e deixa o
   // proprio resume herdar o modelo. Mantemos esse comportamento.
   return "";
+}
+
+// Qual laco de conformidade uma sessao concluida dispara. UM SO, NUNCA OS DOIS.
+//
+// Os dois conjuntos de skill sao disjuntos de proposito (site e ajuste-site de
+// um lado, anuncio do outro), entao a ordem aqui nao muda o resultado. Escrever
+// como uma escada, e nao como dois ifs soltos no aoFechar, e o que faz a
+// exclusao ser afirmavel por teste: rodar a auditoria de site numa peca que nao
+// tem index.html, ou o schema do anuncio numa peca que nao tem anuncio.json,
+// seria rodar a coisa errada no artefato errado.
+//
+// `ehPecaSite` chega como funcao porque ela le disco: sessao de anuncio nao
+// pode pagar uma listagem de arquivos pra descobrir o que ja se sabe pela skill.
+export function lacoDaSessao(
+  sessao: Sessao,
+  ehPecaSite: () => boolean,
+): "site" | "anuncio" | null {
+  if (deveDispararLacoAnuncio(sessao)) return "anuncio";
+  if (deveDispararLaco(sessao) && ehPecaSite()) return "site";
+  return null;
 }
 
 // Estados terminais da conferencia de site: nada mais roda depois deles.
@@ -330,15 +358,36 @@ function transmitirDaSessao(sessao: Pick<Sessao, "workspaceId">, mensagem: objec
 }
 
 export function montarInstrucoesExtrasSessao(
-  sessao: Pick<Sessao, "contextoCrm">,
+  sessao: Pick<Sessao, "contextoCrm" | "instrucoesExtras">,
 ): string | undefined {
   const blocos: string[] = [];
+  if (sessao.instrucoesExtras) {
+    blocos.push(sessao.instrucoesExtras);
+  }
   if (sessao.contextoCrm) {
     blocos.push(
       `<contexto-crm>\nResumo do CRM do usuario (agregado, gerado agora):\n${sessao.contextoCrm}\n</contexto-crm>\n${REGRA_CONTEXTO_CRM}`,
     );
   }
   return blocos.length > 0 ? blocos.join("\n\n") : undefined;
+}
+
+// O que a transcricao mostra como a PRIMEIRA FALA DO DONO.
+//
+// Existe porque o prompt que vai pro provedor nem sempre e o que a pessoa
+// escreveu. Numa geracao de anuncio o Hub costura o Cerebro inteiro, o SKILL.md
+// e o contrato do JSON antes de disparar: milhares de palavras de maquina. Se a
+// transcricao mostrasse isso, a conversa abriria com uma parede de texto que o
+// dono nunca digitou, e a resposta da IA ficaria enterrada embaixo.
+//
+// Fica separado, e nao inline no criar, pra ser afirmavel por teste. O defeito
+// original passou despercebido justamente por ser um ternario dentro de um
+// metodo que so roda com disco e provedor de pe.
+export function textoDoPrimeiroTurno(
+  prompt: string,
+  promptVisivel?: string,
+): string {
+  return promptVisivel?.trim() || prompt;
 }
 
 export class GerenciadorSessoes {
@@ -358,6 +407,16 @@ export class GerenciadorSessoes {
     statusSessao: (id) => this.acharSessao(id)?.status,
   });
 
+  // Laco de conformidade do anuncio. Mesma retomada e mesmo setter de
+  // conferencia do laco de site; o que muda e a conferencia, que aqui e ler o
+  // anuncio.json e rodar o schema.
+  private lacoAnuncio: LacoAnuncio = criarLacoAnuncio({
+    validar: (sessao) => this.validarAnuncioDaSessao(sessao),
+    retomar: (id, prompt) => this.continuar(id, prompt, { interno: true }),
+    definirConferencia: (id, conferencia) => this.definirConferencia(id, conferencia),
+    statusSessao: (id) => this.acharSessao(id)?.status,
+  });
+
   constructor() {
     // O carregamento e explicito (iniciar), chamado pelo index.ts depois da
     // migracao, pra o registro de workspaces ja existir na hora de ler.
@@ -370,12 +429,13 @@ export class GerenciadorSessoes {
     this.carregar();
   }
 
-  // Retorna a lista de sessoes. Sem filtro, todas; com workspaceId, so as dele.
+  // Retorna a lista de sessoes. Sem argumento, todas; com workspaceId,
+  // inclusive string vazia para o CORE, so as dele.
   // Copia rasa pra proteger o indice interno.
   listar(workspaceId?: string): Sessao[] {
-    const base = workspaceId
-      ? this.sessoes.filter((s) => s.workspaceId === workspaceId)
-      : this.sessoes;
+    const base = workspaceId === undefined
+      ? this.sessoes
+      : this.sessoes.filter((s) => (s.workspaceId ?? "") === workspaceId);
     return base.map((s) => ({ ...s }));
   }
 
@@ -394,7 +454,18 @@ export class GerenciadorSessoes {
     workspaceId: string;
     permissao?: "padrao" | "total";
     contextoCrm?: string;
+    instrucoesExtras?: string;
     pastaAlvo?: string;
+    // O que a PESSOA escreveu, quando o prompt que vai pro provedor foi montado
+    // pelo Hub. Só a transcrição usa isto.
+    //
+    // Nasceu com o chat do anúncio, em 2026-07-31. O prompt de uma geração de
+    // anúncio carrega o Cérebro inteiro, o SKILL.md e o contrato do JSON: são
+    // milhares de palavras de máquina. Mostrar isso como a primeira fala do dono
+    // transforma a conversa numa parede de texto que ele nunca escreveu, e
+    // enterra a resposta da IA lá embaixo. O prompt de verdade continua sendo o
+    // que o provedor recebe; muda só o que a transcrição mostra.
+    promptVisivel?: string;
   }): Sessao {
     const agora = new Date().toISOString();
     const provedor = obterProvedorAtivo();
@@ -420,6 +491,7 @@ export class GerenciadorSessoes {
       // Persiste na sessao, entao vale tambem nas continuacoes via --resume.
       permissao: entrada.permissao ?? "padrao",
       contextoCrm: entrada.contextoCrm,
+      instrucoesExtras: entrada.instrucoesExtras,
       // Chave do laco de conformidade. Geracao guiada de site e ajuste de site
       // preenchem; qualquer outra skill nunca carrega pastaAlvo.
       pastaAlvo: skillPassaPelaConferencia(entrada.skill) ? entrada.pastaAlvo : undefined,
@@ -439,7 +511,7 @@ export class GerenciadorSessoes {
     // Prompt inicial vira o primeiro turno do usuario na transcricao.
     anexarTurno(sessao.workspaceId ?? "", sessao.id, {
       papel: "usuario",
-      texto: entrada.prompt,
+      texto: textoDoPrimeiroTurno(entrada.prompt, entrada.promptVisivel),
       em: agora,
     });
 
@@ -542,6 +614,7 @@ export class GerenciadorSessoes {
     }
     this.execucoes.delete(id);
     this.laco.esquecer(id);
+    this.lacoAnuncio.esquecer(id);
 
     // A transcricao vai junto. O custos.json fica, o acumulado nao se perde.
     apagarTranscricao(sessao.workspaceId ?? "", id);
@@ -654,6 +727,19 @@ export class GerenciadorSessoes {
     } catch {
       return false;
     }
+  }
+
+  // Le o anuncio.json da pasta alvo e roda o schema. Nunca lanca: o
+  // diagnostico ja devolve o veredito com o erro literal em portugues, que e o
+  // mesmo texto que a lista de pecas carrega e que a tela mostra.
+  private validarAnuncioDaSessao(sessao: Sessao): ResultadoConformidadeAnuncio {
+    if (!sessao.workspaceId || !sessao.pastaAlvo) {
+      return {
+        valido: false,
+        erro: "A sessão não sabe em qual pasta a campanha deveria estar.",
+      };
+    }
+    return diagnosticarAnuncio(pastaDaPeca(sessao.workspaceId, sessao.pastaAlvo));
   }
 
   // Roda a auditoria completa (estrutural + visual) na peca da sessao e traduz
@@ -939,10 +1025,11 @@ export class GerenciadorSessoes {
     }
 
     if (execucao.recebeuResult && !execucao.resultComErro) {
-      // Peca de site que vai passar pelo laco: marca "conferindo" ANTES de
+      // Peca que vai passar por um dos lacos: marca "conferindo" ANTES de
       // anunciar a conclusao, pra o frontend nunca ver a peca como pronta no
       // meio da conferencia. Emitido antes do status, entao chega antes no WS.
-      const vaiConferir = deveDispararLaco(sessao) && this.pecaEhSite(sessao);
+      const laco = lacoDaSessao(sessao, () => this.pecaEhSite(sessao));
+      const vaiConferir = laco !== null;
       if (vaiConferir) {
         this.definirConferencia(sessao.id, {
           estado: "conferindo",
@@ -960,12 +1047,16 @@ export class GerenciadorSessoes {
           dados: { id: sessao.id, skill: sessao.skill, titulo: sessao.titulo },
         });
       }
-      // Laco de conformidade de site: confere a peca e, se preciso, retoma esta
-      // mesma sessao pra corrigir. Fire-and-forget: a auditoria e a retomada
-      // seguem o proprio fluxo de eventos. Uma falha aqui nao pode derrubar o
-      // fechamento da sessao.
-      if (vaiConferir) {
+      // O laco escolhido confere a peca e, se preciso, retoma esta mesma sessao
+      // pra corrigir. Fire-and-forget: a conferencia e a retomada seguem o
+      // proprio fluxo de eventos. Uma falha aqui nao pode derrubar o fechamento
+      // da sessao.
+      if (laco === "site") {
         void this.laco.aoConcluir({ ...sessao }).catch(() => {
+          /* o laco ja registra pendencias no proprio fluxo */
+        });
+      } else if (laco === "anuncio") {
+        void this.lacoAnuncio.aoConcluir({ ...sessao }).catch(() => {
           /* o laco ja registra pendencias no proprio fluxo */
         });
       }
@@ -1010,6 +1101,13 @@ export class GerenciadorSessoes {
         garantirPastaDadosWorkspace(id);
         gravarJsonAtomico(arquivo, doWorkspace);
       }
+      const doCore = this.sessoes.filter((s) => !s.workspaceId);
+      const pastaCore = path.join(pastaDadosHub(), "assistente");
+      const arquivoCore = path.join(pastaCore, NOME_ARQUIVO_SESSOES);
+      if (doCore.length > 0 || existsSync(arquivoCore)) {
+        if (!existsSync(pastaCore)) mkdirSync(pastaCore, { recursive: true });
+        gravarJsonAtomico(arquivoCore, doCore);
+      }
     } catch {
       // Falha ao gravar nao pode derrubar o gerenciador.
     }
@@ -1049,6 +1147,25 @@ export class GerenciadorSessoes {
             : `Sessoes do workspace ${id} estavam corrompidas e nao deu pra mover pra quarentena.`,
         );
       }
+    }
+    const arquivoCore = path.join(pastaDadosHub(), "assistente", NOME_ARQUIVO_SESSOES);
+    try {
+      if (existsSync(arquivoCore)) {
+        const dados = JSON.parse(readFileSync(arquivoCore, "utf8"));
+        if (Array.isArray(dados)) {
+          for (const bruta of dados) {
+            const sessao = saneiaSessaoPersistida(bruta, "");
+            if (sessao) todas.push(sessao);
+          }
+        }
+      }
+    } catch {
+      const movido = quarentenar(arquivoCore);
+      console.warn(
+        movido
+          ? `Sessoes CORE estavam corrompidas. Original preservado em ${basename(movido)}.`
+          : "Sessoes CORE estavam corrompidas e nao deu pra mover para quarentena.",
+      );
     }
     this.sessoes = todas;
   }

@@ -53,12 +53,14 @@ export function montarResumoCore(agora: Date = new Date()): ResumoCore {
   const registro = lerRegistro();
   const ativo = idWorkspaceAtivo();
   const historico = lerHistoricoRemovidos();
+  const custosCore = custosTolerante("");
+  const lancamentosCore = lancamentosTolerante("");
 
-  let totalUsd = historico.totalUsd;
-  let estimado = historico.estimado;
-  let turnosSemCusto = historico.turnosSemCusto;
-  let algumIlegivel = false;
-  const todosLancamentos = [];
+  let totalUsd = historico.totalUsd + custosCore.custos.totalUsd;
+  let estimado = historico.estimado || custosCore.custos.estimado;
+  let turnosSemCusto = historico.turnosSemCusto + custosCore.custos.turnosSemCusto;
+  let algumIlegivel = custosCore.ilegivel;
+  const todosLancamentos = [...lancamentosCore];
   const lista: WorkspaceNoCore[] = [];
 
   for (const workspace of registro.workspaces) {

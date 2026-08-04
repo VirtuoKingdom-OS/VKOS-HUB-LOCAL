@@ -17,6 +17,7 @@ import type {
   TurnoSessao,
   Workspace,
 } from "../tipos/dominio";
+import type { PecaAnuncio, Violacao } from "../tipos/anuncios";
 
 // Alias de modelo entregue pelo provedor ativo. A lista valida vem da API.
 export type ModeloIA = string;
@@ -304,6 +305,10 @@ export function listarSessoes(): Promise<{ sessoes: Sessao[] }> {
   return pedir<{ sessoes: Sessao[] }>("/api/sessoes");
 }
 
+export function listarSessoesCore(): Promise<{ sessoes: Sessao[] }> {
+  return pedir<{ sessoes: Sessao[] }>("/api/sessoes?escopo=core");
+}
+
 export function criarSessao(dados: {
   titulo?: string;
   prompt: string;
@@ -495,6 +500,49 @@ export interface RespostaPublicacao {
 
 export function obterPublicacao(pasta: string): Promise<RespostaPublicacao> {
   return pedir<RespostaPublicacao>(`/api/publicacao/${encodeURIComponent(pasta)}`);
+}
+
+// A campanha de anuncio de uma peca, mais tudo que estoura limite do Google.
+// As violacoes vem juntas na mesma resposta: quem confere e o servidor, e a
+// tela so marca o campo que ele apontou.
+//
+// 404 quer dizer que a pasta ou o anuncio.json nao existe; 422 quer dizer que o
+// arquivo existe e esta fora do formato, e a mensagem ja diz qual campo falhou.
+// Os dois viram estado honesto na tela, nunca tela em branco.
+export interface RespostaAnuncio {
+  peca: PecaAnuncio;
+  violacoes: Violacao[];
+}
+
+export function obterAnuncio(pasta: string): Promise<RespostaAnuncio> {
+  return pedir<RespostaAnuncio>(`/api/anuncios/${encodeURIComponent(pasta)}`);
+}
+
+// Qual sessao escreveu esta campanha. sessaoId nulo e um estado normal: peca
+// escrita a mao, ou vinculo perdido. Quem decide se a sessao ainda esta VIVA e
+// a tela, olhando a lista de sessoes que ela ja tem.
+export interface RespostaConversaAnuncio {
+  sessaoId: string | null;
+  atualizadoEm: string | null;
+}
+
+export function obterConversaAnuncio(pasta: string): Promise<RespostaConversaAnuncio> {
+  return pedir<RespostaConversaAnuncio>(
+    `/api/anuncios/${encodeURIComponent(pasta)}/conversa`,
+  );
+}
+
+// Aponta a peca pra outra conversa. Quem chama e a tela, depois de abrir uma
+// sessao de resgate porque a anterior morreu. Na geracao quem grava e o
+// servidor: la o navegador pode fechar no meio.
+export function definirConversaAnuncio(
+  pasta: string,
+  sessaoId: string,
+): Promise<RespostaConversaAnuncio> {
+  return pedir<RespostaConversaAnuncio>(
+    `/api/anuncios/${encodeURIComponent(pasta)}/conversa`,
+    { method: "PUT", body: JSON.stringify({ sessaoId }) },
+  );
 }
 
 export function abrirPastaDaPeca(pasta: string): Promise<{ ok: boolean }> {

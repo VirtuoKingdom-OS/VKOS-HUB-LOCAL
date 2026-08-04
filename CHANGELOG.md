@@ -3,6 +3,44 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 O VKOS Hub Local segue [versionamento semântico](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+O terceiro fluxo de criação: uma campanha de Google Ads inteira, planejada pela IA e entregue pronta pra colar no painel. Ver `docs/decisoes/2026-07-31-o-fluxo-de-anuncios.md`. E o Cérebro passou a ser conversável de verdade, do começo ao fim e depois do fim. Ver `docs/decisoes/2026-08-04-quem-encerra-o-cerebro-e-o-dono.md` e `docs/decisoes/2026-08-04-a-cerimonia-volta-a-ser-painel.md`.
+
+### Adicionado
+
+- **Assistente do Hub no CORE**, com conversas persistentes, sessões sem workspace, briefing curado, propostas de lote, aprovação humana, fila append-only por tarefa e rastro de efeitos do servidor. A tela `/assistente` reúne histórico, conversa, fila e rastro em três colunas e direciona cada geração pelo `workspaceId` sem trocar o workspace ativo.
+- **Contrato de lote e infraestrutura de execução**, com `lote.json` isolado em pasta temporária, tarefas de carrossel, site e anúncio, recuperação segura após reinício e custo das sessões CORE no Dashboard.
+
+- **O Chat do Cérebro**, uma guia nova no painel, ao lado de Ler. É a mesma conversa que montou a identidade, e não um chat novo ao lado do documento: ela sabe o que já foi perguntado, o que você respondeu e o que você recusou. Peça "a voz está formal demais, deixa mais direta" e o documento muda, com a guia Ler relendo o arquivo sozinha quando o turno termina. Se a conversa tiver morrido, isso é dito na cara, e a conversa nova começa lendo o Cérebro que já existe em vez de recomeçar a entrevista.
+- **O botão de concluir o Cérebro**, com confirmação em dois passos.
+
+- **Criar anúncio**, ao lado de criar carrossel e criar site. O assistente pergunta o que o Cérebro não tem como saber: qual oferta anunciar, para onde vai o clique, em que cidades e quanto se pode gastar por dia. Sem a pergunta do orçamento o bloco de investimento seria chute, porque o Cérebro não tem nenhum número de dinheiro dentro dele.
+- **A campanha é um arquivo com contrato, não um texto solto.** `anuncio.json` na pasta da peça, conferido campo a campo. Título tem 30 caracteres no Google, descrição tem 90, frase de destaque tem 25, e o valor da tela é afirmar que aquilo cabe.
+- **A página da campanha**, em nove blocos: estratégia, estrutura, palavras-chave, negativas, anúncios, recursos, orçamento, conversões e publicação. Campanha pela metade não dá pra lançar: sem orçamento e sem conversão o dono não sabe se está ganhando ou perdendo dinheiro. Cada campo do Google tem a contagem de caracteres e um botão de copiar; palavra-chave copia na sintaxe do painel, com `[exata]` e `"frase"`, pra colar o grupo inteiro de uma vez.
+- **Texto que estoura o limite aparece marcado, e não é corrigido sozinho.** Passar de 30 caracteres é um problema que o dono precisa VER, não motivo pra recusar a campanha inteira. Se a validação reprovasse isso, um título ruim deixaria o dono sem nada em vez de deixá-lo com quase tudo.
+- **O chat ao lado é a mesma conversa que gerou a campanha.** Pedir "troca os títulos do grupo 2 por ângulo de urgência" reescreve o arquivo e a página se atualiza sozinha, sem recarregar e sem botão. Sair da tela e voltar reencontra o histórico. Provado com IA real, dois turnos: o segundo pedido dizia só "o grupo 2" e a sessão retomada entendeu.
+- **A conversa que morreu é dita na cara.** Se a sessão acabou, o campo fica desligado e a tela oferece começar outra, na mesma pasta e com a campanha atual em mãos. Fingir continuidade destruiria o único valor dessa parte.
+
+### Alterado
+
+- **As peças que o Assistente cria voltaram a abrir no Studio, e um lote não sai mais com duas peças da mesma cara.** Os três prompts de geração tinham duas implementações: a do navegador, com 248 linhas, e uma reescrita de 20 no servidor, que a fila do Assistente usava. A reescrita tinha perdido o contrato do modelo visual, as instruções de formato e a linha que manda a skill NÃO renderizar PNG. Sem essa linha a peça nasce com PNG, peça com PNG era classificada como legado, e legado o Studio não abre. Agora existe uma implementação só, no servidor, e as fixtures de snapshot provam que o texto não mudou na mudança de casa. Além disso o `carrossel.html` passou a valer mais que o PNG na classificação, que é o que a decisão do HTML-first já dizia, então as peças que já nasceram travadas abrem sem precisar refazer. O briefing agora lista os modelos visuais de cada workspace, e o Assistente escolhe um diferente por peça do mesmo lote. Ver `docs/decisoes/2026-08-04-o-prompt-tem-uma-implementacao-so.md`.
+- **A proposta do Assistente agora chega na fila, e a recusa aparece na tela.** Na primeira conversa real o assistente gravou o `lote.json`, disse que gravou, e a fila continuou vazia sem uma linha de erro. Duas causas: o contrato que ia no prompt não listava campo nenhum, porque a linha que tentava derivá-lo do schema lia `.shape` numa interseção e injetava texto vazio; e o schema exigia os catorze campos que a criação guiada colhe em cinco etapas de uma IA que só tem uma conversa de texto na mão. Agora o assistente escreve o mínimo que só ele sabe, o Hub completa o resto com os mesmos padrões da criação guiada, e o contrato do prompt sai gerado dos schemas, com os valores de cada enum e um exemplo conferido. Quando o lote é recusado, o motivo literal aparece acima do campo com um botão que devolve o erro pra IA corrigir. Ver `docs/decisoes/2026-08-04-o-lote-que-nao-chegava-na-fila.md`.
+- **A cerimônia do Cérebro não se encerra mais sozinha.** Antes, a tela de fim substituía a conversa assim que a IA gravava o arquivo, e no uso real isso apareceu como a entrevista fechando no meio de um assunto, anunciando que estava tudo pronto. Gravar o arquivo é fato do disco; declarar a identidade pronta é julgamento, e o julgamento é de quem é dono do negócio. Agora o Cérebro estar gravado só habilita o botão.
+- **A cerimônia voltou a ser um painel centrado**, em vez de camada de tela cheia. Numa conversa de uma pergunta e uma resposta por vez, a tela cheia jogava o campo de resposta na borda de baixo do monitor, encostado na barra de tarefas, e esticava a linha do texto além do que o olho acompanha. O véu atrás continua comendo o clique perdido, e ele não fecha no clique de propósito.
+- **A entrevista agora escreve em português por instrução, e não por herança.** Uma pergunta real saiu com uma palavra em armênio no meio: o prompt nunca dizia o idioma, só herdava o português do texto em volta.
+- **A sessão do anúncio nasce trancada dentro da pasta da peça.** No carrossel e no site quem cria a pasta é a IA; aqui o Hub cria antes de disparar. O motivo é o chat: sessão que nasce na raiz do projeto fica com ela para sempre, e o chat da campanha viraria um agente solto perto do Cérebro. Em duas gerações reais nada nasceu fora da pasta e o `cerebro.md` ficou byte a byte idêntico.
+- **Escolher Anúncio no Cockpit abre o assistente**, em vez de criar um nó de conversa que rodaria a skill crua e devolveria um texto solto. A guarda ficou no ponto onde o nó é desenhado, e não só onde ele é criado: o nó que já estava salvo no canvas continuava aparecendo depois do primeiro conserto.
+
+### Interno
+
+- Módulo novo `server/src/anuncios/` e um laço de conformidade próprio, espelho do laço do site, de até 2 voltas: forma quebrada retoma a mesma sessão com o erro literal do schema. Estouro de caractere não faz a IA girar, porque é conteúdo e o dono corrige em dois segundos.
+- A peça passou a carregar o veredito sobre si mesma. Antes, um `anuncio.json` corrompido era anunciado como campanha pronta só por o arquivo existir.
+- A soma de transcrição com o texto que chega ao vivo virou um componente compartilhado. As três cópias divergentes que já existiam (chat da IDE, cerimônia do Cérebro e nó de sessão) NÃO foram migradas de propósito: trocar as três junto com a estreia de um fluxo é quebrar duas coisas ao mesmo tempo.
+- **Foto retocada não é prova.** Um agente relatou ter editado à mão a transcrição de teste para a imagem mostrar o comportamento corrigido, e o conserto que ela ilustrava não tinha teste nenhum. O teste entrou depois, e só passou a valer quando a correção foi apagada de propósito e ele reprovou.
+
+Nada disto fala com a API do Google Ads: não há OAuth, envio de campanha nem leitura de métrica. A campanha sai pronta para o painel, e a Fase 7 do roadmap continua adiada.
+
 ## [1.5.0] 2026-07-27
 
 A nova pele. Redesenho em etapas, cada uma deixando o app funcionando, com conferência visual antes e depois nos três temas.

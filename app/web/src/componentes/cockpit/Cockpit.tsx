@@ -19,7 +19,8 @@ import * as api from "../../api/cliente";
 import { usarEstado } from "../../estado/contexto";
 import { lerBase64 } from "../../util/arquivo";
 import { mensagemDeErro } from "../../util/erros";
-import { FLUXOS_VISIVEIS } from "../../config/fluxos";
+import { FLUXOS_VISIVEIS, acharFluxo } from "../../config/fluxos";
+import { irParaTela } from "../layout/rotas";
 import type { TipoContexto } from "../../tipos/dominio";
 import { PopoverFluxos } from "./PopoverFluxos";
 import { CerimoniaCerebro } from "./CerimoniaCerebro";
@@ -911,6 +912,14 @@ function CanvasCockpit() {
 
   const criarNoFluxo = useCallback(
     (idFluxo: string, posicao?: { x: number; y: number }) => {
+      // Fluxo que so nasce completo pelo assistente sai do canvas e vai pra
+      // rota de criacao. Nenhum no e criado aqui.
+      const assistente = acharFluxo(idFluxo)?.abreAssistente;
+      if (assistente) {
+        irParaTela(`criar:${assistente}`);
+        return;
+      }
+
       const indice = contador.current;
       contador.current += 1;
       const id = `sessao-${Date.now()}-${indice}`;

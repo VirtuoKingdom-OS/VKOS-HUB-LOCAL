@@ -1,0 +1,717 @@
+/* ==========================================================================
+   A PÁGINA DA CAMPANHA DE GOOGLE ADS. Fundação v2, 2026-07-31.
+   Responsividade e legibilidade refeitas em 2026-08-01.
+
+   O que esta folha faz, e só isso: o LAYOUT desta tela. A caixa fechada, o
+   índice ancorado, a coluna de leitura, a gaveta da conversa, a grade dos dados
+   e o realce do campo que passou do limite. Botão, campo, selo, lista, tabela,
+   faixa, esqueleto e estado vazio vêm todos das primitivas.
+
+   A REGRA QUE DECIDIU O DESENHO: são nove blocos, e cada um tem lista dentro.
+   É exatamente o lugar onde "conteúdo não nasce dentro de cartão" costuma
+   morrer. Aqui bloco é `.secao` (título, fio e espaço) e existe UM degrau de
+   caixa, nunca dois: a lista e a tabela, que são a moldura de um dado denso.
+
+   A PROFUNDIDADE SÃO TRÊS PLANOS, e nenhum deles é sombra:
+     --fundo        o papel do painel de leitura. O título do bloco gruda nele.
+     --superficie   o dado: lista de campo, tabela de palavra, painel da conversa.
+     --sombra-modal só a gaveta, que é a única coisa da tela que FLUTUA sobre
+                    conteúdo parado. É a régua da seção 4.7 da fundação.
+
+   O DEFEITO QUE ESTA FOLHA CONSERTA, e o motivo de cada trava daqui pra baixo:
+   em 2026-08-01, num notebook de 899x469, clicar numa aba do índice levava o
+   cabeçalho pra fora da tela e ele nunca voltava. A causa era a soma de duas
+   coisas. A conversa era um item de grade com altura mínima automática, então
+   ela nunca encolhia abaixo de 433px e empurrava a `.tela` além da janela; e o
+   `scrollIntoView` da âncora rola TODO ancestral rolável, inclusive o
+   documento, que com `body { overflow: hidden }` rola sem barra e sem volta.
+   O conserto é dos dois lados: aqui a tela é uma caixa fechada e quem rola é
+   painel interno; no TSX a rolagem é do painel, por `scrollTo`.
+
+   O menta não aparece em lugar nenhum desta tela: nada aqui está VIVO. Campo
+   acima do limite é `.selo-alerta` mais fundo de alerta na linha, porque o
+   painel do Google recusa esse campo, e quem passa o olho tem que achar sem ler
+   linha por linha.
+   ========================================================================== */
+
+@layer base, externo, tela, tema;
+
+@layer tela {
+
+/* ===== A caixa fechada ===================================================
+   A tela cobre as outras, como o Studio e a tela do site. O `overflow: hidden`
+   é o cinto de segurança da regra "a tela nunca faz o documento rolar": se um
+   dia algum filho voltar a crescer além da janela, ele é recortado aqui em vez
+   de empurrar o documento inteiro pra cima. */
+.tela-anuncio {
+  z-index: var(--z-camada);
+  overflow: hidden;
+}
+
+.anuncio-voltar svg {
+  transform: rotate(180deg);
+}
+
+/* O botão que abre e fecha a conversa. Ele é o ÚNICO jeito de chegar nela, em
+   qualquer largura, e por isso mora no cabeçalho e não numa faixa lateral: uma
+   faixa custava 40px de largura justo onde a largura acabou. Aberto, ele se lê
+   por superfície, a mesma gramática de "ligado" do `.segmento`. */
+.tela-anuncio .tela-topo-acoes .botao[aria-expanded="true"] {
+  background: var(--superficie-alta);
+}
+
+/* ===== O índice dos nove blocos =========================================
+   Barra ancorada, e não uma terceira coluna: três colunas não cabem em
+   1280x720. As abas rolam na horizontal quando não cabem; o veredito da
+   conferência fica preso à direita e NUNCA rola junto, porque ele é o resumo
+   do estado da campanha e some fácil no meio de nove abas. */
+.anuncio-indice {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--esp-12);
+  padding: 0 var(--esp-24);
+  border-bottom: 1px solid var(--linha);
+  background: var(--superficie);
+}
+
+/* `position: relative` porque o TSX centraliza a aba ativa por offsetLeft. */
+.anuncio-abas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  /* O fio agora é da barra inteira, senão ele parava no fim das abas e o
+     veredito ficava pendurado num pedaço sem chão. */
+  border-bottom: 0;
+}
+
+.anuncio-veredito {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+/* ===== O corpo ===========================================================
+   Uma coluna por padrão. A segunda coluna só existe quando sobra largura de
+   verdade pra ela, e a regra está no bloco de `min-width` mais abaixo.
+
+   `min-height: 0` nos dois filhos não é detalhe: item de grade nasce com
+   altura mínima automática, que é o tamanho mínimo do CONTEÚDO dele. Era isso
+   que travava a conversa em 433px e estourava a tela. */
+.anuncio-corpo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* O painel de leitura. Ele é quem rola, e `position: relative` porque o TSX
+   mede o topo de cada bloco por offsetTop pra rolar só aqui dentro.
+
+   Sem padding em cima de propósito: quem carrega o respiro do topo é o título
+   grudado de cada bloco. Com padding aqui, sobraria uma faixa do plano por
+   cima do título e o conteúdo apareceria passando por trás dela. */
+.anuncio-blocos {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--esp-24) var(--esp-32);
+  scroll-behavior: smooth;
+}
+
+/* A coluna de leitura para antes da borda: linha de dado com 1400px de largura
+   obriga o olho a viajar do rótulo até o valor. 880px dá duas colunas de dado
+   de 320px e cerca de 110 caracteres numa linha de campo, que é o teto de dado
+   denso da fundação (prosa longa para em 72ch, e a observação já para lá). */
+.anuncio-coluna {
+  max-width: 880px;
+}
+
+/* ===== O título do bloco, grudado =======================================
+   São nove blocos longos, com quarenta e cinco linhas de campo no meio. Sem um
+   título parado no topo, o dono perde de vista em qual bloco ele está no meio
+   de uma lista, e o índice sozinho não resolve: ele diz pra onde ir, não onde
+   se está lendo agora.
+
+   Ele é o degrau de superfície mais o fio, nunca sombra: fica no plano do
+   papel (--fundo) e o dado passa por baixo dele. */
+.tela-anuncio .secao-topo {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-fixo);
+  margin-bottom: var(--esp-16);
+  padding-top: var(--esp-16);
+  padding-bottom: var(--esp-8);
+  background: var(--fundo);
+}
+
+/* A frase que explica o bloco anda COLADA no título dele. Na primitiva o h2
+   ocupa a linha toda e joga a frase pro canto direito, e numa coluna de 800px
+   isso deixava a explicação a meia tela do assunto que ela explica. Quem vai
+   pro canto direito é a contagem e o selo, que são resumo e não leitura. */
+.tela-anuncio .secao-topo h2 {
+  flex: 0 1 auto;
+}
+
+.tela-anuncio .secao-topo p {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Os 16px de respiro abaixo do fio são margem, e margem é transparente: sem
+   isto o texto que passa por baixo aparecia colado no fio, e parecia que ele
+   atravessava a linha em vez de sumir atrás dela. Este pedaço estende o papel
+   por esses 16px, então o conteúdo desaparece antes de encostar no fio. */
+.tela-anuncio .secao-topo::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 auto;
+  height: var(--esp-16);
+  background: var(--fundo);
+}
+
+/* ===== A conversa da campanha ============================================
+   A folha do painel em si é componentes/comum/conversaIa.css, e ela não sabe
+   nada desta tela. O que se decide AQUI é só o que é layout desta tela.
+
+   FECHADA ELA SOME DA TELA, mas continua montada: o rascunho que o dono estava
+   escrevendo sobrevive a fechar e abrir, e a sessão continua ouvindo o
+   servidor enquanto a gaveta está fechada. */
+.anuncio-conversa {
+  display: none;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--superficie);
+  border-left: 1px solid var(--linha);
+}
+
+.anuncio-conversa.aberta {
+  display: flex;
+  animation: anuncio-gaveta-entra var(--mov-lento) var(--curva) both;
+}
+
+.anuncio-conversa:focus {
+  outline: none;
+}
+
+@keyframes anuncio-gaveta-entra {
+  from {
+    opacity: 0;
+    transform: translateX(var(--esp-24));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A faixa que diz que a conversa anterior morreu, ou que nunca houve uma. Ela
+   fica logo acima do campo, e não no topo do painel: é ali que a pessoa está
+   olhando no instante em que ela vai escrever. */
+.anuncio-conversa-faixa {
+  flex: none;
+  flex-wrap: wrap;
+  margin: 0 var(--esp-12) var(--esp-8);
+}
+
+/* Numa coluna estreita a ação não cabe ao lado do texto: ela desce pra linha de
+   baixo inteira. Sem isto o botão come metade da largura e a frase vira uma
+   coluna de três palavras. */
+.anuncio-conversa-faixa > .faixa-acoes {
+  flex: 1 0 100%;
+  margin-top: var(--esp-8);
+}
+
+/* O estado vazio do painel cabe numa coluna estreita: sem largura de leitura de
+   tela cheia e sem o respiro grande da primitiva. */
+.anuncio-conversa-vazio {
+  margin: auto 0;
+  padding: var(--esp-16) var(--esp-8);
+}
+
+/* ===== Dados de texto ====================================================
+   `min(100%, 320px)` e não `320px`: com o mínimo maior que a coluna, o
+   auto-fit devolve uma trilha de 320px numa caixa de 250 e a linha inteira
+   transborda pra direita. Foi o que acontecia em 899px de janela. */
+.anuncio-dados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--esp-16) var(--esp-24);
+}
+
+.anuncio-dado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  min-width: 0;
+}
+
+.anuncio-dados + .anuncio-subtitulo,
+.anuncio-marcadores + .anuncio-subtitulo,
+.anuncio-observacao + .anuncio-subtitulo,
+.anuncio-dado + .anuncio-subtitulo {
+  margin-top: var(--esp-24);
+}
+
+.anuncio-dado + .anuncio-dado,
+.anuncio-lista-campos + .anuncio-dado,
+.anuncio-dados + .anuncio-dado {
+  margin-top: var(--esp-12);
+}
+
+.anuncio-dado-valor {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  color: var(--texto);
+}
+
+/* O que não foi preenchido diz isso, em vez de sumir. */
+.anuncio-dado-vazio {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-fraco);
+}
+
+/* Valor com o botão de copiar do lado. */
+.anuncio-dado-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  min-width: 0;
+}
+
+/* O BOTÃO NÃO CEDE LARGURA, o valor ao lado é que cede.
+   Medido em 2026-07-31, quando a conversa passou a ocupar 360px da tela: um
+   endereço comprido empurrava e o copiar virava um alvo de 20px, abaixo dos 24
+   que o critério 2.5.8 do WCAG 2.2 pede. Quem tem que quebrar é a URL, que já
+   sabe fazer isso por .anuncio-url. */
+.anuncio-dado-linha > .botao {
+  flex: none;
+}
+
+/* Endereço é uma palavra só e comprida: ele quebra em vez de empurrar a coluna. */
+.anuncio-url {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ===== Títulos internos =================================================
+   A ESCADA, e ela estava invertida até 2026-08-01: o h3 do grupo era 16px peso
+   600 e o h2 do bloco é 18px peso 500, então o subtítulo pesava mais que o
+   título e os nove blocos liam como um rio só.
+
+   Agora: h1 22/500 na barra, h2 18/500 no bloco (com o fio grudado),
+   h3 14/600 no grupo e h4 12/500 na lista. O grupo se separa do bloco por
+   TAMANHO e por espaço (32px acima dele, 8px abaixo), e do título de linha da
+   lista pelo PLANO: o grupo vive no papel, a linha vive na superfície. */
+.anuncio-subtitulo {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+.anuncio-rotulo-lista {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  margin-bottom: var(--esp-4);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  letter-spacing: var(--tr-legenda);
+  font-weight: var(--peso-medio);
+  color: var(--texto-suave);
+}
+
+/* "Sitelink 2", "Anúncio 1": o nome de uma PEÇA, e não o rótulo de um campo
+   dela. Os dois eram a mesma classe, então "Sitelink 2", que abre uma peça
+   nova, ficava igualzinho a "Endereço do sitelink", que fecha a anterior, e
+   quem lia não sabia onde uma acabava e a outra começava. Mesmo tamanho, tinta
+   cheia e peso de nome: é o mesmo degrau da linha de lista, um nível abaixo do
+   nome do grupo. */
+.anuncio-rotulo-peca {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+  margin-bottom: var(--esp-8);
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  letter-spacing: var(--tr-legenda);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+.anuncio-linha-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-8);
+}
+
+/* ===== Grupo de anúncios =================================================
+   A separação entre um grupo e o próximo é ESPAÇO, e não um fio: com quatro
+   listas dentro de cada grupo, mais um fio horizontal viraria mais uma caixa. */
+.anuncio-grupo + .anuncio-grupo {
+  margin-top: var(--esp-32);
+}
+
+.anuncio-grupo-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-8);
+  margin-bottom: var(--esp-8);
+}
+
+/* O nome do grupo precisa de mais ar embaixo dele do que o rótulo da lista tem:
+   os dois são texto miúdo sobre o papel, e com 8px nos dois eles liam como uma
+   coisa só de duas linhas. */
+.anuncio-grupo-topo + .anuncio-rolagem,
+.anuncio-subtitulo + .anuncio-peca,
+.anuncio-subtitulo + .anuncio-lista-campos,
+.anuncio-subtitulo + .anuncio-rolagem {
+  margin-top: var(--esp-12);
+}
+
+.anuncio-peca + .anuncio-peca {
+  margin-top: var(--esp-24);
+}
+
+.anuncio-lista-campos + .anuncio-lista-campos,
+.anuncio-peca .lista + .anuncio-dado {
+  margin-top: var(--esp-12);
+}
+
+/* ===== A linha de um campo que o Google limita ===========================
+   A altura real fica em 36px, a faixa densa das listas do Hub. Quem manda na
+   altura aqui é o botão de copiar, de 28px, que é o piso de alvo do sistema:
+   por isso o respiro vertical é de 4px, e não os 8px da primitiva. */
+.anuncio-campo {
+  gap: var(--esp-8);
+  padding-block: var(--esp-4);
+}
+
+.anuncio-campo-texto {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  letter-spacing: var(--tr-corpo);
+  color: var(--texto);
+}
+
+/* Campo acima do limite. O fundo de alerta é o que faz o defeito aparecer numa
+   página com quarenta e cinco linhas de campo; o selo ao lado diz de quanto foi.
+   Ele vence o hover da primitiva de propósito: a linha não deixa de estar
+   errada porque o mouse passou por cima. */
+.anuncio-campo.estourado,
+.anuncio-campo.estourado:hover {
+  background: var(--alerta-tenue);
+}
+
+/* A contagem de rotina é um número quieto. Ela vira selo só quando estoura. */
+.anuncio-contagem {
+  font-size: var(--txt-micro);
+  line-height: var(--lh-micro);
+  letter-spacing: var(--tr-micro);
+  color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ===== Tabelas de palavra-chave e de negativa ============================
+   Elas ganham a MESMA moldura da lista: superfície, fio e raio. Tabela nua no
+   meio de listas emolduradas lia como vazamento, e emoldurar aqui não cria
+   caixa dentro de caixa: `.secao` não é caixa, é título, fio e espaço.
+
+   Elas rolam dentro da própria moldura em tela estreita, em vez de empurrar a
+   página inteira pra direita. */
+.anuncio-rolagem {
+  overflow-x: auto;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
+}
+
+/* O fio da última linha seria um segundo fio colado no fio da moldura. */
+.anuncio-rolagem .tabela tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* A tabela aqui nunca rola na vertical: quem rola é o painel de leitura. O
+   cabeçalho grudado não teria trabalho nenhum e só competiria no empilhamento
+   com o título grudado do bloco, que é quem precisa vencer. */
+.anuncio-rolagem .tabela th {
+  position: static;
+}
+
+.anuncio-celula-chave {
+  font-weight: var(--peso-forte);
+  white-space: nowrap;
+}
+
+.anuncio-celula-tipo {
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.anuncio-celula-motivo {
+  min-width: 220px;
+  color: var(--texto-suave);
+}
+
+/* ===== Listas de texto corrido =========================================== */
+.anuncio-marcadores {
+  padding-left: var(--esp-16);
+  list-style: disc;
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto);
+}
+
+.anuncio-marcadores li + li {
+  margin-top: var(--esp-4);
+}
+
+.anuncio-observacao {
+  margin-top: var(--esp-8);
+  max-width: 72ch;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-suave);
+}
+
+.anuncio-faixa {
+  margin-bottom: var(--esp-12);
+}
+
+.anuncio-grupos {
+  margin-top: var(--esp-12);
+}
+
+/* ===== Orçamento ========================================================= */
+.anuncio-numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: var(--esp-16);
+}
+
+.anuncio-numero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.anuncio-numero-valor {
+  font-size: var(--txt-titulo);
+  line-height: var(--lh-titulo);
+  letter-spacing: var(--tr-titulo);
+  font-weight: var(--peso-forte);
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}
+
+/* ===== Passos da publicação ============================================== */
+.anuncio-passos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  list-style: none;
+}
+
+.anuncio-passo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-12);
+}
+
+.anuncio-passo > .contagem {
+  flex: none;
+  margin-top: var(--esp-2);
+}
+
+.anuncio-passo-texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  min-width: 0;
+}
+
+.anuncio-passo-titulo {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--texto);
+}
+
+.anuncio-passo-detalhe {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-suave);
+}
+
+/* ===== O retorno do copiar ===============================================
+   Uma linha só, no rodapé, pra todo botão de copiar da tela. Quarenta campos
+   com quarenta avisos próprios seriam quarenta regiões vivas competindo pela
+   fala do leitor de tela. Ela fica parada enquanto o conteúdo rola, então a
+   sombra de popover é a certa, e ela empilha acima da gaveta porque é o retorno
+   de uma ação que pode ter partido de qualquer um dos dois lados. */
+.anuncio-aviso {
+  position: absolute;
+  left: 50%;
+  bottom: var(--esp-24);
+  transform: translateX(-50%);
+  z-index: var(--z-aviso);
+  max-width: calc(100% - var(--esp-48));
+  padding: var(--esp-8) var(--esp-12);
+  background: var(--superficie-flutuante);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-popover);
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--transicao), visibility var(--transicao);
+}
+
+.anuncio-aviso.visivel {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ===== Carregando e erro ================================================= */
+.anuncio-esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-12);
+  padding: var(--esp-24);
+}
+
+.anuncio-esqueleto-titulo {
+  width: 240px;
+  height: var(--esp-16);
+}
+
+.tela-anuncio-erro {
+  align-items: center;
+  justify-content: center;
+}
+
+/* O erro literal do servidor, que diz qual campo do arquivo falhou. Ele vem
+   abaixo da frase que o dono entende, e recuado: é a informação que a próxima
+   pessoa (ou a IA, no chat) precisa, não a primeira coisa a ler. */
+.anuncio-erro-detalhe {
+  max-width: 64ch;
+  font-size: var(--txt-legenda);
+  line-height: var(--lh-legenda);
+  color: var(--texto-fraco);
+}
+
+/* ===== Onde a conversa vira coluna =======================================
+   1200px, e o número foi medido, não escolhido redondo.
+
+   A barra lateral come 240px fixos, então em 1200px de janela sobram 960px
+   pro corpo. Tirando os 320px que a conversa precisa pra caber um turno legível
+   e os 48px de respiro do painel, restam 592px de leitura: é o piso onde uma
+   linha de campo (texto + contador + copiar) ainda cabe sem quebrar em três.
+
+   Abaixo disso a segunda coluna cobrava mais do que devolvia: em 1093x614, que
+   é um notebook de 1366x768 com a escala de 125% do Windows, a leitura caía pra
+   493px e a conversa continuava com 360. A prioridade estava invertida. Agora,
+   abaixo de 1200px, a conversa deixa de disputar largura e vira gaveta.
+
+   1093x614 e 1152x720 não são tamanhos inventados: são exatamente 1366x768 e
+   1440x900 sob as escalas de 125% do Windows, que é onde o Jesse trabalha e
+   onde a conferência visual (que só media 1440, 1366 e 1280) nunca olhou. */
+@media (min-width: 1200px) {
+  .anuncio-corpo {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 27%, 400px);
+  }
+}
+
+/* Abaixo do ponto de quebra a conversa é gaveta: ela flutua sobre a leitura,
+   encostada na direita, e a coluna de leitura fica com a largura inteira.
+
+   Ela NÃO é modal, de propósito: não tem véu e não prende o foco. O dono
+   continua podendo rolar e ler a campanha com a gaveta aberta, que é o que ele
+   faz enquanto escreve o que quer mudar. Fechar é o X, o botão do cabeçalho ou
+   a tecla Esc. */
+@media (max-width: 1199.98px) {
+  /* Nove abas nunca cabem numa janela de notebook: só os rótulos somam mais de
+     700px. Elas rolam na horizontal, que é o comportamento da primitiva, e o
+     TSX mantém a ativa à vista. O que dá pra fazer é apertar o respiro lateral
+     de cada uma, que põe duas a mais na tela sem encostar no piso de alvo: a
+     altura continua sendo a de controle inteira. */
+  .anuncio-indice .aba {
+    padding-inline: var(--esp-8);
+  }
+
+  .anuncio-conversa {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    z-index: var(--z-camada);
+    width: min(400px, 100%);
+    box-shadow: var(--sombra-modal);
+  }
+}
+
+/* ===== Tela baixa ========================================================
+   A moldura aperta, o conteúdo nunca. Num notebook de 469px de altura útil, o
+   cabeçalho mais o índice custavam 96px, um quinto da tela, só de moldura. */
+@media (max-height: 780px) {
+  .tela-anuncio .tela-topo {
+    min-height: calc(var(--base) * 12);
+    padding-block: var(--esp-8);
+  }
+  .anuncio-indice .aba {
+    min-height: var(--alt);
+  }
+}
+
+/* ===== Tela estreita =====================================================
+   Nada aqui muda conteúdo nem ação: o mesmo material quebra em vez de
+   transbordar. O índice já rola sozinho, porque ele compõe `.abas`. */
+@media (max-width: 720px) {
+  .tela-anuncio .tela-topo {
+    flex-wrap: wrap;
+  }
+  .tela-anuncio .tela-topo-acoes {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .anuncio-indice {
+    padding-inline: var(--esp-16);
+  }
+  .anuncio-blocos {
+    padding-inline: var(--esp-16);
+  }
+}
+
+/* Movimento reduzido SUBSTITUI, não apaga. A rolagem até um bloco passa a ser
+   um salto, e o destino continua o mesmo; a gaveta perde o deslocamento e
+   continua se anunciando pela opacidade, que é como a pessoa sabe que ela
+   chegou. */
+@media (prefers-reduced-motion: reduce) {
+  .anuncio-blocos {
+    scroll-behavior: auto;
+  }
+  @keyframes anuncio-gaveta-entra {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+} /* fim de @layer tela */

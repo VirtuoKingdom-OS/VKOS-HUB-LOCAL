@@ -12,13 +12,21 @@
 // Este teste existe pra isso nunca mais acontecer em silencio.
 
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import {
   adicionarWorkspace,
+  guardarCopiaSeEncolheu,
   lerRegistro,
   pastaDadosHub,
   pastaDadosWorkspace,
@@ -100,4 +108,75 @@ test("o cache do registro nao atravessa a troca de raiz", () => {
     nomesReais,
     "voltando pra raiz real, o registro real volta inteiro",
   );
+});
+
+// A REDE DE SEGURANCA, escrita depois do 2026-08-01.
+//
+// O isolamento acima impede que teste escreva no registro real. Ele nao impede
+// tudo: naquele dia o registro do Jesse foi de tres workspaces para zero e as
+// pastas de trabalho continuaram intactas, mas o Hub esqueceu onde elas
+// estavam. Nao havia copia nenhuma. Estes tres testes cobrem a copia que agora
+// nasce sozinha quando a conta diminui.
+
+function comPastaTemporaria<T>(acao: (pasta: string) => T): T {
+  const pasta = mkdtempSync(join(tmpdir(), "vkos-encolheu-"));
+  try {
+    return acao(pasta);
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
+}
+
+function registroCom(nomes: string[]) {
+  return {
+    workspaces: nomes.map((nome, i) => ({
+      id: `w-${i}`,
+      nome,
+      pasta: `/vkos/${nome}`,
+      criadoEm: "2026-08-01T00:00:00.000Z",
+      ultimoUso: "2026-08-01T00:00:00.000Z",
+    })),
+    ativo: null,
+  };
+}
+
+test("registro que encolhe deixa copia datada antes de ser sobrescrito", () => {
+  comPastaTemporaria((pasta) => {
+    const caminho = join(pasta, "workspaces.json");
+    const tres = registroCom(["Meu negocio", "JDV", "Mae Pixel"]);
+    writeFileSync(caminho, JSON.stringify(tres), "utf8");
+
+    const copia = guardarCopiaSeEncolheu(caminho, registroCom([]), new Date("2026-08-01T03:39:19.000Z"));
+
+    assert.ok(copia, "cair de tres para zero precisa deixar copia");
+    assert.match(copia, /perdeu-2026-08-01T03-39-19/);
+    // A copia precisa carregar os TRES, senao ela nao salva ninguem.
+    const salvo = JSON.parse(readFileSync(copia, "utf8"));
+    assert.deepEqual(
+      salvo.workspaces.map((w: { nome: string }) => w.nome),
+      ["Meu negocio", "JDV", "Mae Pixel"],
+    );
+  });
+});
+
+test("ativar ou renomear nao suja a pasta com copia", () => {
+  comPastaTemporaria((pasta) => {
+    const caminho = join(pasta, "workspaces.json");
+    const dois = registroCom(["Meu negocio", "JDV"]);
+    writeFileSync(caminho, JSON.stringify(dois), "utf8");
+
+    // Mesma quantidade, so mudou o ativo: o caso comum, e o mais frequente.
+    assert.equal(guardarCopiaSeEncolheu(caminho, { ...dois, ativo: "w-1" }), null);
+    // Adicionar tambem nao deixa copia.
+    assert.equal(guardarCopiaSeEncolheu(caminho, registroCom(["a", "b", "c"])), null);
+    assert.deepEqual(readdirSync(pasta), ["workspaces.json"]);
+  });
+});
+
+test("sem registro em disco nao ha o que copiar, e nada quebra", () => {
+  comPastaTemporaria((pasta) => {
+    const caminho = join(pasta, "workspaces.json");
+    assert.equal(guardarCopiaSeEncolheu(caminho, registroCom([])), null);
+    assert.deepEqual(readdirSync(pasta), []);
+  });
 });

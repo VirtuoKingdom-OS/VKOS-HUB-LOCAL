@@ -4,11 +4,15 @@ import test from "node:test";
 import {
   custoDoResult,
   extrairTokensDoResult,
+  lacoDaSessao,
   montarInstrucoesExtrasSessao,
   resolverModeloDaExecucao,
   saneiaSessaoPersistida,
+  textoDoPrimeiroTurno,
   usoAcumuladoDoResult,
 } from "./gerenciador.js";
+import { montarPromptGeracaoAnuncio } from "../anuncios/prompt.js";
+import type { Sessao } from "../tipos.js";
 
 test("sessao nova usa o modelo que esta na execucao", () => {
   assert.equal(
@@ -267,4 +271,104 @@ test("B8: campos faltando ganham padrao seguro sem quebrar", () => {
   assert.equal(s.prompt, "");
   assert.equal(s.status, "parada");
   assert.equal(typeof s.criadaEm, "string");
+});
+
+// A transcricao do anuncio nao pode abrir com o prompt costurado pelo Hub.
+//
+// O teste monta o prompt DE VERDADE, com montarPromptGeracaoAnuncio, em vez de
+// uma string inventada. Assim ele afirma o conteudo que precisa ficar de fora,
+// e nao so o formato: se alguem voltar a mostrar o costurado, o Cerebro de
+// mentira abaixo aparece na conversa e o teste reprova.
+const INTENCAO_DO_DONO = "Quero anunciar o combo de estreia em Belo Horizonte.";
+const CEREBRO_DE_MENTIRA = "## 1. O negocio em uma frase\nMARCA-DO-CEREBRO-NO-PROMPT";
+
+function promptCosturadoDeExemplo(): string {
+  return montarPromptGeracaoAnuncio({
+    intencao: INTENCAO_DO_DONO,
+    cerebro: CEREBRO_DE_MENTIRA,
+    conteudoSkill: "---\nname: anuncio\n---\nMARCA-DA-SKILL-NO-PROMPT",
+    pasta: "2026-07-31-anuncio-combo",
+  });
+}
+
+test("a transcricao mostra o pedido do dono, nunca o prompt costurado", () => {
+  const costurado = promptCosturadoDeExemplo();
+  // Sanidade: o prompt que vai pro provedor de fato carrega tudo isso.
+  assert.ok(costurado.includes("MARCA-DO-CEREBRO-NO-PROMPT"));
+  assert.ok(costurado.includes("MARCA-DA-SKILL-NO-PROMPT"));
+  assert.ok(costurado.includes("<contrato>"));
+
+  const naTela = textoDoPrimeiroTurno(costurado, INTENCAO_DO_DONO);
+  assert.equal(naTela, INTENCAO_DO_DONO);
+  assert.ok(!naTela.includes("MARCA-DO-CEREBRO-NO-PROMPT"));
+  assert.ok(!naTela.includes("MARCA-DA-SKILL-NO-PROMPT"));
+  assert.ok(!naTela.includes("<contrato>"));
+});
+
+// A LIGACAO DOS DOIS LACOS, no ponto em que o gerenciador escolhe. Um so por
+// conclusao, nunca os dois, e a sessao de anuncio nem chega a perguntar se a
+// pasta e um site: perguntar seria ler disco pra descobrir o que a skill ja
+// diz, e responder "sim" por engano faria a auditoria de site rodar numa peca
+// que nao tem index.html.
+function sessaoPara(skill: string, pastaAlvo?: string): Sessao {
+  return {
+    id: "s-laco",
+    provedor: "claude",
+    titulo: "t",
+    prompt: "p",
+    skill,
+    status: "concluida",
+    criadaEm: "2026-07-31T00:00:00.000Z",
+    atualizadaEm: "2026-07-31T00:00:00.000Z",
+    pastaTrabalho: "/vkos",
+    pastaAlvo,
+  };
+}
+
+test("cada conclusao dispara um laco so, e o anuncio nem consulta a peca de site", () => {
+  let consultasDeSite = 0;
+  const ehPecaSite = () => {
+    consultasDeSite += 1;
+    return true;
+  };
+
+  assert.equal(lacoDaSessao(sessaoPara("site", "2026-07-31-site-estudio"), ehPecaSite), "site");
+  assert.equal(
+    lacoDaSessao(sessaoPara("ajuste-site", "2026-07-31-site-estudio"), ehPecaSite),
+    "site",
+  );
+  assert.equal(consultasDeSite, 2);
+
+  assert.equal(
+    lacoDaSessao(sessaoPara("anuncio", "2026-07-31-anuncio-combo"), ehPecaSite),
+    "anuncio",
+  );
+  assert.equal(consultasDeSite, 2, "sessao de anuncio nao pode consultar a peca de site");
+});
+
+test("skill sem laco, ou sem pastaAlvo, nao dispara nada", () => {
+  const sempreSite = () => true;
+  assert.equal(lacoDaSessao(sessaoPara("carrossel", "2026-07-31-carrossel"), sempreSite), null);
+  assert.equal(lacoDaSessao(sessaoPara("conversa-anuncio", "2026-07-31-anuncio-combo"), sempreSite), null);
+  assert.equal(lacoDaSessao(sessaoPara("anuncio", undefined), sempreSite), null);
+  assert.equal(lacoDaSessao(sessaoPara("site", undefined), sempreSite), null);
+});
+
+// Pasta de site que nao e site (carrossel HTML-first, pasta vazia) continua sem
+// laco nenhum: essa guarda e de 2026-07-17 e nao pode se perder na ligacao nova.
+test("sessao de site cuja pasta nao e um site nao dispara laco", () => {
+  assert.equal(
+    lacoDaSessao(sessaoPara("site", "2026-07-31-site-estudio"), () => false),
+    null,
+  );
+});
+
+test("sessao comum, sem prompt visivel, mostra o proprio prompt", () => {
+  assert.equal(textoDoPrimeiroTurno("Resuma o CRM", undefined), "Resuma o CRM");
+});
+
+test("prompt visivel so com espaco nao apaga a fala do dono", () => {
+  // Cair em string vazia deixaria a conversa comecando do nada, que e pior que
+  // mostrar o costurado: some o registro do que foi pedido.
+  assert.equal(textoDoPrimeiroTurno("Resuma o CRM", "   \n  "), "Resuma o CRM");
 });

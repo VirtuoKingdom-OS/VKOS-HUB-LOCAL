@@ -75,6 +75,23 @@ Fecha quando: o Jesse gera um site de cliente real pelo Site Guiado e exporta o 
 - QA de gesto real em 2026-07-15 com regressão do Studio de carrossel e do Site Guiado limpas; bug de especificidade corrigido e revalidado no site real.
 Fecha quando: o Jesse edita um site de cliente real no modo Editar e publica sem tocar em arquivo.
 
+## Fase 6.9: fluxo de anúncios (entregue em 2026-07-31, validar em uso real)
+
+- Terceiro fluxo de criação, no mesmo trilho do carrossel e do site: `/criar/anuncio` colhe oferta, destino do clique, praça, orçamento por dia e detalhes livres, e a sessão entrega a campanha de Google Ads inteira. Ver docs/decisoes/2026-07-31-o-fluxo-de-anuncios.md.
+- **O que existe agora: uma campanha planejada para o dono colar no painel do Google.** A peça é um `anuncio.json` com contrato validado, aberto na tela `/anuncio/<pasta>` em nove blocos (estratégia, estrutura, palavras-chave, negativas, anúncios, recursos, orçamento, conversões e publicação), com contagem de caracteres campo a campo, botão de copiar em cada um e a mesma conversa que gerou tudo num painel ao lado, capaz de reescrever o arquivo com a página se atualizando sozinha.
+- **O que NÃO existe: nenhuma integração com a API do Google Ads.** Sem OAuth, sem envio de campanha, sem leitura de métrica, sem gestão. Isso continua sendo a Fase 7 abaixo, e ela segue adiada. Este fluxo não a antecipa: ele para na porta do painel, no mesmo espírito da exportação local que substituiu a publicação integrada.
+- A sessão nasce trancada dentro da pasta da peça, então o chat que continua a conversa não vira um agente solto perto do Cérebro. Medido com IA real: duas gerações passaram no schema na primeira tentativa e o Cérebro ficou byte a byte idêntico. Um laço de conformidade de até 2 voltas conserta forma quebrada; estouro de limite de caractere é conteúdo, aparece marcado e não faz a IA girar.
+- A skill `/anuncio` do VKOS não foi tocada e o ramo Meta dela não é usado nesta rodada.
+Fecha quando: o Jesse roda uma campanha de verdade no painel do Google a partir de uma campanha gerada aqui.
+
+## Fase 6.10: Assistente do Hub (implementação entregue em 2026-08-04)
+
+- Entregues a separação do disparo de geração, prompts no servidor, schema de lote, fila append-only, executor com alvo explícito por workspace, rastro append-only, sessões CORE persistentes, briefing por stdin e tela CORE de três colunas.
+- A fila nunca ativa workspace. Aprovação é humana e explícita. O rastro guarda efeitos do servidor e eventos selecionados do barramento, sem narração de IA.
+- A validação com IA real, com dois workspaces e md5 dos dados antes e depois, continua pendente de autorização para rodar o CLI do provedor, pois pode consumir créditos externos. A infraestrutura e os testes determinísticos estão prontos.
+
+Fecha em uso real quando a medição da Fase 5 for executada e deixar as provas em disco, sem tocar nos dados do Hub.
+
 ## Fase 6.7: barramento de eventos + Google Calendar (ENCERRADA POR REMOÇÃO em 2026-07-26)
 
 - Entregue em 2026-07-15: barramento de eventos interno com log por workspace, conexão Google Calendar (OAuth pelo app, servidor MCP próprio pras sessões), tela Automações com regras CRM > agenda, ensaio e histórico, e tela Calendário local-first sincronizável com o Google. Ver docs/decisoes/2026-07-15-barramento-eventos-google-calendar.md pro histórico completo.
@@ -100,7 +117,7 @@ Fecha em uso real quando alguém que não é o Jesse instala numa máquina Windo
 - WhatsApp: tela Mensagens estilo WhatsApp dentro do hub (webhook via túnel + coexistence com o app do celular).
 - Instagram: publicar e agendar os carrosséis da galeria, DMs na mesma caixa.
 - Automações em degraus: regras simples primeiro, rascunho de resposta com IA (com aprovação humana) depois.
-- Google Ads: gestão de anúncios via API oficial (depois do Meta).
+- Google Ads: gestão de anúncios via API oficial (depois do Meta). **Continua adiada, e o fluxo de anúncios entregue na Fase 6.9 não é isto.** Lá o Hub PLANEJA a campanha e entrega um arquivo para o dono colar no painel; aqui a promessa é conectar na conta, subir a campanha e ler as métricas de volta. Nada disso existe: não há uma linha de código da API do Google Ads no repositório.
 Fecha quando: uma peça aprovada no hub é publicada no Instagram sem sair do app.
 
 ## Adiado, não descartado

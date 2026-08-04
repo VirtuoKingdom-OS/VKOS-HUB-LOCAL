@@ -28,6 +28,15 @@ import "./dashboard.css";
 // Tipo de conteudo visual que o seletor oferece.
 type TipoConteudoVisual = "carrossel" | "post" | "story";
 
+// Rotulo de cada jornada na faixa "está sendo gerado agora".
+const ROTULO_GERACAO: Record<TipoGeracao, string> = {
+  carrossel: "carrossel",
+  post: "post",
+  story: "story",
+  site: "site",
+  anuncio: "anúncio",
+};
+
 interface Props {
   aoCriar: (tipo: TipoGeracao) => void;
 }
@@ -43,7 +52,8 @@ function irParaSite(pasta: string) {
 }
 
 // Rota de abertura de uma peca a partir do card de recentes: fonteHtml pronta
-// abre o Studio; site vai pra tela do site; peca legada abre a galeria.
+// abre o Studio; site vai pra tela do site; anuncio vai pra pagina da campanha;
+// peca legada abre a galeria.
 function abrirPeca(peca: Peca) {
   if (peca.fonteHtml && (peca.paginas ?? 0) > 0) {
     irParaStudio(peca.pasta);
@@ -51,6 +61,12 @@ function abrirPeca(peca: Peca) {
   }
   if (peca.tipo === "site") {
     irParaSite(peca.pasta);
+    return;
+  }
+  // Sem esta porta o anuncio cairia nas galerias, que so mostram peca de
+  // imagem: o dono clicava no card e chegava numa tela sem a peca dele.
+  if (peca.tipo === "anuncio") {
+    irParaPeca("anuncio", peca.pasta);
     return;
   }
   irParaTela("galerias");
@@ -127,6 +143,10 @@ export function TelaWorkspace({ aoCriar }: Props) {
     if (!restaurarGeracaoAtiva()) aoCriar("site");
   }, [restaurarGeracaoAtiva, aoCriar]);
 
+  const abrirAnuncio = useCallback(() => {
+    if (!restaurarGeracaoAtiva()) aoCriar("anuncio");
+  }, [restaurarGeracaoAtiva, aoCriar]);
+
   const escolherTipo = useCallback(
     (tipo: TipoConteudoVisual) => {
       if (restaurarGeracaoAtiva()) return;
@@ -147,14 +167,10 @@ export function TelaWorkspace({ aoCriar }: Props) {
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [seletorAberto]);
 
-  const rotuloGeracao = (tipo: TipoGeracao) =>
-    tipo === "site"
-      ? "site"
-      : tipo === "story"
-        ? "story"
-        : tipo === "post"
-          ? "post"
-          : "carrossel";
+  // O nome da coisa que esta sendo gerada, dentro da frase da faixa viva.
+  // Tabela em vez de ternario encadeado: tipo novo sem rotulo e erro de
+  // compilacao, e nao um "carrossel" mentiroso no fallback.
+  const rotuloGeracao = (tipo: TipoGeracao) => ROTULO_GERACAO[tipo];
 
   // A linha do cabecalho diz o que aconteceu, e cala quando nao ha nada a
   // dizer: repetir "vamos criar algo hoje" abaixo do nome do projeto custa
@@ -174,6 +190,7 @@ export function TelaWorkspace({ aoCriar }: Props) {
           <p>{linhaContexto}</p>
         </div>
         <div className="tela-topo-acoes">
+          <Botao onClick={abrirAnuncio}>Anúncio</Botao>
           <Botao onClick={abrirSiteGuiado}>Site guiado</Botao>
           <Botao variante="principal" onClick={abrirConteudoVisual}>
             Criar conteúdo

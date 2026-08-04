@@ -44,6 +44,28 @@ export function lerSkills(pastaVkos: string): SkillVkos[] {
   return skills;
 }
 
+// Nome de skill aceito: o mesmo formato de pasta que o Claude Code usa. Serve
+// tambem de barreira, porque este nome vira segmento de caminho logo abaixo.
+const NOME_DE_SKILL = /^[a-z0-9][a-z0-9_-]*$/i;
+
+// O SKILL.md INTEIRO de uma skill, nao so o frontmatter.
+//
+// Quem usa e o prompt de geracao de anuncio: a sessao dele nasce com o cwd na
+// pasta da peca, la dentro de conteudo/, e de la ninguem mediu se o provedor
+// acha .claude/skills/ subindo diretorios. Entao o Hub embute o arquivo no
+// prompt. Devolve null quando a skill nao existe neste workspace, e quem chama
+// responde 409: falhar cedo dizendo o motivo e melhor que gerar sem a skill.
+export function lerConteudoSkill(pastaVkos: string, nome: string): string | null {
+  if (!NOME_DE_SKILL.test(nome)) return null;
+  const arquivo = join(pastaVkos, ".claude", "skills", nome, "SKILL.md");
+  try {
+    const texto = readFileSync(arquivo, "utf8").replace(/^﻿/, "").trim();
+    return texto || null;
+  } catch {
+    return null;
+  }
+}
+
 // Isola o bloco de frontmatter entre o primeiro par de linhas "---".
 function extrairFrontmatter(texto: string): string | null {
   // Normaliza quebras de linha e tira BOM, se houver.

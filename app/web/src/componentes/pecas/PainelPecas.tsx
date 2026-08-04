@@ -9,11 +9,20 @@ const ROTULO_TIPO: Record<TipoPeca, string> = {
   post: "Post",
   stories: "Stories",
   site: "Site",
+  anuncio: "Anúncios",
   texto: "Texto",
   outro: "Outros",
 };
 
-const ORDEM_TIPOS: TipoPeca[] = ["carrossel", "post", "stories", "site", "texto", "outro"];
+const ORDEM_TIPOS: TipoPeca[] = [
+  "carrossel",
+  "post",
+  "stories",
+  "site",
+  "anuncio",
+  "texto",
+  "outro",
+];
 
 // Painel lateral direito, recolhivel, com a galeria de pecas geradas.
 export function PainelPecas() {

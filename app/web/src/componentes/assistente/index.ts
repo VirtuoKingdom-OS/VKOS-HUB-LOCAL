@@ -1,0 +1,1 @@
+export { TelaAssistente } from "./TelaAssistente";

@@ -117,12 +117,16 @@ export function custosVazios(): CustosAcumulados {
 // Caminho do custos.json de um workspace. Exportado pro teste conseguir
 // corromper o arquivo sem duplicar a regra de onde ele mora.
 export function arquivoDe(workspaceId: string): string {
-  return path.join(pastaDadosWorkspace(workspaceId), "custos.json");
+  return workspaceId
+    ? path.join(pastaDadosWorkspace(workspaceId), "custos.json")
+    : path.join(pastaDadosHub(), "custos.json");
 }
 
 // Caminho do custos.jsonl (lancamento por turno) de um workspace.
 export function arquivoLancamentos(workspaceId: string): string {
-  return path.join(pastaDadosWorkspace(workspaceId), "custos.jsonl");
+  return workspaceId
+    ? path.join(pastaDadosWorkspace(workspaceId), "custos.jsonl")
+    : path.join(pastaDadosHub(), "custos.jsonl");
 }
 
 // Caminho do historico dos clientes removidos, no escopo CORE.
@@ -246,9 +250,11 @@ export function totalGeral(): {
   piso: boolean;
 } {
   const historico = lerHistoricoRemovidos();
-  let totalUsd = historico.totalUsd;
+  const custosCore = lerCustos("");
+  let totalUsd = historico.totalUsd + custosCore.totalUsd;
   let estimado = historico.estimado;
-  let turnosSemCusto = historico.turnosSemCusto;
+  let turnosSemCusto = historico.turnosSemCusto + custosCore.turnosSemCusto;
+  estimado = estimado || custosCore.estimado;
   for (const id of listarIdsWorkspaces()) {
     const custos = lerCustos(id);
     totalUsd += custos.totalUsd;
@@ -273,7 +279,7 @@ export function totalGeralEstimado(): boolean {
 
 function salvar(workspaceId: string, custos: CustosAcumulados): void {
   try {
-    garantirPastaDadosWorkspace(workspaceId);
+    if (workspaceId) garantirPastaDadosWorkspace(workspaceId);
     gravarJsonAtomico(arquivoDe(workspaceId), custos);
   } catch {
     // Falha ao gravar nao pode derrubar o gerenciador.
@@ -348,7 +354,7 @@ export function lerLancamentos(workspaceId: string): LancamentoCusto[] {
 // usuario e pior.
 function anexarLancamento(workspaceId: string, lancamento: LancamentoCusto): void {
   try {
-    garantirPastaDadosWorkspace(workspaceId);
+    if (workspaceId) garantirPastaDadosWorkspace(workspaceId);
     anexarJsonl(arquivoLancamentos(workspaceId), [lancamento]);
   } catch (erro) {
     console.warn(
@@ -382,7 +388,6 @@ export interface EntradaResult {
 // uma sessao do cliente A pode concluir com o B ativo). contarSessao=true so
 // quando for uma sessao nova concluida (nunca continuacao).
 export function registrarResult(workspaceId: string, entrada: EntradaResult): void {
-  if (!workspaceId) return;
   let atual: CustosAcumulados;
   try {
     atual = lerCustos(workspaceId);
@@ -442,7 +447,6 @@ export function registrarTurnoSemMedicao(
   workspaceId: string,
   entrada: { sessaoId: string; provedor: ProvedorIA; modelo: string; ehResume: boolean; motivo: string },
 ): void {
-  if (!workspaceId) return;
   let atual: CustosAcumulados;
   try {
     atual = lerCustos(workspaceId);

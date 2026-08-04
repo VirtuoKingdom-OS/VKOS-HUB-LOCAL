@@ -1,6 +1,6 @@
 {
   "fonte": "curado a mao a partir de app/web/src/componentes/layout/rotas.ts, Shell.tsx e App.tsx",
-  "atualizadoEm": "2026-07-27",
+  "atualizadoEm": "2026-08-04",
   "versao": 1,
   "zonas": [
     {
@@ -106,6 +106,24 @@
         "lista de projetos ativos"
       ],
       "esqueleto": "dashboard"
+    },
+    {
+      "id": "assistente",
+      "zona": "core",
+      "nome": "Assistente do Hub",
+      "rota": "/assistente",
+      "destino": "assistente",
+      "resumo": "Conversa CORE que propõe trabalhos para aprovação.",
+      "descricao": "Tela de três colunas do nível CORE: histórico de conversas à esquerda, conversa ativa no centro e fila de propostas com rastro do servidor à direita. A conversa pode orientar tarefas para qualquer workspace, mas a aprovação é sempre humana e a fila nunca ativa um workspace.",
+      "estados": [
+        "conversa nova",
+        "sessão CORE rodando",
+        "lote em proposta",
+        "lote aprovado",
+        "tarefa concluída ou falhou",
+        "rastro paginado"
+      ],
+      "esqueleto": "split"
     },
     {
       "id": "clientes",
@@ -363,6 +381,25 @@
       "esqueleto": "wizard"
     },
     {
+      "id": "criar-anuncio",
+      "zona": "criacao",
+      "nome": "Criar anúncio",
+      "rota": "/criar/anuncio",
+      "destino": "criar:anuncio",
+      "resumo": "Assistente da campanha de Google Ads.",
+      "descricao": "Terceiro fluxo de criação, desde 2026-07-31. Colhe o que a skill perguntaria e o que o Cérebro não tem: oferta e objetivo, destino do clique com a URL, cidades e raio, orçamento por dia e detalhes livres. O Hub cria a pasta da peça antes de disparar e a sessão nasce trancada dentro dela. Concluído, abre a tela da campanha.",
+      "estados": [
+        "oferta e objetivo",
+        "destino do clique",
+        "onde e para quem",
+        "orçamento por dia",
+        "detalhes livres",
+        "geração ao vivo",
+        "laço de conformidade"
+      ],
+      "esqueleto": "wizard"
+    },
+    {
       "id": "geracao-flutuante",
       "zona": "criacao",
       "nome": "Geração flutuante",
@@ -407,6 +444,24 @@
         "conformidade",
         "abrir pasta",
         "baixar site"
+      ],
+      "esqueleto": "split"
+    },
+    {
+      "id": "anuncio",
+      "zona": "edicao",
+      "nome": "Campanha de anúncios",
+      "rota": "/anuncio/:pasta",
+      "destino": "anuncio:@peca-anuncio",
+      "resumo": "A campanha de Google Ads inteira em nove blocos, com a conversa que a gerou ao lado.",
+      "descricao": "A tela da peça de anúncio, desde 2026-07-31. Lê o anuncio.json da pasta e mostra a campanha em nove blocos ancorados num índice horizontal: estratégia, estrutura, palavras-chave, negativas, anúncios, recursos, orçamento, conversões e publicação. Cada campo de texto do Google tem contagem e botão de copiar; passou do limite, a contagem vira alerta e a linha inteira se marca, mas nada é corrigido sozinho. Quem diz o que estourou é o servidor, pela lista de violações. No lado direito fica a mesma sessão que gerou a campanha, colapsável: pedir uma troca ali reescreve o arquivo e a página se atualiza sozinha. Sessão morta é dita em faixa de alerta, com o campo desligado até a pessoa começar outra conversa. A ação principal é abrir o painel do Google, porque a próxima coisa que o dono faz é colar isto lá. Nada é enviado por API.",
+      "estados": [
+        "nove blocos",
+        "contagem de caracteres",
+        "copiar campo",
+        "conversa lateral",
+        "sessão encerrada",
+        "campanha com forma quebrada"
       ],
       "esqueleto": "split"
     }
@@ -459,6 +514,11 @@
     },
     {
       "de": "dashboard",
+      "para": "assistente",
+      "gesto": "abre o Assistente"
+    },
+    {
+      "de": "dashboard",
       "para": "crm",
       "gesto": "abre o CRM"
     },
@@ -500,6 +560,21 @@
     {
       "de": "criar-site",
       "para": "site",
+      "gesto": "conclui o wizard"
+    },
+    {
+      "de": "inicio",
+      "para": "criar-anuncio",
+      "gesto": "clica em criar anúncio"
+    },
+    {
+      "de": "cockpit",
+      "para": "criar-anuncio",
+      "gesto": "escolhe Anúncio no fluxo"
+    },
+    {
+      "de": "criar-anuncio",
+      "para": "anuncio",
       "gesto": "conclui o wizard"
     },
     {
@@ -591,6 +666,17 @@
         "inicio",
         "criar-site",
         "site"
+      ]
+    },
+    {
+      "id": "criar-anuncio",
+      "nome": "Criar uma campanha de anúncios",
+      "resumo": "Do Início do workspace à campanha pronta pra colar no Google.",
+      "cor": "amarelo",
+      "passos": [
+        "inicio",
+        "criar-anuncio",
+        "anuncio"
       ]
     },
     {

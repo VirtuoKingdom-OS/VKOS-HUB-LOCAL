@@ -37,21 +37,43 @@ export interface DepsConformidade {
   statusSessao: (id: string) => StatusSessao | undefined;
 }
 
-// Skills que passam pela conferencia: a geracao guiada de site e o ajuste de
-// site com IA. O ajuste entrou depois: editar um site pronto quebra tanto quanto
-// gerar um site errado (referencia a arquivo inexistente, contraste, vazamento em
-// 390px), e sem laco o erro so aparecia na hora de publicar. Carrossel nao entra:
-// a auditoria e de site.
-const SKILLS_COM_CONFERENCIA = new Set(["site", "ajuste-site"]);
+// Skills cuja sessao GUARDA a pastaAlvo, porque a peca delas passa por alguma
+// conferencia depois de pronta. O gerenciador usa exatamente esta regra pra
+// decidir se guarda a pastaAlvo da sessao (qualquer outra skill nunca carrega
+// pastaAlvo), e as rotas usam pra saber se a janela de conferencia ainda ocupa a
+// trava de geracao guiada.
+//
+// site e ajuste-site tem o laco deste arquivo. O ajuste entrou depois: editar um
+// site pronto quebra tanto quanto gerar um site errado (referencia a arquivo
+// inexistente, contraste, vazamento em 390px), e sem laco o erro so aparecia na
+// hora de publicar. Carrossel nao entra: nao ha o que auditar.
+//
+// anuncio entrou em 2026-07-31 SO pra guardar a pastaAlvo. O laco dele e outro,
+// sobre o schema do anuncio.json, e chega na Fase 5.
+const SKILLS_COM_CONFERENCIA = new Set(["site", "ajuste-site", "anuncio"]);
 
 export function skillPassaPelaConferencia(skill: unknown): boolean {
   return typeof skill === "string" && SKILLS_COM_CONFERENCIA.has(skill);
 }
 
-// Condicao de disparo: skill conferivel com pastaAlvo. A geracao guiada preenche
-// a pastaAlvo pelo contrato do wizard; o ajuste, pela peca aberta na tela.
+// Skills que rodam O LACO DESTE ARQUIVO, que audita SITE.
+//
+// Este conjunto e mais estreito que o de cima de proposito, e a separacao e o
+// ponto. Uma peca de anuncio nao tem index.html pra auditar: mandar a auditoria
+// de site nela seria rodar a coisa errada no artefato errado. Deixar as duas
+// listas juntas faria a proxima skill que so precisa de pastaAlvo cair no laco
+// de site por tabela.
+const SKILLS_DO_LACO_SITE = new Set(["site", "ajuste-site"]);
+
+export function skillPassaPeloLacoSite(skill: unknown): boolean {
+  return typeof skill === "string" && SKILLS_DO_LACO_SITE.has(skill);
+}
+
+// Condicao de disparo: skill do laco de site com pastaAlvo. A geracao guiada
+// preenche a pastaAlvo pelo contrato do wizard; o ajuste, pela peca aberta na
+// tela.
 export function deveDispararLaco(sessao: Sessao): boolean {
-  return skillPassaPelaConferencia(sessao.skill)
+  return skillPassaPeloLacoSite(sessao.skill)
     && typeof sessao.pastaAlvo === "string"
     && sessao.pastaAlvo.length > 0;
 }

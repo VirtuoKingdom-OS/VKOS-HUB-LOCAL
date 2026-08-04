@@ -7,9 +7,11 @@ import {
   deveDispararLaco,
   montarPromptCorrecao,
   skillPassaPelaConferencia,
+  skillPassaPeloLacoSite,
   type DepsConformidade,
   type ResultadoConferencia,
 } from "./conformidade-site.js";
+import { deveDispararLacoAnuncio } from "../anuncios/conformidade.js";
 
 function sessaoSite(extra: Partial<Sessao> = {}): Sessao {
   return {
@@ -65,13 +67,26 @@ function montarLaco(opcoes: {
 
 // Esta e a regra que o gerenciador usa pra decidir se guarda a pastaAlvo da
 // sessao. Sem ela o laco nunca sabe qual peca auditar.
-test("skills que passam pela conferencia sao geracao e ajuste de site", () => {
+test("skills que guardam a pastaAlvo sao site, ajuste de site e anuncio", () => {
   assert.equal(skillPassaPelaConferencia("site"), true);
   assert.equal(skillPassaPelaConferencia("ajuste-site"), true);
+  assert.equal(skillPassaPelaConferencia("anuncio"), true);
   assert.equal(skillPassaPelaConferencia("carrossel"), false);
   assert.equal(skillPassaPelaConferencia("ajuste-carrossel"), false);
   assert.equal(skillPassaPelaConferencia("imagem"), false);
   assert.equal(skillPassaPelaConferencia(undefined), false);
+});
+
+// A SEPARACAO QUE PROTEGE O SITE. O anuncio guarda a pastaAlvo, porque o laco
+// dele chega na Fase 5, mas nao pode entrar na auditoria DE SITE: uma peca de
+// anuncio nao tem index.html, e rodar a auditoria errada no artefato errado nao
+// e um jeito de descobrir isso.
+test("o laco de site continua so com site e ajuste de site", () => {
+  assert.equal(skillPassaPeloLacoSite("site"), true);
+  assert.equal(skillPassaPeloLacoSite("ajuste-site"), true);
+  assert.equal(skillPassaPeloLacoSite("anuncio"), false);
+  assert.equal(skillPassaPeloLacoSite("carrossel"), false);
+  assert.equal(skillPassaPeloLacoSite(undefined), false);
 });
 
 test("dispara para geracao e para ajuste de site, sempre com pastaAlvo", () => {
@@ -83,6 +98,33 @@ test("dispara para geracao e para ajuste de site, sempre com pastaAlvo", () => {
   assert.equal(deveDispararLaco(sessaoSite({ pastaAlvo: undefined })), false);
   assert.equal(deveDispararLaco(sessaoSite({ skill: "site", pastaAlvo: "" })), false);
   assert.equal(deveDispararLaco(sessaoSite({ skill: "ajuste-site", pastaAlvo: "" })), false);
+});
+
+// Sessao de anuncio COM pastaAlvo, que e o caso normal a partir da Fase 2. Se
+// esta linha virar true, o laco do site passa a auditar peca de anuncio.
+test("sessao de anuncio com pastaAlvo NAO dispara o laco do site", () => {
+  assert.equal(
+    deveDispararLaco(sessaoSite({ skill: "anuncio", pastaAlvo: "2026-07-31-anuncio-combo" })),
+    false,
+  );
+});
+
+// A EXCLUSAO MUTUA INTEIRA, os dois sentidos no mesmo lugar. A metade de cima
+// protege o site de auditar um anuncio; esta protege o anuncio de ser validado
+// como site e o site de ser validado como anuncio. Peca de site nao tem
+// anuncio.json e peca de anuncio nao tem index.html: cada laco no seu artefato.
+test("cada sessao dispara um laco so, nunca os dois", () => {
+  const site = sessaoSite();
+  assert.equal(deveDispararLaco(site), true);
+  assert.equal(deveDispararLacoAnuncio(site), false);
+
+  const ajuste = sessaoSite({ skill: "ajuste-site" });
+  assert.equal(deveDispararLaco(ajuste), true);
+  assert.equal(deveDispararLacoAnuncio(ajuste), false);
+
+  const anuncio = sessaoSite({ skill: "anuncio", pastaAlvo: "2026-07-31-anuncio-combo" });
+  assert.equal(deveDispararLaco(anuncio), false);
+  assert.equal(deveDispararLacoAnuncio(anuncio), true);
 });
 
 test("nao roda quando a pasta nao e peca de site", async () => {

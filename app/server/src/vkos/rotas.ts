@@ -41,6 +41,7 @@ import { baseDoTema, servirZip } from "./zip.js";
 import { lerModelosCarrossel } from "./modelos.js";
 import { tipoConteudo } from "./tipoConteudo.js";
 import { neutralizarScriptsParaEdicao } from "./siteEstatico.js";
+import { resolverPeca } from "./pastaPeca.js";
 
 // Monta o EstadoVkos a partir da pasta atual (ou null).
 function montarEstado(pasta: string | null): EstadoVkos {
@@ -59,34 +60,6 @@ function montarEstado(pasta: string | null): EstadoVkos {
     cerebroPreenchido: cerebro.preenchido,
     totalSkills: skills.length,
   };
-}
-
-// Sanitiza o nome da peca (um segmento) e devolve o caminho absoluto dentro de
-// conteudo/. Null quando invalido. Mesmo padrao rigido do DELETE: sem barra, sem
-// "..", sem ponto inicial, sem byte nulo, e o alvo tem que ficar dentro de conteudo.
-function resolverPeca(pastaVkos: string, bruto: string): { alvo: string; nome: string } | null {
-  let nome: string;
-  try {
-    nome = decodeURIComponent(bruto);
-  } catch {
-    return null;
-  }
-  if (
-    !nome ||
-    nome.includes("/") ||
-    nome.includes("\\") ||
-    nome.includes("..") ||
-    nome.startsWith(".") ||
-    nome.includes("\0")
-  ) {
-    return null;
-  }
-  const pastaConteudo = join(pastaVkos, "conteudo");
-  const alvo = join(pastaConteudo, nome);
-  if (!alvo.startsWith(pastaConteudo + sep)) {
-    return null;
-  }
-  return { alvo, nome };
 }
 
 export const rotasVkos: FastifyPluginAsync = async (app) => {

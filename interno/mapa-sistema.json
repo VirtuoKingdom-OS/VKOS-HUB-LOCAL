@@ -41,17 +41,32 @@
       ]
     },
     {
+      "id": "assistente",
+      "grupo": "entrada",
+      "nome": "Assistente do Hub",
+      "resumo": "A conversa CORE que organiza propostas para vários workspaces.",
+      "descricao": "O Assistente conversa em uma sessão CORE persistente, recebe um briefing curado do Hub e escreve somente lote.json em uma pasta temporária. Ele escreve o pouco que só a conversa sabe, o tema e o pedido, e o servidor completa o resto com os mesmos padrões da criação guiada: exigir da IA a proporção, o estilo de capa e a paleta seria exigir que ela inventasse escolhas que ninguém fez. O servidor valida o lote, mantém as tarefas em fila append-only e exige aprovação humana antes de gerar peças. Lote recusado nunca falha calado: o motivo literal volta para a tela da conversa, com um botão que devolve o erro para a IA corrigir. O alvo da tarefa é resolvido pelo workspaceId e nunca pela troca do workspace ativo, e nome de workspace que não corresponde ao id reprova o lote inteiro.",
+      "conversaCom": [
+        "sessoes",
+        "workspaces",
+        "pecas",
+        "custos",
+        "barramento"
+      ]
+    },
+    {
       "id": "inicio-workspace",
       "grupo": "entrada",
       "nome": "Início do workspace e criação guiada",
       "resumo": "A recepção do projeto aberto, onde uma ideia começa sem exigir conhecimento técnico.",
-      "descricao": "É o balcão de entrada do estúdio de um projeto: a pessoa diz o que quer e recebe perguntas simples na ordem certa. No carrossel, escolhe modelos com contrato visual real, traz imagens das fontes ou do computador e fecha com instruções livres. Dali, o pedido segue para uma sessão de IA ou para um dos Studios. Tudo aqui fala do workspace aberto, e muda quando se troca de projeto.",
+      "descricao": "É o balcão de entrada do estúdio de um projeto: a pessoa diz o que quer e recebe perguntas simples na ordem certa. No carrossel, escolhe modelos com contrato visual real, traz imagens das fontes ou do computador e fecha com instruções livres. Desde 2026-07-31 há uma terceira porta ao lado do carrossel e do site: a campanha de anúncios. Dali, o pedido segue para uma sessão de IA ou para um dos Studios. Tudo aqui fala do workspace aberto, e muda quando se troca de projeto.",
       "conversaCom": [
         "cerebro",
         "fontes",
         "sessoes",
         "studio-carrossel",
-        "site-guiado"
+        "site-guiado",
+        "anuncios"
       ]
     },
     {
@@ -59,13 +74,14 @@
       "grupo": "entrada",
       "nome": "Cockpit",
       "resumo": "A mesa visual que acompanha conversas, fontes e resultados no mesmo espaço.",
-      "descricao": "É a sala de comando do trabalho. O Cérebro fica no centro, as conversas aparecem ao redor e as peças prontas chegam aos seus lugares, como uma equipe reunida diante do mesmo quadro. A partir de 2026-07-31 ele tem uma terceira porta de entrada: quem já tem o negócio escrito num arquivo solta ele ali e a entrevista começa lendo, em vez de perguntar do zero.",
+      "descricao": "É a sala de comando do trabalho. O Cérebro fica no centro, as conversas aparecem ao redor e as peças prontas chegam aos seus lugares, como uma equipe reunida diante do mesmo quadro. A partir de 2026-07-31 ele tem uma terceira porta de entrada: quem já tem o negócio escrito num arquivo solta ele ali e a entrevista começa lendo, em vez de perguntar do zero. No mesmo dia o fluxo de anúncio deixou de virar nó de conversa aqui: escolher Anúncio abre o assistente, e o nó de anúncio que já estava salvo no canvas desenha um aviso com o caminho certo, em vez de um compositor que só levaria a erro.",
       "conversaCom": [
         "cerebro",
         "sessoes",
         "pecas",
         "fontes",
-        "anexos"
+        "anexos",
+        "anuncios"
       ]
     },
     {
@@ -95,6 +111,19 @@
       ]
     },
     {
+      "id": "anuncios",
+      "grupo": "entrada",
+      "nome": "Campanha de anúncios",
+      "resumo": "O caminho que transforma uma oferta numa campanha de Google Ads inteira, e a página onde ela é lida campo a campo.",
+      "descricao": "É o departamento de mídia paga do estúdio, e existe desde 2026-07-31. O assistente pergunta o que o Cérebro não tem como saber: qual oferta anunciar, para onde vai o clique, em que cidades e quanto se pode gastar por dia. A partir daí uma sessão de IA nasce já trancada dentro da pasta da peça, com a receita da skill e a voz do negócio embutidas no pedido, porque de dentro da pasta ela não alcança mais nada. O que sai não é um texto solto: é um anuncio.json conferido campo a campo, que a página abre em nove blocos, da estratégia até o passo a passo da publicação. Cada campo diz quantos caracteres tem e avisa quando passa do que o Google aceita, sem corrigir por conta própria, porque o texto é decisão do dono. A mesma conversa que gerou tudo fica sempre a um botão de distância: em tela larga ela ocupa uma coluna ao lado dos blocos, e em tela de notebook ela vira gaveta sobre a leitura, para a coluna de leitura não ser espremida. Pedir ali uma troca muda o arquivo e a página se atualiza sozinha, e quando aquela conversa morre a tela diz isso na cara em vez de fingir que continua. Nada é enviado para o Google: a campanha sai pronta para ser colada no painel.",
+      "conversaCom": [
+        "cerebro",
+        "sessoes",
+        "skills",
+        "pecas"
+      ]
+    },
+    {
       "id": "ide",
       "grupo": "entrada",
       "nome": "VKOS-IDE",
@@ -110,7 +139,7 @@
       "grupo": "ia",
       "nome": "Sessões de IA, Claude e Codex",
       "resumo": "As conversas de trabalho que leem o contexto, executam pedidos e entregam resultados.",
-      "descricao": "São como profissionais chamados para uma tarefa, cada um com sua própria mesa e memória. O Hub escolhe Claude ou Codex, acompanha o andamento e preserva a conversa para continuar depois. Cada provedor indica também um modelo econômico, que o Hub sugere nas tarefas simples, como os ajustes pontuais, pra gastar menos onde a inteligência maior não faz diferença.",
+      "descricao": "São como profissionais chamados para uma tarefa, cada um com sua própria mesa e memória. O Hub escolhe Claude ou Codex, acompanha o andamento e preserva a conversa para continuar depois. Cada provedor indica também um modelo econômico, que o Hub sugere nas tarefas simples, como os ajustes pontuais, pra gastar menos onde a inteligência maior não faz diferença. Desde 2026-07-31 uma sessão pode nascer trancada dentro da pasta de uma peça, e é isso que o anúncio faz: quem nasce assim continua assim quando a conversa é retomada, então o chat da campanha nunca vira um agente solto perto do Cérebro. Em troca, o Hub embute no pedido o que ela não alcança de lá, a receita da skill e o Cérebro.",
       "conversaCom": [
         "cerebro",
         "skills",
@@ -119,7 +148,8 @@
         "conexoes",
         "crm",
         "pecas",
-        "custos"
+        "custos",
+        "anuncios"
       ]
     },
     {
@@ -127,10 +157,11 @@
       "grupo": "ia",
       "nome": "Skills do VKOS",
       "resumo": "As receitas de trabalho que ensinam a IA a construir cada tipo de entrega.",
-      "descricao": "São como cadernos de método de uma equipe experiente. Cada receita explica a ordem do trabalho, os cuidados e o padrão de qualidade, para que a sessão não precise improvisar o processo inteiro. As skills visuais leem a camada de design do workspace: a cartela de direções e a biblioteca de estilos concretos (templates/design/estilos/), que dão a personalidade e os tokens de cada peça.",
+      "descricao": "São como cadernos de método de uma equipe experiente. Cada receita explica a ordem do trabalho, os cuidados e o padrão de qualidade, para que a sessão não precise improvisar o processo inteiro. As skills visuais leem a camada de design do workspace: a cartela de direções e a biblioteca de estilos concretos (templates/design/estilos/), que dão a personalidade e os tokens de cada peça. Quando a sessão nasce trancada na pasta de uma peça, a receita não é procurada em disco: o Hub lê o caderno e o copia inteiro dentro do pedido, porque de lá de dentro ela não chegaria na prateleira das skills.",
       "conversaCom": [
         "sessoes",
-        "pecas"
+        "pecas",
+        "anuncios"
       ]
     },
     {
@@ -150,13 +181,14 @@
       "grupo": "dados",
       "nome": "Cérebro",
       "resumo": "A identidade do negócio que orienta toda IA antes de agir.",
-      "descricao": "É a certidão de identidade do negócio, com voz, público, oferta e direção reunidos num só lugar. Toda sessão consulta essa verdade para que as entregas pareçam feitas pela mesma marca, não por pessoas desconectadas.",
+      "descricao": "É a certidão de identidade do negócio, com voz, público, oferta e direção reunidos num só lugar. Toda sessão consulta essa verdade para que as entregas pareçam feitas pela mesma marca, não por pessoas desconectadas. Ele não tem número: orçamento, ticket e custo de aquisição não moram aqui, e é por isso que a campanha de anúncios pergunta quanto se pode gastar por dia em vez de chutar. Ele se escreve por três portas: a entrevista guiada, o editor à mão e o chat do painel, que continua a mesma conversa da entrevista em vez de abrir uma que não sabe o que já foi perguntado. Quem declara a identidade pronta é o dono, num botão com confirmação: o arquivo estar gravado é fato do disco, e concluir é julgamento.",
       "conversaCom": [
         "workspaces",
         "sessoes",
         "dashboard",
         "site-guiado",
-        "anexos"
+        "anexos",
+        "anuncios"
       ]
     },
     {
@@ -261,14 +293,15 @@
       "grupo": "saida",
       "nome": "Peças e conteúdo",
       "resumo": "As entregas prontas que ficam na pasta do cliente como fonte da verdade.",
-      "descricao": "São os produtos que saem da oficina: carrosséis, textos, imagens e sites. O Hub não guarda uma cópia escondida; ele lê a pasta real, mostra o resultado e abre o Studio adequado quando há algo para aprimorar.",
+      "descricao": "São os produtos que saem da oficina: carrosséis, textos, imagens, sites e, desde 2026-07-31, campanhas de anúncio. O Hub não guarda uma cópia escondida; ele lê a pasta real, mostra o resultado e abre o Studio adequado quando há algo para aprimorar. A peça também carrega o veredito sobre si mesma: campanha com o arquivo quebrado continua sendo campanha e abre na tela dela, mas ninguém a anuncia como pronta, e o motivo vem escrito junto.",
       "conversaCom": [
         "sessoes",
         "studio-carrossel",
         "site-guiado",
         "publicacao",
         "cockpit",
-        "barramento"
+        "barramento",
+        "anuncios"
       ]
     },
     {
@@ -284,6 +317,31 @@
     }
   ],
   "ligacoes": [
+    {
+      "de": "assistente",
+      "para": "sessoes",
+      "rotulo": "conversa CORE"
+    },
+    {
+      "de": "sessoes",
+      "para": "assistente",
+      "rotulo": "transmite e conclui"
+    },
+    {
+      "de": "assistente",
+      "para": "workspaces",
+      "rotulo": "endereça pelo id"
+    },
+    {
+      "de": "assistente",
+      "para": "pecas",
+      "rotulo": "entrega"
+    },
+    {
+      "de": "assistente",
+      "para": "barramento",
+      "rotulo": "ouve efeitos"
+    },
     {
       "de": "setup",
       "para": "workspaces",
@@ -303,6 +361,11 @@
       "de": "cerebro",
       "para": "sessoes",
       "rotulo": "orienta"
+    },
+    {
+      "de": "sessoes",
+      "para": "cerebro",
+      "rotulo": "escreve pela conversa"
     },
     {
       "de": "inicio-workspace",
@@ -443,6 +506,46 @@
       "de": "anexos",
       "para": "cerebro",
       "rotulo": "alimenta"
+    },
+    {
+      "de": "inicio-workspace",
+      "para": "anuncios",
+      "rotulo": "abre"
+    },
+    {
+      "de": "cockpit",
+      "para": "anuncios",
+      "rotulo": "desvia pro assistente"
+    },
+    {
+      "de": "cerebro",
+      "para": "anuncios",
+      "rotulo": "dá a voz do negócio"
+    },
+    {
+      "de": "skills",
+      "para": "anuncios",
+      "rotulo": "vai embutida no pedido"
+    },
+    {
+      "de": "anuncios",
+      "para": "sessoes",
+      "rotulo": "tranca na pasta da peça"
+    },
+    {
+      "de": "sessoes",
+      "para": "anuncios",
+      "rotulo": "responde no chat"
+    },
+    {
+      "de": "anuncios",
+      "para": "pecas",
+      "rotulo": "constrói"
+    },
+    {
+      "de": "pecas",
+      "para": "anuncios",
+      "rotulo": "abre"
     }
   ],
   "skills": [
@@ -498,6 +601,19 @@
         "cerebro",
         "pecas",
         "publicacao"
+      ]
+    },
+    {
+      "id": "anuncio",
+      "nome": "/anuncio",
+      "resumo": "Campanha de Google Ads inteira, do assistente ao anuncio.json na pagina de nove blocos.",
+      "cor": "amarelo",
+      "percurso": [
+        "anuncios",
+        "sessoes",
+        "skills",
+        "cerebro",
+        "pecas"
       ]
     },
     {

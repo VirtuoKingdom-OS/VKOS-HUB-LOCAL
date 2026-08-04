@@ -18,15 +18,16 @@ import {
 } from "react";
 import { usarEstado, type EstadoStream } from "./contexto";
 import type { ModeloIA } from "../api/cliente";
-import type { StatusSessao } from "../tipos/dominio";
+import type { Peca, StatusSessao } from "../tipos/dominio";
 
 // Tipo da peca no wizard visual (carrossel, post, story). Chave dos ajustes por
 // tipo do EtapasCriacao: continua com exatamente estes tres, sem "site".
 export type TipoCriacao = "carrossel" | "post" | "story";
 
-// Tipo da geracao viva, mais amplo que o wizard visual: inclui "site", que segue
-// por um wizard proprio (EtapasSite) e por uma tela propria, nao pelo Studio.
-export type TipoGeracao = TipoCriacao | "site";
+// Tipo da geracao viva, mais amplo que o wizard visual: inclui "site" e
+// "anuncio", que seguem por wizards proprios (EtapasSite, EtapasAnuncio) e nao
+// terminam no Studio.
+export type TipoGeracao = TipoCriacao | "site" | "anuncio";
 
 // As fases da geracao, na ordem. O indice sai do status da sessao e do tamanho
 // do stream (nunca do texto dele: o usuario nao ve orquestracao). Fonte unica:
@@ -46,13 +47,23 @@ export const FASES_SITE = [
   "Construindo as páginas",
   "Finalizando",
 ];
+// Fases da geracao de anuncio: mesma mecanica e larguras, so os rotulos mudam.
+export const FASES_ANUNCIO = [
+  "Na fila",
+  "Lendo o Cérebro",
+  "Montando a estratégia",
+  "Escrevendo os anúncios",
+  "Finalizando",
+];
 // Largura da barra por fase. A ultima cheia so vem quando a peca aparece pronta.
 export const LARGURA_FASE = [8, 30, 56, 82, 94];
 
 // Rotulos de fase conforme o tipo da peca em criacao. Fonte unica pro wizard e
 // pro flutuante: os dois leem daqui, nunca redefinem o texto das fases.
 export function fasesDoTipo(tipo: TipoGeracao): string[] {
-  return tipo === "site" ? FASES_SITE : FASES;
+  if (tipo === "site") return FASES_SITE;
+  if (tipo === "anuncio") return FASES_ANUNCIO;
+  return FASES;
 }
 
 // Estado do laco de conformidade que o flutuante entende, sem depender do React.
@@ -61,26 +72,108 @@ export interface ConferenciaGeracao {
   volta: number;
 }
 
-// Mensagem honesta da conferencia de site. `demorou` vem da guarda de tempo (90s):
-// se a conferencia passou do limite ainda em andamento, o flutuante para de
-// prometer "Conferindo" e diz que o site ja esta em Sites, sem travar (A8). Nos
-// estados terminais (aprovada, pendencias) a geracao segue o fluxo normal e este
-// rotulo some (null).
+// Mensagem honesta da conferencia. `demorou` vem da guarda de tempo (90s): se a
+// conferencia passou do limite ainda em andamento, o flutuante para de prometer
+// "Conferindo" e diz onde a peca ja esta, sem travar (A8). Nos estados terminais
+// (aprovada, pendencias) a geracao segue o fluxo normal e este rotulo some (null).
 export const MENSAGEM_CONFERENCIA_DEMOROU =
   "A conferência está demorando; o site está em Sites.";
+export const MENSAGEM_CONFERENCIA_DEMOROU_ANUNCIO =
+  "A conferência está demorando; a campanha já está salva.";
+
+// Os rotulos por tipo. O laco do anuncio usa o MESMO campo de conferencia do
+// laco de site, entao sem esta tabela o flutuante diria "Conferindo o site"
+// enquanto o Hub confere uma campanha de Google Ads.
+const ROTULO_CONFERENCIA: Record<
+  "site" | "anuncio",
+  { conferindo: string; corrigindo: (volta: number) => string; demorou: string }
+> = {
+  site: {
+    conferindo: "Conferindo o site",
+    corrigindo: (volta) => `Corrigindo pendências (volta ${volta} de 2)`,
+    demorou: MENSAGEM_CONFERENCIA_DEMOROU,
+  },
+  anuncio: {
+    conferindo: "Conferindo a campanha",
+    corrigindo: (volta) => `Corrigindo a campanha (volta ${volta} de 2)`,
+    demorou: MENSAGEM_CONFERENCIA_DEMOROU_ANUNCIO,
+  },
+};
 
 export function rotuloConferencia(
   conf: ConferenciaGeracao | undefined,
   demorou: boolean,
+  tipo: TipoGeracao = "site",
 ): string | null {
   if (!conf) return null;
+  // Carrossel, post e story nao tem laco nenhum. Se um dia um deles chegar aqui
+  // com conferencia, o rotulo de site seria mentira: melhor calar.
+  const rotulos = tipo === "anuncio" ? ROTULO_CONFERENCIA.anuncio : ROTULO_CONFERENCIA.site;
   const emAndamento = conf.estado === "conferindo" || conf.estado === "corrigindo";
-  if (demorou && emAndamento) return MENSAGEM_CONFERENCIA_DEMOROU;
-  if (conf.estado === "conferindo") return "Conferindo o site";
-  if (conf.estado === "corrigindo") {
-    return `Corrigindo pendências (volta ${conf.volta} de 2)`;
-  }
+  if (demorou && emAndamento) return rotulos.demorou;
+  if (conf.estado === "conferindo") return rotulos.conferindo;
+  if (conf.estado === "corrigindo") return rotulos.corrigindo(conf.volta);
   return null;
+}
+
+export function conferenciaEmAndamento(conf: ConferenciaGeracao | undefined): boolean {
+  return conf?.estado === "conferindo" || conf?.estado === "corrigindo";
+}
+
+// O CRITERIO DE PECA PRONTA, por tipo. Puro e exportado de proposito: o defeito
+// que a Fase 5 do fluxo de anuncios fechou (campanha com forma quebrada
+// anunciada como pronta) morava numa expressao dentro de um useMemo, onde
+// nenhum teste alcancava.
+//
+// - carrossel, post e story: HTML-first, com pagina de verdade dentro.
+// - site: pasta classificada como site, e o laco de conformidade ja terminado,
+//   pra ninguem abrir o site no meio de uma correcao. Sem laco (sessao antiga),
+//   mantem o comportamento antigo.
+// - anuncio: o unico que exige o VEREDITO DA FORMA, e nao so o tipo. Um
+//   anuncio.json corrompido continua sendo peca de anuncio, e o servidor a
+//   classifica assim de proposito, senao a tela nunca abriria justo no caso em
+//   que o dono precisa ver o problema. Mas campanha que nao passa no schema nao
+//   e campanha pronta: mandar o dono pra tela ali era mandar ele pra um 422.
+export function pecaEstaPronta(
+  tipo: TipoGeracao,
+  peca: Peca | undefined,
+  conferencia: ConferenciaGeracao | undefined,
+): boolean {
+  if (!peca) return false;
+  if (tipo === "anuncio") {
+    return peca.tipo === "anuncio" && peca.anuncio?.valido === true;
+  }
+  if (tipo === "site") {
+    if (peca.tipo !== "site" || peca.site === undefined) return false;
+    if (!conferencia) return true;
+    return conferencia.estado === "aprovada" || conferencia.estado === "pendencias";
+  }
+  return Boolean(peca.fonteHtml && (peca.paginas ?? 0) > 0);
+}
+
+// Mensagem de reserva, se o servidor disser invalido sem dizer por que.
+export const ERRO_CAMPANHA_SEM_DETALHE =
+  "O anuncio.json não está no formato esperado.";
+
+// O VEREDITO HONESTO DO FIM DA LINHA da campanha: ela foi gravada com a forma
+// quebrada e o laco de conformidade ja parou de tentar. Depois das 2 voltas, ou
+// de uma sessao que morreu no meio, a geracao FALHA dizendo qual campo esta
+// errado, em vez de anunciar campanha pronta e deixar o 422 aparecer na tela.
+//
+// Enquanto o laco confere ou corrige, nada em disco e veredito: a proxima volta
+// ainda pode consertar, e falar antes seria acusar a IA no meio da frase.
+export function erroDaCampanha(parametros: {
+  tipo: TipoGeracao;
+  peca: Peca | undefined;
+  conferencia: ConferenciaGeracao | undefined;
+  status: StatusSessao | undefined;
+}): string | null {
+  const { tipo, peca, conferencia, status } = parametros;
+  if (tipo !== "anuncio") return null;
+  if (conferenciaEmAndamento(conferencia)) return null;
+  if (status !== "concluida" && status !== "erro" && status !== "parada") return null;
+  if (peca?.tipo !== "anuncio" || peca.anuncio?.valido !== false) return null;
+  return peca.anuncio.erro ?? ERRO_CAMPANHA_SEM_DETALHE;
 }
 
 // Uma geracao viva: a sessao que a roda e os metadados pra UI.
@@ -116,6 +209,9 @@ interface ValorGeracao {
   pecaSumiu: boolean;
   // Erro do disparo (criarSessao falhou), ou null.
   erro: string | null;
+  // A campanha ficou em disco com a forma quebrada e o laco de conformidade ja
+  // parou. Traz o erro literal do schema, dizendo qual campo, ou null.
+  erroPeca: string | null;
   // Pasta resolvida quando a peca esta pronta E a sessao concluiu, senao null.
   // Match exato de pastaAlvo, ou a peca "nova" do fallback dos 10s.
   pastaPronta: string | null;
@@ -169,26 +265,29 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   const sessao = ativa ? sessoes.find((s) => s.id === ativa.sessaoId) : undefined;
   const stream = ativa ? streams[ativa.sessaoId] : undefined;
   const status = sessao?.status;
-  // A peca alvo, quando ja apareceu pronta em pecas. O criterio de "pronta" muda
-  // por tipo: carrossel/post/story exigem HTML-first (fonteHtml + paginas); site
-  // e uma pasta classificada como site. A auditoria protege o deploy, mas nao
-  // esconde uma geracao que existe e pode ser aberta.
+  // A peca alvo, quando ja apareceu pronta em pecas.
   const pecaPronta = useMemo(() => {
     if (!ativa?.pastaAlvo) return false;
-    const peca = pecas.find((p) => p.pasta === ativa.pastaAlvo);
-    if (!peca) return false;
-    if (ativa.tipo === "site") {
-      const ehSite = peca.tipo === "site" && peca.site !== undefined;
-      if (!ehSite) return false;
-      // Site so entra em "pronta" quando o laco de conformidade termina, pra o
-      // usuario nao abrir o site no meio da correcao. Enquanto conferindo ou
-      // corrigindo, ainda nao. Sem laco (sessao antiga), mantem o antigo.
-      const conf = sessao?.conferenciaSite;
-      if (!conf) return true;
-      return conf.estado === "aprovada" || conf.estado === "pendencias";
-    }
-    return Boolean(peca.fonteHtml && (peca.paginas ?? 0) > 0);
+    return pecaEstaPronta(
+      ativa.tipo,
+      pecas.find((p) => p.pasta === ativa.pastaAlvo),
+      sessao?.conferenciaSite,
+    );
   }, [pecas, ativa, sessao?.conferenciaSite]);
+
+  // O laco de conformidade esta rodando (conferindo ou corrigindo). Enquanto
+  // ele roda, nada em disco e veredito: a proxima volta ainda pode consertar.
+  const conferenciaAtiva = conferenciaEmAndamento(sessao?.conferenciaSite);
+
+  const erroPeca = useMemo(() => {
+    if (!ativa?.pastaAlvo) return null;
+    return erroDaCampanha({
+      tipo: ativa.tipo,
+      peca: pecas.find((p) => p.pasta === ativa.pastaAlvo),
+      conferencia: sessao?.conferenciaSite,
+      status,
+    });
+  }, [ativa, sessao?.conferenciaSite, status, pecas]);
 
   const pendenciasSite = useMemo(() => {
     if (ativa?.tipo !== "site" || !ativa.pastaAlvo) return [];
@@ -200,9 +299,16 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
 
   // Se a sessao encerrou de forma anormal depois de gravar um site legivel, a
   // peca continua sendo o resultado. O erro da sessao nao deve apagar o arquivo.
+  //
+  // Campanha com forma quebrada tambem e falha, mesmo com a sessao concluida
+  // sem erro nenhum: a IA terminou de falar, o laco gastou as duas voltas, e o
+  // que ficou em disco a tela nao sabe ler.
   const falhou =
     !pecaPronta &&
-    (status === "erro" || status === "parada" || (ativa !== null && erro !== null));
+    (status === "erro" ||
+      status === "parada" ||
+      erroPeca !== null ||
+      (ativa !== null && erro !== null));
 
   const resultadoSemPeca = useMemo(() => {
     if (status !== "concluida" || pecaPronta) return null;
@@ -263,8 +369,13 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
           prompt: dados.prompt,
           skill: dados.skill,
           modelo: dados.modelo,
-          // So o site guiado carrega pastaAlvo: liga o laco de conformidade.
-          pastaAlvo: dados.tipo === "site" ? dados.pastaAlvo : undefined,
+          // Site e anuncio carregam pastaAlvo: ela liga o laco de conformidade
+          // a peca certa. No anuncio ela vale ainda mais cedo, porque e o
+          // servidor que cria a pasta antes de disparar e usa ela como cwd.
+          pastaAlvo:
+            dados.tipo === "site" || dados.tipo === "anuncio"
+              ? dados.pastaAlvo
+              : undefined,
         });
         setAtiva((atual) =>
           atual ? { ...atual, sessaoId: nova.id } : atual
@@ -295,11 +406,9 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   // Timeout honesto: a escrita do arquivo acontece antes do result do provedor.
   // Oito segundos cobrem o observador e dois polls sem prender o usuario por
   // meio minuto quando a IA apenas respondeu e nao criou nenhum artefato.
-  // O laco de conformidade de site pode levar mais que 8s conferindo ou
-  // corrigindo: enquanto ele roda, nao declara peca sumida.
-  const conferenciaAtiva =
-    sessao?.conferenciaSite?.estado === "conferindo" ||
-    sessao?.conferenciaSite?.estado === "corrigindo";
+  // O laco de conformidade pode levar mais que 8s conferindo ou corrigindo:
+  // enquanto ele roda, nao declara peca sumida (conferenciaAtiva mora la em
+  // cima, junto do veredito da campanha, porque os dois leem o mesmo estado).
   useEffect(() => {
     if (!ativa || status !== "concluida" || pecaPronta || conferenciaAtiva) return;
     void recarregarPecas();
@@ -343,11 +452,13 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     if (Date.now() - concluidaEm < 10000) return;
     const ehNova = (p: (typeof pecas)[number]) => !pastasNoDisparo.has(p.pasta);
     const nova =
-      ativa.tipo === "site"
-        ? pecas.find((p) => p.tipo === "site" && p.site !== undefined && ehNova(p))
-        : pecas.find(
-            (p) => p.fonteHtml && (p.paginas ?? 0) > 0 && ehNova(p)
-          );
+      ativa.tipo === "anuncio"
+        ? pecas.find((p) => p.tipo === "anuncio" && p.anuncio?.valido === true && ehNova(p))
+        : ativa.tipo === "site"
+          ? pecas.find((p) => p.tipo === "site" && p.site !== undefined && ehNova(p))
+          : pecas.find(
+              (p) => p.fonteHtml && (p.paginas ?? 0) > 0 && ehNova(p)
+            );
     if (nova) setPastaPronta(nova.pasta);
   }, [ativa, status, pecaPronta, concluidaEm, pecas, pastasNoDisparo, pastaPronta]);
 
@@ -358,7 +469,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
   // fase; passado o limite de 90s, cai pro estado honesto (A8). Nos terminais
   // (aprovada, pendencias) some e a geracao segue o fluxo normal.
   const conf = sessao?.conferenciaSite;
-  const faseConferencia = rotuloConferencia(conf, conferenciaDemorou);
+  const faseConferencia = rotuloConferencia(conf, conferenciaDemorou, ativa?.tipo ?? "site");
 
   const valor: ValorGeracao = {
     ativa,
@@ -368,6 +479,7 @@ export function ProvedorGeracao({ children }: { children: ReactNode }) {
     falhou,
     pecaSumiu,
     erro,
+    erroPeca,
     pastaPronta,
     pendenciasSite,
     faseConferencia,

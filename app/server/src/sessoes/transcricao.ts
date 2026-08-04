@@ -10,18 +10,24 @@ import path from "node:path";
 import type { TurnoSessao } from "../tipos.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { quarentenarOuFalhar } from "../util/quarentena.js";
-import { pastaTranscricoesWorkspace } from "../workspaces/estado.js";
+import { pastaDadosHub, pastaTranscricoesWorkspace } from "../workspaces/estado.js";
+
+function pastaTranscricoes(workspaceId: string): string {
+  return workspaceId
+    ? pastaTranscricoesWorkspace(workspaceId)
+    : path.join(pastaDadosHub(), "assistente", "transcricoes");
+}
 
 function garantirPasta(workspaceId: string): string {
-  const pasta = pastaTranscricoesWorkspace(workspaceId);
+  const pasta = pastaTranscricoes(workspaceId);
   if (!existsSync(pasta)) {
     mkdirSync(pasta, { recursive: true });
   }
   return pasta;
 }
 
-function arquivoDe(workspaceId: string, id: string): string {
-  return path.join(pastaTranscricoesWorkspace(workspaceId), `${id}.json`);
+export function caminhoTranscricaoSessao(workspaceId: string, id: string): string {
+  return path.join(pastaTranscricoes(workspaceId), `${id}.json`);
 }
 
 // Le os turnos de um caminho. Arquivo ausente vira lista vazia, em silencio
@@ -53,18 +59,16 @@ export function lerTranscricaoDeArquivo(caminho: string): TurnoSessao[] {
 
 // Le os turnos de uma sessao. Sem workspace, retorna lista vazia.
 export function lerTranscricao(workspaceId: string, id: string): TurnoSessao[] {
-  if (!workspaceId) return [];
-  return lerTranscricaoDeArquivo(arquivoDe(workspaceId, id));
+  return lerTranscricaoDeArquivo(caminhoTranscricaoSessao(workspaceId, id));
 }
 
 // Anexa um turno ao arquivo da sessao, criando a pasta se preciso.
 export function anexarTurno(workspaceId: string, id: string, turno: TurnoSessao): void {
   try {
-    if (!workspaceId) return;
     garantirPasta(workspaceId);
     const turnos = lerTranscricao(workspaceId, id);
     turnos.push(turno);
-    gravarJsonAtomico(arquivoDe(workspaceId, id), turnos);
+    gravarJsonAtomico(caminhoTranscricaoSessao(workspaceId, id), turnos);
   } catch {
     // Falha ao gravar a transcricao nao pode derrubar o gerenciador. A leitura
     // vem antes da gravacao de proposito: se ela lancar (corrompido e sem
@@ -76,8 +80,7 @@ export function anexarTurno(workspaceId: string, id: string, turno: TurnoSessao)
 // Apaga a transcricao de uma sessao (usado no DELETE da sessao).
 export function apagarTranscricao(workspaceId: string, id: string): void {
   try {
-    if (!workspaceId) return;
-    const caminho = arquivoDe(workspaceId, id);
+    const caminho = caminhoTranscricaoSessao(workspaceId, id);
     if (existsSync(caminho)) {
       rmSync(caminho);
     }

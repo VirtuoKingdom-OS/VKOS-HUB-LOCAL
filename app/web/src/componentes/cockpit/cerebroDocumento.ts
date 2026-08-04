@@ -31,12 +31,36 @@ export function ehDocumentoDeCerebro(nome: string): boolean {
 // vez e ja manda aproveitar material que existe no workspace. O que este texto
 // acrescenta e por onde comecar, e o que nao fazer.
 //
+// A REGRA DE IDIOMA, e por que ela existe.
+//
+// Em 2026-08-04 uma entrevista real saiu com "օrinak" (armenio pra "por
+// exemplo") no meio de uma pergunta em portugues. O prompt nunca dizia em que
+// lingua escrever: ele so herdava o portugues do texto em volta, e herança nao
+// e instrucao. Quem le isso e o dono do negocio, no meio da tarefa mais longa
+// do produto, e uma palavra em outro alfabeto destroi a confianca na conversa
+// inteira.
+//
+// Ela fica FORA do bloco numerado de propósito: vale pra toda a entrevista, e
+// nao e um passo dela.
+const REGRA_IDIOMA =
+  "Escreva SEMPRE em português do Brasil, do começo ao fim da conversa, incluindo as perguntas, os exemplos e o conteúdo do Cérebro. Nenhuma palavra em outro idioma ou em outro alfabeto.";
+
+// O prompt da entrevista comum, sem documento nenhum.
+//
+// A skill /instalar ja sabe conduzir tudo. O que este texto acrescenta e uma
+// linha so, a do idioma.
+export function promptDaCerimonia(): string {
+  return ["/instalar", "", REGRA_IDIOMA].join("\n");
+}
+
 // A primeira linha e exatamente "/instalar", sozinha. Isso importa: no Codex o
 // expansor de skills so troca o comando por "leia o SKILL.md" quando ele ocupa
 // a linha inteira (ver server/provedores/skills.ts).
 export function promptComDocumento(caminho: string): string {
   return [
     "/instalar",
+    "",
+    REGRA_IDIOMA,
     "",
     `O dono do negócio já tem a identidade escrita e enviou um documento: \`${caminho}\` (caminho relativo à pasta deste workspace).`,
     "",

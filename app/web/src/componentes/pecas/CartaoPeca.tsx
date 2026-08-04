@@ -19,9 +19,10 @@ interface Props {
   aoAmpliar: (peca: Peca, indice: number) => void;
   // So pecas fonteHtml oferecem editar. Sem prop, o botao nao aparece.
   aoEditar?: (pasta: string) => void;
-  // So pecas tipo "site" oferecem a acao primaria "Abrir" (rodada 17), que
-  // leva pra tela do site. Sem a prop, o botao nao aparece.
-  aoAbrirSite?: (pasta: string) => void;
+  // Peca que tem tela propria (site e anuncio) oferece a acao "Abrir". Quem
+  // decide pra onde ir e quem passa a prop, porque o destino e do tipo da peca.
+  // Sem a prop, o botao nao aparece.
+  aoAbrir?: (pasta: string) => void;
   // Card mais baixo e tira de paginas mais densa (rodada 14: filtro "Todos"
   // da galeria unificada). Sem a prop, o card fica no tamanho de sempre: nao
   // afeta o cockpit nem as telas de fluxo por tipo, que nao passam isto.
@@ -113,7 +114,7 @@ export function CartaoPeca({
   peca,
   aoAmpliar,
   aoEditar,
-  aoAbrirSite,
+  aoAbrir,
   condensado,
 }: Props) {
   const tema = formatarTema(peca.tema);
@@ -155,11 +156,11 @@ export function CartaoPeca({
         )}
         {/* Neutro, nao principal: sao ate trinta cartoes iguais na mesma tela,
             e trinta acoes principais nao e uma acao principal. */}
-        {peca.tipo === "site" && aoAbrirSite && (
+        {(peca.tipo === "site" || peca.tipo === "anuncio") && aoAbrir && (
           <button
             className="botao botao-p botao-neutro"
-            onClick={() => aoAbrirSite(peca.pasta)}
-            title="Abrir a tela do site"
+            onClick={() => aoAbrir(peca.pasta)}
+            title={peca.tipo === "site" ? "Abrir a tela do site" : "Abrir a campanha"}
           >
             <IconeSeta className="" />
             Abrir

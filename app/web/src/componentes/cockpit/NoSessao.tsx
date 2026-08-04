@@ -40,8 +40,17 @@ import {
   dadosCriacaoDe,
   type DadosEtapas,
 } from "../criacao/EtapasCriacao";
+import { irParaTela } from "../layout/rotas";
 import { usarCanvas } from "./canvasContexto";
-import { IconeClipe, IconeLixeira, IconeParar, IconeRaio, IconeSeta, IconeX } from "../comum/Icones";
+import {
+  IconeClipe,
+  IconeFluxo,
+  IconeLixeira,
+  IconeParar,
+  IconeRaio,
+  IconeSeta,
+  IconeX,
+} from "../comum/Icones";
 import { Markdown } from "../comum/Markdown";
 import type { TurnoSessao } from "../../tipos/dominio";
 import "./composer.css";
@@ -338,6 +347,59 @@ function NoSessaoInterno({ id, data }: NodeProps) {
     return (
       <div className="no-sessao">
         <div className="corpo">Fluxo desconhecido.</div>
+      </div>
+    );
+  }
+
+  // Fluxo que so nasce completo pelo assistente NAO dispara daqui.
+  //
+  // O compositor do canvas manda o comando cru da skill, sem pasta de destino.
+  // Pro anuncio isso e um beco: o servidor recusa com 400, porque a pasta e o
+  // diretorio de trabalho da sessao e quem cria ela e o Hub. Mesmo que passasse,
+  // a skill gravaria o markdown padrao dela e a peca nasceria como "texto", sem
+  // pagina nenhuma.
+  //
+  // A guarda mora AQUI, e nao so na criacao do no, porque no que ja esta salvo
+  // no canvas.json continua sendo montado. Foi assim que o Jesse esbarrou nisso
+  // em 2026-07-31: o no dele nasceu antes da porta ser fechada.
+  if (fluxo.abreAssistente) {
+    return (
+      <div className="no-sessao">
+        {/* OS DOIS HANDLES SAO OBRIGATORIOS, mesmo num no que nao dispara nada.
+            Sem eles o React Flow nao tem onde prender a aresta que vem do
+            Cerebro, e o no aparece solto no canvas, sem fio nenhum. Foi o que o
+            Jesse viu em 2026-08-01: a primeira versao deste desvio saia antes
+            de desenhar os Handles. */}
+        <Handle type="target" position={Position.Left} />
+        <Handle type="source" position={Position.Right} isConnectable={false} />
+
+        <div className="cabeca">
+          <IconeFluxo id={fluxo.id} className="" />
+          <span className="tit">{fluxo.rotulo}</span>
+          <button
+            className="botao botao-p botao-icone botao-fantasma"
+            onClick={fecharComposer}
+            title="Tirar este nó do canvas"
+            aria-label="Tirar este nó do canvas"
+          >
+            <IconeX className="" />
+          </button>
+        </div>
+
+        <div className="corpo">
+          <p className="no-sessao-desvio">
+            {fluxo.rotulo} se cria pelo assistente, que pergunta o destino do
+            clique e o orçamento por dia. O Cérebro não tem esses dois, e sem
+            eles a campanha nasce chutada.
+          </p>
+          <button
+            className="botao botao-principal"
+            onClick={() => irParaTela(`criar:${fluxo.abreAssistente}`)}
+          >
+            <IconeRaio className="" />
+            Abrir o assistente
+          </button>
+        </div>
       </div>
     );
   }

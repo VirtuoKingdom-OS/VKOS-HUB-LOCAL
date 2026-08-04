@@ -120,6 +120,11 @@ function resolverDestino(
     if (!peca) return { motivo: "Nenhum site neste workspace ainda." };
     return { caminho: `/site/${encodeURIComponent(peca.pasta)}` };
   }
+  if (destino.startsWith("anuncio:@")) {
+    const peca = pecaMaisRecente(pecas, ["anuncio"]);
+    if (!peca) return { motivo: "Nenhuma campanha de anúncios neste workspace ainda." };
+    return { caminho: `/anuncio/${encodeURIComponent(peca.pasta)}` };
+  }
   if (destino.startsWith("fonte:@")) {
     const fonte = contextos[0];
     if (!fonte) return { motivo: "Nenhuma fonte de dados neste workspace ainda." };

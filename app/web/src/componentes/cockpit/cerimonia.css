@@ -1,92 +1,51 @@
 /* A CERIMONIA DO CEREBRO: a entrevista guiada que abre um cliente novo.
 
-   Fundacao v2, Fase 2, onda B (2026-07-30). O que mudou, e por que:
+   2026-08-04: ELA VOLTOU A SER UM PAINEL CENTRADO, e agora composto sobre a
+   primitiva de modal (.veu-modal + .modal-g + .modal-topo/.modal-rodape) em
+   vez de casca propria.
 
-   ELA VIROU TELA, NAO MODAL. Era um cartao de 720 por 820 flutuando sobre um
-   scrim escuro, com sombra de modal e raio de 20px. Mas isto nao e uma
-   decisao a tomar antes de continuar: e a tarefa mais longa do produto, uns
-   dez minutos de conversa, e a unica coisa que o dono faz enquanto ela roda.
-   Tarefa longa mora em tela cheia. A camada nasce OPACA: enquanto um scrim
-   translucido fecha, o canvas continua se mexendo atras da conversa e cobra
-   atencao que a pergunta da vez precisa.
+   O que a tela cheia custava, visto em uso real: o campo de resposta morava
+   grudado na borda de baixo do monitor, encostado na barra de tarefas do
+   Windows, e a conversa esticava de ponta a ponta da altura. Numa troca de
+   uma pergunta e uma resposta por vez, isso e distancia pura entre ler e
+   responder. O painel centrado junta as duas coisas no centro do olhar e da
+   ao veu o trabalho de calar o resto do app.
+
+   O VEU NAO FECHA NO CLIQUE. Ele existe pra comer o clique perdido, que era o
+   defeito da versao anterior a tela cheia: um botao do canvas alcancavel por
+   engano. Fechar so pelo X ou pelo Esc, e nenhum dos dois perde nada, porque
+   a sessao segue viva no servidor.
 
    A HIERARQUIA E CALMA porque so tem tres coisas: a pergunta, a resposta e o
-   campo. A coluna para em 720px (largura de leitura), o cabecalho e uma linha
-   de 56px, e nao ha caixa nenhuma em volta do texto. */
+   campo. NENHUMA das tres mora em caixa: dentro de um painel que ja e
+   superficie flutuante, uma bolha com borda seria cartao dentro de cartao. A
+   pergunta e texto na largura da coluna, e so a resposta do dono sobe um
+   degrau de superficie, pra direita. */
 @layer base, externo, tela, tema;
 
 @layer tela {
 
 /* ==========================================================================
-   1. A CAMADA
+   1. O PAINEL
    ========================================================================== */
-.cerimonia-fundo {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-camada);
-  display: flex;
-  justify-content: center;
-  /* Opaca de proposito. Ver o cabecalho desta folha. */
-  background: var(--fundo);
-}
 
+/* A altura e travada em vh, e nao em conteudo: a conversa cresce sem parar, e
+   sem o teto o painel escorregaria de novo pras bordas do monitor. O piso de
+   480px segura a proporcao no notebook de 720px de altura. */
 .cerimonia-painel {
-  width: 100%;
-  max-width: 880px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  height: min(80vh, 760px);
+  min-height: min(480px, 100%);
 }
 
 .cerimonia-topo {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--esp-12);
-  min-height: calc(var(--base) * 14);
-  padding: var(--esp-12) var(--esp-24);
   border-bottom: 1px solid var(--linha);
 }
 
-.cerimonia-titulo {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--esp-8);
-  font-size: var(--txt-titulo-p);
-  line-height: var(--lh-titulo-p);
-  letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
-  color: var(--texto);
-}
-
 .cerimonia-icone {
+  flex: none;
   width: 18px;
   height: 18px;
   color: var(--texto-suave);
-}
-
-.cerimonia-fechar {
-  flex: none;
-  width: var(--alt-p);
-  height: var(--alt-p);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--texto-suave);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  transition: color var(--transicao), background var(--transicao);
-}
-
-.cerimonia-fechar:hover {
-  color: var(--texto);
-  background: var(--superficie-alta);
-}
-
-.cerimonia-fechar svg {
-  width: 15px;
-  height: 15px;
 }
 
 /* ==========================================================================
@@ -168,17 +127,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--esp-16);
-  padding: var(--esp-24);
+  padding: var(--esp-16) var(--esp-24);
   overflow-y: auto;
 }
 
-/* Quem fala se le pela POSICAO e pela superficie, nunca por cor: a pergunta
-   se apoia no papel, a resposta do dono sobe um degrau. */
+/* Quem fala se le pela POSICAO e pela superficie, nunca por cor. */
 .cerimonia-turno {
   min-width: 0;
   max-width: 80%;
-  padding: var(--esp-12);
-  border-radius: var(--raio-g);
   font-size: var(--txt-leitura);
   line-height: var(--lh-leitura);
   letter-spacing: var(--tr-leitura);
@@ -187,12 +143,14 @@
   animation: surgir var(--mov-padrao) var(--curva) both;
 }
 
+/* A pergunta e o conteudo principal desta tela, entao ela NAO mora em caixa:
+   texto puro, sem borda e sem fundo. O teto em ch e medida de LEITURA: a
+   largura do painel serve pra conversa caber, nao pra linha esticar ate 110
+   caracteres, que e onde o olho perde a volta pra linha seguinte. */
 .cerimonia-turno.assistente {
   align-self: flex-start;
-  max-width: 88%;
+  max-width: 68ch;
   color: var(--texto);
-  background: var(--superficie);
-  border: 1px solid var(--linha);
 }
 
 .cerimonia-turno.assistente .md {
@@ -200,8 +158,14 @@
   max-width: 100%;
 }
 
+/* A resposta do dono e a unica coisa em caixa aqui, e ela precisa da BORDA
+   junto com a superficie: sobre o painel flutuante, o degrau de superficie
+   sozinho some no tema Escuro, onde os dois tons quase empatam. */
 .cerimonia-turno.usuario {
   align-self: flex-end;
+  padding: var(--esp-8) var(--esp-12);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-g);
   color: var(--texto);
   background: var(--superficie-alta);
 }
@@ -218,7 +182,7 @@
   align-self: flex-start;
   display: inline-flex;
   gap: var(--esp-4);
-  padding: var(--esp-12);
+  padding: var(--esp-8) 0;
 }
 
 .cerimonia-digitando span {
@@ -237,8 +201,16 @@
   animation-delay: 0.3s;
 }
 
+/* A faixa de concluir mora ENTRE a conversa e o campo, na largura do painel.
+   Ela e a unica coisa da tela que pode encerrar a cerimonia, entao fica no
+   caminho do olho, e nao num canto do cabecalho. */
+.cerimonia-faixa-fim {
+  flex: none;
+  margin: 0 var(--esp-16) var(--esp-8);
+}
+
 .cerimonia-erro {
-  margin: 0 var(--esp-24) var(--esp-8);
+  margin: 0 var(--esp-16) var(--esp-8);
   padding: var(--esp-8) var(--esp-12);
   color: var(--alerta);
   background: var(--alerta-tenue);
@@ -251,12 +223,10 @@
 /* ==========================================================================
    4. O CAMPO DE RESPOSTA
    ========================================================================== */
+/* O rodape da primitiva alinha as acoes a direita. Aqui o campo e que manda,
+   entao ele estica e o botao acompanha. */
 .cerimonia-envio {
-  flex: none;
-  display: flex;
-  gap: var(--esp-8);
-  padding: var(--esp-12) var(--esp-24) var(--esp-24);
-  border-top: 1px solid var(--linha);
+  justify-content: stretch;
 }
 
 .cerimonia-envio .campo {

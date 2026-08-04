@@ -89,6 +89,15 @@ No pacote Windows, `Instalar VKOS Hub.cmd` exige Node.js 20 ou mais recente. Qua
 - O gerenciador marca `conferindo` ANTES de anunciar o status `concluida`, então a tela nunca vê a peça como pronta no meio da conferência. O painel Ajustar com IA da TelaSite usa isso: enquanto o estado é `conferindo` ou `corrigindo` ele continua mostrando progresso ("o Hub está conferindo", "a IA está corrigindo") e só fecha o ajuste quando a conferência assenta. Terminando em `pendencias`, a mensagem final avisa que ficaram pendências em vez de dizer que deu tudo certo.
 - Prevenção no prompt de ajuste (`escopo-peca.ts`): todo `src`, `href` e `url()` precisa apontar pra arquivo que exista ao terminar. A IA não pode inventar nome de foto, logo ou ícone esperando que alguém crie depois; sem poder produzir a imagem, resolve com o que existe ou com CSS e diz o que faltou.
 
+### Assistente do Hub (CORE)
+- `GET /api/assistente/conversas` responde `{ conversas }`, usando o índice persistente `app/dados/assistente/indice.json`.
+- `POST /api/assistente/conversas` cria uma conversa CORE. `POST /api/assistente/conversas/:id/mensagem` abre ou retoma uma sessão com `workspaceId` vazio, transcrição em `assistente/transcricoes/` e briefing curado entregue por stdin.
+- A sessão do assistente pode escrever somente `lote.json` na pasta temporária fora do projeto. `POST /api/assistente/conversas/:id/sincronizar` valida o lote e o transforma em tarefas com estado inicial `proposta`.
+- `GET /api/assistente/fila` responde `{ tarefas }`. `POST /api/assistente/lotes/:id/aprovar` é o único caminho que tira tarefas de `proposta`; cancelamento existe por lote e por tarefa. A fila mora em `app/dados/assistente/fila.jsonl`, append-only.
+- O executor usa o alvo `{ workspaceId, pastaVkos }` da tarefa e nunca ativa workspace. Só há uma tarefa visual em execução por vez, pela mesma função `geracaoVisualEmAndamento` usada nas rotas comuns. Tarefa `rodando` no boot vira `falhou` e não é repetida.
+- `GET /api/assistente/rastro?limite=&cursor=` responde `{ entradas, proximoCursor }`. O arquivo `app/dados/assistente/rastro.jsonl` é append-only, registra apenas efeitos do servidor e consome do barramento `peca:criada`, `peca:exportada` e `sessao:concluida`.
+- O WebSocket pode enviar `{ tipo: "assistente:atualizado" }` como aviso sem dados. A tela refaz a leitura REST e nunca trata o aviso como fonte do lote ou do rastro.
+
 ## WebSocket (rota /ws)
 
 Servidor manda pro cliente (JSON por mensagem):
@@ -97,6 +106,7 @@ Servidor manda pro cliente (JSON por mensagem):
 - `{ tipo: "sessao:ferramenta", id, workspaceId, nome, alvo }` para cada ferramenta reconhecida no evento da sessão.
 - `{ tipo: "sessao:conferencia", id, workspaceId, conferencia }` a cada mudança de fase do laço de conformidade de site. `conferencia` é o `conferenciaSite` da sessão.
 - `{ tipo: "pecas:atualizadas" }` quando `conteudo/` muda.
+- `{ tipo: "assistente:atualizado" }` quando uma tarefa da fila muda; o aviso não leva conteúdo da conversa nem dados da tarefa.
 
 Cliente não precisa mandar nada. Ações vão por REST.
 
@@ -848,3 +858,61 @@ Ver `docs/decisoes/2026-07-27-hub-core.md` e `docs/decisoes/2026-07-27-conexoes-
 - Todo valor em dólar sai por `formatarUsd`, que marca `~` (estimado, sempre que há gasto) e `≥` (piso). `fraseDoPiso` diz quantos turnos gastaram sem preço, e `fraseDosRemovidos` diz quanto veio de workspace já removido.
 - A série de 14 dias existe por causa de `lerSerie` e `fraseDaTendencia`: comparação da semana corrente contra a anterior. Barra de dia com turno sem preço sai listrada, não cheia, porque ela também é um piso. Período inteiro sem gasto deixa todas as barras zeradas.
 - `web/src/estilos/core.css`, na camada `tela`, cor só por token, com `prefers-reduced-motion`.
+
+## Fluxo de anúncios (2026-07-31)
+
+Ver `docs/decisoes/2026-07-31-o-fluxo-de-anuncios.md`. Módulo novo `server/src/anuncios/` (`modelo.ts`, `limites.ts`, `armazenamento.ts`, `contratoPrompt.ts`, `prompt.ts`, `conformidade.ts`, `vinculo.ts`, `rotas.ts`), tela em `web/src/componentes/anuncios/`.
+
+### A peça e o `anuncio.json`
+
+- A peça mora em `conteudo/<AAAA-MM-DD>-anuncio-<slug>/`, e `anuncio.json` NA RAIZ é o que a define. `classificarPeca` procura por ele antes das regras de `.html` e de `.md`, senão a pasta viraria `site` ou `texto`. `TipoPeca` ganhou `"anuncio"` nos dois lados (`server/src/tipos.ts` e `web/src/tipos/dominio.ts`).
+- Forma: `{ versao: 1, plataforma: "google-busca", geradoEm, estrategia, campanha, negativas[], recursos, orcamento, conversoes[], publicacao[] }`. `campanha` é `{ nome, tipo: "busca", grupos[] }` e cada grupo é `{ id, nome, tema, palavrasChave[], anuncios[] }`. A árvore segue a anatomia real do Google Ads; os nove blocos da tela são VISÕES sobre ela, não nove campos de topo.
+- **O Zod valida FORMA, jamais tamanho de texto.** Nenhum campo de texto tem `.min(1)`; a única contagem do schema é `grupos.min(1)`. Forma errada quer dizer que a IA não entregou uma peça e é 422; título de 34 caracteres é conteúdo legível com um defeito que o dono precisa ver.
+- `limites.ts` é puro (sem Zod, sem disco): `LIMITES_GOOGLE` com a data de conferência (julho de 2026) e `conferirLimites(peca): Violacao[]`. `Violacao` tem `{ caminho, campo, valor, limite, tamanho, gravidade }`, e `caminho` é endereçável pela tela (`campanha.grupos[1].anuncios[0].titulos[6]`), o que faz dele contrato. `gravidade: "erro"` é caractere acima do limite; `"aviso"` é quantidade fora da faixa.
+- `web/src/tipos/anuncios.ts` declara `MAX_CARACTERES` com o TIPO derivado de `LIMITES_GOOGLE`: a tela precisa do número para escrever "21/30", mas quem diz que um campo estourou continua sendo a lista de violações do servidor, casada pelo `caminho`. Trocar 30 por 32 no servidor e esquecer o web quebra `npm run checar -w web`.
+- `armazenamento.ts` grava de forma atômica com backup, teto de 2 MB. `ErroAnuncio` carrega o status: 404 (sem arquivo ou sem peça), 413 (tamanho) e 422 (JSON quebrado ou forma inválida, com `descreverErroDeForma` em português dizendo qual campo).
+
+### API HTTP
+
+- `GET /api/anuncios/:pasta` responde `{ peca, violacoes }`. As violações vêm juntas de propósito: a tela marca o campo no mesmo render e não mantém uma segunda tabela de limites.
+- `PUT /api/anuncios/:pasta` grava uma peça válida. Só forma inválida reprova: título estourado grava e volta como violação.
+- `GET /api/anuncios/:pasta/conversa` responde `{ sessaoId, atualizadoEm }`, com `sessaoId: null` quando a peça ainda não tem conversa. Isso é 200, não 404: a peça existe e "ainda não tem conversa" é estado normal. A rota NÃO diz se a sessão está viva, porque a tela já sabe disso pela lista de sessões e duas verdades sobre o mesmo fato envelhecem diferente.
+- `PUT /api/anuncios/:pasta/conversa` body `{ sessaoId }` aponta a peça para outra conversa. Quem chama é a tela, depois de abrir uma sessão de resgate. Na geração quem grava é o servidor, em `sessoes/rotas.ts`, logo depois de criar a sessão: o navegador pode fechar no meio e o vínculo tem que existir do mesmo jeito.
+- O vínculo mora em `app/dados/workspaces/<id>/anuncios.json` (`{ "<pasta>": { sessaoId, atualizadoEm } }`) e respeita `VKOS_DADOS_TESTE`. Não vai dentro do `anuncio.json` porque a IA reescreve aquele arquivo, e não fica em estado do React porque precisa sobreviver a sair da tela e ao Hub reiniciar.
+- A barreira de pasta é uma só: `resolverPeca`, que saiu de `vkos/rotas.ts` para `vkos/pastaPeca.ts` nesta rodada. Uma segunda cópia dela seria uma segunda chance de escrever fora de `conteudo/`.
+
+### A sessão confinada
+
+- `sessoes/geracao-anuncio.ts` expõe `SKILL_ANUNCIO = "anuncio"` (a geração) e `SKILL_CONVERSA_ANUNCIO = "conversa-anuncio"` (a conversa de resgate, que NÃO é skill do VKOS e nunca cria peça).
+- `prepararGeracaoAnuncio` valida, cria a pasta e monta o prompt, **nesta ordem de propósito: tudo que pode falhar acontece antes do `mkdir`**, senão uma `pastaAlvo` inválida deixaria pasta vazia largada em `conteudo/`. Pasta que já existe é reaproveitada, então a segunda tentativa da mesma peça continua de onde parou.
+- A `pastaAlvo` viaja no CORPO da requisição e é validada por `resolverPeca`, a mesma barreira que decide o `cwd`. O anúncio NÃO passa por `resolverPastaAlvoGeracaoSite`: aquela função existe porque no site quem cria a pasta é a IA e o servidor precisa achar o nome lendo o prompt por regex. Aqui o dado já está na mão.
+- O `cwd` da sessão é a pasta da peça desde o primeiro turno, porque o chat da tela RETOMA essa mesma sessão e sessão que nasce na raiz do workspace fica com ela para sempre. Como consequência, o prompt embute o `SKILL.md` da `/anuncio` (`lerConteudoSkill`, em `vkos/skills.ts`) e o Cérebro: de uma subpasta não se alcança `.claude/skills/` nem `cerebro/cerebro.md`. `escopoProjeto` e `escopoPeca` são recusados com 400 junto de uma skill de anúncio.
+- **A divisão do prompt:** o contrato do JSON mora no servidor, colado ao schema (`anuncios/contratoPrompt.ts`), derivado da mesma constante de limites da conferência, com um teste que percorre as chaves do schema e afirma que o texto cita cada uma. O web (`web/src/componentes/criacao/promptAnuncio.ts`) monta só a intenção do dono, e o servidor costura. Contrato do lado do web divergiria do schema em silêncio, do outro lado de uma fronteira de processo.
+- Duas regras do prompt saíram de geração real, não de teoria: escrever com acento (o Google publica exatamente o que se escreve) e de 2 a 4 grupos de anúncio, um por intenção de busca. As duas passam no schema e nenhuma é verificável por ele.
+- `gerenciador.criar` aceita `promptVisivel`: o provedor recebe o prompt costurado inteiro, a transcrição guarda o pedido cru do dono. Sem isso a conversa abria com milhares de palavras de máquina como primeira fala dele.
+- `SKILLS_QUE_EXIGEM_CEREBRO` (em `sessoes/rotas.ts`) ganhou `"anuncio"`: liga a guarda de Cérebro vazio (409) e a trava de uma criação guiada por vez. A `conversa-anuncio` fica FORA dela, porque um chat não pode ser barrado pela trava de uma criação em andamento.
+
+### O laço de conformidade
+
+- `anuncios/conformidade.ts`, espelho de `sessoes/conformidade-site.ts`: `MAX_VOLTAS_ANUNCIO = 2`, trava de reentrância por sessão, retomada que vira turno interno na transcrição. Recebe tudo por injeção (`DepsConformidadeAnuncio`), então é testável com fakes.
+- Arquivo ausente, JSON ilegível ou forma reprovada retomam a MESMA sessão com o erro literal do schema, dizendo qual campo e o que se esperava. **Violação de limite de caractere não dispara volta**, e a regra está escrita em três lugares: no cabeçalho do módulo, na última linha do prompt de correção (para a IA não reescrever título bom enquanto conserta a forma) e num teste que primeiro prova, por `conferirLimites`, que a peça do teste viola limite de verdade.
+- O laço do anúncio para também quando a sessão morreu (`status: "erro"`), e não só quando o dono parou. O laço do site checa apenas `"parada"`.
+- A exclusão mútua virou `lacoDaSessao(sessao, ehPecaSite)` no gerenciador, devolvendo `"site" | "anuncio" | null`. Dois `if` soltos no `aoFechar` não eram afirmáveis por teste, e a função também guarda o custo: sessão de anúncio nunca lê disco para perguntar se a pasta é um site, e o teste afirma isso contando as consultas.
+- O laço reusa o campo `conferenciaSite` da sessão: mesmos quatro estados, mesmo teto, mesmo caminho de WS. Renomear o campo custaria migração de dado persistido para ganhar só a palavra certa. O que ganhou nome próprio foi o RÓTULO, em `estado/geracao.tsx`, senão o flutuante diria "Conferindo o site" enquanto o Hub confere uma campanha.
+- `SKILLS_COM_CONFERENCIA`, em `conformidade-site.ts`, ganhou `"anuncio"`, senão o gerenciador descartaria a `pastaAlvo` da sessão e o laço nunca rodaria.
+- A peça carrega o veredito: `peca.anuncio = { valido, erro }`, calculado em `montarPeca` por `diagnosticarAnuncio`, no espelho exato do `peca.site`. `classificarPeca` continua chamando a peça de anúncio só pelo nome do arquivo, e isso é o certo: campanha com forma quebrada continua sendo campanha e precisa abrir na tela dela. O critério do frontend (`pecaEstaPronta`, `erroDaCampanha`) é função pura exportada, fora de `useMemo`, onde teste alcança.
+
+### A tela e a conversa
+
+- Rota `/anuncio/<pasta>` (`anuncio:<pasta>` na gramática do Shell), nível workspace, tela cheia. `destinoAposCriacao` e `irParaPeca` conhecem os três destinos de peça: `studio`, `site` e `anuncio`.
+- `TelaAnuncio.tsx` desenha os nove blocos (estratégia, estrutura, palavras-chave, negativas, anúncios, recursos, orçamento, conversões, publicação) com índice horizontal ancorado e marca do bloco em que a leitura está. Terceira coluna não cabe em 1280x720. Contagem dentro do limite é número quieto; acima do limite vira `.selo-alerta` com a linha inteira marcada. O menta não aparece na tela: nada ali está vivo. Copiar palavra-chave sai na sintaxe do painel (`[exata]`, `"frase"`, ampla sem sinal), uma por linha. O retorno do copiar mora num lugar só, uma linha no rodapé com `role="status"`.
+- `comum/usarConversaSessao.ts` (hook), `comum/Conversa.tsx` (apresentação pura) e `comum/conversaIa.css` (classes `.conversa-ia-*`, sem qualificação por ancestral). Regra que as três cópias antigas não têm: marca maior que o stream significa stream RECOMEÇADO, e a fatia passa a ser o stream inteiro; sem ela o `slice` devolve string vazia e o painel fica mudo enquanto a IA responde, sem erro nenhum.
+- **Dívida declarada:** `ChatIde`, `CerimoniaCerebro` e `NoSessao` não foram migrados. Trocar os três junto com a estreia de um fluxo é quebrar duas coisas ao mesmo tempo. A migração é rodada própria.
+- A tela recarrega ao ouvir `pecas:atualizadas`, por `avisoPecas` em `estado/contexto.tsx` (um contador, no padrão de `avisoCrm` e `avisoMensagens`): a lista `pecas` não serve de sinal porque o conteúdo DENTRO de uma peça muda sem a lista mudar de forma. Sem botão de atualizar.
+- `Fluxo` ganhou `abreAssistente` em `web/src/config/fluxos.ts`: escolher Anúncio no Cockpit navega para `/criar/anuncio` em vez de criar nó de sessão. A guarda definitiva mora no `NoSessao.tsx`, onde o nó JÁ SALVO no `canvas.json` é renderizado, e não só na criação. O carrossel não precisa disso porque `/carrossel` cru gera um `carrossel.html` de verdade; `/anuncio` cru gera o markdown padrão da skill, que vira peça do tipo "texto".
+
+### O que NÃO existe
+
+- Nenhuma linha da API do Google Ads: sem OAuth, sem envio de campanha, sem métrica. A Fase 7 do roadmap continua adiada.
+- Nenhuma alteração no `SKILL.md` da `/anuncio`, que é do produto VKOS e está copiado em seis pastas. O contrato de saída é declarado pelo prompt do Hub, como o Site Guiado já faz com a `/site`.
+- Nenhum ramo Meta. `plataforma` existe no schema para o dia em que a Meta entrar, sem obrigar migração.

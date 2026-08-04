@@ -1,13 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as api from "../../api/cliente";
 import { ErroApi } from "../../api/cliente";
+import { usarEstado } from "../../estado/contexto";
 import { mensagemDeErro } from "../../util/erros";
 import { renderizarMarkdownLeve } from "../../util/markdownLeve";
-import { IconeCerebro, IconeLapis, IconeX } from "../comum/Icones";
+import { Conversa } from "../comum/Conversa";
+import { IconeAlerta, IconeCerebro, IconeLapis, IconeRaio, IconeX } from "../comum/Icones";
+import {
+  sessaoEstaRodando,
+  usarConversaSessao,
+} from "../comum/usarConversaSessao";
+import {
+  TITULO_CERIMONIA,
+  acharSessaoDoCerebro,
+  promptDeConversaComCerebro,
+  sessaoDoCerebroMorreu,
+} from "./cerebroConversa";
 import "./cerebro.css";
 
 type Modo = "leitura" | "edicao";
+type Guia = "ler" | "chat";
 
 // Painel do Cerebro do negocio. Modo leitura: renderiza o markdown completo
 // (sem lib externa) num painel lateral. Modo edicao: modal central grande,
@@ -16,6 +29,7 @@ type Modo = "leitura" | "edicao";
 // fechar se estiver sujo, sem nunca descartar o texto do usuario em silencio.
 export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
   const [modo, setModo] = useState<Modo>("leitura");
+  const [guia, setGuia] = useState<Guia>("ler");
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [existe, setExiste] = useState(true);
@@ -32,32 +46,53 @@ export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
   const timerSalvar = useRef<number | undefined>(undefined);
   const timerSalvou = useRef<number | undefined>(undefined);
 
+  // A sessao da conversa do Cerebro, a mesma que a cerimonia usa. Ela mora
+  // aqui em cima, e nao dentro do chat, porque a LEITURA tambem depende dela:
+  // quando a IA termina um turno, o arquivo na tela ficou velho.
+  const { sessoes } = usarEstado();
+  const sessaoCerebro = useMemo(() => acharSessaoDoCerebro(sessoes), [sessoes]);
+  const conversaRodando = sessaoEstaRodando(sessaoCerebro?.status);
+
+  const carregarCerebro = useCallback(async (): Promise<void> => {
+    try {
+      const resposta = await api.obterCerebro();
+      const conteudo = resposta.texto ?? resposta.conteudo ?? "";
+      setTexto(conteudo);
+      setAtualizadoEm(resposta.atualizadoEm ?? null);
+      ultimoSalvo.current = conteudo;
+      setExiste(true);
+      setErroCarga(null);
+    } catch (e) {
+      if (e instanceof ErroApi && e.status === 404) {
+        setExiste(false);
+      } else {
+        setErroCarga(mensagemDeErro(e));
+      }
+    }
+  }, []);
+
   useEffect(() => {
     let vivo = true;
-    (async () => {
-      try {
-        const resposta = await api.obterCerebro();
-        if (!vivo) return;
-        const conteudo = resposta.texto ?? resposta.conteudo ?? "";
-        setTexto(conteudo);
-        setAtualizadoEm(resposta.atualizadoEm ?? null);
-        ultimoSalvo.current = conteudo;
-        setExiste(true);
-      } catch (e) {
-        if (!vivo) return;
-        if (e instanceof ErroApi && e.status === 404) {
-          setExiste(false);
-        } else {
-          setErroCarga(mensagemDeErro(e));
-        }
-      } finally {
-        if (vivo) setCarregando(false);
-      }
-    })();
+    void carregarCerebro().finally(() => {
+      if (vivo) setCarregando(false);
+    });
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [carregarCerebro]);
+
+  // Turno da conversa terminou: reler o arquivo. Sem isto, pedir uma mudanca
+  // pelo Chat e voltar pra aba Ler mostraria o texto de antes da mudanca, que
+  // e a pior forma de errar num documento de identidade: silenciosa.
+  //
+  // Nao recarrega durante a EDICAO: la o dono e a fonte da verdade, e trocar o
+  // texto embaixo do cursor perderia o que ele esta escrevendo.
+  const rodavaAntes = useRef(false);
+  useEffect(() => {
+    const terminou = rodavaAntes.current && !conversaRodando;
+    rodavaAntes.current = conversaRodando;
+    if (terminou && modo !== "edicao") void carregarCerebro();
+  }, [conversaRodando, modo, carregarCerebro]);
 
   useEffect(() => {
     return () => {
@@ -209,7 +244,7 @@ export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
             Cérebro do negócio
           </h2>
           <div className="acoes-cerebro">
-            {existe && !carregando && !erroCarga && (
+            {guia === "ler" && existe && !carregando && !erroCarga && (
               <button className="botao botao-neutro botao-p" onClick={entrarEmEdicao}>
                 <IconeLapis className="" style={{ width: 14, height: 14 }} />
                 Editar
@@ -220,7 +255,36 @@ export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
             </button>
           </div>
         </div>
-        <div className="conteudo">
+
+        {/* Ler e conversar sao dois jeitos de olhar o MESMO documento, entao
+            eles sao guias do painel, e nao duas portas separadas no canvas. */}
+        <div className="abas abas-cerebro" role="tablist" aria-label="Cérebro">
+          <button
+            className="aba"
+            role="tab"
+            aria-selected={guia === "ler"}
+            onClick={() => setGuia("ler")}
+          >
+            Ler
+          </button>
+          <button
+            className="aba"
+            role="tab"
+            aria-selected={guia === "chat"}
+            onClick={() => setGuia("chat")}
+          >
+            Chat
+            {/* O ponto vivo diz que a IA esta trabalhando neste documento
+                agora, e ele e a unica coisa menta da barra. */}
+            {conversaRodando && <span className="ponto-vivo" />}
+          </button>
+        </div>
+
+        {guia === "chat" && (
+          <ChatDoCerebro sessaoCerebro={sessaoCerebro} rodandoAgora={conversaRodando} />
+        )}
+
+        <div className="conteudo" hidden={guia !== "ler"}>
           {/* Area de conteudo carregando usa ESQUELETO, nunca giro: o giro no
               meio da tela nao diz nada sobre o que esta chegando. */}
           {carregando && (
@@ -259,5 +323,101 @@ export function PainelCerebro({ aoFechar }: { aoFechar: () => void }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+// A CONVERSA COM O CÉREBRO, dentro do painel.
+//
+// É a MESMA sessão da cerimônia, reencontrada pelo título. Não é um chat novo
+// ao lado do documento: a entrevista que montou a identidade sabe o que já foi
+// perguntado, o que o dono respondeu e o que ele recusou. Um chat novo saberia
+// nada disso, e a primeira coisa que ele faria era perguntar de novo.
+//
+// QUANDO A SESSÃO MORREU, ISSO É DITO NA CARA, como no chat da campanha. Fingir
+// que continua uma conversa que acabou faria o dono escrever "muda o que a
+// gente combinou" para uma IA que nunca combinou nada.
+function ChatDoCerebro({
+  sessaoCerebro,
+  rodandoAgora,
+}: {
+  sessaoCerebro: ReturnType<typeof acharSessaoDoCerebro>;
+  rodandoAgora: boolean;
+}) {
+  const { criarSessao } = usarEstado();
+  const [resgatando, setResgatando] = useState(false);
+
+  const morreu = sessaoDoCerebroMorreu(sessaoCerebro, rodandoAgora);
+  const nuncaTeve = !sessaoCerebro;
+  const precisaDeOutra = morreu;
+
+  const abrirOutra = useCallback(
+    async (texto: string) => {
+      await criarSessao({
+        titulo: TITULO_CERIMONIA,
+        prompt: promptDeConversaComCerebro(texto),
+      });
+      setResgatando(false);
+    },
+    [criarSessao],
+  );
+
+  const conversa = usarConversaSessao(precisaDeOutra ? null : sessaoCerebro?.id ?? null, {
+    aoAbrirSessao: abrirOutra,
+  });
+
+  const mostrarFaixa = precisaDeOutra && !resgatando;
+
+  return (
+    <div className="chat-cerebro">
+      <Conversa
+        turnos={conversa.turnos}
+        pendentes={conversa.pendentes}
+        respostaViva={conversa.respostaViva}
+        ferramentas={conversa.ferramentasVivas}
+        rodando={conversa.rodando}
+        enviando={conversa.enviando}
+        erro={conversa.erro}
+        aoEnviar={(texto) => void conversa.enviar(texto)}
+        rotuloCampo="O que mudar no Cérebro"
+        campoDesligado={mostrarFaixa}
+        dicaCampoDesligado="Comece outra conversa para escrever aqui."
+        avisoNoRodape={
+          mostrarFaixa ? (
+            <div
+              className={`faixa chat-cerebro-faixa${nuncaTeve ? "" : " faixa-alerta"}`}
+              role="status"
+            >
+              {!nuncaTeve && <IconeAlerta className="" />}
+              <div className="faixa-texto">
+                {nuncaTeve
+                  ? "Este Cérebro ainda não tem conversa. Uma conversa nova começa lendo o documento que já existe e mexe só no que você pedir."
+                  : "A conversa que montou este Cérebro não existe mais, então não dá pra continuar de onde ela parou. Uma conversa nova começa lendo o documento que já existe."}
+              </div>
+              <div className="faixa-acoes">
+                <button
+                  className="botao botao-p botao-neutro"
+                  onClick={() => setResgatando(true)}
+                >
+                  Começar outra conversa
+                </button>
+              </div>
+            </div>
+          ) : null
+        }
+        vazio={
+          <div className="vazio chat-cerebro-vazio">
+            <IconeRaio className="" />
+            <h2>Peça uma mudança</h2>
+            {!precisaDeOutra && (
+              <p>
+                Esta é a mesma conversa que montou o Cérebro. Peça o que quiser,
+                tipo "a voz está formal demais, deixa mais direta", e o documento
+                muda.
+              </p>
+            )}
+          </div>
+        }
+      />
+    </div>
   );
 }

@@ -846,6 +846,14 @@ body.overlay-aberto .react-flow__edge.animated .react-flow__edge-path {
   padding: var(--esp-12);
 }
 
+/* Fluxo que so nasce completo pelo assistente: o no explica e manda pra la, em
+   vez de oferecer um disparo que o servidor vai recusar. */
+.no-sessao-desvio {
+  font-size: var(--txt-corpo);
+  line-height: var(--lh-corpo);
+  color: var(--texto-suave);
+}
+
 /* --- O composer, que e um formulario -------------------------------------
    Cada bloco e rotulo mais controle, na mesma gramatica do .grupo-campo das
    primitivas. Antes eram seis rotulos em caixa alta disputando atencao com

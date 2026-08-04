@@ -557,8 +557,9 @@ export function PainelSite({ motor, pecaPasta, arquivoAtual, aoFechar }: Props) 
               <PainelCamadas
                 itens={motor.camadas}
                 selecionadoId={motor.camadaSelecionadaId}
+                modo="fluxo"
                 aoSelecionar={motor.selecionarCamada}
-                aoMover={motor.moverCamada}
+                aoReordenar={motor.reordenarCamada}
               />
             ) : (
               <p className="painel-vazio">

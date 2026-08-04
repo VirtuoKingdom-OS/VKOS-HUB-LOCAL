@@ -22,7 +22,8 @@ import {
   substituirUrlFundo,
   type AlvoImagemCapturado,
 } from "./imagens";
-import type { DirecaoCamada, ItemCamada } from "./PainelCamadas";
+import type { ItemCamada } from "./PainelCamadas";
+import { moverNaOrdem, type DestinoCamada } from "./camadas";
 
 // ============================================================================
 // CONTRATO PUBLICO DO usarMotorSite
@@ -251,7 +252,10 @@ export interface MotorSite {
   capturarImagemSelecionada(): AlvoImagemCapturado | null;
   aplicarVar(nome: string, valor: string): void;
   selecionarCamada(id: string): void;
-  moverCamada(id: string, direcao: DirecaoCamada): void;
+  // No site, reordenar e ORDEM NA PAGINA, e isso esta certo: site e documento
+  // que corre, e "subir" quer dizer "vir antes". Quem muda de significado e o
+  // carrossel, que e tela fixa e la reordenar so pode ser empilhamento.
+  reordenarCamada(id: string, destino: DestinoCamada): void;
   inserirImagemLivre(file: File): Promise<void>;
   capturarInsercaoImagem(): AlvoImagemCapturado | null;
   selecionarSecao(id: string): void;
@@ -918,7 +922,12 @@ export function usarMotorSite(
     return "Bloco";
   }
 
-  function itemCamadaDe(el: HTMLElement, nivel: 0 | 1, ordem: HTMLElement[]): ItemCamada {
+  function itemCamadaDe(
+    el: HTMLElement,
+    nivel: number,
+    ordem: HTMLElement[],
+    paiId: string | null,
+  ): ItemCamada {
     const i = ordem.indexOf(el);
     const papel = papelDe(el);
     return {
@@ -929,6 +938,8 @@ export function usarMotorSite(
         el.tagName.toLowerCase() +
         (el.classList.length ? "." + Array.from(el.classList).join(".") : ""),
       nivel,
+      paiId,
+      ehConteiner: ehConteinerCamada(el),
       podeSubir: i > 0,
       podeDescer: i >= 0 && i < ordem.length - 1,
     };
@@ -949,14 +960,21 @@ export function usarMotorSite(
       return;
     }
     const itens: ItemCamada[] = [];
-    const topo = filhosCamada(secao);
-    topo.forEach((el) => {
-      itens.push(itemCamadaDe(el, 0, topo));
-      if (ehConteinerCamada(el)) {
-        const filhos = filhosCamada(el);
-        filhos.forEach((f) => itens.push(itemCamadaDe(f, 1, filhos)));
-      }
-    });
+    // Descida completa, pelo mesmo motivo do carrossel: bloco dentro de bloco
+    // deixava de existir pro painel. Ver motor.ts, listarCamadas.
+    //
+    // Cada pai vem seguido dos filhos DELE, e nao os niveis em blocos: a lista
+    // e plana mas precisa se ler como arvore, e a fresta de soltar depende
+    // dessa ordem pra saber em qual conteiner ela cai.
+    const descer = (pai: HTMLElement, nivel: number, idPai: string | null) => {
+      if (nivel > 12) return;
+      const filhos = filhosCamada(pai);
+      filhos.forEach((f) => {
+        itens.push(itemCamadaDe(f, nivel, filhos, idPai));
+        if (ehConteinerCamada(f)) descer(f, nivel + 1, garantirVkId(f));
+      });
+    };
+    descer(secao, 0, null);
     setCamadas(itens);
     const selId = selRef.current?.getAttribute("data-vk") || null;
     setCamadaSelecionadaId(selId && itens.some((i) => i.id === selId) ? selId : null);
@@ -969,20 +987,31 @@ export function usarMotorSite(
     el.scrollIntoView({ block: "nearest" });
   }
 
-  // Site e fluxo: reordenar e trocar de lugar no DOM com o vizinho de mesmo
-  // pai. "acima" sobe na pagina (antes no DOM). Sem mexer em z-index.
-  function moverCamada(id: string, direcao: DirecaoCamada): void {
+  // Site e fluxo: reordenar e trocar de lugar no DOM, e aqui isso e o CERTO.
+  // Site e documento que corre, e a ordem no DOM e a ordem da pagina. Quem
+  // mudou de mecanismo foi o carrossel, que e tela fixa: la reordenar virou
+  // z-index puro, porque trocar no DOM movia o texto no eixo Y.
+  //
+  // Trocar de pai por arrasto NAO existe no site de proposito: um bloco que
+  // sai da coluna dele e entra em outra quebra o responsivo, e no site nao
+  // existe posicao congelada pra segurar isso.
+  function reordenarCamada(id: string, destino: DestinoCamada): void {
     const doc = getDoc();
     const el = doc?.querySelector<HTMLElement>(`[data-vk="${id}"]`);
     const pai = el?.parentElement;
     if (!doc || !el || !pai) return;
+    const paiAtualId = pai.getAttribute("data-vk") || null;
+    const ehRaiz = pai === secaoDaSelecao();
+    // Destino em outro pai: ignora, mantendo o bloco onde ele nasceu.
+    if (destino.paiId !== (ehRaiz ? null : paiAtualId)) return;
+
     const ordem = filhosCamada(pai);
     const i = ordem.indexOf(el);
-    const j = direcao === "acima" ? i - 1 : i + 1;
-    if (i < 0 || j < 0 || j >= ordem.length) return;
+    const j = Math.max(0, Math.min(ordem.length - 1, destino.indice));
+    if (i < 0 || i === j) return;
     snapshot();
-    if (direcao === "acima") pai.insertBefore(el, ordem[j]);
-    else pai.insertBefore(ordem[j], el);
+    const nova = moverNaOrdem(ordem, i, j);
+    nova.forEach((n) => pai.appendChild(n));
     marcarMudou();
     relistarSecoes(doc);
     relistarCamadas();
@@ -1343,7 +1372,7 @@ export function usarMotorSite(
     capturarImagemSelecionada,
     aplicarVar,
     selecionarCamada,
-    moverCamada,
+    reordenarCamada,
     inserirImagemLivre,
     capturarInsercaoImagem,
     selecionarSecao,

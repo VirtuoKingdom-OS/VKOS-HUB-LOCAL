@@ -66,6 +66,7 @@ const MINIMO_ALVO = 24;
 // Ver docs/decisoes/2026-07-27-rotas-sem-hash.md.
 const TELAS = [
   { id: "dashboard", rota: "dashboard", nome: "Dashboard", nivel: "core" },
+  { id: "assistente", rota: "assistente", nome: "Assistente", nivel: "core" },
   { id: "clientes", rota: "clientes", nome: "Clientes", nivel: "core" },
   { id: "workspaces", rota: "workspaces", nome: "Workspaces", nivel: "core" },
   { id: "crm", rota: "crm", nome: "CRM", nivel: "core" },
@@ -80,7 +81,30 @@ const TELAS = [
   { id: "criar-post", rota: "criar/post", nome: "Criar post", nivel: "workspace" },
   { id: "criar-site", rota: "criar/site", nome: "Criar site", nivel: "workspace" },
   { id: "fluxo-site", rota: "fluxo/site", nome: "Site e paginas", nivel: "workspace" },
+  // A pagina da campanha de anuncio precisa de uma peca pra mostrar, e o nome da
+  // pasta muda em cada instalacao. A rota e resolvida abaixo, contra o servidor
+  // que estiver no ar. Sem peca de anuncio ela mede o estado honesto da tela, que
+  // tambem precisa abrir sem erro.
+  { id: "anuncio", rota: "anuncio/sem-anuncio", nome: "Campanha de anuncio", nivel: "workspace" },
 ];
+
+// Pergunta ao servidor qual peca de anuncio existe no workspace ativo e aponta a
+// tela pra ela. Assim a conferencia mede a tela CHEIA quando ha dado, sem nome de
+// pasta escrito na mao dentro desta ferramenta.
+async function apontarParaUmAnuncio() {
+  const tela = TELAS.find((t) => t.id === "anuncio");
+  try {
+    const resposta = await fetch(`${BASE}/api/vkos/pecas`);
+    if (!resposta.ok) return;
+    const { pecas } = await resposta.json();
+    const anuncio = (pecas ?? []).find((p) => p.tipo === "anuncio");
+    if (anuncio) tela.rota = `anuncio/${encodeURIComponent(anuncio.pasta)}`;
+  } catch {
+    // Servidor sem peca ou sem rota: fica no estado honesto, que tambem e teste.
+  }
+}
+
+await apontarParaUmAnuncio();
 
 async function abrirNavegador() {
   const canais = process.platform === "win32" ? ["msedge", "chrome"] : ["chrome", "msedge"];

@@ -26,9 +26,12 @@ test("so o escopo de projeto tira a sessao da pasta do workspace", () => {
   }
 });
 
-test("exige Cerebro nos fluxos que criam artefato visual", () => {
+test("exige Cerebro nos fluxos de criacao guiada", () => {
   assert.equal(skillExigeCerebro("carrossel"), true);
   assert.equal(skillExigeCerebro("site"), true);
+  // O anuncio entrou aqui em 2026-07-31, e isso liga duas coisas de uma vez: a
+  // guarda de Cerebro vazio e a trava de uma criacao guiada por vez.
+  assert.equal(skillExigeCerebro("anuncio"), true);
 });
 
 test("mantem livres sessoes gerais e a cerimonia de instalacao", () => {
@@ -67,6 +70,17 @@ test("ignora sessao concluida e skill geral", () => {
 test("bloqueio visual continua global depois de trocar de cliente", () => {
   const ativa = sessao({ skill: "site", workspaceId: "w-2", status: "fila" });
   assert.equal(geracaoVisualEmAndamento([ativa])?.id, ativa.id);
+});
+
+// A trava e uma so pras tres criacoes guiadas. Carrossel na fila barra anuncio,
+// e anuncio rodando barra carrossel: as duas direcoes, porque o estado de
+// progresso do Hub e singular.
+test("a trava de criacao guiada vale nas duas direcoes entre anuncio e carrossel", () => {
+  const carrosselNaFila = sessao({ id: "carrossel", skill: "carrossel", status: "fila" });
+  assert.equal(geracaoVisualEmAndamento([carrosselNaFila])?.id, "carrossel");
+
+  const anuncioRodando = sessao({ id: "anuncio", skill: "anuncio", status: "rodando" });
+  assert.equal(geracaoVisualEmAndamento([anuncioRodando])?.id, "anuncio");
 });
 
 test("conferencia de site em andamento ocupa a trava mesmo concluida", () => {

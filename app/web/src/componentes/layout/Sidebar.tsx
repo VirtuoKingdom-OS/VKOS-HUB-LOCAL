@@ -3,7 +3,7 @@ import { usarEstado } from "../../estado/contexto";
 import { INFO_STATUS } from "../../config/status";
 import { ROTULO_TIPO } from "../telas/fluxos";
 import { Marca } from "../comum/Telas";
-import { IconeSeta } from "../comum/Icones";
+import { IconeAnuncio, IconeSeta } from "../comum/Icones";
 import { SeletorWorkspace } from "./SeletorWorkspace";
 import type { TipoContexto, TipoPeca } from "../../tipos/dominio";
 import "./barra.css";
@@ -83,7 +83,11 @@ export function Sidebar({
     .filter((i) => TIPOS_GALERIA.includes(i.tipo))
     .reduce((soma, i) => soma + i.total, 0);
   const itemSite = itensFluxo.find((i) => i.tipo === "site");
-  const temConteudo = galeriasTotal > 0 || !!itemSite;
+  // Anuncio nao entra na galeria unificada: ela e de peca de IMAGEM, e campanha
+  // de Google Ads nao tem miniatura. Sem item proprio aqui, o dono so voltava
+  // numa campanha pelo cartao de recentes ou digitando o endereco.
+  const itemAnuncio = itensFluxo.find((i) => i.tipo === "anuncio");
+  const temConteudo = galeriasTotal > 0 || !!itemSite || !!itemAnuncio;
   const totalFontes = itensFonte.reduce((soma, item) => soma + item.total, 0);
 
   const totalGasto = custos?.totalUsd ?? 0;
@@ -166,6 +170,7 @@ export function Sidebar({
           aoNavegar={aoNavegar}
           galeriasTotal={galeriasTotal}
           itemSite={itemSite}
+          itemAnuncio={itemAnuncio}
           temConteudo={temConteudo}
           temFontes={itensFonte.length > 0}
           totalFontes={totalFontes}
@@ -268,6 +273,14 @@ function NavegacaoCore({
         <span className="item-nav-rotulo">Dashboard</span>
       </button>
       <button
+        className={`item-nav${telaAtiva === "assistente" ? " ativo" : ""}`}
+        aria-current={telaAtiva === "assistente" ? "page" : undefined}
+        onClick={() => aoNavegar("assistente")}
+      >
+        <IconeAssistente />
+        <span className="item-nav-rotulo">Assistente</span>
+      </button>
+      <button
         className={`item-nav${telaAtiva === "clientes" ? " ativo" : ""}`}
         aria-current={telaAtiva === "clientes" ? "page" : undefined}
         onClick={() => aoNavegar("clientes")}
@@ -354,6 +367,7 @@ function NavegacaoWorkspace({
   aoNavegar,
   galeriasTotal,
   itemSite,
+  itemAnuncio,
   temConteudo,
   temFontes,
   totalFontes,
@@ -362,6 +376,7 @@ function NavegacaoWorkspace({
   aoNavegar: (tela: string) => void;
   galeriasTotal: number;
   itemSite: ItemFluxo | undefined;
+  itemAnuncio: ItemFluxo | undefined;
   temConteudo: boolean;
   temFontes: boolean;
   totalFontes: number;
@@ -420,6 +435,17 @@ function NavegacaoWorkspace({
                 <IconeSitePagina />
                 <span className="item-nav-rotulo">{ROTULO_TIPO.site}</span>
                 <span className="contagem">{itemSite.total}</span>
+              </button>
+            )}
+            {itemAnuncio && (
+              <button
+                className={`item-nav${telaAtiva === "fluxo:anuncio" ? " ativo" : ""}`}
+                aria-current={telaAtiva === "fluxo:anuncio" ? "page" : undefined}
+                onClick={() => aoNavegar("fluxo:anuncio")}
+              >
+                <IconeAnuncio className="" />
+                <span className="item-nav-rotulo">{ROTULO_TIPO.anuncio}</span>
+                <span className="contagem">{itemAnuncio.total}</span>
               </button>
             )}
           </>
@@ -683,6 +709,15 @@ function IconeDashboard() {
       <rect x="13" y="4" width="7" height="5" rx="1.5" />
       <rect x="13" y="11" width="7" height="9" rx="1.5" />
       <rect x="4" y="13" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function IconeAssistente() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6a2.5 2.5 0 0 1-2.5 2.5H12l-4.5 4v-4H7.5A2.5 2.5 0 0 1 5 12.5Z" />
+      <path d="M9 9h6M9 12h3" />
     </svg>
   );
 }

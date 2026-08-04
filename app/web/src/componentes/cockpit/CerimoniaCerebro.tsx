@@ -5,14 +5,15 @@ import { mensagemDeErro } from "../../util/erros";
 import type { TurnoSessao } from "../../tipos/dominio";
 import { IconeCerebro, IconeRaio, IconeSeta, IconeX } from "../comum/Icones";
 import { Markdown } from "../comum/Markdown";
-import { promptComDocumento, type DocumentoCerebro } from "./cerebroDocumento";
+import {
+  promptComDocumento,
+  promptDaCerimonia,
+  type DocumentoCerebro,
+} from "./cerebroDocumento";
+import { TITULO_CERIMONIA, acharSessaoDoCerebro } from "./cerebroConversa";
 import "./cerimonia.css";
 
 export type { DocumentoCerebro };
-
-// Titulo fixo da sessao da cerimonia: e por ele que a gente reencontra uma
-// entrevista em andamento ao reabrir a tela (a sessao vive no backend).
-const TITULO_CERIMONIA = "Cerimônia do Cérebro";
 
 interface Props {
   aoFechar: () => void;
@@ -40,10 +41,7 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
   } = usarEstado();
 
   // A sessao da cerimonia: a mais recente com o titulo fixo.
-  const sessao = useMemo(() => {
-    const minhas = sessoes.filter((s) => s.titulo === TITULO_CERIMONIA);
-    return minhas.length > 0 ? minhas[minhas.length - 1] : undefined;
-  }, [sessoes]);
+  const sessao = useMemo(() => acharSessaoDoCerebro(sessoes), [sessoes]);
 
   const rodando =
     sessao?.status === "iniciando" ||
@@ -59,6 +57,19 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // QUEM ENCERRA A CERIMONIA E O DONO, e este estado e o registro disso.
+  //
+  // Antes, a tela de fim substituia a conversa sozinha assim que o Cerebro
+  // ficava gravado: a IA escrevia o arquivo, o turno terminava, e a conversa
+  // sumia com um "esta pronto" que ninguem pediu. No uso real isso apareceu
+  // como a cerimonia fechando no meio de um assunto. Gravar o arquivo e um
+  // fato do disco; declarar a identidade pronta e um julgamento, e o
+  // julgamento e de quem e dono do negocio.
+  const [concluida, setConcluida] = useState(false);
+  // Segundo passo do botao de concluir: sem ele, um clique sem querer no
+  // canto da tela encerraria a tarefa mais longa do produto.
+  const [confirmandoFim, setConfirmandoFim] = useState(false);
+
   const refConversa = useRef<HTMLDivElement>(null);
   const refCampo = useRef<HTMLInputElement>(null);
   // Tamanho do stream que ja pertence a turnos finalizados; o que passa disso
@@ -71,7 +82,7 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
   useEffect(() => {
     document.body.classList.add("overlay-aberto");
     return () => {
-      if (document.querySelectorAll(".overlay-tela-cheia, .cerimonia-fundo").length <= 1) {
+      if (document.querySelectorAll(".overlay-tela-cheia, .veu-modal").length <= 1) {
         document.body.classList.remove("overlay-aberto");
       }
     };
@@ -130,7 +141,7 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
       try {
         await criarSessao({
           titulo: TITULO_CERIMONIA,
-          prompt: doc ? promptComDocumento(doc.caminho) : "/instalar",
+          prompt: doc ? promptComDocumento(doc.caminho) : promptDaCerimonia(),
           skill: "instalar",
         });
       } catch (e) {
@@ -190,19 +201,25 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
   }, [aoFechar]);
 
   const conversaComecou = Boolean(sessao);
-  const celebrar = cerebroPronto && conversaComecou && !rodando;
+  // A tela de fim so aparece por decisao do dono. O Cerebro estar gravado
+  // habilita o botao, nunca a troca de tela.
+  const celebrar = concluida;
+  const podeConcluir = cerebroPronto && conversaComecou && !rodando && !concluida;
 
   return createPortal(
-    <div className="cerimonia-fundo">
-      <div className="cerimonia-painel">
-        <header className="cerimonia-topo">
-          <span className="cerimonia-titulo">
-            <IconeCerebro className="cerimonia-icone" />
-            Cerimônia do Cérebro
-          </span>
+    // O veu e a "tela invisivel" atras: ele cobre o app inteiro e come o
+    // clique, entao nao da pra acertar um botao do canvas por engano. Clicar
+    // nele NAO fecha, de proposito: esta e a tarefa mais longa do produto, e
+    // um clique fora do painel nao pode parecer que descartou a entrevista.
+    <div className="veu-modal cerimonia-veu">
+      <div className="modal modal-g cerimonia-painel">
+        <header className="modal-topo cerimonia-topo">
+          <IconeCerebro className="cerimonia-icone" />
+          <h2>Cerimônia do Cérebro</h2>
           <button
-            className="cerimonia-fechar"
+            className="botao botao-p botao-fantasma botao-icone"
             onClick={aoFechar}
+            aria-label="Fechar"
             title={conversaComecou ? "Fechar (a entrevista continua salva)" : "Fechar"}
           >
             <IconeX className="" />
@@ -310,10 +327,56 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
               )}
             </div>
             {erro && <div className="cerimonia-erro">{erro}</div>}
-            <div className="cerimonia-envio">
+
+            {/* A FAIXA DE CONCLUIR. Ela aparece quando o Cerebro ja tem
+                conteudo gravado, e o que ela oferece e uma acao, nunca uma
+                troca de tela: a conversa continua inteira embaixo dela.
+
+                Faixa NEUTRA, e nao a verde de sucesso: ela fica na tela o
+                resto da conversa inteira, e menta permanente vira decoracao.
+                O menta desta tela e o selo do fim, que acontece uma vez. */}
+            {podeConcluir && (
+              <div className="faixa cerimonia-faixa-fim" role="status">
+                <div className="faixa-texto">
+                  {confirmandoFim
+                    ? "Concluir agora? O Cérebro fica com o que está escrito nele. Dá pra continuar mudando depois, pelo Chat do Cérebro."
+                    : "O Cérebro já tem conteúdo gravado. Continue ajustando pela conversa, e conclua quando estiver do seu jeito."}
+                </div>
+                <div className="faixa-acoes">
+                  {confirmandoFim ? (
+                    <>
+                      <button
+                        className="botao botao-p botao-fantasma"
+                        onClick={() => setConfirmandoFim(false)}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        className="botao botao-p botao-principal"
+                        onClick={() => {
+                          setConfirmandoFim(false);
+                          setConcluida(true);
+                        }}
+                      >
+                        Concluir o Cérebro
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="botao botao-p botao-neutro"
+                      onClick={() => setConfirmandoFim(true)}
+                    >
+                      Concluir o Cérebro
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="modal-rodape cerimonia-envio">
               <input
                 ref={refCampo}
-                className="campo campo-g"
+                className="campo"
                 aria-label="Sua resposta"
                 value={mensagem}
                 placeholder={rodando ? "Espere a pergunta..." : "Responda aqui"}
@@ -324,7 +387,7 @@ export function CerimoniaCerebro({ aoFechar, aoCriarFluxo, documento }: Props) {
                 }}
               />
               <button
-                className="botao botao-principal botao-g botao-icone cerimonia-enviar"
+                className="botao botao-principal botao-icone cerimonia-enviar"
                 aria-label="Enviar resposta"
                 onClick={() => void enviar()}
                 disabled={rodando || enviando || !mensagem.trim()}

@@ -7,7 +7,36 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ehDocumentoDeCerebro, promptComDocumento } from "./cerebroDocumento.js";
+import {
+  ehDocumentoDeCerebro,
+  promptComDocumento,
+  promptDaCerimonia,
+} from "./cerebroDocumento.js";
+
+test("as duas portas mandam escrever em português, e no alfabeto certo", () => {
+  // Defeito real, 2026-08-04: uma entrevista saiu com "օrinak" (armenio pra
+  // "por exemplo") no meio de uma pergunta em portugues. O prompt so herdava
+  // o idioma do texto em volta, e heranca nao e instrucao.
+  for (const prompt of [promptDaCerimonia(), promptComDocumento("materiais/x.md")]) {
+    const minusculo = prompt.toLowerCase();
+    assert.ok(
+      minusculo.includes("sempre em português do brasil"),
+      "o prompt precisa fixar o idioma da conversa"
+    );
+    assert.ok(
+      minusculo.includes("outro alfabeto"),
+      "so dizer o idioma nao basta: o defeito real foi um alfabeto estrangeiro"
+    );
+  }
+});
+
+test("a entrevista comum tambem comeca pela skill, na primeira linha sozinha", () => {
+  const linhas = promptDaCerimonia().split("\n");
+  assert.equal(linhas[0], "/instalar");
+  // Linha em branco entre o comando e a regra: comando grudado em texto nao e
+  // expandido pelo Codex.
+  assert.equal(linhas[1], "");
+});
 
 test("o prompt aponta pro arquivo que a pessoa soltou", () => {
   const caminho = "materiais/cockpit/anexos/2026-07-31/meu-negocio.md";

@@ -47,6 +47,9 @@ const TelaCrm = lazy(() =>
 const TelaMapa = lazy(() =>
   import("../mapa").then((m) => ({ default: m.TelaMapa }))
 );
+const TelaAssistente = lazy(() =>
+  import("../assistente").then((m) => ({ default: m.TelaAssistente }))
+);
 const TelaWorkspaces = lazy(() =>
   import("../core").then((m) => ({ default: m.TelaWorkspaces }))
 );
@@ -58,6 +61,8 @@ const TelaStudio = lazy(() =>
 );
 // TelaSite ja exporta default: import dinamico direto, sem remapear.
 const TelaSite = lazy(() => import("../site/TelaSite"));
+// A pagina da campanha de anuncio, mesmo padrao da TelaSite.
+const TelaAnuncio = lazy(() => import("../anuncios/TelaAnuncio"));
 const AssistenteCriacao = lazy(() =>
   import("../criacao/AssistenteCriacao").then((modulo) => ({
     default: modulo.AssistenteCriacao,
@@ -222,6 +227,13 @@ export function Shell() {
     ? tela.slice("site:".length)
     : null;
 
+  // Pagina da campanha de anuncio: mesmo padrao do studio e do site. A validade
+  // da peca e checada dentro da propria TelaAnuncio, que mostra estado honesto
+  // quando a peca sumiu ou quando o anuncio.json esta fora do formato.
+  const paramAnuncio = tela.startsWith("anuncio:")
+    ? tela.slice("anuncio:".length)
+    : null;
+
   // Criacao guiada e uma rota de verdade. Assim F5, Voltar e entrada vinda de
   // qualquer tela mantêm URL e interface na mesma verdade.
   const tipoCriacao = tipoCriacaoDaTela(tela);
@@ -236,9 +248,11 @@ export function Shell() {
           ? `studio:${paramStudio}`
           : paramSite
             ? `site:${paramSite}`
-            : telaFixa
-              ? telaFixa
-              : "dashboard";
+            : paramAnuncio
+              ? `anuncio:${paramAnuncio}`
+              : telaFixa
+                ? telaFixa
+                : "dashboard";
 
   const abrirCriacao = useCallback((tipo: TipoGeracao) => {
     const proxima = `criar:${tipo}`;
@@ -281,7 +295,7 @@ export function Shell() {
 
   return (
     <ProvedorGeracao>
-      <div className="shell">
+      <div className={`shell${telaFixa === "assistente" ? " shell-assistente" : ""}`}>
       <Sidebar
         itensFluxo={itensFluxo}
         itensFonte={itensFonte}
@@ -314,6 +328,13 @@ export function Shell() {
         {/* Dashboard do CORE: o nivel de cima. Sem key por workspace de
             proposito, porque nada nele e do workspace aberto. */}
         {telaFixa === "dashboard" && <TelaCore aoNavegar={navegar} />}
+        {telaFixa === "assistente" && (
+          <Suspense
+            fallback={<div className="tela-hub-carregando">Abrindo o Assistente...</div>}
+          >
+            <TelaAssistente />
+          </Suspense>
+        )}
         {/* Tela de trabalho do workspace aberto. Continua sendo a base do
             assistente de criacao: criar peca e trabalho de projeto. Key por
             workspace: trocar remonta com os dados do novo. */}
@@ -400,6 +421,17 @@ export function Shell() {
             <TelaSite
               key={`site-${workspaceAtivo}-${paramSite}`}
               pasta={decodeURIComponent(paramSite)}
+            />
+          </Suspense>
+        )}
+        {/* Pagina da campanha de anuncio: cobre por cima como as demais. */}
+        {paramAnuncio && (
+          <Suspense
+            fallback={<div className="tela-hub-carregando">Abrindo a campanha...</div>}
+          >
+            <TelaAnuncio
+              key={`anuncio-${workspaceAtivo}-${paramAnuncio}`}
+              pasta={decodeURIComponent(paramAnuncio)}
             />
           </Suspense>
         )}

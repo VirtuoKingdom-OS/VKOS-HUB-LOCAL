@@ -26,7 +26,12 @@ import {
   type PassoGesto,
 } from "./alinhamento";
 import { canaisRgb, corDoTema } from "./tema";
-import type { DirecaoCamada, ItemCamada } from "./PainelCamadas";
+import type { ItemCamada } from "./PainelCamadas";
+import {
+  mudouAOrdem,
+  reordenarEmpilhamento,
+  type DestinoCamada,
+} from "./camadas";
 import {
   extrairUrlFundo,
   removerUrlFundo,
@@ -78,6 +83,22 @@ export interface PropsSel {
   // pequena faixa visivel do container.
   podeSubirNivel: boolean;
   podeExcluir: boolean;
+  // ===== A CAIXA (2026-07-31). Um conteiner de template como o `.wrap` dos
+  // carrosseis e tres coisas ao mesmo tempo: a PELE (fundo, fio, blur,
+  // sombra), o LAYOUT (posicao, flex, padding) e o PAI dos textos. Ate aqui o
+  // editor so sabia apagar as tres juntas, com os filhos dentro.
+  //
+  // O elemento tem pele visivel propria?
+  temPele: boolean;
+  // A pele ja foi limpa pelo editor, e da pra devolver?
+  peleLimpa: boolean;
+  // Quantos filhos com conteudo ele carrega. Zero quando e folha. E o que o
+  // aviso do excluir mostra, em vez de apagar em silencio.
+  filhosConteudo: number;
+  // Da pra soltar do conteiner: esta dentro de algo que nao e o slide.
+  podeSoltar: boolean;
+  // Da pra desagrupar: tem filho e nao e o slide.
+  podeDesagrupar: boolean;
   // Id estavel (data-vk) do selecionado, ancora do painel de camadas e do undo.
   vkId: string;
   // Largura atual em px (arredondada), pro campo numerico de largura de imagem.
@@ -150,7 +171,15 @@ export interface MotorEdicao {
   // primeiro), seleciona pela lista e sobe/desce no empilhamento.
   listarCamadas(pagina: number): ItemCamada[];
   selecionarPorId(id: string): void;
-  moverCamada(id: string, direcao: DirecaoCamada): void;
+  // Leva uma camada pra um destino. No carrossel isso e SEMPRE z-index, nunca
+  // ordem no DOM: a pagina e tela fixa, e trocar os nos de lugar movia o texto
+  // no eixo Y. Quando o destino troca de pai, o elemento e solto no novo pai
+  // com a posicao visual congelada.
+  reordenarCamada(id: string, destino: DestinoCamada): void;
+  // ===== A caixa: limpar a pele, soltar do conteiner, desagrupar.
+  alternarPele(): void;
+  soltarDoConteiner(): void;
+  desagrupar(): void;
   // ===== Imagem livre (E3). Insere uma imagem propria posicionavel no slide.
   inserirImagemLivre(pagina: number, caminhoRelativo: string): void;
   inserirImagemLivreArquivo(pagina: number, file: File): Promise<void>;
@@ -289,6 +318,77 @@ function filhosEmpilhados(pai: HTMLElement): HTMLElement[] {
     lista.push({ el, z: zEfetivo(el), ordem: i });
   });
   return lista.sort((a, b) => b.z - a.z || b.ordem - a.ordem).map((x) => x.el);
+}
+
+// ===== A PELE de um elemento: fundo, fio, blur e sombra.
+//
+// Estas quatro propriedades sao o que faz uma caixa APARECER. Elas nao tem
+// nada a ver com o layout dela (posicao, tamanho, flex, padding) nem com os
+// filhos que ela carrega. O `.wrap` dos carrosseis empacotava as tres coisas,
+// e por isso a unica forma de tirar o fundo blur era apagar os textos junto.
+const PROPS_PELE = [
+  "background",
+  "background-color",
+  "background-image",
+  "border",
+  "border-color",
+  "border-width",
+  "backdrop-filter",
+  "-webkit-backdrop-filter",
+  "box-shadow",
+] as const;
+
+// Marcador que SOBREVIVE ao salvar, de proposito: sem ele, depois de gravar e
+// recarregar nao haveria como devolver a pele. Prefixo data-vk e nao data-ed
+// justamente por isso, porque o serializador limpa os data-ed.
+const ATTR_SEM_PELE = "data-vk-sem-pele";
+
+function temPeleVisivel(el: HTMLElement): boolean {
+  const cs = el.ownerDocument.defaultView?.getComputedStyle(el);
+  if (!cs) return false;
+  if (cs.backgroundImage && cs.backgroundImage !== "none") return true;
+  if (cs.backdropFilter && cs.backdropFilter !== "none") return true;
+  if (cs.boxShadow && cs.boxShadow !== "none") return true;
+  if (cs.borderStyle !== "none" && parseFloat(cs.borderTopWidth) > 0) return true;
+  // Fundo de cor: transparente e alpha zero nao contam como pele.
+  const fundo = cs.backgroundColor || "";
+  if (fundo && fundo !== "transparent") {
+    const m = /rgba?\(([^)]+)\)/.exec(fundo);
+    const alfa = m ? parseFloat(m[1].split(",")[3] ?? "1") : 1;
+    if (alfa > 0.01) return true;
+  }
+  return false;
+}
+
+// Quantos filhos com conteudo de verdade o elemento carrega. Serve pro aviso
+// do excluir dizer o que vai junto, em vez de apagar em silencio.
+function contarFilhosConteudo(el: HTMLElement): number {
+  let n = 0;
+  Array.from(el.children).forEach((c) => {
+    const f = c as HTMLElement;
+    if (f.classList.contains("vkos-ed-guia")) return;
+    if (f.classList.contains("vkos-ed-alca")) return;
+    if (/^(STYLE|SCRIPT|LINK|BR)$/.test(f.tagName)) return;
+    n++;
+  });
+  return n;
+}
+
+// O elemento ja abre um contexto de empilhamento proprio? Importa porque o
+// z-index de um filho so compete dentro do contexto mais proximo: se o pai nao
+// abre um, os numeros novos atravessam elementos de fora do grupo.
+function ehContextoEmpilhamento(el: HTMLElement): boolean {
+  const cs = el.ownerDocument.defaultView?.getComputedStyle(el);
+  if (!cs) return false;
+  if (cs.position !== "static" && cs.zIndex !== "auto") return true;
+  if (parseFloat(cs.opacity) < 1) return true;
+  if (cs.transform !== "none") return true;
+  if (cs.filter !== "none") return true;
+  if (cs.backdropFilter && cs.backdropFilter !== "none") return true;
+  if (cs.isolation === "isolate") return true;
+  if (cs.mixBlendMode !== "normal") return true;
+  if (cs.contain.includes("paint") || cs.contain.includes("layout")) return true;
+  return false;
 }
 
 // Texto visivel de um elemento, normalizado, cortado nas primeiras palavras.
@@ -485,6 +585,11 @@ export function usarMotorEdicao(
       srcImagem: imagem?.src ?? "",
       podeSubirNivel: !!(slide && pai && pai !== slide),
       podeExcluir: !!slide && el !== slide,
+      temPele: temPeleVisivel(el) || el.hasAttribute(ATTR_SEM_PELE),
+      peleLimpa: el.hasAttribute(ATTR_SEM_PELE),
+      filhosConteudo: contarFilhosConteudo(el),
+      podeSoltar: !!(slide && pai && pai !== slide && el !== slide),
+      podeDesagrupar: !!slide && el !== slide && contarFilhosConteudo(el) > 0,
       vkId: el.getAttribute("data-vk") || "",
       larguraPx: Math.round(el.getBoundingClientRect().width),
       alturaPx: Math.round(el.getBoundingClientRect().height),
@@ -1650,7 +1755,12 @@ export function usarMotorEdicao(
     return "Bloco";
   }
 
-  function itemDe(el: HTMLElement, nivel: 0 | 1, ordem: HTMLElement[]): ItemCamada {
+  function itemDe(
+    el: HTMLElement,
+    nivel: number,
+    ordem: HTMLElement[],
+    paiId: string | null,
+  ): ItemCamada {
     const i = ordem.indexOf(el);
     const papel = papelDe(el);
     const classes = Array.from(el.classList).filter((c) => !c.startsWith("vkos-ed"));
@@ -1660,31 +1770,47 @@ export function usarMotorEdicao(
       conteudo: papel === "Texto" ? primeirasPalavras(el) : "",
       detalhe: el.tagName.toLowerCase() + (classes.length ? "." + classes.join(".") : ""),
       nivel,
+      paiId,
+      ehConteiner: ehConteiner(el),
       podeSubir: i > 0,
       podeDescer: i >= 0 && i < ordem.length - 1,
     };
   }
 
   // Um conteiner (bloco sem texto corrido proprio) aninha os filhos diretos um
-  // nivel no painel. Dois niveis bastam pra anatomia dos templates.
+  // nivel no painel. Elemento de texto para a descida: ele tem texto proprio e
+  // so filhos inline (o destaque colorido, um <br>), que nao sao camada.
   function ehConteiner(el: HTMLElement): boolean {
     if (el.children.length === 0) return false;
     return !(temTextoProprio(el) && soFilhosInline(el));
   }
+
+  // Teto de descida. Nao existe pra limitar a arvore, existe pra que um HTML
+  // patologico (ou um la�o de DOM) nao gere lista infinita. Templates reais
+  // chegam a tres.
+  const FUNDO_MAXIMO = 12;
 
   function listarCamadas(pagina: number): ItemCamada[] {
     const doc = getDoc();
     const slide = doc?.querySelectorAll<HTMLElement>(".slide")[pagina];
     if (!doc || !slide) return [];
     const itens: ItemCamada[] = [];
-    const topo = filhosEmpilhados(slide);
-    topo.forEach((el) => {
-      itens.push(itemDe(el, 0, topo));
-      if (ehConteiner(el)) {
-        const filhos = filhosEmpilhados(el);
-        filhos.forEach((f) => itens.push(itemDe(f, 1, filhos)));
-      }
-    });
+    // DESCIDA COMPLETA, e nao dois niveis.
+    //
+    // O teto de dois niveis vinha do plano de 2026-07-20 ("dois niveis bastam
+    // pra anatomia dos templates") e nao bastava: no slide 7 deste mesmo
+    // carrossel o `.card` guarda um div anonimo, e os quatro textos moram
+    // dentro DELE. Eles simplesmente nao existiam pro painel, e so apareciam
+    // depois de tirar o div de dentro do card.
+    const descer = (pai: HTMLElement, nivel: number, idPai: string | null) => {
+      if (nivel > FUNDO_MAXIMO) return;
+      const filhos = filhosEmpilhados(pai);
+      filhos.forEach((f) => {
+        itens.push(itemDe(f, nivel, filhos, idPai));
+        if (ehConteiner(f)) descer(f, nivel + 1, f.getAttribute("data-vk") || null);
+      });
+    };
+    descer(slide, 0, null);
     return itens.filter((item) => item.id);
   }
 
@@ -1693,34 +1819,218 @@ export function usarMotorEdicao(
     if (el) selecionar(el);
   }
 
-  // Sobe/desce uma camada no empilhamento, trocando com o vizinho de mesmo
-  // pai: troca as posicoes exatas no DOM (insertBefore via marcador) E, quando
-  // o CSS fixa z-index diferente nos dois (a ordem no DOM nao decide), troca
-  // tambem os z-index inline dos envolvidos, mantendo a escala do template.
-  function moverCamada(id: string, direcao: DirecaoCamada): void {
+  // ===== REORDENAR CAMADA: z-index, NUNCA ordem no DOM.
+  //
+  // A versao anterior trocava os dois nos de lugar no DOM. Pra irmao fora do
+  // fluxo (absolute) isso so muda quem pinta por cima, e funcionava. Pra irmao
+  // DE FLUXO, como os textos dentro de um `.wrap` que e flex column, trocar no
+  // DOM reordena a coluna: o texto ANDAVA na pagina. O usuario pedia camada e
+  // recebia mudanca de posicao.
+  //
+  // Medido no navegador em 2026-07-31, no carrossel real: renumerar z-index
+  // deixa top e left de todos os filhos IDENTICOS. E o conserto.
+
+  // Garante que o z-index do elemento vai valer. z-index so tem efeito em
+  // elemento posicionado ou item de flex/grid; `position: relative` sem
+  // left/top nao move nada, entao e seguro para o resto.
+  function garantirZAplicavel(el: HTMLElement): void {
+    const cs = el.ownerDocument.defaultView!.getComputedStyle(el);
+    garantirPosicionavel(el, cs);
+  }
+
+  // Fecha o empilhamento dos filhos dentro do pai. Sem isso, os numeros novos
+  // competiriam com elementos de fora do grupo. `isolation: isolate` nao muda
+  // pixel nenhum sozinho: conferido com foto antes e depois do slide real, os
+  // dois arquivos sairam byte a byte identicos.
+  function garantirIsolamento(pai: HTMLElement): void {
+    if (ehContextoEmpilhamento(pai)) return;
+    pai.style.isolation = "isolate";
+    pai.setAttribute("data-ed-isola", "1");
+  }
+
+  // Reescreve o empilhamento dos filhos de um pai pra deixar `id` no indice
+  // pedido. A escala e reescrita inteira, e nao permutada entre os envolvidos:
+  // permutar so funciona quando os valores do template ja sao distintos, e no
+  // caso real eles nao sao (dentro do `.wrap` todo mundo e "auto", que le 0).
+  function aplicarEmpilhamento(pai: HTMLElement, id: string, indice: number): void {
+    garantirIsolamento(pai);
+    const ordem = filhosEmpilhados(pai);
+    const ids = ordem.map((e) => e.getAttribute("data-vk") || "");
+    for (const { id: idItem, z } of reordenarEmpilhamento(ids, id, indice)) {
+      const alvo = ordem.find((e) => e.getAttribute("data-vk") === idItem);
+      if (!alvo) continue;
+      garantirZAplicavel(alvo);
+      definirZ(alvo, z);
+    }
+  }
+
+  function reordenarCamada(id: string, destino: DestinoCamada): void {
     const doc = getDoc();
     const el = doc?.querySelector<HTMLElement>(`[data-vk="${id}"]`);
-    const pai = el?.parentElement;
-    if (!doc || !el || !pai) return;
-    const ordem = filhosEmpilhados(pai);
-    const i = ordem.indexOf(el);
-    if (i < 0) return;
-    const j = direcao === "acima" ? i - 1 : i + 1;
-    if (j < 0 || j >= ordem.length) return;
-    const outro = ordem[j];
-    snapshot();
-    const za = zEfetivo(el);
-    const zb = zEfetivo(outro);
-    const marcador = doc.createComment("vk-troca");
-    pai.replaceChild(marcador, el);
-    pai.replaceChild(el, outro);
-    pai.replaceChild(outro, marcador);
-    if (za !== zb) {
-      definirZ(el, zb);
-      definirZ(outro, za);
+    const slide = el?.closest<HTMLElement>(".slide");
+    const paiAtual = el?.parentElement;
+    if (!doc || !el || !slide || !paiAtual || el === slide) return;
+
+    const paiNovo = destino.paiId
+      ? doc.querySelector<HTMLElement>(`[data-vk="${destino.paiId}"]`)
+      : slide;
+    // Cair dentro de si mesmo ou de um descendente arrancaria o no da arvore.
+    if (!paiNovo || paiNovo === el || el.contains(paiNovo)) return;
+
+    const trocaDePai = paiNovo !== paiAtual;
+    if (!trocaDePai) {
+      const ids = filhosEmpilhados(paiAtual).map((e) => e.getAttribute("data-vk") || "");
+      if (!mudouAOrdem(ids, id, destino.indice)) return;
     }
+
+    snapshot();
+    if (trocaDePai) reparentarCongelando(el, paiNovo);
+    aplicarEmpilhamento(paiNovo, id, destino.indice);
     marcarMudou();
     ressincronizarSelecao();
+  }
+
+  // ===== A CAIXA: a pele, soltar do conteiner e desagrupar.
+
+  // Limpa (ou devolve) a pele do selecionado. Layout e filhos ficam intactos:
+  // e a operacao de menor risco das tres, nao encosta numa linha de layout.
+  function alternarPele(): void {
+    const el = selRef.current;
+    if (!el || el.matches(".slide,body,html")) return;
+    snapshot();
+    if (el.hasAttribute(ATTR_SEM_PELE)) {
+      PROPS_PELE.forEach((p) => el.style.removeProperty(p));
+      el.removeAttribute(ATTR_SEM_PELE);
+    } else {
+      el.style.setProperty("background", "none");
+      // O fio some pela COR, nunca pela largura. `border: 0` tira um pixel de
+      // cada lado e empurra o conteudo: medido, os tres textos do slide 2
+      // andavam 1px. Limpar o fundo nao pode mexer em layout nenhum.
+      el.style.setProperty("border-color", "transparent");
+      el.style.setProperty("backdrop-filter", "none");
+      el.style.setProperty("-webkit-backdrop-filter", "none");
+      el.style.setProperty("box-shadow", "none");
+      el.setAttribute(ATTR_SEM_PELE, "1");
+    }
+    if (!el.getAttribute("style")) el.removeAttribute("style");
+    marcarMudou();
+    ressincronizarSelecao();
+  }
+
+  // A PRIMITIVA das outras duas: leva o elemento pra outro pai SEM ELE SAIR DO
+  // LUGAR na tela. Mede antes, move, e recoloca por coordenada absoluta.
+  //
+  // Trade-off declarado: o elemento sai do fluxo e passa a ter posicao
+  // congelada. Ganha controle manual, perde o rearranjo automatico da coluna.
+  // Numa peca de carrossel, que e tela de tamanho fixo, e a troca certa. Num
+  // site nao seria, e por isso esta primitiva nao existe no motorSite.
+  // A medicao e a aplicacao sao SEPARADAS de proposito. Ao tirar um filho de
+  // uma coluna flex, os que ficam se reacomodam na hora. Se desagrupar medisse
+  // e movesse um de cada vez, do segundo em diante a medida ja seria a do
+  // layout reacomodado, e todos empilhariam no topo. Foi o que aconteceu na
+  // primeira versao: os tres textos do slide 2 cairam em 212, 212 e 242 em vez
+  // de 213, 482 e 751. Medir todos antes de mover qualquer um resolve.
+  interface MedidaCongelada {
+    el: HTMLElement;
+    left: number;
+    top: number;
+    largura: number;
+    altura: number;
+    foraDoFluxo: boolean;
+    fonte: string;
+    alinhamento: string;
+  }
+
+  function medirParaCongelar(el: HTMLElement, paiNovo: HTMLElement): MedidaCongelada {
+    const win = el.ownerDocument.defaultView!;
+    const r = el.getBoundingClientRect();
+    const base = paiNovo.getBoundingClientRect();
+    const cs = win.getComputedStyle(el);
+    return {
+      el,
+      left: Math.round(r.left - base.left),
+      top: Math.round(r.top - base.top),
+      largura: Math.round(r.width),
+      altura: Math.round(r.height),
+      foraDoFluxo: cs.position === "absolute" || cs.position === "fixed",
+      // O texto guarda o proprio tamanho de fonte e alinhamento: sem isso ele
+      // herda os do pai novo e a caixa congelada aperta ou sobra.
+      fonte: cs.fontSize,
+      alinhamento: cs.textAlign,
+    };
+  }
+
+  function aplicarCongelado(m: MedidaCongelada, paiNovo: HTMLElement): void {
+    const el = m.el;
+    const win = el.ownerDocument.defaultView!;
+    if (win.getComputedStyle(paiNovo).position === "static") {
+      paiNovo.style.position = "relative";
+      paiNovo.setAttribute("data-ed-relpos", "1");
+    }
+    paiNovo.appendChild(el);
+    el.style.position = "absolute";
+    // border-box porque a medida veio de getBoundingClientRect, que inclui fio
+    // e recuo. Sem isto, um bloco com fio de 1px nascia 2px mais largo.
+    el.style.boxSizing = "border-box";
+    el.style.left = m.left + "px";
+    el.style.top = m.top + "px";
+    el.style.width = m.largura + "px";
+    if (m.foraDoFluxo) el.style.height = m.altura + "px";
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    el.style.margin = "0";
+    if (!el.style.fontSize) el.style.fontSize = m.fonte;
+    if (!el.style.textAlign) el.style.textAlign = m.alinhamento;
+    el.setAttribute("data-ed-mov", "1");
+  }
+
+  function reparentarCongelando(el: HTMLElement, paiNovo: HTMLElement): void {
+    aplicarCongelado(medirParaCongelar(el, paiNovo), paiNovo);
+  }
+
+  // Solta o selecionado UM nivel pra fora, e nao direto no slide. Com arvore de
+  // profundidade qualquer, pular pro slide de uma vez atravessaria niveis que a
+  // pessoa nem viu; um degrau por clique e repetivel e reversivel. Clicando de
+  // novo ele continua subindo, ate chegar no slide.
+  function soltarDoConteiner(): void {
+    const el = selRef.current;
+    const slide = el?.closest<HTMLElement>(".slide");
+    const pai = el?.parentElement;
+    const avo = pai?.parentElement;
+    if (!el || !slide || !pai || !avo || pai === slide || el === slide) return;
+    // Nunca sobe alem do slide: ele e o canvas da pagina, nao um objeto.
+    const destino = slide.contains(avo) || avo === slide ? avo : slide;
+    snapshot();
+    reparentarCongelando(el, destino);
+    aplicarEmpilhamento(destino, el.getAttribute("data-vk") || "", 0);
+    marcarMudou();
+    selecionar(el);
+  }
+
+  // Dissolve o conteiner selecionado: cada filho e solto no slide onde estava,
+  // e a caixa vazia sai. A pele some junto, e nenhum texto se perde.
+  function desagrupar(): void {
+    const el = selRef.current;
+    const slide = el?.closest<HTMLElement>(".slide");
+    // Os filhos sobem UM nivel, pro lugar onde a caixa estava, e nao pro slide:
+    // dissolver um bloco nao e a mesma coisa que arrancar tudo pra raiz.
+    const destino = el?.parentElement;
+    if (!el || !slide || !destino || el === slide) return;
+    const filhos = filhosEmpilhados(el);
+    if (filhos.length === 0) return;
+    snapshot();
+    // MEDE TODOS ANTES DE MOVER QUALQUER UM. Ver medirParaCongelar.
+    const medidas = filhos.map((f) => medirParaCongelar(f, destino));
+    // De tras pra frente no empilhamento: cada um entra no topo do destino na
+    // ordem certa, e a pilha original se preserva.
+    const ordem = medidas.slice().reverse();
+    ordem.forEach((m) => {
+      aplicarCongelado(m, destino);
+      aplicarEmpilhamento(destino, m.el.getAttribute("data-vk") || "", 0);
+    });
+    el.remove();
+    marcarMudou();
+    selecionar(ordem[ordem.length - 1].el);
   }
 
   // Aplica um z-index alvo sem deixar residuo inline: se o CSS do template ja
@@ -1794,12 +2104,18 @@ export function usarMotorEdicao(
       slide.style.removeProperty("top");
     });
     clone
-      .querySelectorAll("[data-ed-atual],[data-ed-mov],[data-ed-relpos],[data-ed-livre]")
+      .querySelectorAll(
+        "[data-ed-atual],[data-ed-mov],[data-ed-relpos],[data-ed-livre],[data-ed-isola]",
+      )
       .forEach((n) => {
         n.removeAttribute("data-ed-atual");
         n.removeAttribute("data-ed-mov");
         n.removeAttribute("data-ed-relpos");
         n.removeAttribute("data-ed-livre");
+        // So a marca sai. O `isolation: isolate` inline FICA: ele e o que
+        // mantem o z-index dos filhos competindo so entre eles depois de
+        // recarregar. Sem ele, a escala escaparia pro resto da pagina.
+        n.removeAttribute("data-ed-isola");
       });
     clone.classList.remove("vkos-ed-arrastando");
     // Remove as vars inline do <html> (eram so preview).
@@ -2010,8 +2326,11 @@ export function usarMotorEdicao(
     salvoEm,
     limparSelecao,
     listarCamadas,
+    alternarPele,
+    soltarDoConteiner,
+    desagrupar,
     selecionarPorId,
-    moverCamada,
+    reordenarCamada,
     inserirImagemLivre,
     inserirImagemLivreArquivo,
     versaoDoc,

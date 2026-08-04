@@ -9,6 +9,7 @@ import {
 } from "../comum/Icones";
 import { usarMotorEdicao } from "./motor";
 import { PainelCamadas } from "./PainelCamadas";
+import { AcoesDaCaixa } from "./AcoesDaCaixa";
 import { MenuAdicionarImagem } from "./ControlesImagem";
 import { GaleriaFontes, type ArquivoGaleriaFonte } from "./GaleriaFontes";
 import { aplicarImagemDaFonte } from "./imagens";
@@ -410,8 +411,9 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
               <PainelCamadas
                 itens={motor.pronto ? motor.listarCamadas(paginaAtual) : []}
                 selecionadoId={sel?.vkId || null}
+                modo="empilhamento"
                 aoSelecionar={motor.selecionarPorId}
-                aoMover={motor.moverCamada}
+                aoReordenar={motor.reordenarCamada}
               />
             </section>
 
@@ -471,6 +473,19 @@ export function EditorCarrossel({ pasta, aoFechar }: Props) {
                     <code>{sel.tag}</code>
                     {sel.classes && <span>.{sel.classes.split(" ").join(".")}</span>}
                   </span>
+
+                  {/* As tres partes da caixa: a pele, o vinculo com o pai e o
+                      proprio agrupamento. Ver AcoesDaCaixa.tsx. */}
+                  <AcoesDaCaixa
+                    temPele={sel.temPele}
+                    peleLimpa={sel.peleLimpa}
+                    podeSoltar={sel.podeSoltar}
+                    podeDesagrupar={sel.podeDesagrupar}
+                    filhosConteudo={sel.filhosConteudo}
+                    aoAlternarPele={motor.alternarPele}
+                    aoSoltar={motor.soltarDoConteiner}
+                    aoDesagrupar={motor.desagrupar}
+                  />
 
                   <label className="grupo-campo">
                     <span className="rotulo">Texto</span>

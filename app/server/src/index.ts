@@ -18,6 +18,7 @@ import { rotasPecas, rotasVkos } from "./vkos/rotas.js";
 import { rotasAmbiente } from "./ambiente/rotas.js";
 import { rotasContextos } from "./contextos/rotas.js";
 import { rotasAnexos } from "./anexos/rotas.js";
+import { rotasAnuncios } from "./anuncios/rotas.js";
 import { rotasCanvas } from "./canvas/rotas.js";
 import { rotasConfig } from "./config/rotas.js";
 import { rotasWorkspaces } from "./workspaces/rotas.js";
@@ -34,6 +35,9 @@ import { rotasPublicacao } from "./publicacao/rotas.js";
 import { rotasMapa } from "./mapa/rotas.js";
 import { rotasLeads } from "./leads/rotas.js";
 import { rotasFormulario } from "./formulario/rotas.js";
+import { rotasAssistente } from "./assistente/rotas.js";
+import { executorAssistente } from "./assistente/executor.js";
+import { inicializarRastro } from "./assistente/rastro.js";
 import { ehRotaDoApp } from "./nucleo/spa.js";
 
 const PORTA_PADRAO = 4600;
@@ -102,6 +106,8 @@ async function subir(): Promise<void> {
   }
   // Carrega as sessoes de todos os workspaces (depende do registro ja pronto).
   gerenciador.inicializar();
+  inicializarRastro();
+  executorAssistente.iniciar();
 
   const app = Fastify({ logger: false });
 
@@ -136,6 +142,7 @@ async function subir(): Promise<void> {
   await app.register(rotasSessoes, { prefix: "/api" });
   await app.register(rotasContextos, { prefix: "/api" });
   await app.register(rotasAnexos, { prefix: "/api" });
+  await app.register(rotasAnuncios, { prefix: "/api" });
   await app.register(rotasCanvas, { prefix: "/api" });
   await app.register(rotasConfig, { prefix: "/api" });
   await app.register(rotasProvedores, { prefix: "/api" });
@@ -151,6 +158,7 @@ async function subir(): Promise<void> {
   await app.register(rotasFormulario, { prefix: "/api" });
   await app.register(rotasPublicacao, { prefix: "/api" });
   await app.register(rotasMapa, { prefix: "/api" });
+  await app.register(rotasAssistente, { prefix: "/api" });
 
   // Arquivos das pecas na raiz, sem /api: o frontend faz proxy de /pecas separado.
   await app.register(rotasPecas);

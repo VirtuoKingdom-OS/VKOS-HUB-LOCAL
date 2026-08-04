@@ -573,8 +573,20 @@
   padding: 0 var(--esp-4) 0 0;
   gap: var(--esp-4);
 }
-.camadas-item.camadas-nivel-1 {
-  padding-left: var(--esp-16);
+/* O RECUO VEM DO NÍVEL, por variável posta pelo componente. Antes eram duas
+   classes, uma por nível, e isso era o próprio teto: a lista mostrava dois
+   níveis porque só existiam duas classes. Com árvore de profundidade qualquer
+   não dá pra ter uma classe pra cada.
+
+   O teto do recuo é de DESENHO, não de dados: passando de cinco degraus a
+   linha ficaria sem largura útil, então o recuo para de crescer e o nível
+   continua inteiro na árvore. */
+.camadas-item {
+  /* O padrão fica declarado aqui, e não só no fallback do var(): a trava de
+     token existe justamente pra que nenhum var() aponte pro vazio. Quem
+     sobrescreve é o componente, com o nível de cada linha. */
+  --nivel: 0;
+  padding-left: calc(min(var(--nivel), 5) * var(--esp-12));
 }
 .camadas-nome {
   flex: 1;
@@ -601,15 +613,91 @@
   white-space: nowrap;
   color: var(--texto-fraco);
 }
-.camadas-seta svg {
-  width: 14px;
-  height: 14px;
+/* A ALÇA DE ARRASTO, na borda do cartão.
+   As setas saíram em 2026-07-31. Elas resolviam um passo por vez e, no
+   carrossel, o passo estava errado: mexia no eixo Y da página em vez do
+   empilhamento. A grade de pontinhos é a forma que virou convenção de "pegue
+   aqui e arraste" em lista reordenável.
+
+   Ela é botão de verdade, focável, e não um enfeite com listener: arrasto não
+   existe pro teclado, então no espaço ela entra em modo de mover e as setas do
+   teclado passam a valer. */
+.camadas-alca {
+  position: relative;
+  flex: none;
+  width: var(--alt-p);
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-fraco);
+  cursor: grab;
+  touch-action: none;
+  transition: color var(--transicao), background var(--transicao);
 }
-.camadas-seta-cima svg {
-  transform: rotate(90deg);
+.camadas-alca:hover {
+  color: var(--texto);
+  background: var(--superficie-alta);
 }
-.camadas-seta-baixo svg {
-  transform: rotate(-90deg);
+.camadas-alca:active {
+  cursor: grabbing;
+}
+.camadas-alca svg {
+  width: 10px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* O cartão que está na mão fica recuado, e não escondido: some da vista quem
+   está sendo movido é perder a referência de para onde ele vai. */
+.camadas-item.arrastando {
+  opacity: var(--op-fraca);
+}
+
+/* O modo de mover pelo teclado se anuncia, senão a pessoa aperta espaço e não
+   sabe que entrou nele. */
+.camadas-item.movendo {
+  box-shadow: inset 0 0 0 1px var(--acao);
+}
+.camadas-item.movendo .camadas-alca {
+  color: var(--acao);
+}
+
+/* A linha de destino: onde o cartão vai cair. Um fio na tinta da ação, que é o
+   que ela é, uma ação em curso. */
+.camadas-item.destino-antes,
+.camadas-item.destino-depois {
+  position: relative;
+}
+.camadas-item.destino-antes::before,
+.camadas-item.destino-depois::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--acao);
+  border-radius: 1px;
+  pointer-events: none;
+}
+.camadas-item.destino-antes::before {
+  top: -1px;
+}
+.camadas-item.destino-depois::after {
+  bottom: -1px;
+}
+
+/* ==========================================================================
+   6b. AS AÇÕES DA CAIXA
+
+   Um contêiner de template é pele, layout e pai ao mesmo tempo. Estes botões
+   separam as três. Ficam juntos numa fileira que quebra, porque são irmãos:
+   nenhum deles é a ação principal do painel.
+   ========================================================================== */
+.acoes-caixa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
 }
 
 /* ==========================================================================
