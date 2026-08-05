@@ -64,7 +64,7 @@
   font-size: var(--txt-titulo);
   line-height: var(--lh-titulo);
   letter-spacing: var(--tr-titulo);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 
 .tela-central p {

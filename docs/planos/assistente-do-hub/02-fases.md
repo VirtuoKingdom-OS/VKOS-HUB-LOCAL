@@ -7,7 +7,7 @@
 > Regra da casa: **quem termina uma fase marca ela na tabela abaixo, na mesma
 > tarefa.** Fase que ficou verde e não foi marcada some da memória do projeto.
 >
-> Antes de tocar em tela, ler `docs/planos/redesign-v2/00-fundacao.md` inteiro e
+> Antes de tocar em tela, ler `docs/contexto/identidade-visual.md` inteiro e
 > `docs/decisoes/2026-08-01-a-tela-do-anuncio-num-notebook.md`.
 
 ## Estado

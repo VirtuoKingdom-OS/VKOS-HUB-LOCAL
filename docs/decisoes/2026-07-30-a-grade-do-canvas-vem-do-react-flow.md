@@ -2,7 +2,7 @@
 
 ## Contexto
 
-A fundação v2 (`docs/planos/redesign-v2/00-fundacao.md`, seção 8) receita o
+A identidade vigente (`docs/contexto/identidade-visual.md`, seção 8) receita o
 plano do grafo assim: `.area-canvas` pinta `--canvas-fundo` e desenha a grade
 de pontos num `radial-gradient` do próprio background, com gap de 20px.
 

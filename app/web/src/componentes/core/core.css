@@ -28,6 +28,15 @@
 
 @layer tela {
 
+/* O dashboard do dono e um dos poucos momentos editoriais do Hub. A classe
+   de rota impede que Workspaces e placeholders herdem esta escala. */
+.tela-core > .tela-topo h1 {
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
+}
+
 /* ==========================================================================
    1. A GRADE DO DASHBOARD
 
@@ -207,7 +216,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .core-painel .vazio p {

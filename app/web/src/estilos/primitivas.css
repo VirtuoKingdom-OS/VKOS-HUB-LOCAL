@@ -102,7 +102,7 @@
   }
   .ponto-vivo,
   .girinho {
-    animation: pulsar 1.6s var(--curva-simetrica) infinite !important;
+    animation: pulsar 1.6s var(--curva) infinite !important;
   }
 }
 
@@ -151,7 +151,7 @@
   font-size: var(--txt-titulo);
   line-height: var(--lh-titulo);
   letter-spacing: var(--tr-titulo);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -211,7 +211,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -283,7 +283,7 @@
 .cartao h3 {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -348,7 +348,7 @@
   gap: var(--esp-8);
   min-height: var(--alt);
   padding: 0 var(--esp-12);
-  border-radius: var(--raio);
+  border-radius: var(--raio-pilula);
   border: 1px solid transparent;
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
@@ -391,6 +391,7 @@
 .botao-icone {
   width: var(--alt);
   padding: 0;
+  border-radius: var(--raio);
 }
 .botao-icone.botao-p {
   width: var(--alt-p);
@@ -749,7 +750,7 @@ select.campo {
 .opcao-titulo {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .opcao-descricao {
@@ -873,7 +874,7 @@ select.campo {
   height: 7px;
   border-radius: var(--raio-pilula);
   background: var(--menta-viva);
-  animation: pulsar 1.6s var(--curva-simetrica) infinite;
+  animation: pulsar 1.6s var(--curva) infinite;
 }
 .ponto-vivo.parado {
   background: var(--texto-fraco);
@@ -940,7 +941,7 @@ select.campo {
   min-width: 0;
 }
 .item-lista-titulo {
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1137,7 +1138,7 @@ select.campo {
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 .modal-corpo {
   flex: 1;
@@ -1227,10 +1228,11 @@ select.campo {
   color: var(--texto-fraco);
 }
 .vazio h2 {
-  font-size: var(--txt-titulo-p);
-  line-height: var(--lh-titulo-p);
-  letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-family: var(--fonte-display);
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .vazio p {
@@ -1252,7 +1254,7 @@ select.campo {
     var(--superficie-alta) 63%
   );
   background-size: 400% 100%;
-  animation: varrer 1.4s var(--curva-simetrica) infinite;
+  animation: varrer 1.4s var(--curva) infinite;
 }
 .esqueleto-linha {
   height: var(--esp-12);
@@ -1290,6 +1292,22 @@ select.campo {
   background: var(--menta-viva);
   transition: width var(--mov-padrao) var(--curva);
 }
+
+/* Textura aplicada somente no elemento que ja e o plano de trabalho. */
+.textura {
+  background-color: var(--fundo);
+  background-image: radial-gradient(circle, var(--ponto-cor) 0.5px, transparent 0.5px);
+  background-size: var(--ponto-tamanho) var(--ponto-tamanho);
+}
+
+/* Ilha carvao, escura nos dois temas, e os tres papeis que vivem nela. */
+.painel-fundo {
+  background: var(--carvao);
+  color: var(--sobre-painel);
+}
+.sobre-painel { color: var(--sobre-painel); }
+.apoio-painel { color: var(--apoio-painel); }
+.menta-painel { color: var(--menta-painel); }
 
 /* Texto so pra leitor de tela. Rotulo de icone, contexto de acao. */
 .so-leitor {

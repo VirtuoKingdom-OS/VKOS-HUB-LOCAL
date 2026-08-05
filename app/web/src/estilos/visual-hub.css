@@ -1,178 +1,158 @@
 /* ==========================================================================
-   VKOS HUB: OS DOIS TEMAS (2026-07-30). A CAMADA TEMA.
+   VKOS HUB: IDENTIDADE V3. A CAMADA TEMA.
 
-   Este arquivo declara COR, e so cor. Nada de tamanho, peso, tracking, raio,
-   espaco, empilhamento ou duracao.
-
-   POR QUE ESSA REGRA E ABSOLUTA: a camada tema vence a camada tela por ORDEM
-   DE CAMADA, nao por especificidade. O que for declarado aqui, nenhuma folha
-   de tela consegue sobrescrever, nem com seletor mais especifico, nem com
-   !important. Uma altura de botao declarada aqui apaga em silencio todo
-   tamanho pequeno do design system, e ninguem descobre por que.
-
-   Os dois temas:
-     Claro   o padrao e a identidade. Neutro frio, quase sem croma. O plano de
-             trabalho e claro e o conteudo do usuario e a unica coisa colorida.
-     Escuro  a mesma gramatica em grafite frio, para trabalho noturno. Nao e
-             preto puro: preto puro nao tem para onde subir, e a escada de
-             superficie e justamente o que da profundidade sem sombra.
-
+   Este arquivo declara cor, e so cor. A camada tema vence as folhas de tela
+   por ordem de camada, entao medida, peso, raio e movimento nunca entram aqui.
    Todo par critico dos dois temas esta medido em contraste.test.ts.
    ========================================================================== */
 @layer base, externo, tela, tema;
 
 @layer tema {
 
-/* ==========================================================================
-   TEMA CLARO. Padrao, e o valor de reserva quando data-theme nao existe.
-   ========================================================================== */
-:root,
+/* O Claro e explicito. Sem data-theme, a queda segura e o Escuro. */
 :root[data-theme="claro"] {
   color-scheme: light;
 
   /* Planos. */
-  --chassi: #f1f2f4;
-  --fundo: #f6f7f8;
-  --superficie: #ffffff;
-  --superficie-alta: #eceef1;
-  --superficie-flutuante: #ffffff;
+  --chassi: #e8e5da;
+  --fundo: #f0eee6;
+  --superficie: #faf9f5;
+  --superficie-alta: #dfdbcc;
+  --superficie-flutuante: #faf9f5;
   --papel: #ffffff;
+  --carvao: #151515;
 
   /* Fios. */
-  --linha: #e4e7ea;
-  --linha-forte: #7a828a;
+  --linha: #d8d3c4;
+  --linha-forte: #7d7768;
+  --anel: 0 0 0 1px rgba(10, 10, 10, 0.12);
+  --anel-foco: 0 0 0 1px rgba(10, 10, 10, 0.2);
+  --ponto-cor: rgba(var(--linha-forte-rgb), 0.2);
 
-  /* Texto. */
-  --texto: #14171a;
-  --texto-suave: #4d545b;
-  --texto-fraco: #616970;
-  --texto-rotulo: #7b838b;
+  /* Texto e papeis do carvao. */
+  --texto: #0a0a0a;
+  --texto-suave: #3b3b3b;
+  --texto-fraco: #5a5750;
+  --texto-rotulo: #6e6a60;
+  --sobre-painel: #f0eee6;
+  --apoio-painel: #a8a49a;
+  --menta-painel: #7ed9b2;
 
-  /* Menta. O vivo aqui NAO e o hex da marca: #2fd4a7 sobre papel da 1,7:1 e
-     desaparece. Um sinal que nao se enxerga nao sinaliza. */
-  --menta: #00715a;
-  --menta-viva: #0b9776;
-  --menta-tenue: #dff3ec;
-  --menta-linha: #00715a;
-  --sobre-menta: #ffffff;
+  /* Menta. A marca escreve no carvao; sobre o claro usa o corte legivel. */
+  --menta: #0f6b4a;
+  --menta-viva: #1f8a63;
+  --menta-tenue: #dcefe4;
+  --menta-linha: #0f6b4a;
+  --sobre-menta: #f0eee6;
 
   /* Acao. */
-  --acao: #16191d;
-  --acao-hover: #282d33;
-  --sobre-acao: #ffffff;
+  --acao: #0a0a0a;
+  --acao-hover: #1f1f1f;
+  --sobre-acao: #f0eee6;
 
   /* Semantica. */
-  --alerta: #c32f2f;
-  --sobre-alerta: #ffffff;
-  --alerta-tenue: #fbeaea;
-  --alerta-linha: #c32f2f;
-  --aviso: #8a6100;
-  --aviso-tenue: #f8efdb;
-  --aviso-linha: #8a6100;
-  --neutro-tenue: #eceef1;
+  --alerta: #9b2c20;
+  --sobre-alerta: #f0eee6;
+  --alerta-tenue: #f7e3e0;
+  --alerta-linha: #9b2c20;
+  --aviso: #7a5310;
+  --aviso-tenue: #f4ebd8;
+  --aviso-linha: #7a5310;
+  --neutro-tenue: #dfdbcc;
 
-  /* Canais pra alpha. */
-  --menta-rgb: 0, 113, 90;
-  --menta-viva-rgb: 11, 151, 118;
-  --acao-rgb: 22, 25, 29;
-  --scrim-rgb: 15, 18, 22;
-  --alerta-rgb: 195, 47, 47;
-  --aviso-rgb: 138, 97, 0;
-  --fundo-rgb: 246, 247, 248;
-  --superficie-rgb: 255, 255, 255;
-  --texto-rgb: 20, 23, 26;
-  --suave-rgb: 77, 84, 91;
-  --fraco-rgb: 97, 105, 112;
+  /* Canais para alpha. */
+  --menta-rgb: 15, 107, 74;
+  --menta-viva-rgb: 31, 138, 99;
+  --acao-rgb: 10, 10, 10;
+  --scrim-rgb: 10, 10, 10;
+  --alerta-rgb: 155, 44, 32;
+  --aviso-rgb: 122, 83, 16;
+  --fundo-rgb: 240, 238, 230;
+  --superficie-rgb: 250, 249, 245;
+  --texto-rgb: 10, 10, 10;
+  --suave-rgb: 59, 59, 59;
+  --fraco-rgb: 90, 87, 80;
+  --linha-forte-rgb: 125, 119, 104;
+  --veu: rgba(var(--scrim-rgb), 0.4);
 
   /* Canvas de grafo. */
-  --canvas-fundo: #f1f2f4;
-  --pontos-canvas: #cbd0d6;
-  /* Um degrau mais escuro que a primeira versao (#82898f dava 3,0:1): aresta
-     de 2px precisa de 4,5:1 pra se achar no meio do canvas. Medido: 4,6:1. */
-  --ligacao: #666e78;
-  --ligacao-viva: #0b9776;
+  --canvas-fundo: #e8e5da;
+  --pontos-canvas: #c7c1b0;
+  --ligacao: #655f52;
+  --ligacao-viva: #0f6b4a;
 }
 
-/* ==========================================================================
-   TEMA ESCURO. Grafite frio, quatro degraus de superficie de verdade.
-   ========================================================================== */
+/* O Escuro e o padrao e a rede de seguranca sem atributo. */
+:root,
 :root[data-theme="escuro"] {
   color-scheme: dark;
 
-  /* Planos. A moldura e o degrau MAIS escuro, e o trabalho sobe a partir
-     dela. E a mesma gramatica do Claro, onde a moldura tambem recua. */
-  --chassi: #0e1013;
-  --fundo: #131619;
-  --superficie: #1a1e22;
-  --superficie-alta: #242930;
-  --superficie-flutuante: #23282e;
-  /* O papel do site do cliente nao acompanha o tema: e a folha dele. */
+  /* Planos. */
+  --chassi: #050505;
+  --fundo: #0a0a0a;
+  --superficie: #171717;
+  --superficie-alta: #2a2a2a;
+  --superficie-flutuante: #1c1c1c;
   --papel: #ffffff;
+  --carvao: #000000;
 
   /* Fios. */
-  --linha: #2a2f36;
-  --linha-forte: #727a84;
+  --linha: #2e2e2e;
+  --linha-forte: #7b776e;
+  --anel: 0 0 0 1px rgba(240, 238, 230, 0.1);
+  --anel-foco: 0 0 0 1px rgba(240, 238, 230, 0.22);
+  --ponto-cor: rgba(var(--linha-forte-rgb), 0.12);
 
-  /* Texto. NAO E BRANCO PURO, e isso e medido, nao gosto: sobre grafite, o
-     branco cheio florece e cansa em uso longo, e a formula do WCAG 2 nao
-     avisa, porque ela premia contraste maximo. Nenhum produto de referencia
-     usa #fff em corpo no escuro: Linear #f7f8f8, Primer #f0f6fc, Radix gray
-     dark 12 #eeeeee, Carbon g100 #f4f4f4. */
-  --texto: #e9ecef;
-  --texto-suave: #a7aeb6;
-  --texto-fraco: #8f97a0;
-  --texto-rotulo: #727a83;
+  /* Texto e papeis do carvao. */
+  --texto: #f0eee6;
+  --texto-suave: #c9c6bc;
+  --texto-fraco: #a5a199;
+  --texto-rotulo: #8b8781;
+  --sobre-painel: #f0eee6;
+  --apoio-painel: #a5a199;
+  --menta-painel: #7ed9b2;
 
-  /* Menta. Aqui o vivo E o hex da marca, porque no escuro ele tem contraste
-     de sobra (9,6:1 contra o plano de trabalho). */
-  --menta: #3fd6a8;
-  --menta-viva: #2fd4a7;
-  --menta-tenue: #12302a;
-  --menta-linha: #3fd6a8;
-  --sobre-menta: #08201a;
+  /* Menta. */
+  --menta: #7ed9b2;
+  --menta-viva: #7ed9b2;
+  --menta-tenue: #16302a;
+  --menta-linha: #7ed9b2;
+  --sobre-menta: #0a0a0a;
 
-  /* Acao. Ela inverte: tinta clara solida sobre grafite. */
-  --acao: #e9ecef;
+  /* Acao. */
+  --acao: #f0eee6;
   --acao-hover: #ffffff;
-  --sobre-acao: #14171a;
+  --sobre-acao: #0a0a0a;
 
   /* Semantica. */
-  --alerta: #f47070;
+  --alerta: #ff8f80;
   --sobre-alerta: #2a0d0d;
   --alerta-tenue: #3a1b1b;
-  --alerta-linha: #f47070;
-  --aviso: #e0b04a;
-  --aviso-tenue: #33280f;
-  --aviso-linha: #e0b04a;
-  --neutro-tenue: #242930;
+  --alerta-linha: #ff8f80;
+  --aviso: #e8c06a;
+  --aviso-tenue: #332a12;
+  --aviso-linha: #e8c06a;
+  --neutro-tenue: #2a2a2a;
 
-  /* Canais pra alpha. O scrim vira preto puro: no escuro a sombra so aparece
-     se for mais escura que a superficie, e nao existe nada abaixo do preto. */
-  --menta-rgb: 63, 214, 168;
-  --menta-viva-rgb: 47, 212, 167;
-  --acao-rgb: 233, 236, 239;
+  /* Canais para alpha. */
+  --menta-rgb: 126, 217, 178;
+  --menta-viva-rgb: 126, 217, 178;
+  --acao-rgb: 240, 238, 230;
   --scrim-rgb: 0, 0, 0;
-  --alerta-rgb: 244, 112, 112;
-  --aviso-rgb: 224, 176, 74;
-  --fundo-rgb: 19, 22, 25;
-  --superficie-rgb: 26, 30, 34;
-  --texto-rgb: 233, 236, 239;
-  --suave-rgb: 167, 174, 182;
-  --fraco-rgb: 143, 151, 160;
-
-  /* O veu fecha mais no escuro: a opacidade que cobre um fundo claro deixa o
-     conteudo escuro atras ainda legivel, e o modal para de ler como camada. */
+  --alerta-rgb: 255, 143, 128;
+  --aviso-rgb: 232, 192, 106;
+  --fundo-rgb: 10, 10, 10;
+  --superficie-rgb: 23, 23, 23;
+  --texto-rgb: 240, 238, 230;
+  --suave-rgb: 201, 198, 188;
+  --fraco-rgb: 165, 161, 153;
+  --linha-forte-rgb: 123, 119, 110;
   --veu: rgba(0, 0, 0, 0.66);
 
-  /* Canvas de grafo. O ponto da grade NAO fica muito mais claro que o canvas:
-     no escuro, ponto claro sobre plano escuro vira ruido brilhante. A
-     --ligacao-viva e a mesma cor do Claro de proposito: a linha que esta
-     sendo arrastada e a unica que precisa saltar nos dois temas. */
-  --canvas-fundo: #0e1013;
-  --pontos-canvas: #262b33;
-  /* Um degrau mais claro que a primeira versao (#616973 dava 3,5:1) pelo
-     mesmo motivo do Claro. Medido: 5,1:1 sobre o canvas escuro. */
-  --ligacao: #7d8590;
-  --ligacao-viva: #2fd4a7;
+  /* Canvas de grafo. */
+  --canvas-fundo: #050505;
+  --pontos-canvas: #262626;
+  --ligacao: #7b776e;
+  --ligacao-viva: #7ed9b2;
 }
 }

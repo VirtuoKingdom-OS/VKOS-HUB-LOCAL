@@ -53,26 +53,27 @@ Em execução ele quer velocidade e iteração. Quando ele disser "bora torar", 
 
 Motion e UI caprichados importam muito para ele.
 
-**A IDENTIDADE VISUAL DO HUB FOI REESCRITA DO ZERO EM 2026-07-30.** O Jesse
-revogou o design system anterior por inteiro: as regras de design que moravam
-aqui e todas as decisões `docs/decisoes/2026-07-27-*` NÃO valem mais, não
-devem ser seguidas nem citadas como justificativa, e nenhum valor delas se
-herda. Ver `docs/decisoes/2026-07-30-redesign-v2-fundacao.md`.
+**A IDENTIDADE VISUAL VIGENTE É A V3, DE 2026-08-05.** Ela substitui o
+redesign v2 e as decisões visuais anteriores onde houver conflito. Ver
+`docs/decisoes/2026-08-05-identidade-v3.md`.
 
-**O contrato de interface agora é um arquivo só: `docs/planos/redesign-v2/00-fundacao.md`.**
+**O contrato de interface agora é um arquivo só: `docs/contexto/identidade-visual.md`.**
 Leia ele inteiro antes de tocar em qualquer tela. Ele traz a paleta dos dois
 temas com contraste medido, as escalas com valor exato e quando usar cada
 degrau, a camada de primitivas com a receita de cada componente, as regras de
 densidade, de motion e de canvas, as proibições e o checklist de migração por
 tela.
 
-O resumo em cinco linhas, que não substitui a leitura:
+O resumo em seis pontos, que não substitui a leitura:
 
-- **A interface é acromática e o conteúdo do usuário é a única coisa colorida
-  na tela.** Dois temas, Claro (o padrão) e Escuro, os dois em neutro frio.
-- **O menta tem um emprego só: dizer o que está vivo.** Não pinta botão,
-  título, ícone, hover, cartão selecionado nem aba ativa. A ação principal é
-  tinta sólida, uma por tela.
+- **O Escuro é o padrão, quase preto e quente; o Claro é creme de laboratório.**
+  Os dois temas usam a mesma gramática e são conferidos juntos.
+- **O menta sinaliza marca e estado vivo, nunca clique genérico.** Carvão,
+  textura de pontos e papéis próprios completam a identidade sem invadir os
+  canvas do Cockpit e do Mapa.
+- **Geist é embarcada e título ganha autoridade por tamanho e tracking.**
+  Título usa peso 400; navegação ativa usa 500; pesos maiores ficam restritos
+  a dado numérico e wordmark.
 - **A tela não inventa componente.** Ela compõe `app/web/src/estilos/primitivas.css`
   e escreve só o layout dela. Primitiva faltando sobe pra lá, nunca vira classe
   local.
@@ -82,12 +83,12 @@ O resumo em cinco linhas, que não substitui a leitura:
 - **Cor só por token, sempre.** Nenhum hex em folha de componente, e as travas
   em `app/web/src/estilos/*.test.ts` reprovam.
 
-A Fase 2 do redesign TERMINOU em 2026-07-30: as 21 folhas migraram, o
-`estilos/legado.css` foi demolido classe por classe e a constante `PENDENTES`,
+A migração da identidade v3 terminou em 2026-08-05: as folhas estão cobertas
+pelas travas, `estilos/legado.css` foi demolido classe por classe e a constante `PENDENTES`,
 em `app/web/src/estilos/folhas.ts`, está vazia. As travas de conteúdo varrem o
 app inteiro. O registro do que saiu está em
 `docs/decisoes/2026-07-30-a-demolicao-do-legado.md` e em
-`docs/planos/redesign-v2/01-pendencias-por-tela.md`. `PENDENTES` continua
+`docs/decisoes/2026-08-05-identidade-v3.md`. `PENDENTES` continua
 existindo para dívida DECLARADA: folha nova que precise ficar fora das travas
 por uma rodada entra ali com data e motivo, nunca em silêncio.
 

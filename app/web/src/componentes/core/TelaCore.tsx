@@ -86,7 +86,7 @@ export function TelaCore({ aoNavegar }: Props) {
   );
 
   return (
-    <section className="tela">
+    <section className="tela tela-core">
       <header className="tela-topo">
         <div className="tela-topo-texto">
           <h1>Seu negócio</h1>

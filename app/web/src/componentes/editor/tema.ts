@@ -13,7 +13,7 @@
 
 // Valor de emergencia: o menta dos temas. So entra em cena se o token sumir do
 // :root, o que significaria o app inteiro sem tema.
-const MENTA_PADRAO = "#2fd4a7";
+const MENTA_PADRAO = "#7ed9b2";
 
 // Le um token de cor do :root do documento do Hub. Devolve o padrao quando o
 // token nao existe ou o documento nao esta disponivel.

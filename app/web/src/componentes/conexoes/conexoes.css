@@ -98,7 +98,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .conx-servico-topo .selo {

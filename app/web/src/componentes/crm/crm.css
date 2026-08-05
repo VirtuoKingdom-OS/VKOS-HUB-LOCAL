@@ -592,7 +592,7 @@ body.crm-arrastando {
   margin-bottom: var(--esp-4);
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto-suave);
 }
 .crm-form-dores {
@@ -708,7 +708,7 @@ body.crm-arrastando {
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -774,7 +774,7 @@ body.crm-arrastando {
   margin-bottom: var(--esp-2);
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto-suave);
 }
 .crm-lead-ficha {
@@ -919,7 +919,7 @@ body.crm-arrastando {
 .crm-negocio-titulo {
   flex: 1;
   min-width: 140px;
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
 }
 .crm-negocio-valor {
   width: 100px;
@@ -1011,7 +1011,7 @@ body.crm-arrastando {
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 .crm-modal-aviso {
   margin-top: var(--esp-16);

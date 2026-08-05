@@ -301,19 +301,14 @@
 }
 
 /* ===== Títulos internos =================================================
-   A ESCADA, e ela estava invertida até 2026-08-01: o h3 do grupo era 16px peso
-   600 e o h2 do bloco é 18px peso 500, então o subtítulo pesava mais que o
-   título e os nove blocos liam como um rio só.
-
-   Agora: h1 22/500 na barra, h2 18/500 no bloco (com o fio grudado),
-   h3 14/600 no grupo e h4 12/500 na lista. O grupo se separa do bloco por
-   TAMANHO e por espaço (32px acima dele, 8px abaixo), e do título de linha da
-   lista pelo PLANO: o grupo vive no papel, a linha vive na superfície. */
+   A hierarquia vem de tamanho, espaço e plano. Pela identidade v3, h3 e h4
+   usam peso normal: o grupo se separa do bloco por tamanho e espaço, e do
+   rótulo de linha pelo plano em que vive. */
 .anuncio-subtitulo {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
   letter-spacing: var(--tr-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -329,12 +324,9 @@
   color: var(--texto-suave);
 }
 
-/* "Sitelink 2", "Anúncio 1": o nome de uma PEÇA, e não o rótulo de um campo
-   dela. Os dois eram a mesma classe, então "Sitelink 2", que abre uma peça
-   nova, ficava igualzinho a "Endereço do sitelink", que fecha a anterior, e
-   quem lia não sabia onde uma acabava e a outra começava. Mesmo tamanho, tinta
-   cheia e peso de nome: é o mesmo degrau da linha de lista, um nível abaixo do
-   nome do grupo. */
+/* "Sitelink 2", "Anúncio 1": o título de uma PEÇA, e não o rótulo de um
+   campo dela. O tamanho, a tinta cheia e o espaço separam cada peça da linha
+   de campo sem recorrer a negrito. */
 .anuncio-rotulo-peca {
   display: flex;
   align-items: center;
@@ -343,7 +335,7 @@
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
   letter-spacing: var(--tr-legenda);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -545,7 +537,7 @@
 .anuncio-passo-titulo {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 

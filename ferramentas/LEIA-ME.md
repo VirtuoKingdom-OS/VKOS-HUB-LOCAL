@@ -4,7 +4,7 @@ Scripts que ajudam a conferir o Hub e não fazem parte do produto.
 
 ## `olhar-telas.mjs`, a conferência visual
 
-Abre a interface num navegador de verdade, percorre 13 telas em três tamanhos, mede responsividade, coleta erro de console e tira uma foto de cada uma.
+Abre a interface num navegador de verdade, percorre 17 telas em três tamanhos, mede responsividade, coleta erro de console e tira uma foto de cada uma.
 
 ### Por que existe
 
@@ -40,11 +40,11 @@ node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
 Nos dois temas, que é o que a identidade exige:
 
 ```
-node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
-node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas --tema escuro
+node ferramentas/olhar-telas.mjs --porta 4702 --tema escuro --saida ./fotos-telas/escuro
+node ferramentas/olhar-telas.mjs --porta 4702 --tema claro --saida ./fotos-telas/claro
 ```
 
-O nome do tema é o que vai em `data-theme`: `claro` (o padrão desde a identidade nova) e `escuro`. Cuidado com nome de tema inventado: valor desconhecido é ignorado em silêncio e a conferência roda o padrão achando que cobriu outro tema.
+O nome do tema é o que vai em `data-theme`: `escuro` (o padrão desde a identidade v3) e `claro`. Cuidado com nome de tema inventado: valor desconhecido é ignorado em silêncio e a conferência roda o padrão achando que cobriu outro tema.
 
 Ele sai com código de erro quando alguma tela reprova, então serve de portão dentro de outro script.
 

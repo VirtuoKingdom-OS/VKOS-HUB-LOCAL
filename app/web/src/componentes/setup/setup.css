@@ -90,10 +90,10 @@
   color: var(--texto-suave);
 }
 .setup-passo h1 {
-  font-size: var(--txt-titulo);
-  line-height: var(--lh-titulo);
-  letter-spacing: var(--tr-titulo);
-  font-weight: var(--peso-medio);
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .setup-legenda {

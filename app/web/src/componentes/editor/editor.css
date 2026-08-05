@@ -96,7 +96,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -363,14 +363,14 @@
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
   letter-spacing: var(--tr-legenda);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto-suave);
 }
 .secao-titulo.secao-principal {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
   letter-spacing: var(--tr-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -677,7 +677,7 @@
   right: 0;
   height: 2px;
   background: var(--acao);
-  border-radius: 1px;
+  border-radius: var(--raio-p);
   pointer-events: none;
 }
 .camadas-item.destino-antes::before {
@@ -799,7 +799,7 @@
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
   letter-spacing: var(--tr-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .galeria-fontes-grade {
@@ -907,7 +907,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;

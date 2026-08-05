@@ -91,7 +91,7 @@
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
   letter-spacing: var(--tr-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   /* Tema longo trunca numa linha so, em vez de quebrar palavra por palavra
      numa coluna ilegivel. */
@@ -249,6 +249,7 @@
    CLIENTE e ela nao acompanha o tema do Hub. */
 .miniatura-pagina {
   padding: 0;
+  border-color: var(--linha-forte);
 }
 
 .miniatura-pagina-caixa {

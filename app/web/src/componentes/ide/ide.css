@@ -2,7 +2,7 @@
    VKOS-IDE: a janela flutuante com arvore, editor e conversa.
 
    REDESENHADA na Fase 2 do redesign v2 (2026-07-30), contra
-   docs/planos/redesign-v2/00-fundacao.md.
+   docs/contexto/identidade-visual.md.
 
    O QUE ESTA FOLHA ESCREVE, e so isto: o LAYOUT da janela (quanto mede cada
    coluna, o que gruda, o que rola) mais os tres componentes que so existem
@@ -89,7 +89,7 @@
   min-width: 0;
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto-suave);
 }
 .ide-barra-acoes {
@@ -197,7 +197,7 @@
 .ide-no.ativo {
   background: var(--superficie-alta);
   color: var(--texto);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-medio);
   box-shadow: inset 2px 0 0 0 var(--acao);
 }
 .ide-no.armado {
@@ -367,7 +367,6 @@
   min-width: 0;
   resize: none;
   border: none;
-  border-radius: 0;
   background: transparent;
   color: var(--texto);
   font-family: var(--mono);
@@ -406,7 +405,7 @@
   min-width: 0;
   background: var(--superficie);
   border-left: 1px solid var(--linha);
-  transition: width var(--mov-padrao) var(--curva-simetrica);
+  transition: width var(--mov-padrao) var(--curva);
 }
 .ide-coluna-chat.recolhida {
   width: calc(var(--base) * 11);
@@ -424,7 +423,7 @@
 .ide-chat-pegador svg {
   width: 15px;
   height: 15px;
-  transition: transform var(--mov-padrao) var(--curva-simetrica);
+  transition: transform var(--mov-padrao) var(--curva);
 }
 .ide-chat-rotulo-vert {
   margin: calc(var(--esp-48) + var(--esp-8)) auto 0;
@@ -462,7 +461,7 @@
   min-width: 0;
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -544,6 +543,7 @@
   flex-direction: column;
   gap: var(--esp-12);
   padding: var(--esp-16) var(--esp-16) var(--esp-8);
+  background: var(--carvao);
 }
 
 /* A abertura da conversa. Ela ENSINA o que aquilo faz e mostra, parado, com
@@ -564,7 +564,8 @@
 .ide-turno-ia {
   font-size: var(--txt-corpo);
   line-height: var(--lh-leitura);
-  color: var(--texto);
+  color: var(--menta-painel);
+  font-family: var(--mono);
   overflow-wrap: anywhere;
 }
 /* A fala do usuario tem caixa, a direita: e o que separa pergunta de resposta
@@ -590,7 +591,7 @@
   align-self: center;
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  color: var(--texto-fraco);
+  color: var(--apoio-painel);
 }
 
 /* A ferramenta que esta rodando AGORA. A engrenagem e um dos dois usos de
@@ -635,7 +636,15 @@
   gap: var(--esp-8);
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  color: var(--texto-suave);
+  color: var(--apoio-painel);
+}
+
+.ide-chat-conversa .vazio h2 {
+  color: var(--sobre-painel);
+}
+
+.ide-chat-conversa .vazio p {
+  color: var(--apoio-painel);
 }
 
 .ide-chat-erro {

@@ -135,7 +135,7 @@
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
   letter-spacing: var(--tr-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .studio-atalhos-corpo ul {

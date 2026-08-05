@@ -88,7 +88,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 
 .cv-busca {
@@ -412,7 +412,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

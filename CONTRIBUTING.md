@@ -49,7 +49,7 @@ VKOS_DADOS_TESTE=/tmp/dados-de-teste VKOS_PORT=4702 npx tsx server/src/index.ts
 node ferramentas/olhar-telas.mjs --porta 4702 --saida ./fotos-telas
 ```
 
-Ela abre a interface num navegador de verdade e percorre **13 telas em três tamanhos** (1440x900, 1366x768 e 1280x720, que é o notebook comum). Reprova por: erro de console, tela que não renderiza, tela sem botão, rolagem horizontal, elemento estourando pra direita, alvo de toque abaixo de 24px, texto abaixo do piso de 11px da escala, e item de menu fora do alcance. Rode nos dois temas: o padrão já é o Claro, e o segundo passa com `--tema escuro`.
+Ela abre a interface num navegador de verdade e percorre **17 telas em três tamanhos** (1440x900, 1366x768 e 1280x720, que é o notebook comum). Reprova por: erro de console, tela que não renderiza, tela sem botão, rolagem horizontal, elemento estourando pra direita, alvo de toque abaixo de 24px, texto abaixo do piso de 11px da escala, e item de menu fora do alcance. Rode nos dois temas: o padrão é o Escuro, e o segundo passa com `--tema claro`.
 
 **Ela mede altura, e isso não é detalhe.** Em 2026-07-27 a barra lateral empilhava os dois níveis de navegação e sobrava 33px pro menu do projeto num notebook de 720px. Compilava, passava nos cinco portões, e a pessoa não conseguia clicar nos próprios itens. Nenhum teste via isso porque nenhum teste tinha altura. Ver `docs/decisoes/2026-07-27-um-nivel-por-vez.md`.
 

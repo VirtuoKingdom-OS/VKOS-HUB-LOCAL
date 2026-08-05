@@ -93,10 +93,10 @@
 }
 
 .cerimonia-intro h2 {
-  font-size: var(--txt-titulo);
-  line-height: var(--lh-titulo);
-  letter-spacing: var(--tr-titulo);
-  font-weight: var(--peso-medio);
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -190,7 +190,7 @@
   height: 7px;
   background: var(--menta-viva);
   border-radius: var(--raio-pilula);
-  animation: pulsar 1.4s var(--curva-simetrica) infinite;
+  animation: pulsar 1.4s var(--curva) infinite;
 }
 
 .cerimonia-digitando span:nth-child(2) {

@@ -482,7 +482,7 @@ export function usarMotorEdicao(
     // cor de moldura, porque a moldura nao tem cor. E instrumentacao de
     // editor, removida na serializacao, nunca parte da peca.
     const menta = corDoTema("--menta-viva");
-    const canais = canaisRgb(menta) || "47, 212, 167";
+    const canais = canaisRgb(menta) || "126, 217, 178";
     s.textContent =
       `[data-ed-sel]{outline:2px solid ${menta} !important;outline-offset:-2px !important;cursor:move !important;}` +
       `[data-ed-editando]{outline:2px dashed ${menta} !important;outline-offset:2px !important;cursor:text !important;}` +

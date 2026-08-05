@@ -481,7 +481,7 @@ function NavegacaoWorkspace({
   );
 }
 
-// Dois temas desde 2026-07-27: "claro", o padrao e a identidade, e "escuro".
+// Dois temas: "escuro", o padrao da identidade, e "claro".
 // O Dark VKOS se aposentou junto com a identidade antiga; um "vkos" salvo
 // migra pro escuro no index.html, antes do bundle carregar. O tema vive em
 // data-theme na raiz e persiste no localStorage; o index.html reaplica o
@@ -489,13 +489,13 @@ function NavegacaoWorkspace({
 type Tema = "claro" | "escuro";
 
 const OPCOES_TEMA: { id: Tema; nome: string }[] = [
-  { id: "claro", nome: "Claro" },
   { id: "escuro", nome: "Escuro" },
+  { id: "claro", nome: "Claro" },
 ];
 
 function lerTema(): Tema {
   const t = document.documentElement.dataset.theme;
-  return t === "escuro" ? "escuro" : "claro";
+  return t === "claro" ? "claro" : "escuro";
 }
 
 function BotaoTema() {

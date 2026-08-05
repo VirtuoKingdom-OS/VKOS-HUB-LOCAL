@@ -179,7 +179,7 @@
   gap: var(--esp-8);
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .site-revisao-titulo svg {

@@ -38,7 +38,7 @@
   /* 600, nao 700. Regra 3 do contrato de 2026-07-27: peso 700 e de numero e
      wordmark. Num balao de conversa, onde o titulo e so um pouco maior que o
      corpo, o peso 700 fazia o cabecalho gritar dentro do proprio paragrafo. */
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   line-height: 1.3;
   color: var(--texto);
 }
@@ -115,7 +115,8 @@
 .md pre {
   margin: 0.55em 0 0.75em;
   padding: 0.7em 0.85em;
-  background: var(--superficie-alta);
+  background: var(--carvao);
+  color: var(--sobre-painel);
   border: 1px solid var(--linha);
   border-radius: var(--raio-p);
   overflow-x: auto;

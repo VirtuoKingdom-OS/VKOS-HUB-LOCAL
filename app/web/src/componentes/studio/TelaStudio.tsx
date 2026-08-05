@@ -151,7 +151,7 @@ export function TelaStudio({ pasta }: Props) {
     // nem do plano de trabalho do Studio. O documento do iframe não enxerga
     // var(), então a cor vem resolvida do :root do Hub, pelo mesmo caminho da
     // instrumentação do motor. Ver editor/tema.ts.
-    const fundo = corDoTema("--fundo", "#f6f7f8");
+    const fundo = corDoTema("--fundo", "#0a0a0a");
     s.textContent =
       `html{background:${fundo} !important;}` +
       "body{margin:0 !important;display:flex !important;flex-direction:row !important;" +

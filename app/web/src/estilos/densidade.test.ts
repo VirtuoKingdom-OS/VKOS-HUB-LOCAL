@@ -35,11 +35,13 @@ const pasta = dirname(fileURLToPath(import.meta.url));
 // AS LISTAS BRANCAS. Cada linha e um seletor exato e um motivo.
 // ===========================================================================
 
-// Os tres unicos tokens de sombra do sistema. Sombra existe onde o elemento
+// Os cinco tokens de profundidade do sistema. Sombra existe onde o elemento
 // FLUTUA de verdade sobre outro conteudo, e a regua e: flutua o que fica
 // parado enquanto o conteudo atras se move. No de grafo acompanha o pan e o
 // zoom, entao e conteudo, nao flutua, e nao tem sombra.
-const SOMBRAS_AUTORIZADAS = ["--sombra-popover", "--sombra-modal", "--sombra-arrasto"];
+const SOMBRAS_AUTORIZADAS = [
+  "--sombra-popover", "--sombra-modal", "--sombra-arrasto", "--anel", "--anel-foco",
+];
 
 // O glow tambem se escreve em box-shadow, mas ele marca ESTADO, nunca
 // profundidade. Sao quatro e so quatro: sessao viva, foco de teclado, acao
@@ -225,6 +227,75 @@ test("nao existe token de sombra alem dos tres", () => {
     }
   }
   assert.deepEqual(infratores, [], `token de sombra fora dos tres autorizados.`);
+});
+
+test("anel e border nunca se somam no mesmo elemento", () => {
+  const infratores: string[] = [];
+  for (const folha of folhas) {
+    const css = semKeyframes(semComentario(readFileSync(folha.caminho, "utf8")));
+    for (const regra of regras(css)) {
+      const temAnel = /box-shadow:[^;}]*var\(\s*--anel(?:-foco)?\s*\)/.test(regra.corpo);
+      const temBorda = /(?<!-)border(?:-[a-z]+)?:\s*(?!0\b|none\b)/.test(regra.corpo);
+      if (temAnel && temBorda) {
+        infratores.push(`${folha.rotulo}:${linhaDe(css, regra.indice)} "${regra.seletor}"`);
+      }
+    }
+  }
+  assert.deepEqual(infratores, [], "anel e border somados viram uma borda de 2px");
+});
+
+test("titulo nunca passa do peso 400", () => {
+  const infratores: string[] = [];
+  for (const folha of folhas) {
+    const css = semComentario(readFileSync(folha.caminho, "utf8"));
+    for (const regra of regras(css)) {
+      if (!/(^|[\s.#>+~,:-])(h[1-3]|titulo)(?=$|[\s.#>+~,:-])/i.test(regra.seletor)) continue;
+      for (const achado of regra.corpo.matchAll(
+        /font-weight:\s*(500|600|700|[5-9]00|var\(\s*--peso-(?:medio|forte|pesado)\s*\))/g
+      )) {
+        infratores.push(
+          `${folha.rotulo}:${linhaDe(css, regra.indice + achado.index!)} ` +
+            `"${regra.seletor}" -> font-weight: ${achado[1]}`
+        );
+      }
+    }
+  }
+  assert.deepEqual(infratores, [], "titulo usa var(--peso-normal), nunca negrito");
+});
+
+test("textura e carvao ficam nas superficies contratadas", () => {
+  const lerComponente = (...partes: string[]) =>
+    readFileSync(join(pasta, "..", "componentes", ...partes), "utf8");
+  const barra = lerComponente("layout", "barra.css");
+  const ide = lerComponente("ide", "ide.css");
+  const markdown = lerComponente("comum", "markdown.css");
+  const mapa = lerComponente("mapa", "mapa.css");
+  const canvas = readFileSync(join(pasta, "canvas.css"), "utf8");
+
+  const corpo = (css: string, seletor: string) => {
+    const regra = regras(semComentario(css)).find((r) => r.seletor === seletor);
+    assert.ok(regra, `seletor ${seletor} precisa existir`);
+    return regra.corpo;
+  };
+
+  const plano = corpo(barra, ".shell-conteudo");
+  assert.match(plano, /background-color:\s*var\(--fundo\)/);
+  assert.match(plano, /background-image:\s*radial-gradient\([^}]*var\(--ponto-cor\)/s);
+  assert.match(plano, /background-size:\s*var\(--ponto-tamanho\) var\(--ponto-tamanho\)/);
+  assert.doesNotMatch(plano, /position:\s*fixed/);
+  assert.match(
+    corpo(barra, ".shell-conteudo > .tela"),
+    /background:\s*inherit/,
+    "a tela opaca precisa herdar a textura do plano em vez de cobri-la com fundo liso"
+  );
+
+  assert.match(corpo(canvas, ".area-canvas"), /background:\s*var\(--canvas-fundo\)/);
+  assert.match(corpo(mapa, ".mapa-rede"), /background:\s*var\(--canvas-fundo\)/);
+  assert.match(corpo(barra, ".sidebar-rodape"), /background:\s*var\(--carvao\)/);
+  assert.match(corpo(ide, ".ide-chat-conversa"), /background:\s*var\(--carvao\)/);
+  assert.match(corpo(ide, ".ide-turno-ia"), /color:\s*var\(--menta-painel\)/);
+  assert.match(corpo(markdown, ".md pre"), /background:\s*var\(--carvao\)/);
+  assert.match(corpo(markdown, ".md pre"), /color:\s*var\(--sobre-painel\)/);
 });
 
 test("cor so por token: nenhuma folha de componente escreve cor literal", () => {

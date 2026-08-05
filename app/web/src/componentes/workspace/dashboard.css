@@ -27,6 +27,13 @@
 
 @layer tela {
 
+.tela-inicio > .tela-topo h1 {
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
+}
+
 /* ==========================================================================
    1. A GERACAO EM CURSO
 
@@ -97,7 +104,7 @@
 .inicio-peca-titulo {
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   display: -webkit-box;

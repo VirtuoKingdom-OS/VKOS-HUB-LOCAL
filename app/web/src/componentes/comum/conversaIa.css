@@ -45,7 +45,7 @@
   min-width: 0;
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
   overflow: hidden;
   text-overflow: ellipsis;

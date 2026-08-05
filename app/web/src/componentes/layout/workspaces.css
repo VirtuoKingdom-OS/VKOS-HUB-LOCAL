@@ -219,7 +219,7 @@
 .sw-form-topo h3 {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
 }
 
 .sw-botao-pasta {
@@ -262,7 +262,7 @@
 }
 .sw-toast-titulo {
   display: block;
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
 }
 .sw-toast-lista {
   display: flex;

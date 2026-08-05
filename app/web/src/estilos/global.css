@@ -27,13 +27,33 @@
    internet garantida. Fonte de sistema falha em silencio: os pesos
    intermediarios so existem se a maquina tiver a familia certa, e onde ela nao
    esta a hierarquia inteira achata sem ninguem perceber.
-   Inter variavel, SIL Open Font License 1.1, licenca em src/fontes/. */
+   Geist variavel, SIL Open Font License 1.1, licenca em src/fontes/. */
 @font-face {
-  font-family: "Inter";
+  font-family: "Geist";
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("../fontes/InterVariable.woff2") format("woff2-variations");
+  src: url("../fontes/geist-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+    U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fontes/geist-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fontes/geist-mono-latin-wght-normal.woff2") format("woff2-variations");
 }
 
 /* ==========================================================================
@@ -129,9 +149,9 @@
   --tr-display: -0.021em;
 
   /* --- Peso, 4 degraus ---------------------------------------------------
-       400 texto corrido, descricao, rotulo
-       500 titulo de tela, titulo de secao, rotulo de botao, item de menu
-       600 titulo de cartao, nome proprio, item de menu ativo, coluna de tabela
+       400 texto corrido, descricao, rotulo e todo titulo
+       500 rotulo de botao, item de menu e enfase dentro de texto
+       600 nome proprio, item de menu ativo e coluna de tabela
        700 SO numero e wordmark. Enfase de dado nao e titulo.
      Sem peso intermediario (590, 620, 650): eles colapsam em silencio onde a
      fonte variavel nao carregar. */
@@ -141,20 +161,21 @@
   --peso-pesado: 700;
 
   /* --- Raio, 5 degraus ---------------------------------------------------
-     Menor que a versao anterior de proposito. Raio grande le como cartao de
-     marketing; raio pequeno le como instrumento, que e o que isto e.
-       raio-p    4px   chip, selo, miniatura, caixa de selecao
-       raio      6px   O PADRAO. botao, campo, aba, item de menu
-       raio-g    10px  painel, cartao, popover
-       raio-gg   14px  modal, camada de tela cheia
-       raio-pilula     so onde a forma E pilula: contagem, ponto, avatar */
-  --raio-p: 4px;
-  --raio: 6px;
-  --raio-g: 10px;
-  --raio-gg: 14px;
-  --raio-pilula: 999px;
+       raio-p    6px   chip, selo, miniatura, caixa de selecao e campo
+       raio      8px   item de menu e cartao pequeno
+       raio-g    12px  painel, popover, midia e terminal
+       raio-gg   16px  modal, cartao grande e camada de tela cheia
+       raio-pilula     botao, tag, contagem, ponto e avatar */
+  --raio-p: 6px;
+  --raio: 8px;
+  --raio-g: 12px;
+  --raio-gg: 16px;
+  --raio-pilula: 9999px;
 
-  /* --- Movimento, 3 duracoes e 3 curvas ----------------------------------
+  /* Passo da textura do plano de trabalho. */
+  --ponto-tamanho: 22px;
+
+  /* --- Movimento, 3 duracoes e uma curva ---------------------------------
        rapido  110ms  feedback direto: hover, foco, pressao, cor
        padrao  180ms  algo aparece ou some: popover, aba, painel, faixa
        lento   280ms  algo grande se move: modal, gaveta, camada de tela cheia
@@ -164,27 +185,12 @@
      cockpit, isso e quase tudo. Abaixo de uns 70ms le como quebrado, e acima
      de 400ms a pessoa espera a interface em vez de usar ela.
 
-     SAIDA E MAIS RAPIDA QUE ENTRADA, sempre um degrau abaixo: sair de um
-     popover e trabalho terminado, e esperar a animacao de saida bloqueia o
-     proximo passo. E o que o Primer codifica no proprio token (enter 300ms,
-     exit 200ms).
-
-     AS TRES CURVAS SAO UMA FAMILIA SO, no metodo do Carbon (produtivas):
-       --curva            ENTRADA e resposta a clique. E a padrao com a alca
-                          de entrada zerada: comeca na velocidade maxima e
-                          freia. Tudo que aparece usa esta.
-       --curva-simetrica  IDA E VOLTA continua: pulso, progresso
-                          indeterminado, o que se move e volta pro lugar.
-       --curva-saida      SAIDA. E a padrao com a alca de saida empurrada pra
-                          1: comeca devagar e acelera pra fora do campo.
-     Sem quique e sem elastico em lugar nenhum: quique e expressividade, e
-     numa ferramenta de trabalho ela custa atencao sem devolver informacao. */
+     Uma curva exponencial de saida serve para tudo. Sem quique e sem elastico:
+     expressividade que nao informa custa atencao numa ferramenta de trabalho. */
   --mov-rapido: 110ms;
   --mov-padrao: 180ms;
   --mov-lento: 280ms;
-  --curva: cubic-bezier(0, 0, 0.38, 0.9);
-  --curva-simetrica: cubic-bezier(0.2, 0, 0.38, 0.9);
-  --curva-saida: cubic-bezier(0.2, 0, 1, 0.9);
+  --curva: cubic-bezier(0.16, 1, 0.3, 1);
   /* Apelido curto do par mais usado, herdado do sistema anterior. Continua
      valendo porque aponta pro degrau certo. */
   --transicao: var(--mov-rapido) var(--curva);
@@ -212,20 +218,18 @@
   --op-fantasma: 0.16;
 
   /* --- Elevacao, 3 sombras e nenhuma a mais ------------------------------
-     A profundidade do Hub vem da escada de superficie mais o fio de --linha.
+     A profundidade do Hub vem da escada, do fio e do anel tematico.
      Sombra existe SO onde o elemento flutua de verdade sobre outro conteudo,
      e a regua e: flutua o que fica parado enquanto o conteudo atras se move.
      No de grafo acompanha o pan e o zoom, entao e conteudo e nao tem sombra. */
-  --sombra-popover: 0 4px 12px -2px rgba(var(--scrim-rgb), 0.16),
-    0 2px 4px -2px rgba(var(--scrim-rgb), 0.1);
-  --sombra-modal: 0 24px 48px -12px rgba(var(--scrim-rgb), 0.3),
-    0 8px 16px -8px rgba(var(--scrim-rgb), 0.16);
-  --sombra-arrasto: 0 12px 24px -6px rgba(var(--scrim-rgb), 0.28);
+  --sombra-popover: 0 10px 28px -16px rgba(var(--scrim-rgb), 0.3);
+  --sombra-modal: 0 16px 36px -18px rgba(var(--scrim-rgb), 0.36);
+  --sombra-arrasto: 0 12px 24px -20px rgba(var(--scrim-rgb), 0.5);
 
   /* --- Familias ---------------------------------------------------------- */
-  --fonte: "Inter", "Segoe UI Variable Text", system-ui, -apple-system,
-    "Segoe UI", Roboto, sans-serif;
-  --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "Consolas", monospace;
+  --fonte-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --fonte: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
 
   /* Foco de teclado. 2px atende o criterio 2.4.13 do WCAG 2.2, que pede area
      equivalente a um perimetro de 2px e 3:1 entre focado e nao focado. */
@@ -241,7 +245,7 @@
    2. O CONTRATO DE NOME DOS TOKENS DE COR.
 
    Toda cor do Hub sai daqui. Nenhum componente escreve hex, nunca.
-   Os valores abaixo sao os do tema Claro, que e o padrao e serve de rede de
+   Os valores abaixo sao os do tema Escuro, que e o padrao e serve de rede de
    seguranca se data-theme nao estiver na raiz. O valor final de cada tema vem
    do visual-hub.css, na camada tema, que sempre vence esta.
 
@@ -258,14 +262,15 @@
                                cabecalho fixo, celula de editor.
        --superficie-alta       hover, linha selecionada, campo, aba ativa.
        --superficie-flutuante  popover, menu, modal. So o que flutua. */
-  --chassi: #f1f2f4;
-  --fundo: #f6f7f8;
-  --superficie: #ffffff;
-  --superficie-alta: #eceef1;
-  --superficie-flutuante: #ffffff;
+  --chassi: #050505;
+  --fundo: #0a0a0a;
+  --superficie: #171717;
+  --superficie-alta: #2a2a2a;
+  --superficie-flutuante: #1c1c1c;
   /* Branco de papel de site do cliente, nao superficie do app. Nao acompanha
      o tema de proposito: e a folha do cliente, nao a do Hub. */
   --papel: #ffffff;
+  --carvao: #000000;
 
   /* --- Fio, dois trabalhos e duas cores ---------------------------------
      --linha        separacao e decoracao. Sutil de proposito.
@@ -273,8 +278,8 @@
                     em que se apoie, pelo criterio 1.4.11 do WCAG. Campo,
                     botao neutro, caixa de selecao e trilho de interruptor
                     usam a forte, sem excecao. */
-  --linha: #e4e7ea;
-  --linha-forte: #7a828a;
+  --linha: #2e2e2e;
+  --linha-forte: #7b776e;
 
   /* --- Texto, 3 degraus mais o rotulo de grupo --------------------------
      --texto        conteudo, titulo, valor
@@ -285,10 +290,13 @@
                     patamar de contorno (3:1), porque e etiqueta redundante:
                     quem nao a le continua lendo os proprios itens. Nenhum
                     outro texto pode citar este par como precedente. */
-  --texto: #14171a;
-  --texto-suave: #4d545b;
-  --texto-fraco: #616970;
-  --texto-rotulo: #7b838b;
+  --texto: #f0eee6;
+  --texto-suave: #c9c6bc;
+  --texto-fraco: #a5a199;
+  --texto-rotulo: #8b8781;
+  --sobre-painel: #f0eee6;
+  --apoio-painel: #a5a199;
+  --menta-painel: #7ed9b2;
 
   /* --- Menta: a unica voz colorida da interface, e ela fala pouco --------
      --menta       o corte legivel. Texto e icone de estado, link, valor vivo.
@@ -300,48 +308,49 @@
      --menta-tenue preenchimento de selo e de linha selecionada.
      --menta-linha contorno de campo em foco e de item selecionado.
      --sobre-menta tinta sobre preenchimento menta cheio. */
-  --menta: #00715a;
-  --menta-viva: #0b9776;
-  --menta-tenue: #dff3ec;
-  --menta-linha: #00715a;
-  --sobre-menta: #ffffff;
+  --menta: #7ed9b2;
+  --menta-viva: #7ed9b2;
+  --menta-tenue: #16302a;
+  --menta-linha: #7ed9b2;
+  --sobre-menta: #0a0a0a;
 
   /* --- A acao principal --------------------------------------------------
      Tinta solida, quase preta no Claro e invertendo no Escuro. Uma por tela.
      Ela e escura e nao menta por um motivo funcional: o Hub mostra o conteudo
      COLORIDO do usuario o tempo todo (carrossel, site, imagem, galeria). Um
      botao colorido brigaria com a peca ao lado; tinta solida nunca briga. */
-  --acao: #16191d;
-  --acao-hover: #282d33;
-  --sobre-acao: #ffffff;
+  --acao: #f0eee6;
+  --acao-hover: #ffffff;
+  --sobre-acao: #0a0a0a;
 
   /* --- Semantica de estado ---------------------------------------------- */
-  --alerta: #c32f2f;
-  --sobre-alerta: #ffffff;
-  --alerta-tenue: #fbeaea;
-  --alerta-linha: #c32f2f;
-  --aviso: #8a6100;
-  --aviso-tenue: #f8efdb;
-  --aviso-linha: #8a6100;
-  --neutro-tenue: #eceef1;
+  --alerta: #ff8f80;
+  --sobre-alerta: #2a0d0d;
+  --alerta-tenue: #3a1b1b;
+  --alerta-linha: #ff8f80;
+  --aviso: #e8c06a;
+  --aviso-tenue: #332a12;
+  --aviso-linha: #e8c06a;
+  --neutro-tenue: #2a2a2a;
 
   /* --- Canais pra alpha --------------------------------------------------
      Compor rgba() com o canal do tema faz a transparencia acompanhar a troca
      de tema. Escrever rgba(0, 0, 0, 0.1) nao acompanha. */
-  --menta-rgb: 0, 113, 90;
-  --menta-viva-rgb: 11, 151, 118;
-  --acao-rgb: 22, 25, 29;
-  --scrim-rgb: 15, 18, 22;
-  --alerta-rgb: 195, 47, 47;
-  --aviso-rgb: 138, 97, 0;
-  --fundo-rgb: 246, 247, 248;
-  --superficie-rgb: 255, 255, 255;
-  --texto-rgb: 20, 23, 26;
-  --suave-rgb: 77, 84, 91;
-  --fraco-rgb: 97, 105, 112;
+  --menta-rgb: 126, 217, 178;
+  --menta-viva-rgb: 126, 217, 178;
+  --acao-rgb: 240, 238, 230;
+  --scrim-rgb: 0, 0, 0;
+  --alerta-rgb: 255, 143, 128;
+  --aviso-rgb: 232, 192, 106;
+  --fundo-rgb: 10, 10, 10;
+  --superficie-rgb: 23, 23, 23;
+  --texto-rgb: 240, 238, 230;
+  --suave-rgb: 201, 198, 188;
+  --fraco-rgb: 165, 161, 153;
+  --linha-forte-rgb: 123, 119, 110;
 
   /* Veu e sobreposicao de imagem. */
-  --veu: rgba(var(--scrim-rgb), 0.4);
+  --veu: rgba(0, 0, 0, 0.66);
   --overlay-imagem-leve: rgba(var(--scrim-rgb), 0.28);
   --overlay-imagem-forte: rgba(var(--scrim-rgb), 0.58);
 
@@ -379,12 +388,12 @@
                        canvas que precisa saltar, entao ela nao segue o tema
                        da aresta parada. E o que o React Flow faz com o
                        --xy-connectionline-stroke. */
-  --canvas-fundo: #f1f2f4;
-  --pontos-canvas: #cbd0d6;
-  --ligacao: #82898f;
-  --ligacao-viva: #0b9776;
+  --canvas-fundo: #050505;
+  --pontos-canvas: #262626;
+  --ligacao: #7b776e;
+  --ligacao-viva: #7ed9b2;
 
-  color-scheme: light;
+  color-scheme: dark;
 
   /* OS APELIDOS LEGADOS SAIRAM EM 2026-07-30, na varredura final da Fase 2.
      Eram 22 nomes (--fundo-2, --borda, --menta-clara, --amarelo,
@@ -433,7 +442,7 @@ h1,
 h2,
 h3 {
   text-wrap: balance;
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 
 p {

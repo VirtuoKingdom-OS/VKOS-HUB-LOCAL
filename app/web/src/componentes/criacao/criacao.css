@@ -107,7 +107,7 @@
   font-size: var(--txt-titulo);
   line-height: var(--lh-titulo);
   letter-spacing: var(--tr-titulo);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .criacao-contador {
@@ -365,7 +365,7 @@
 .criacao-soltar-titulo {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .criacao-soltar-dica {
@@ -434,7 +434,7 @@
 .criacao-linha-interruptor-titulo {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -579,7 +579,7 @@
 .geracao-flutuante-titulo {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 .geracao-flutuante-tema,

@@ -36,7 +36,14 @@
   flex: 1;
   min-width: 0;
   height: 100%;
-  background: var(--fundo);
+  background-color: var(--fundo);
+  background-image: radial-gradient(circle, var(--ponto-cor) 0.5px, transparent 0.5px);
+  background-size: var(--ponto-tamanho) var(--ponto-tamanho);
+}
+
+/* A tela herda a superfície pontilhada sem expor camadas sempre montadas abaixo dela. */
+.shell-conteudo > .tela {
+  background: inherit;
 }
 
 .camada-cockpit {
@@ -70,7 +77,7 @@
   overflow: hidden;
   transition: opacity var(--mov-padrao) var(--curva),
     transform var(--mov-padrao) var(--curva),
-    visibility 0s linear var(--mov-padrao);
+    visibility 0s var(--curva) var(--mov-padrao);
 }
 
 .camada-ide.aberta {
@@ -173,7 +180,7 @@
    menta e falar so do que esta vivo, e tema escolhido nao esta acontecendo. */
 .barra-tema-menu .menu-item[aria-checked="true"] {
   color: var(--texto);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-medio);
 }
 .barra-tema-menu .menu-item svg {
   margin-left: auto;
@@ -288,7 +295,7 @@
 .item-nav.ativo {
   background: var(--superficie-alta);
   color: var(--texto);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-medio);
   box-shadow: inset 2px 0 0 0 var(--acao);
 }
 .item-nav-rotulo {
@@ -315,11 +322,12 @@
   flex-direction: column;
   gap: var(--esp-4);
   margin-top: var(--esp-8);
-  padding: var(--esp-8) var(--esp-8) 0;
-  border-top: 1px solid var(--linha);
+  padding: var(--esp-8);
+  background: var(--carvao);
+  border-radius: var(--raio-g);
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  color: var(--texto-suave);
+  color: var(--apoio-painel);
 }
 .rodape-linha {
   display: flex;
@@ -337,10 +345,10 @@
   width: 7px;
   height: 7px;
   border-radius: var(--raio-pilula);
-  background: var(--texto-fraco);
+  background: var(--apoio-painel);
 }
 .ponto-luz.on {
-  background: var(--menta-viva);
+  background: var(--menta-painel);
 }
 .ponto-luz.off {
   background: var(--alerta);
@@ -350,11 +358,11 @@
    pintado sempre, ele dizia "acontecendo agora" com 0 de 5 rodando. */
 .rodape-sessoes {
   margin-left: auto;
-  color: var(--texto-suave);
+  color: var(--apoio-painel);
   font-variant-numeric: tabular-nums;
 }
 .rodape-sessoes.vivo {
-  color: var(--menta);
+  color: var(--menta-painel);
 }
 
 /* ===== Gasto do projeto aberto =====
@@ -378,7 +386,7 @@
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
   font-weight: var(--peso-forte);
-  color: var(--texto);
+  color: var(--sobre-painel);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -386,7 +394,7 @@
   min-width: 0;
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  color: var(--texto-fraco);
+  color: var(--apoio-painel);
 }
 /* O alerta de piso nunca sai: ele e o que impede o numero de parecer exato
    quando nao e. Fica subordinado ao valor, nunca ao lado dele. */
@@ -394,12 +402,12 @@
   margin-top: var(--esp-2);
   font-size: var(--txt-micro);
   line-height: var(--lh-micro);
-  color: var(--aviso);
+  color: var(--apoio-painel);
 }
 .rodape-projeto-pasta {
   font-size: var(--txt-legenda);
   line-height: var(--lh-legenda);
-  color: var(--texto-fraco);
+  color: var(--apoio-painel);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

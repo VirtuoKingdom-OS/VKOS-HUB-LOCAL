@@ -8,10 +8,10 @@
 //
 // As travas que varrem folha usam folhasMigradas(): a folha que ainda nao
 // migrou pra fundacao v2 esta listada em PENDENTES, em folhas.ts, e sai de la
-// quando a tela dela migrar. Ver docs/planos/redesign-v2/01-pendencias-por-tela.md.
+// quando a tela dela migrar. Ver docs/contexto/identidade-visual.md.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -22,6 +22,10 @@ const pasta = dirname(fileURLToPath(import.meta.url));
 const base = readFileSync(join(pasta, "global.css"), "utf8");
 const tema = readFileSync(join(pasta, "visual-hub.css"), "utf8");
 
+function lerComponente(...partes: string[]) {
+  return readFileSync(join(pasta, "..", "componentes", ...partes), "utf8");
+}
+
 function declaracao(css: string, token: string) {
   return css.match(new RegExp(`^\\s*${token}\\s*:\\s*([^;]+);`, "m"))?.[1].trim();
 }
@@ -30,11 +34,34 @@ const ESPACAMENTO = ["--esp-2", "--esp-4", "--esp-8", "--esp-12", "--esp-16", "-
 const ALTURA = ["--alt-p", "--alt", "--alt-g"];
 const TIPOGRAFIA = ["--txt-micro", "--txt-legenda", "--txt-corpo", "--txt-leitura", "--txt-titulo-p", "--txt-titulo", "--txt-display"];
 const RAIO = ["--raio-p", "--raio", "--raio-g", "--raio-gg", "--raio-pilula"];
-const MOVIMENTO = ["--mov-rapido", "--mov-padrao", "--mov-lento", "--curva", "--curva-simetrica", "--curva-saida"];
+const MOVIMENTO = ["--mov-rapido", "--mov-padrao", "--mov-lento", "--curva"];
 const EMPILHAMENTO = ["--z-base", "--z-fixo", "--z-popover", "--z-camada", "--z-veu", "--z-modal", "--z-aviso"];
 const ELEVACAO = ["--sombra-popover", "--sombra-modal", "--sombra-arrasto"];
 const PESO = ["--peso-normal", "--peso-medio", "--peso-forte", "--peso-pesado"];
 const OPACIDADE = ["--op-plena", "--op-secundaria", "--op-fraca", "--op-apagada", "--op-fantasma"];
+
+test("a tipografia Geist fica embarcada e substitui a Inter", () => {
+  const fontes = join(pasta, "..", "fontes");
+  const arquivos = [
+    "geist-latin-wght-normal.woff2",
+    "geist-latin-ext-wght-normal.woff2",
+    "geist-mono-latin-wght-normal.woff2",
+    "LICENSE-Geist.txt",
+  ];
+
+  for (const arquivo of arquivos) {
+    assert.ok(existsSync(join(fontes, arquivo)), `${arquivo} precisa estar embarcado`);
+  }
+  assert.equal(existsSync(join(fontes, ["Inter", "Variable.woff2"].join(""))), false);
+  assert.equal(existsSync(join(fontes, "LICENSE-Inter.txt")), false);
+  assert.match(base, /font-family:\s*"Geist"/);
+  assert.match(base, /font-family:\s*"Geist Mono"/);
+  assert.match(base, /--fonte-display:\s*"Geist"/);
+  assert.doesNotMatch(
+    base,
+    new RegExp([["Inter", "Variable"].join(""), ["Segoe UI", " Variable"].join("")].join("|"))
+  );
+});
 
 test("as escalas existem todas na camada base", () => {
   const todos = [
@@ -50,6 +77,43 @@ test("as escalas existem todas na camada base", () => {
     const nome = token.replace("--txt-", "");
     assert.ok(declaracao(base, `--lh-${nome}`), `--lh-${nome} precisa existir`);
     assert.ok(declaracao(base, `--tr-${nome}`), `--tr-${nome} precisa existir`);
+  }
+});
+
+test("forma, curva e profundidade seguem a identidade v3", () => {
+  const valores = new Map([
+    ["--raio-p", "6px"], ["--raio", "8px"], ["--raio-g", "12px"],
+    ["--raio-gg", "16px"], ["--raio-pilula", "9999px"],
+    ["--curva", "cubic-bezier(0.16, 1, 0.3, 1)"],
+    ["--sombra-popover", "0 10px 28px -16px rgba(var(--scrim-rgb), 0.3)"],
+    ["--sombra-modal", "0 16px 36px -18px rgba(var(--scrim-rgb), 0.36)"],
+    ["--sombra-arrasto", "0 12px 24px -20px rgba(var(--scrim-rgb), 0.5)"],
+    ["--ponto-tamanho", "22px"],
+  ]);
+  for (const [token, esperado] of valores) {
+    assert.equal(declaracao(base, token), esperado, `${token} esta fora do contrato v3`);
+  }
+  assert.equal(declaracao(base, "--curva-simetrica"), undefined);
+  assert.equal(declaracao(base, "--curva-saida"), undefined);
+});
+
+test("os momentos editoriais da identidade v3 usam a escala completa", () => {
+  const momentos = [
+    [lerComponente("core", "core.css"), ".tela-core > .tela-topo h1"],
+    [lerComponente("assistente", "assistente.css"), ".tela-assistente > .tela-topo h1"],
+    [lerComponente("assistente", "assistente.css"), ".assistente-primeiro-passo h2"],
+    [lerComponente("workspace", "dashboard.css"), ".tela-inicio > .tela-topo h1"],
+    [lerComponente("cockpit", "cerimonia.css"), ".cerimonia-intro h2"],
+    [lerComponente("setup", "setup.css"), ".setup-passo h1"],
+  ] as const;
+
+  for (const [css, seletor] of momentos) {
+    const escapado = seletor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const bloco = css.match(new RegExp(`${escapado}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+    assert.match(bloco, /font-size:\s*var\(--txt-display\)/, seletor);
+    assert.match(bloco, /line-height:\s*var\(--lh-display\)/, seletor);
+    assert.match(bloco, /letter-spacing:\s*var\(--tr-display\)/, seletor);
+    assert.match(bloco, /font-weight:\s*var\(--peso-normal\)/, seletor);
   }
 });
 

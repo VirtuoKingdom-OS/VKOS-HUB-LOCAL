@@ -78,7 +78,7 @@
 .leitura-cerebro h3 {
   margin: var(--esp-24) 0 var(--esp-8);
   color: var(--texto);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 
 .leitura-cerebro h1:first-child,
@@ -102,7 +102,7 @@
 .leitura-cerebro h3 {
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-normal);
 }
 
 .leitura-cerebro p {
@@ -149,7 +149,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -209,7 +209,7 @@
   font-size: var(--txt-titulo-p);
   line-height: var(--lh-titulo-p);
   letter-spacing: var(--tr-titulo-p);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
 }
 
 .corpo-modal-cerebro {

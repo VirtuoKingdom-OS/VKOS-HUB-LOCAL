@@ -57,10 +57,10 @@ só pela escala. São 31 testes na fundação, todos verdes.
 **7. As folhas de tela migram na Fase 2, uma por agente.** Enquanto isso, elas
 ficam numa lista `PENDENTES` em `folhas.ts`, e as travas de conteúdo não as
 varrem. A trava de cascata varre todas, sempre. O mapa está em
-`docs/planos/redesign-v2/01-pendencias-por-tela.md`.
+`docs/decisoes/2026-08-05-identidade-v3.md`.
 
 O contrato completo, com o valor medido de cada decisão, está em
-`docs/planos/redesign-v2/00-fundacao.md`.
+`docs/contexto/identidade-visual.md`.
 
 ## Por quê
 

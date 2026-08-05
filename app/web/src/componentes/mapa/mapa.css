@@ -157,7 +157,7 @@
   padding: 0;
   background: var(--superficie);
   border: 1px solid var(--mapa-cor);
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
 }
 
 .mapa-no-neuronio {
@@ -371,7 +371,7 @@
   width: 8px;
   height: 8px;
   background: var(--mapa-cor);
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
 }
 
 .mapa-skill-chip:hover {
@@ -408,7 +408,7 @@
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 9 7;
-  animation: mapa-fluxo 0.9s linear infinite;
+  animation: mapa-fluxo var(--mov-lento) var(--curva) infinite;
 }
 
 .mapa-rota-pulso {
@@ -577,7 +577,7 @@
   height: 8px;
   flex-shrink: 0;
   background: var(--mapa-cor);
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
 }
 
 .mapa-skills-legenda-item b {
@@ -651,7 +651,7 @@
   background: var(--superficie);
   border: 1px solid var(--mapa-cor);
   border-left: 1px solid var(--mapa-cor);
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
 }
 
 .mapa-no-skill-icone {
@@ -796,7 +796,7 @@
 .esq-bloco {
   display: block;
   background: var(--linha-forte);
-  border-radius: 4px;
+  border-radius: var(--raio-p);
   opacity: var(--op-fraca);
 }
 
@@ -811,12 +811,12 @@
 
 .esq-topo {
   height: 16px;
-  border-radius: 6px;
+  border-radius: var(--raio-p);
 }
 
 .esq-campo {
   height: 14px;
-  border-radius: 5px;
+  border-radius: var(--raio-p);
 }
 
 .esq-botao {
@@ -835,7 +835,7 @@
   flex: 0 0 auto;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
 }
 
 .esq-rodape {
@@ -852,7 +852,7 @@
 .esq-alvo {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
   border: 3px solid var(--mapa-cor);
   opacity: var(--op-fraca);
 }
@@ -866,7 +866,7 @@
 }
 
 .esq-card {
-  border-radius: 6px;
+  border-radius: var(--raio-p);
 }
 
 .esq-grade3 {
@@ -878,13 +878,13 @@
 }
 
 .esq-tile {
-  border-radius: 5px;
+  border-radius: var(--raio-p);
 }
 
 .esq-canvas {
   position: relative;
   flex: 1;
-  border-radius: 6px;
+  border-radius: var(--raio-p);
   background-image: radial-gradient(var(--linha) 1px, transparent 1px);
   background-size: 12px 12px;
 }
@@ -895,7 +895,7 @@
   top: 14px;
   width: 40px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--raio-p);
   background: var(--superficie);
   border: 1px solid var(--mapa-cor);
 }
@@ -920,12 +920,12 @@
   gap: var(--esp-4);
   padding: var(--esp-4);
   background: var(--superficie);
-  border-radius: 5px;
+  border-radius: var(--raio-p);
 }
 
 .esq-card-mini {
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--raio-p);
 }
 
 .esq-mes {
@@ -938,7 +938,7 @@
 
 .esq-dia {
   background: var(--linha-forte);
-  border-radius: 3px;
+  border-radius: var(--raio-p);
   opacity: var(--op-apagada);
 }
 
@@ -952,7 +952,7 @@
 .esq-mno {
   width: 20px;
   height: 20px;
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
   border: 2px solid var(--mapa-cor);
 }
 
@@ -970,7 +970,7 @@
   gap: var(--esp-4);
   padding: var(--esp-8);
   background: var(--fundo);
-  border-radius: 5px;
+  border-radius: var(--raio-p);
 }
 
 .esq-term {
@@ -978,7 +978,7 @@
   width: 80%;
   background: var(--menta);
   opacity: var(--op-apagada);
-  border-radius: 3px;
+  border-radius: var(--raio-p);
 }
 
 .esq-term-curto {
@@ -997,21 +997,21 @@
   flex: 1;
   background: var(--superficie);
   border: 1px solid var(--linha);
-  border-radius: 6px;
+  border-radius: var(--raio-p);
 }
 
 .esq-editor-painel {
   width: 30%;
   background: var(--superficie);
   border: 1px solid var(--linha);
-  border-radius: 6px;
+  border-radius: var(--raio-p);
 }
 
 .esq-split-painel {
   width: 34%;
   background: var(--superficie);
   border: 1px solid var(--linha);
-  border-radius: 6px;
+  border-radius: var(--raio-p);
 }
 
 /* Aresta de gesto: estatica, com o rotulo do gesto que causa a navegacao. */
@@ -1136,7 +1136,7 @@
   width: 7px;
   height: 7px;
   background: var(--mapa-cor);
-  border-radius: 50%;
+  border-radius: var(--raio-pilula);
 }
 
 .mapa-legenda.discreta {

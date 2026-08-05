@@ -235,7 +235,7 @@ skill perguntaria e o que o Cérebro não tem:
 `app/web/src/componentes/anuncios/TelaAnuncio.tsx` e `anuncios.css` ao lado.
 Rota `/anuncio/<pasta>`, nível workspace, tela cheia, no padrão da `TelaSite`.
 
-Obrigações da fundação (`docs/planos/redesign-v2/00-fundacao.md`):
+Obrigações da fundação (`docs/contexto/identidade-visual.md`):
 
 - Compõe `estilos/primitivas.css`. Primitiva que faltar sobe para lá, nunca
   vira classe local.

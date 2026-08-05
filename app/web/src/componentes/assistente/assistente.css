@@ -2,6 +2,13 @@
 
 @layer tela {
 
+.tela-assistente > .tela-topo h1 {
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
+}
+
 .tela-assistente .tela-corpo {
   overflow: hidden;
   padding: var(--esp-16);
@@ -49,7 +56,7 @@
   margin-top: var(--esp-2);
   font-size: var(--txt-corpo);
   line-height: var(--lh-corpo);
-  font-weight: var(--peso-medio);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
@@ -180,9 +187,10 @@
 }
 
 .assistente-primeiro-passo h2 {
-  font-size: var(--txt-titulo-p);
-  line-height: var(--lh-titulo-p);
-  font-weight: var(--peso-medio);
+  font-size: var(--txt-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: var(--peso-normal);
   color: var(--texto);
 }
 
