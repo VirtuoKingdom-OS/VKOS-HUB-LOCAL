@@ -6,7 +6,7 @@ Várias sessões de IA trabalham em paralelo, e todas leem o mesmo **Cérebro**:
 
 [![Licença: AGPL v3](https://img.shields.io/badge/Licen%C3%A7a-AGPL_v3-blue.svg)](LICENSE)
 [![CI](https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL/actions/workflows/ci.yml/badge.svg)](https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL/actions/workflows/ci.yml)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org)
 [![Local-first](https://img.shields.io/badge/local--first-sem%20telemetria-6f6)](docs/ARCHITECTURE.md)
 
 **English: [README.md](README.md)** | Arquitetura: [docs/contexto/arquitetura.md](docs/contexto/arquitetura.md) | Instalação para o usuário final: [LEIA-ME.md](LEIA-ME.md)
@@ -66,7 +66,7 @@ Não é protótipo. É a ferramenta que o autor usa para tocar a própria empres
 
 ## Começando rápido
 
-Você precisa de **Node 20 ou mais recente**, e de **Claude Code ou Codex instalado e logado**, porque o Hub dirige o CLI oficial em vez de guardar a sua chave.
+Você precisa de **Node 22 ou mais recente**, e de **Claude Code ou Codex instalado e logado**, porque o Hub dirige o CLI oficial em vez de guardar a sua chave.
 
 ```bash
 git clone https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL.git

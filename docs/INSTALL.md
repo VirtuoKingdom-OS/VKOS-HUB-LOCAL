@@ -6,7 +6,7 @@
 
 ## 1. Prerequisites
 
-- **Node.js 20 or newer**, with npm. The server runs TypeScript directly through
+- **Node.js 22 or newer**, with npm. The server runs TypeScript directly through
   `tsx`, in development and in production.
 - **git**, to clone the repository.
 - **Claude Code or Codex, installed and already logged in on this machine.**
@@ -94,7 +94,7 @@ Non-developer users never see a terminal. The distributed package contains
 `app/`, a `VKOS/` folder with a blank Cérebro, the two launchers and the
 Portuguese `LEIA-ME.md`.
 
-- **`Instalar VKOS Hub.cmd`**, run once. It checks for Node.js 20 or newer and
+- **`Instalar VKOS Hub.cmd`**, run once. It checks for Node.js 22 or newer and
   installs `OpenJS.NodeJS.LTS` through WinGet when missing, updating the current
   process PATH so no reboot is needed. If WinGet is unavailable or the install
   fails, it opens the official Node.js site and explains the manual route. It
@@ -151,7 +151,7 @@ ad flow produces a campaign you paste into the ad panel yourself.
 running, so close it and start again. If a different program owns the port,
 close that program. For a one-off run on another port, use `VKOS_PORT`.
 
-**Node is too old.** The server needs Node 20 or newer. Check with
+**Node is too old.** The server needs Node 22 or newer. Check with
 `node --version`. Older versions will fail in ways that look unrelated. On
 Windows, rerunning `Instalar VKOS Hub.cmd` installs the LTS automatically
 through WinGet.

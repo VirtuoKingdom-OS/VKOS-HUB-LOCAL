@@ -105,7 +105,7 @@ reading before touching any screen.
 
 ### Setting up
 
-You need **Node 20 or newer**. Node 20 and 22 are the versions CI runs.
+You need **Node 22 or newer**. Node 22 and 24 are the versions CI runs. Node 20 reached end of life on 30 April 2026 and is no longer supported here.
 
 For the AI features you also need **Claude Code or Codex installed and logged
 in**, because the Hub drives the official CLI instead of holding your key. You
@@ -144,7 +144,7 @@ non-technical users, in [docs/INSTALL.md](docs/INSTALL.md).
 5. **Open the pull request against `main`** and fill in the template. It asks
    for the effect of the change, the why, and how a reviewer verifies it with
    their own eyes. The checklist is not decoration.
-6. **CI runs typecheck, tests and build, on Linux and on Windows, on Node 20
+6. **CI runs typecheck, tests and build, on Linux and on Windows, on Node 22
    and 22.** A red pull request is not reviewed. Fix it first, then ask.
 
 Windows matters as much as Linux here. The product's main audience runs
@@ -456,7 +456,7 @@ leitura obrigatória antes de tocar em qualquer tela.
 
 ### Montando o ambiente
 
-Você precisa de **Node 20 ou mais recente**. O CI roda no 20 e no 22.
+Você precisa de **Node 22 ou mais recente**. O CI roda no 22 e no 24. O Node 20 chegou ao fim de vida em 30 de abril de 2026 e nao e mais suportado aqui.
 
 Para os recursos de IA você também precisa do **Claude Code ou do Codex
 instalado e logado**, porque o Hub dirige a CLI oficial em vez de guardar a sua
@@ -496,7 +496,7 @@ Windows feito para quem não é técnico, está em [docs/INSTALL.md](docs/INSTAL
 5. **Abra o pull request contra `main`** e preencha o modelo. Ele pede o efeito
    da mudança, o porquê, e como quem revisa confere com os próprios olhos. O
    checklist não é enfeite.
-6. **O CI roda typecheck, testes e build, em Linux e em Windows, no Node 20 e
+6. **O CI roda typecheck, testes e build, em Linux e em Windows, no Node 22 e
    no 22.** Pull request vermelho não é revisado. Conserte antes de pedir.
 
 Windows importa tanto quanto Linux aqui. O público principal do produto usa

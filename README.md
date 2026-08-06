@@ -6,7 +6,7 @@ Many AI sessions work in parallel, and every one of them reads the same **Céreb
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![CI](https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL/actions/workflows/ci.yml/badge.svg)](https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL/actions/workflows/ci.yml)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org)
 [![Local-first](https://img.shields.io/badge/local--first-no%20telemetry-6f6)](docs/ARCHITECTURE.md)
 
 **Português: [README.pt-BR.md](README.pt-BR.md)** | Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Install: [docs/INSTALL.md](docs/INSTALL.md)
@@ -66,7 +66,7 @@ This is not a prototype. It is the tool its author uses to run his own company.
 
 ## Quick start
 
-You need **Node 20 or newer**, and **Claude Code or Codex installed and logged in**, because the Hub drives the official CLI instead of holding your key.
+You need **Node 22 or newer**, and **Claude Code or Codex installed and logged in**, because the Hub drives the official CLI instead of holding your key.
 
 ```bash
 git clone https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL.git
