@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas / Perguntas e ideias
+    url: https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL/discussions
+    about: "EN: Ask questions, share setups and discuss ideas here. PT-BR: Pergunte, mostre seu uso e debata ideias aqui."
+  - name: Report a security issue / Relatar falha de seguranca
+    url: mailto:jesseconta017@gmail.com
+    about: "EN: Do NOT open a public issue for security flaws. Email jesseconta017@gmail.com instead. PT-BR: NAO abra issue publica para falha de seguranca. Escreva para jesseconta017@gmail.com."

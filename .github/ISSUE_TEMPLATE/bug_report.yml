@@ -1,0 +1,97 @@
+name: Bug report / Relatar um erro
+description: "EN: Something in the Hub behaves the wrong way. PT-BR: Algo no Hub se comporta de forma errada."
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## English
+        The VKOS Hub is local-first. It runs entirely on your machine, on 127.0.0.1, with no hosted backend and no telemetry. We cannot see any log of yours. Everything we know about the bug comes from what you write here.
+
+        ## Portugues do Brasil
+        O VKOS Hub e local-first. Ele roda inteiro na sua maquina, em 127.0.0.1, sem backend hospedado e sem telemetria. Nao enxergamos nenhum log seu. Tudo que sabemos do erro vem do que voce escrever aqui.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: "EN: Describe what the Hub actually did. PT-BR: Descreva o que o Hub realmente fez."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: "EN: Describe what should have happened instead. PT-BR: Descreva o que deveria ter acontecido."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: "EN: List the steps, one per line, starting from a fresh start of the Hub. PT-BR: Liste os passos, um por linha, comecando do Hub recem aberto."
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: input
+    id: hub-version
+    attributes:
+      label: Hub version
+      description: "EN: The version shown in the app, or the commit you are running. PT-BR: A versao mostrada no app, ou o commit que voce esta rodando."
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node version
+      description: "EN: Output of `node --version`. PT-BR: Saida de `node --version`."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      description: "EN: Where the Hub was running. PT-BR: Onde o Hub estava rodando."
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other / Outro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: motor
+    attributes:
+      label: AI engine in use
+      description: "EN: Which engine was driving the session when the bug showed up. PT-BR: Qual motor conduzia a sessao quando o erro apareceu."
+      options:
+        - Claude Code
+        - Codex
+        - Both / Os dois
+        - None, or not relevant / Nenhum, ou nao se aplica
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error messages
+      description: "EN: Paste the relevant part only, after removing anything private. PT-BR: Cole so a parte relevante, depois de tirar o que for privado."
+      render: text
+
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Privacy check / Conferencia de privacidade
+      options:
+        - label: "EN: I confirm this report contains no personal data, no API token and no credential. PT-BR: Confirmo que este relato nao tem nenhum dado pessoal, nenhum token de API e nenhuma credencial."
+          required: true

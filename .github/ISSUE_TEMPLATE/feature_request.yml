@@ -1,0 +1,54 @@
+name: Feature request / Propor uma funcionalidade
+description: "EN: Propose a change that solves a real problem. PT-BR: Proponha uma mudanca que resolva um problema real."
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## English
+        Start from the problem, not from the feature. A proposal that needs a hosted backend, an account or telemetry will most likely be declined, because the Hub is local-first by design.
+
+        ## Portugues do Brasil
+        Comece pelo problema, nao pela funcionalidade. Proposta que exija backend hospedado, conta ou telemetria provavelmente sera recusada, porque o Hub e local-first por decisao de produto.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The real problem
+      description: "EN: What breaks or gets slow today, without the change. PT-BR: O que quebra ou fica lento hoje, sem a mudanca."
+    validations:
+      required: true
+
+  - type: textarea
+    id: who
+    attributes:
+      label: Who is affected
+      description: "EN: Who hits this problem, and how often. PT-BR: Quem esbarra nisso, e com que frequencia."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: The solution you see
+      description: "EN: Describe the behavior you want, in terms of what the person sees and does. PT-BR: Descreva o comportamento que voce quer, em termos do que a pessoa ve e faz."
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you already tried
+      description: "EN: Workarounds, other tools, settings you changed. PT-BR: Contornos, outras ferramentas, ajustes que voce mudou."
+
+  - type: dropdown
+    id: local-first
+    attributes:
+      label: Does this respect local-first?
+      description: "EN: Everything runs on the user machine, no hosted backend, no telemetry. PT-BR: Tudo roda na maquina do usuario, sem backend hospedado, sem telemetria."
+      options:
+        - "Yes, it runs fully local / Sim, roda inteiro local"
+        - "It needs a hosted service / Precisa de servico hospedado"
+        - "I am not sure / Nao tenho certeza"
+    validations:
+      required: true
