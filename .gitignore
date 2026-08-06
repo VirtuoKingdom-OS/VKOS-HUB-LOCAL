@@ -81,3 +81,10 @@ ehthumbs.db
 
 # Fotos da conferencia visual (ferramentas/olhar-telas.mjs).
 fotos-telas/
+
+# Skills de terceiros instaladas localmente. Elas nao sao obra deste projeto e
+# nao vieram com o LICENSE delas, entao redistribuir aqui seria impreciso sobre
+# autoria e sobre licenca. Ficam no disco, fora do versionamento.
+# impeccable: Apache 2.0. ponytail: MIT.
+/.claude/skills/impeccable/
+/.claude/skills/ponytail/
