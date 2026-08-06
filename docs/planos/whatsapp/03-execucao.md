@@ -1,6 +1,6 @@
 # WhatsApp local: plano de execução
 
-Regras de sempre (colar em TODO prompt de agente): português brasileiro, sem travessão "—" nem "·", frase curta, cores só por tokens de `app/web/src/estilos/global.css`, funciona nos 3 temas, NUNCA commit. Raiz: `e:\@OJESSEGOMES - OS CREATOR\VKOS\VKOS-APP\VKOSAPP`. Servidores no ar (4600 backend, 5173 Vite): não derrubar. Typecheck: `npm run checar -w web` e `npm run checar -w server` a partir de `app/`. Cada dono só toca os próprios arquivos.
+Regras de sempre (colar em TODO prompt de agente): português brasileiro, sem travessão "—" nem "·", frase curta, cores só por tokens de `app/web/src/estilos/global.css`, funciona nos 3 temas, NUNCA commit. Raiz: `<raiz do repositorio>`. Servidores no ar (4600 backend, 5173 Vite): não derrubar. Typecheck: `npm run checar -w web` e `npm run checar -w server` a partir de `app/`. Cada dono só toca os próprios arquivos.
 
 Antes da W1, o executor: (1) confirma o pacote e a versão saudável do Baileys (ou anota a troca pra whatsapp-web.js com justificativa); (2) garante que o barramento de eventos existe (senão, constrói primeiro pela spec de docs/planos/google-calendar/02, peça 1); (3) reconfere Shell.tsx e Sidebar.tsx pro item WhatsApp.
 

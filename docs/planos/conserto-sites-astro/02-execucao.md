@@ -1,6 +1,6 @@
 # Conserto Sites Astro: plano de execução
 
-Regras de sempre (valem em todas as fases): português brasileiro, sem travessão "—" nem "·", frase curta, cores da UI só por tokens de `app/web/src/estilos/global.css`, tudo funciona nos 3 temas, NUNCA commit nem push. Raiz: `e:\@OJESSEGOMES - OS CREATOR\VKOS\VKOS-APP\VKOSAPPv2`. Servidores possivelmente no ar (4600 backend, 5173 Vite): não derrubar. Typecheck a partir de `app/`: `npm run checar -w web` e `npm run checar -w server`. Testes: `npm run testar -w server` e `npm run testar -w web`. Peças reais do Jesse são sagradas; a única peça que sessão de IA pode tocar é `estudio-aura/conteudo/2026-07-17-site-do-estudio-aura-estudio-de-design`.
+Regras de sempre (valem em todas as fases): português brasileiro, sem travessão "—" nem "·", frase curta, cores da UI só por tokens de `app/web/src/estilos/global.css`, tudo funciona nos 3 temas, NUNCA commit nem push. Raiz: `<raiz do repositorio>`. Servidores possivelmente no ar (4600 backend, 5173 Vite): não derrubar. Typecheck a partir de `app/`: `npm run checar -w web` e `npm run checar -w server`. Testes: `npm run testar -w server` e `npm run testar -w web`. Peças reais do Jesse são sagradas; a única peça que sessão de IA pode tocar é `estudio-aura/conteudo/2026-07-17-site-do-estudio-aura-estudio-de-design`.
 
 Leia `01-checkup.md` inteiro antes de começar. As referências F1 a F6 abaixo são de lá.
 

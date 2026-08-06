@@ -1,6 +1,6 @@
 # Eventos + Google Calendar: plano de execução
 
-Regras de sempre (colar em TODO prompt de agente): português brasileiro, sem travessão "—" nem "·", frase curta, cores só por tokens de `app/web/src/estilos/global.css`, funciona nos 3 temas, NUNCA commit. Raiz: `e:\@OJESSEGOMES - OS CREATOR\VKOS\VKOS-APP\VKOSAPP`. Servidores no ar (4600 backend, 5173 Vite): não derrubar. Typecheck: `npm run checar -w web` e `npm run checar -w server` a partir de `app/`. Cada dono só toca os próprios arquivos.
+Regras de sempre (colar em TODO prompt de agente): português brasileiro, sem travessão "—" nem "·", frase curta, cores só por tokens de `app/web/src/estilos/global.css`, funciona nos 3 temas, NUNCA commit. Raiz: `<raiz do repositorio>`. Servidores no ar (4600 backend, 5173 Vite): não derrubar. Typecheck: `npm run checar -w web` e `npm run checar -w server` a partir de `app/`. Cada dono só toca os próprios arquivos.
 
 Agentes: 5 Opus + 1 Sonnet, em três fases. A Fase 2 depende das interfaces da Fase 1 (barramento, oauth, cliente calendar).
 

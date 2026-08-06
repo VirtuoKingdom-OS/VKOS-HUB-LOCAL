@@ -6,7 +6,7 @@ O registro da decisão está em
 `docs/decisoes/2026-08-05-identidade-v3.md`.
 
 Origem dos valores:
-`E:/@OJESSEGOMES - OS CREATOR/OJG - OS/ojgvkos/projetos/vkoshub/src/styles/tokens.css`.
+`<repositorio vkoshub>/src/styles/tokens.css`.
 
 ---
 
@@ -433,7 +433,10 @@ Os tokens:
 12% é o piso útil no escuro. Abaixo de 8% a textura some e o fundo vira liso.
 
 **Onde ela vale:** o plano de trabalho das telas de lista, do Dashboard, do
-Assistente e dos estados vazios. Um lugar só, o `.shell-conteudo`.
+Assistente e dos estados vazios. O `.shell-conteudo` é esse plano. A classe
+`.textura` também pode compor uma ilha que já tenha material próprio, como a
+capa do cartão de workspace sobre `--carvao`. Ela declara só o padrão: a cor
+continua sendo responsabilidade do plano ou da ilha.
 
 **Onde ela NÃO vale, e isso é trava:** dentro do canvas do Cockpit e do Mapa,
 que já têm a grade do React Flow vinda de `--pontos-canvas`. Os dois cobrem o
@@ -452,7 +455,7 @@ O painel mais fundo do sistema, e o único que desce em vez de subir. Escuro nos
 dois temas.
 
 **Onde ele é usado no Hub:** o terminal da VKOS-IDE, o bloco de saída de sessão,
-e o rodapé de status da barra lateral.
+o rodapé de status da barra lateral e a capa do cartão de workspace.
 
 Dentro dele, três tokens de papel que não seguem o tema: `--sobre-painel` para o
 texto, `--apoio-painel` para o apoio, e `--menta-painel` para o que sinaliza. É
@@ -465,7 +468,196 @@ tema errado e a silhueta some no fundo.
 
 ---
 
-## 10. As proibições
+## 10. A composição das primitivas
+
+Três réguas decidem como o conteúdo se agrupa. Elas não criam cor, escala,
+curva, raio nem duração nova.
+
+**Chassi segura. Plano é onde se trabalha. Unidade é o que se compara.** Chassi
+usa `--chassi` e um fio no lado que encosta. O plano usa `--fundo` com a textura
+de pontos. Unidade comparável usa `--superficie`, fio e `--raio-g`. Antes de dar
+material próprio a alguma coisa, pergunte: ela segura, é onde se trabalha ou é
+uma entre várias que se comparam? Se não for nenhuma das três, ela mora no
+plano.
+
+**A caixa é para o que se compara. O plano é para o que se lê.** Coleções de
+unidades independentes usam cartão ou painel. Uma região de trabalho contínua
+não ganha moldura só para separar layout. O critério de cartão é conteúdo que
+sustente a própria área, não a existência de imagem.
+
+**Cor e espaço separam primeiro.** Fio entra quando a cor não basta. Moldura
+entra somente quando o conteúdo é uma unidade comparável. Fio sem informação
+sai.
+
+**Caixa dentro de caixa é proibida.** Lista dentro de painel usa
+`.lista.embutida` e perde a própria moldura. Estado vazio, cabeçalho, barra de
+ferramentas e faixa vivem no plano ou na unidade que já os contém.
+
+---
+
+## 10b. Os dois registros: denso e editorial
+
+Criado em 2026-08-05. Ver
+[a decisão](../decisoes/2026-08-05-o-modo-editorial.md).
+
+A fundação descrevia um tipo de tela, e o Hub tem dois. Este é o segundo.
+
+**Operação densa** é o CRM, a fila, o inspetor, o canvas, a IDE, o editor. A
+pessoa fica ali horas e compara linha com linha. Controle de 28, 32 e 40px,
+corpo de 14px, `--raio-g` e **nenhuma sombra**. É o padrão: tela que não declara
+o contrário é densa.
+
+**Painel editorial** é o Dashboard do CORE, a tela de Workspaces, o Início do
+workspace e o Instagram. A pessoa chega, lê o que manda e decide. Ela não compara
+linha com linha.
+
+| | denso | editorial |
+|---|---|---|
+| unidade | `.painel`, `.cartao` | `.cartao-editorial` |
+| grade | própria da folha | `.grade-editorial` |
+| número | `--txt-display`, peso 600 | `.numero-editorial` (40px), `.numero-capa` (52px), peso 700 |
+| rótulo do número | `.rotulo` | `.rotulo-caps` |
+| raio | `--raio-g` | `--raio-ggg` |
+| respiro interno | `--esp-16` | `--esp-24`, `--esp-32` na capa |
+| sombra | nenhuma | `--sombra-cartao` |
+
+**O que o modo editorial NÃO afrouxa.** Cor continua só por token. Régua de 4px
+continua. Teto de 280ms continua. E **título continua no peso 400**: a
+autoridade dele vem de tamanho e tracking, e o peso 700 é do NÚMERO, que a
+seção 4 já autorizava. Se o seu título precisa engordar, o problema é a escala.
+
+**A única regra que este modo derruba** é "não flutua, tire a sombra".
+`--sombra-cartao` é elevação em repouso, e existe porque no tema Claro `--fundo`
+e `--superficie` estão a 10 pontos: a caixa some sem ela. Ela vale **só aqui**.
+Em tela densa a regra antiga continua, e a trava continua reprovando sombra em
+cartão de lista, linha de tabela e nó de canvas.
+
+**Como escolher.** Se a sua tela tem tabela, fila ou canvas, ela é densa, e usar
+o modo editorial vai deixar ela pior. Se ela é lida de relance e o que manda
+nela é um punhado de números ou uma imagem, ela é editorial.
+
+**Editorial não quer dizer "tem capa".** O Início do workspace é editorial e
+**não tem capa**, de propósito: o que manda nele é imagem, não número, e a única
+capa possível ali seria "5 peças esta semana", que é dado de enfeite. Capa se põe
+quando existe número que muda uma decisão. Ver
+[a decisão](../decisoes/2026-08-05-a-moldura-tambem-tem-registro.md).
+
+**Imagem nunca vira lista.** Este erro já foi cometido duas vezes em telas
+diferentes na mesma semana: miniatura de 40px na primeira aba do Instagram, e
+tira horizontal de 156px nas criações recentes do workspace. Quando o registro
+tem foto, a foto manda, e o formato é grade de quadrados com no mínimo 220px de
+coluna. As duas telas têm trava para isso.
+
+**Uma tela pode ter os dois registros, e a campanha de anúncios tem.** O corpo
+dela é denso e continua denso, com razão: são 45 linhas de campo com contador de
+caracteres e botão de copiar, e quem está ali confere campo a campo antes de
+colar no painel do Google. Uma linha dessas em 40px caberia em quatro por tela.
+Mas o bloco de orçamento é numérico, e a capa responde "quanto isso vai me
+custar", que é a primeira pergunta de quem abre uma campanha.
+
+A regra que faz os dois conviverem: **escala de número só onde há número.** Não
+se espalha o degrau de 52px pelos blocos de texto, e não se "padroniza" a capa
+para o corpo de 14px. `composicao-anuncio.test.ts` trava os dois lados, porque
+essa mistura estraga nas duas direções.
+
+**A capa.** `.capa-editorial` é a ilha carvão no topo de uma tela editorial, onde
+mora o dado principal, no degrau de 52px. Sobre carvão os papéis não seguem o
+tema: use `--sobre-painel`, `--apoio-painel` e `--menta-painel`, nunca `--texto`.
+
+**A aba do Instagram fica FORA deste contrato**, inteira, por decisão do Jesse em
+2026-08-05. Ela tem paleta, escala e densidade próprias em `PENDENTES`. Já foi
+tentado migrar ela para o modo editorial e a tela ficou pior; o registro do que
+se perdeu está na decisão. **Não migre sem provar antes, em foto, que não perde
+nada, e sem mostrar para ele.**
+
+O gradiente da marca dela também não se empresta: o Dashboard do CORE usa a nossa
+capa, em carvão e menta.
+
+---
+
+## 10c. A moldura: a barra lateral
+
+Criada em 2026-08-05. Ver
+[a decisão](../decisoes/2026-08-05-a-moldura-tambem-tem-registro.md).
+
+A barra é o terceiro registro, e ela não é nem densa nem editorial: ela é
+**moldura**. Ela apresenta o trabalho, então ganha ar e forma para não parecer de
+outro produto ao lado de uma tela editorial, mas nunca ganha autoridade.
+
+| | valor | por quê |
+|---|---|---|
+| largura | `calc(var(--base) * 66)`, 264px | fecha na régua de 4px |
+| recuo lateral | `--esp-12` | 8px sufocava a coluna |
+| item | `--alt-g`, `--raio-g`, vão de `--esp-2` | 1px de vão não é respiro, é falha de renderização |
+| hover | `--superficie` | **nunca igual ao selecionado** |
+| selecionado | `--superficie-alta` + fio inset em `--acao` | dois degraus acima do parado |
+| peso do item ativo | `--peso-medio` | a v3 reserva peso maior a número e wordmark |
+| rodapé | `--carvao`, `--raio-ggg`, `--esp-12` | a mesma ilha da capa e do cartão |
+| gasto do projeto | `--txt-titulo`, `--peso-forte`, tabular | é o único dado da coluna |
+
+**A regra que a trava afirma, e ela existe porque o defeito durou meses:** hover e
+selecionado **não podem pintar a mesma superfície**. Enquanto pintaram, a única
+diferença entre "o mouse está em cima" e "você está nesta tela" era um fio de 2px,
+e com o ponteiro parado sobre um vizinho a barra dizia que havia duas telas
+abertas. Ninguém escreve isso de propósito: acontece quando se copia o bloco do
+hover para fazer o do ativo e se troca só o `box-shadow`.
+
+**O gasto do rodapé pesa 600, e não 700.** 700 é de número de painel de leitura e
+do wordmark. Moldura não é painel.
+
+Sobre o carvão do rodapé valem os papéis do painel: `--sobre-painel` para o valor
+e `--apoio-painel` para o resto, nunca `--texto`.
+
+---
+
+## 10d. O estilo do dono: cor e forma viram dado de execução
+
+Criado em 2026-08-05. Ver
+[a decisão](../decisoes/2026-08-05-o-criador-de-estilos.md).
+
+Este arquivo continua sendo o contrato da identidade **VKOS**, que é o padrão do
+Hub e o que o produto entrega instalado. O que muda é que o dono passa a poder
+criar estilos dele, no nível CORE, e um estilo aprovado veste o Hub inteiro.
+
+**O que um estilo alcança:** os 35 tokens de cor, por tema, e os cinco degraus de
+raio em três conjuntos (reto, padrão, redondo). O que ele troca é o VALOR, e os
+degraus continuam sendo cinco: a proibição 5 segue de pé.
+
+**O que ele não alcança, e isso é decisão:** escala de texto, régua de 4px,
+altura de controle, movimento, peso e `--papel`. São eles que seguram a densidade
+do cockpit, e nenhuma trava executável cobriria um estilo que os mexesse. A seção
+1 deste arquivo continua descrevendo o que não muda para ninguém.
+
+**A régua é a mesma.** `server/src/estilos/contraste.ts` tem a fórmula do WCAG
+2.2, a lista de pares e os pisos da seção 3.2, e `server/src/estilos/regua.test.ts`
+afirma que o Escuro e o Claro de fábrica passam nela. Régua frouxa deixa passar
+cor ruim; régua rígida reprova o próprio Escuro e o teste cai.
+
+**Ela mede também as sete capas de workspace.** As capas são fixas em
+`global.css`, mas quem vai por cima delas (`--sobre-painel`, `--apoio-painel`,
+`--menta-painel`) é do estilo, e um estilo que escurecesse os papéis do carvão
+apagaria o nome do projeto em todo cartão.
+
+**Um estilo tem sempre os dois lados.** O dono edita um, o Hub deriva o outro, e
+o botão de sol e lua continua fazendo o que fazia. Os três papéis do carvão
+atravessam sem mudar: a ilha é escura nos dois temas, então a tinta dela é a
+mesma nos dois.
+
+**O mecanismo não toca a cascata.** Os tokens entram como propriedade
+customizada inline na raiz do documento: inline vence toda camada por definição,
+tudo herda por `var()`, e tirar as propriedades devolve o app à identidade de
+fábrica. As quatro camadas continuam exatamente como estão.
+
+**`data-estilo` entra junto com `data-theme`, e isso é obrigatório.** Três
+lugares do app leem o valor computado de um token e mandam o literal para dentro
+de um iframe (o motor de carrossel, o palco do Studio e o marcador de seta do
+React Flow). Quem precisar reagir a troca de paleta usa `aoTrocarPaleta`, de
+`web/src/estilos/paleta.ts`, e nunca escreve `attributeFilter` na mão:
+`estilos/paleta.test.ts` varre o app por padrão e reprova quem escrever.
+
+---
+
+## 11. As proibições
 
 As da fundação anterior continuam valendo. Estas são as que a identidade nova
 acrescenta ou aperta:
@@ -488,10 +680,37 @@ acrescenta ou aperta:
 10. **Elevação nunca dentro de ilha de tema.**
 11. **Anel e `border` nunca no mesmo elemento.** Os dois somados são uma borda
     de 2px escrita em duas propriedades.
+12. **Barra de navegação horizontal separa por FIO, nunca por uma faixa de
+    superfície.** Acrescentada em 2026-08-05, depois de o mesmo defeito
+    aparecer quatro vezes: `.tela-topo`, `.anuncio-indice` e `.telas-abas` todos
+    pintavam `--superficie` com um fio embaixo, e o resultado é uma faixa cinza
+    atravessada logo abaixo do cabeçalho, que é literalmente a leitura de "corta
+    uma fatia lá em cima" que abriu a rodada de composição. Quatro ocorrências
+    não são azar: quem escreve uma barra horizontal quer separá-la do conteúdo,
+    e alcança o `background` antes de alcançar o fio. Numa tela de galeria isso
+    custa mais ainda, porque a faixa vira a maior mancha lisa de uma tela cuja
+    moldura é acromática justamente para a peça colorida do usuário mandar.
+    `telas/composicao-colecoes.test.ts` varre as folhas por padrão, e não por
+    nome de classe: barra nova nasce com nome novo.
+13. **Alvos iguais lado a lado não têm primeiro.** Acrescentada em 2026-08-05,
+    depois de o mesmo defeito aparecer em três telas na mesma semana: quatro
+    botões idênticos no rodapé do cartão de workspace, três pílulas idênticas no
+    cabeçalho do Início, e hover com a mesma superfície do selecionado na barra.
+    Se um alvo é o principal, ele tem tamanho, posição ou peso diferente dos
+    outros. Se todos têm o mesmo, nenhum é o principal, **e quem paga é o
+    conteúdo ao lado**: no cartão de workspace, quatro botões iguais em todos os
+    cartões competiam com o número, que era o único que mudava de um pro outro.
+14. **Cor de estilo do dono nunca é escrita em folha de componente.** Ela é dado
+    de execução e entra por token na raiz. Uma cor literal numa folha
+    sobreviveria à troca de estilo, e o pedaço de tela que ela pinta passaria a
+    mentir justamente sobre a cor que o dono acabou de escolher. Acrescentada em
+    2026-08-05, com o Criador de Estilos. A proibição 4 já cobre o app inteiro; o
+    que esta acrescenta é a razão nova para ela, e a varredura da folha da
+    vitrine em `componentes/estilos/composicao-estilos.test.ts`.
 
 ---
 
-## 11. O checklist de migração por folha
+## 12. O checklist de migração por folha
 
 Para cada folha de tela, na onda dela:
 

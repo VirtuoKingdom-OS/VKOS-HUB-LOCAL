@@ -19,6 +19,9 @@ app/dados/
 app/web/dist/
 
 # Dados privados e cópias locais. As barras iniciais limitam os padrões à raiz.
+# A pasta dados-backup-rodada8 chegou a ser versionada por engano e saiu do
+# rastreamento em 2026-08-06, na abertura do código. Ela carregava caminho da
+# máquina do autor e transcrição de sessão com nome de cliente real.
 /app/dados-backup-*/
 /estudio-aura/
 /ojessegomes/
