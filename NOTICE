@@ -1,33 +1,152 @@
 VKOS Hub Local
 Copyright (c) 2026 Jesse Gomes, VirtuoKingdom (VKOS).
-Todos os direitos reservados.
 
-Este produto e seu codigo fonte sao licenciados sob a Business Source License
-1.1. O texto completo esta em LICENSE, na raiz deste repositorio.
+===============================================================================
+ENGLISH
+===============================================================================
 
-ATRIBUICAO OBRIGATORIA
+LICENSE
 
-Qualquer copia, derivado, fork ou trecho substancial deste codigo deve
-preservar, de forma visivel e nao removivel:
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
 
-1. Este arquivo NOTICE, integro.
-2. O arquivo LICENSE, integro.
-3. Um credito legivel ao autor original em qualquer interface, documentacao
-   ou material distribuido, no formato:
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 
-       Baseado no VKOS Hub Local, de Jesse Gomes (VirtuoKingdom).
-       https://github.com/OJESSEGOMES-VKOS/VKOS-HUB-LOCAL
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
 
-Remover, ocultar ou alterar essa atribuicao encerra automaticamente os
-direitos concedidos pela licenca.
+The full license text is in the LICENSE file at the root of this repository.
 
-USO EM PRODUCAO
+SPDX-License-Identifier: AGPL-3.0-or-later
 
-A Business Source License 1.1 deste repositorio nao concede nenhum uso em
-producao. Uso comercial, hospedado, embarcado ou oferecido a terceiros exige
-licenca comercial escrita do Licensor.
+WHAT THE AGPL MEANS HERE, IN PLAIN WORDS
 
-Contato para licenciamento: jesseconta017@gmail.com
+You may use, study, modify and redistribute this software, for any purpose,
+including commercially. Three obligations come with that:
+
+1. If you distribute this software or a modified version of it, you must ship
+   the complete corresponding source under the AGPL as well.
+
+2. If you run a modified version of this software as a network service, and
+   let other people use it over that network, you must offer those users the
+   complete corresponding source of your modified version. This is section 13
+   of the AGPL, and it is the reason this license was chosen.
+
+3. You must keep the copyright notices and the license intact.
+
+Running the Hub on your own machine, for your own business, with your own
+modifications that you never distribute, triggers none of the above. That is
+the normal case, and it is deliberately unrestricted.
+
+COMMERCIAL LICENSE
+
+The copyright holder offers this software under a separate commercial license
+for anyone who wants to build on it without the obligations of section 13 of
+the AGPL, for example to run a closed source hosted service based on this code.
+
+Dual licensing is possible because Jesse Gomes holds the copyright on the
+original work. It does not restrict your rights under the AGPL in any way. The
+AGPL grant above is permanent and irrevocable.
+
+Contact for commercial licensing: jesseconta017@gmail.com
+
+ATTRIBUTION
+
+Attribution is appreciated and, for the copyright notices, legally required by
+the AGPL. If you fork or build on this work, a visible credit is welcome:
+
+    Based on VKOS Hub Local, by Jesse Gomes (VirtuoKingdom).
+    https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL
+
+TRADEMARKS
+
+The license covers the code. It grants no right to the names "VKOS",
+"VKOS Hub", "VirtuoKingdom", or to the project logos and visual marks. A fork
+is free to exist and free to be commercial, and should carry its own name.
+
+THIRD PARTY COMPONENTS
+
+This work incorporates third party software under their own licenses, declared
+in app/package.json, app/server/package.json and app/web/package.json.
+
+The session economy rule distributed in earlier versions was distilled from the
+ponytail project (MIT). Credit is preserved in the repository history.
+
+LICENSE HISTORY
+
+Versions up to and including 1.5.0 were published under the Business Source
+License 1.1, with AGPL-3.0-or-later declared as the Change License. On
+2026-08-06 the copyright holder relicensed the project to AGPL-3.0-or-later
+ahead of the Change Date, making it free software from that point on. See
+docs/decisoes/2026-08-06-o-hub-vira-open-source.md.
+
+===============================================================================
+PORTUGUES
+===============================================================================
+
+LICENCA
+
+Este programa e software livre: voce pode redistribuir e modificar sob os
+termos da GNU Affero General Public License, publicada pela Free Software
+Foundation, na versao 3 da licenca ou, a sua escolha, em qualquer versao
+posterior.
+
+Este programa e distribuido na esperanca de ser util, mas SEM NENHUMA GARANTIA,
+nem mesmo a garantia implicita de COMERCIALIZACAO ou de ADEQUACAO A UM FIM
+ESPECIFICO. Veja a GNU Affero General Public License para mais detalhes.
+
+O texto completo da licenca esta no arquivo LICENSE, na raiz deste repositorio.
+
+O QUE A AGPL SIGNIFICA AQUI, EM PORTUGUES CLARO
+
+Voce pode usar, estudar, modificar e redistribuir este software, para qualquer
+finalidade, inclusive comercial. Vem com tres obrigacoes:
+
+1. Se voce distribuir este software, ou uma versao modificada dele, precisa
+   entregar junto o codigo fonte correspondente completo, tambem sob AGPL.
+
+2. Se voce rodar uma versao modificada como servico de rede, e deixar outras
+   pessoas usarem pela rede, precisa oferecer a essas pessoas o codigo fonte
+   correspondente completo da sua versao. Essa e a secao 13 da AGPL, e e o
+   motivo pelo qual esta licenca foi escolhida.
+
+3. Voce precisa manter os avisos de copyright e a licenca intactos.
+
+Rodar o Hub na sua propria maquina, para o seu proprio negocio, com as suas
+modificacoes que voce nunca distribui, nao dispara nada disso. Esse e o caso
+normal, e ele fica livre de proposito.
+
+LICENCA COMERCIAL
+
+O detentor do copyright oferece este software tambem sob licenca comercial
+separada, para quem quiser construir em cima dele sem as obrigacoes da secao 13
+da AGPL, por exemplo para rodar um servico hospedado de codigo fechado baseado
+neste codigo.
+
+O licenciamento duplo e possivel porque Jesse Gomes detem o copyright da obra
+original. Ele nao restringe em nada os seus direitos sob a AGPL. A concessao da
+AGPL acima e permanente e irrevogavel.
+
+Contato para licenciamento comercial: jesseconta017@gmail.com
+
+ATRIBUICAO
+
+A atribuicao e bem-vinda e, no caso dos avisos de copyright, exigida por lei
+pela AGPL. Se voce fizer um fork ou construir em cima deste trabalho, um
+credito visivel e apreciado:
+
+    Baseado no VKOS Hub Local, de Jesse Gomes (VirtuoKingdom).
+    https://github.com/VirtuoKingdom-OS/VKOS-HUB-LOCAL
+
+MARCAS
+
+A licenca cobre o codigo. Ela nao concede direito sobre os nomes "VKOS",
+"VKOS Hub", "VirtuoKingdom", nem sobre os logos e marcas visuais do projeto. Um
+fork pode existir e pode ser comercial, e deve levar o nome dele proprio.
 
 COMPONENTES DE TERCEIROS
 
@@ -37,3 +156,11 @@ e app/web/package.json.
 
 A regra de economia de sessao distribuida em versoes anteriores foi destilada
 do projeto ponytail (MIT). O credito e mantido no historico do repositorio.
+
+HISTORICO DE LICENCA
+
+As versoes ate a 1.5.0, inclusive, foram publicadas sob a Business Source
+License 1.1, com a AGPL-3.0-or-later declarada como Change License. Em
+2026-08-06 o detentor do copyright relicenciou o projeto para
+AGPL-3.0-or-later antes da Change Date, tornando-o software livre a partir
+dali. Ver docs/decisoes/2026-08-06-o-hub-vira-open-source.md.
