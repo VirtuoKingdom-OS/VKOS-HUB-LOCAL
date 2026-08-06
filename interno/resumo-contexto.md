@@ -116,7 +116,7 @@ Em sequência, para quem precisa saber o que mudou:
 
 ## 9. Onde as coisas moram
 
-- **Repositório de desenvolvimento** (privado): `vkos-hub` no GitHub, conta OJESSEGOMES-VKOS. O código do app fica em `app/`, o contrato técnico em `app/CONTRATO.md`, o contexto vivo em `docs/contexto/`, as decisões em `docs/decisoes/`, o material interno em `interno/`.
+- **Repositório de desenvolvimento** (público desde 2026-08-06, sob AGPL-3.0-or-later): `VirtuoKingdom-OS/VKOS-HUB-LOCAL` no GitHub. O código do app fica em `app/`, o contrato técnico em `app/CONTRATO.md`, o contexto vivo em `docs/contexto/`, as decisões em `docs/decisoes/`, o material interno em `interno/`.
 - **Repositório público:** `vkos-hub-beta`, o pacote cru que o cliente baixa, sob AGPL-3.0.
 - **Workspaces reais em uso:** OJESSEGOMES (marca pessoal) e Estúdio Aura.
 - **Referências externas:** `vkos/` (o VKOS v1) e `outros/` (pacotes de referência estudados; o Twenty é AGPL e nunca teve código copiado, só conceitos de produto destilados).

@@ -78,6 +78,22 @@ saber de IA, quer saber de cliente e de agenda cheia.
   esforço". A promessa é operacional e concreta: o negócio funcionando quando
   você não está na frente dele.
 
+## O código é aberto desde 2026-08-06
+
+O repositório é público sob AGPL-3.0-or-later, com licença comercial oferecida
+em paralelo pelo Jesse, que detém o copyright. Ver
+`docs/decisoes/2026-08-06-o-hub-vira-open-source.md`.
+
+Isso não muda a tese nem o público. O usuário do produto continua sendo o dono
+de negócio, que nunca vai clonar repositório nenhum. O que muda é o eixo de
+marketing e o custo de construir: o build in public ganha um lugar onde a
+construção é de fato visível, e a licença aprovada pela OSI abre a porta dos
+programas de crédito de IA para projeto aberto.
+
+A AGPL foi escolhida por cima de MIT e Apache justamente para preservar o
+caminho de SaaS: qualquer um pode usar e vender, mas ninguém fecha este código
+por cima e oferece como serviço sem devolver o código.
+
 ## Status
 
 Decisão do Jesse em julho de 2026: vender o que já está pronto e continuar

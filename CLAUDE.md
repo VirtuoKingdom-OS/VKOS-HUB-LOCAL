@@ -92,6 +92,17 @@ app inteiro. O registro do que saiu está em
 existindo para dívida DECLARADA: folha nova que precise ficar fora das travas
 por uma rodada entra ali com data e motivo, nunca em silêncio.
 
+**Desde 2026-08-05 o dono pode criar estilos dele, e isso NÃO afrouxa nada
+acima.** Ver `docs/decisoes/2026-08-05-o-criador-de-estilos.md`. Um estilo é
+cor e forma: os 35 tokens de cor por tema e os cinco raios em três conjuntos.
+Escala, densidade, movimento, peso e `--papel` ficam fora do alcance dele. A
+régua é a mesma: `app/server/src/estilos/contraste.ts` tem a fórmula, a lista de
+pares e os pisos de `web/src/estilos/contraste.test.ts`, e `estilos/regua.test.ts`
+afirma que o Escuro e o Claro de fábrica passam nela. O estilo entra como
+propriedade inline na raiz do documento, então a cascata não é tocada. Quem
+precisar reagir a troca de paleta usa `aoTrocarPaleta`, de
+`web/src/estilos/paleta.ts`, e nunca escreve `attributeFilter` na mão.
+
 A cascata do CSS tem quatro camadas declaradas com `@layer`, da que perde pra
 que vence: `base` (`estilos/global.css`, o reset, as escalas e o contrato de
 nome dos tokens, mais `estilos/primitivas.css`, os componentes
@@ -143,4 +154,23 @@ Regras que já custaram caro e não se repetem:
 
 ## Licença e repositório
 
-Repositório privado `OJESSEGOMES-VKOS/VKOS-HUB-LOCAL`, sob Business Source License 1.1 com atribuição obrigatória. Ver `LICENSE` e `NOTICE`. Arquivo novo de código nasce dentro dessa licença, sem cabeçalho por arquivo.
+**Repositório PÚBLICO `VirtuoKingdom-OS/VKOS-HUB-LOCAL` desde 2026-08-06, sob
+GNU AGPL-3.0-or-later.** Ver `LICENSE`, `NOTICE` e
+`docs/decisoes/2026-08-06-o-hub-vira-open-source.md`. O Jesse detém o copyright
+e oferece licença comercial separada em paralelo, então o licenciamento é
+duplo. Arquivo novo de código nasce dentro dessa licença, sem cabeçalho por
+arquivo.
+
+O código ser público muda três coisas no dia a dia, e nenhuma delas afrouxa o
+resto deste arquivo:
+
+- **Nada de dado real entra no versionamento.** `app/dados/`, os workspaces, a
+  pasta VKOS e qualquer backup de dados ficam fora, sempre. Antes de fechar
+  rodada, confira que nenhum caminho absoluto da máquina, token, email de
+  cliente ou transcrição de sessão real entrou no diff.
+- **A documentação de entrada é bilíngue.** `README.md`, `docs/ARCHITECTURE.md`
+  e `docs/INSTALL.md` são em inglês, para quem chega de fora. `README.pt-BR.md`
+  e todo o resto seguem em português, e o código continua em português. Mexeu
+  numa, confira se a outra precisa mudar junto.
+- **Issue, PR e discussão são públicas.** Falha de segurança nunca vai em
+  issue: ver `SECURITY.md`.
