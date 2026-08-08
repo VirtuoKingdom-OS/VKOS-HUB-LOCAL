@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 
+import { doDisco, paraDisco } from "../util/caminhoPortavel.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { quarentenarComErro } from "../util/quarentena.js";
 
@@ -46,6 +47,71 @@ export interface Workspace {
   pasta: string;
   criadoEm: string;
   ultimoUso: string;
+  // O workspace administrativo: o projeto do proprio dono do Hub, e o lugar de
+  // testar sem sujar projeto de cliente. Ele NAO e especial em nada do que faz:
+  // tem a mesma pasta VKOS, as mesmas telas e o mesmo comportamento. A unica
+  // diferenca e que as telas do proprio negocio, como o Instagram, aparecem so
+  // nele enquanto a conexao for uma conta so, do CORE.
+  //
+  // So um por vez, e a invariante e garantida na leitura e na marcacao.
+  // Ausente e o normal: a maioria dos workspaces nunca tem esta chave.
+  admin?: boolean;
+  // A cor da capa do cartao na tela de Workspaces. Ela e IDENTIDADE do projeto,
+  // e nao estado do app: e por isso que ela e a mesma nos dois temas, como a
+  // marca de um cliente seria.
+  //
+  // Guarda o NOME da cor, nunca o valor. Assim o Hub pode recalibrar um tom sem
+  // reescrever o registro de todo mundo, e um registro editado na mao nao
+  // consegue injetar cor arbitraria numa tela.
+  //
+  // Ausente e o normal, e quer dizer carvao, que e o padrao da casa.
+  cor?: CorDeCapa;
+  // A PALETA PADRAO DAS PECAS DESTE PROJETO, por id.
+  //
+  // Entrou em 2026-08-06 com o Criador de Paletas apontando pro carrossel. O
+  // problema que ele resolve foi medido: as quatro pecas reais da Mae Pixel
+  // sairam com DOIS roxos diferentes, porque cada geracao reinventava a marca
+  // dela lendo o Cerebro. Com o padrao no projeto, toda peca nasce com a mesma
+  // paleta sem ninguem escolher nada, e escolher outra na criacao continua
+  // possivel.
+  //
+  // GUARDA O ID, E NAO AS CORES, ao contrario do rascunho da criacao. Aqui a
+  // pergunta e "qual paleta este cliente usa", e a resposta tem que acompanhar
+  // a edicao da paleta. La a pergunta e "com que cores esta peca foi feita", e
+  // a resposta e do momento em que ela foi feita.
+  //
+  // Ausente e o normal: o wizard entao nao pre-seleciona nada e a IA escolhe a
+  // paleta lendo o Cerebro, que e o comportamento de sempre.
+  paletaPadrao?: string;
+}
+
+// AS CORES DE CAPA, e sao estas e mais nenhuma.
+//
+// POR QUE UMA LISTA FECHADA, e nao um seletor de cor livre: a capa carrega o
+// nome do workspace em --sobre-painel e o ponto de sessao viva em
+// --menta-painel, que sao claros nos DOIS temas. Com cor livre, a primeira cor
+// clara que alguem escolhesse apagaria o nome do proprio projeto, e nenhuma
+// trava pegaria isso, porque a trava de contraste mede token contra token e uma
+// cor escolhida em tempo de execucao nao e token.
+//
+// As sete sao escuras de proposito e foram MEDIDAS: no pior caso o nome fica em
+// 11,5:1 e o ponto vivo em 7,9:1 contra a capa. A trava de contraste do web
+// confere isso, par por par, a cada rodada.
+export const CORES_DE_CAPA = [
+  "carvao",
+  "ardosia",
+  "oceano",
+  "musgo",
+  "vinho",
+  "indigo",
+  "ferrugem",
+  "ameixa",
+] as const;
+
+export type CorDeCapa = (typeof CORES_DE_CAPA)[number];
+
+export function ehCorDeCapa(v: unknown): v is CorDeCapa {
+  return typeof v === "string" && (CORES_DE_CAPA as readonly string[]).includes(v);
 }
 
 // O registro inteiro, do jeito que a rota GET /api/workspaces devolve.
@@ -104,9 +170,78 @@ export function lerRegistroDeArquivo(caminho: string): RegistroWorkspaces | null
     throw quarentenarComErro(caminho, "O registro de workspaces");
   }
   return {
-    workspaces: dados.workspaces.filter(ehWorkspace),
+    workspaces: umAdminSo(
+      dados.workspaces
+        .filter(ehWorkspace)
+        .map(absolutizarPasta)
+        .map(normalizarAdmin)
+        .map(normalizarCor)
+        .map(normalizarPaletaPadrao),
+    ),
     ativo: typeof dados.ativo === "string" ? dados.ativo : null,
   };
+}
+
+// A pasta gravada relativa volta absoluta aqui, na porta de entrada do
+// registro. Dali pra frente o resto do servidor continua vendo caminho
+// absoluto, como sempre viu. Ver util/caminhoPortavel.ts.
+function absolutizarPasta(w: Workspace): Workspace {
+  return { ...w, pasta: doDisco(w.pasta) };
+}
+
+// A cor so vale quando e um nome da lista fechada. Qualquer outra coisa que
+// apareca no disco (um hex, um nome antigo, um numero) some em vez de virar
+// carvao explicito: ausente ja quer dizer carvao, e guardar o padrao no arquivo
+// so faria o registro crescer sem dizer nada.
+//
+// Isto e a mesma postura defensiva do normalizarAdmin, e pelo mesmo motivo: o
+// registro pode ter sido editado na mao ou vir de uma copia antiga.
+function normalizarCor(w: Workspace): Workspace {
+  const { cor, ...resto } = w as Workspace & { cor?: unknown };
+  return ehCorDeCapa(cor) && cor !== "carvao" ? { ...resto, cor } : resto;
+}
+
+// A paleta padrao so vale quando e uma string nao vazia. Mesma postura do
+// normalizarCor: string vazia, numero ou objeto que aparecam no disco somem em
+// vez de virar um terceiro estado que ninguem le.
+//
+// `estiloPadrao` e o nome que a chave tinha ate a renomeacao de 2026-08-06. Ele
+// e aceito na LEITURA e convertido aqui, pra registro gravado antes da
+// renomeacao nao perder o padrao do projeto. A chave velha nunca e regravada.
+function normalizarPaletaPadrao(w: Workspace): Workspace {
+  const { paletaPadrao, estiloPadrao, ...resto } = w as Workspace & {
+    paletaPadrao?: unknown;
+    estiloPadrao?: unknown;
+  };
+  const bruto = typeof paletaPadrao === "string" ? paletaPadrao : estiloPadrao;
+  return typeof bruto === "string" && bruto.trim().length > 0
+    ? { ...resto, paletaPadrao: bruto.trim() }
+    : resto;
+}
+
+// A chave admin so vale quando e exatamente true. Qualquer outra coisa que
+// apareca no disco (a string "true", 1, null) NAO promove um workspace a
+// administrativo, e a chave some em vez de virar false: ausente e o normal.
+function normalizarAdmin(w: Workspace): Workspace {
+  const { admin, ...resto } = w as Workspace & { admin?: unknown };
+  return admin === true ? { ...resto, admin: true } : resto;
+}
+
+// A invariante de um admin so, garantida tambem na LEITURA e nao apenas na
+// marcacao: o arquivo pode ter sido editado na mao, ou ter vindo de uma copia
+// datada de antes de uma troca. Sobra o primeiro, que e o mais antigo na ordem
+// do registro, e o resto vira workspace comum.
+function umAdminSo(lista: Workspace[]): Workspace[] {
+  let achou = false;
+  return lista.map((w) => {
+    if (w.admin !== true) return w;
+    if (achou) {
+      const { admin: _ignorado, ...resto } = w;
+      return resto;
+    }
+    achou = true;
+    return w;
+  });
 }
 
 // Le o registro do disco uma vez. Arquivo ausente vira registro vazio.
@@ -163,11 +298,17 @@ export function guardarCopiaSeEncolheu(
 }
 
 // Grava o registro em memoria e no disco.
+//
+// Na memoria a pasta e absoluta; no disco ela vai relativa quando esta dentro
+// do Hub, pra a pasta inteira poder mudar de lugar sem quebrar o registro.
 export function salvarRegistro(reg: RegistroWorkspaces): void {
   cache = reg;
   garantirPastaDados();
   guardarCopiaSeEncolheu(caminhoRegistroAtual(), reg);
-  gravarJsonAtomico(caminhoRegistroAtual(), reg);
+  gravarJsonAtomico(caminhoRegistroAtual(), {
+    workspaces: reg.workspaces.map((w) => ({ ...w, pasta: paraDisco(w.pasta) })),
+    ativo: reg.ativo,
+  });
   raizDoCache = raizDados();
 }
 
@@ -288,6 +429,76 @@ export function renomearWorkspace(id: string, nome: string): Workspace | null {
   ws.nome = nome;
   salvarRegistro(reg);
   return ws;
+}
+
+// Troca a cor da capa de um workspace. Passar "carvao" (ou null) volta pro
+// padrao da casa e APAGA a chave, em vez de gravar o padrao: ausente ja quer
+// dizer carvao. Devolve o workspace atualizado, ou null se o id nao existe.
+export function definirCorWorkspace(id: string, cor: CorDeCapa | null): Workspace | null {
+  const reg = lerRegistro();
+  const ws = reg.workspaces.find((w) => w.id === id);
+  if (!ws) return null;
+  if (!cor || cor === "carvao") {
+    delete ws.cor;
+  } else {
+    ws.cor = cor;
+  }
+  salvarRegistro(reg);
+  return ws;
+}
+
+// Troca a paleta padrao das pecas de um projeto. null APAGA a chave, e nao
+// grava vazio: ausente ja quer dizer "sem padrao", e uma string vazia no disco
+// seria um terceiro estado que ninguem le.
+//
+// Ela NAO confere se a paleta existe, e isso e decisao. Paleta apagada depois
+// de virar padrao deixaria o registro travado num id morto se a gravacao
+// recusasse; do jeito que esta, quem le trata id que nao existe como sem
+// padrao, que e o que a rota do wizard faz.
+export function definirPaletaPadrao(id: string, paleta: string | null): Workspace | null {
+  const reg = lerRegistro();
+  const ws = reg.workspaces.find((w) => w.id === id);
+  if (!ws) return null;
+  if (!paleta) {
+    delete ws.paletaPadrao;
+  } else {
+    ws.paletaPadrao = paleta;
+  }
+  salvarRegistro(reg);
+  return ws;
+}
+
+// O workspace administrativo, ou null se ainda nao ha um.
+export function workspaceAdmin(): Workspace | null {
+  return lerRegistro().workspaces.find((w) => w.admin === true) ?? null;
+}
+
+export function ehWorkspaceAdmin(id: string | null): boolean {
+  if (!id) return false;
+  return workspaceAdmin()?.id === id;
+}
+
+// Marca um workspace como administrativo e DESMARCA qualquer outro.
+//
+// Passar null desmarca todos, que e o que a tela usa pra tirar o papel sem
+// precisar dar ele pra outro. Devolve o que ficou marcado, ou null.
+export function marcarWorkspaceAdmin(id: string | null): Workspace | null {
+  const reg = lerRegistro();
+  if (id && !reg.workspaces.some((w) => w.id === id)) return null;
+
+  let marcado: Workspace | null = null;
+  for (const w of reg.workspaces) {
+    if (w.id === id) {
+      w.admin = true;
+      marcado = w;
+    } else {
+      // Apaga a chave em vez de gravar false: ausente e o normal, e um registro
+      // cheio de "admin": false so faz o arquivo crescer sem dizer nada.
+      delete w.admin;
+    }
+  }
+  salvarRegistro(reg);
+  return marcado;
 }
 
 // Apaga a pasta de dados do hub de um workspace (app/dados/workspaces/<id>/):

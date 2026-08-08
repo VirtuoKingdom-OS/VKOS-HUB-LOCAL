@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 
+import { doDisco, paraDisco } from "../util/caminhoPortavel.js";
 import { gravarJsonAtomico } from "../util/gravarJson.js";
 import { ErroDadoCorrompido, quarentenar } from "../util/quarentena.js";
 
@@ -87,7 +88,8 @@ export function lerPastaVkosDeArquivo(caminho: string): {
   if (typeof dados.pastaVkos !== "string" || dados.pastaVkos.length === 0) {
     return { pasta: null, podeGravar: quarentenar(caminho) !== null };
   }
-  return { pasta: dados.pastaVkos, podeGravar: true };
+  // Pasta gravada relativa volta absoluta aqui. Ver util/caminhoPortavel.ts.
+  return { pasta: doDisco(dados.pastaVkos), podeGravar: true };
 }
 
 // Le o config do disco uma vez por raiz. Trocou a raiz (teste), rele.
@@ -118,7 +120,9 @@ export function definirPastaVkos(caminho: string): void {
   }
   pastaVkosCache = caminho;
   garantirPastaDados();
-  const dados = { pastaVkos: caminho };
+  // No disco vai relativa quando esta dentro do Hub, pra a pasta inteira poder
+  // mudar de lugar sem quebrar a escolha.
+  const dados = { pastaVkos: paraDisco(caminho) };
   gravarJsonAtomico(caminhoConfigAtual(), dados);
 }
 
