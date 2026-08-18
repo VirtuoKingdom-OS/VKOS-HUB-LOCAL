@@ -168,6 +168,12 @@ app/                          the product. The folder name is fixed: the
       componentes/<area>/     the component and its own stylesheet, together
       api/                    one HTTP client module per area
       fontes/                 the embedded Geist files
+vkos-modelo/                  the VKOS workspace template that ships with the
+  cerebro/                    repository: blank Cerebro, the 33 commands under
+  .claude/skills/             .claude/skills/, carousel, stories and site
+  templates/                  templates, the design layer. Seeded, never edited.
+workspaces/                   git-ignored. One folder per business, seeded from
+                              vkos-modelo/ on the first start.
 docs/
   contexto/                   the living context, read before acting
   decisoes/                   one decision per file, 129 of them
@@ -176,7 +182,7 @@ interno/                      data the running app READS. Not documentation.
 ferramentas/                  checking scripts, outside the product
 ```
 
-Three rules follow from that layout:
+Four rules follow from that layout:
 
 1. **A stylesheet lives next to the component it dresses.** `crm.css` sits in
    `componentes/crm/`. Only genuinely shared CSS goes in `estilos/`. The cascade
@@ -188,6 +194,12 @@ Three rules follow from that layout:
 3. **`interno/` is not `docs/`.** `mapa/rotas.ts` reads those JSON files at
    runtime and serves them to the Map screen. Documentation is what you read,
    this is what the app loads.
+4. **`vkos-modelo/` is a seed, not a workspace.** `workspaces/integrado.ts`
+   copies it into `workspaces/meu-negocio/` on a first start and opens the copy.
+   Nothing ever writes back into the template, so it stays versioned and
+   business data stays in the git-ignored `workspaces/`. A `VKOS/` or `vkos/`
+   folder next to `app/`, which is what the Windows installer lays down, takes
+   precedence and is adopted in place.
 
 ## Server modules
 

@@ -69,6 +69,18 @@ ehthumbs.db
 # de propósito: só a pasta da raiz.
 /vkos2/
 
+# O MODELO vkos-modelo/ é a exceção das três acima: ele VERSIONA de propósito.
+# É o VKOS limpo que vem no repositório pra quem clona o projeto ter um
+# workspace funcionando na primeira abertura, sem Cérebro de ninguém dentro.
+# O servidor copia ele pra workspaces/ na primeira abertura e nunca escreve
+# dentro dele, então as linhas abaixo são cinto de segurança, não rotina.
+/vkos-modelo/node_modules/
+/vkos-modelo/package-lock.json
+/vkos-modelo/conteudo/*
+!/vkos-modelo/conteudo/LEIA.md
+/vkos-modelo/materiais/*
+!/vkos-modelo/materiais/LEIA.md
+
 # A casa dos workspaces: cada pasta aqui dentro é o Cérebro de um cliente, e
 # Cérebro de cliente nunca versiona. Barra inicial de propósito: só a pasta da
 # raiz. Sem ela, o padrão engolia app/server/src/workspaces/, que é código do

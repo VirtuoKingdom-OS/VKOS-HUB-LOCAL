@@ -77,6 +77,8 @@ npm run dev
 
 Backend na `4600`, Vite na `5173`. Guia completo em [docs/INSTALL.md](docs/INSTALL.md). Se você não é desenvolvedor e só quer usar, o caminho de dois cliques no Windows está em [LEIA-ME.md](LEIA-ME.md).
 
+**Depois disso não tem nada pra configurar.** O repositório já traz um VKOS limpo em [`vkos-modelo/`](vkos-modelo/): os 33 comandos, os templates de carrossel, stories e site, a camada de design, e um Cérebro em branco de propósito. Na primeira abertura o servidor copia ele pra `workspaces/meu-negocio/` e abre a cópia, então o Cockpit já sobe com um Cérebro esperando ser preenchido. O modelo continua intacto e versionado, a sua cópia mora em `workspaces/`, que o git ignora, e o `/instalar` preenche o Cérebro numa conversa guiada.
+
 ## Stack
 
 Node e Fastify no servidor, React e Vite no navegador, React Flow no canvas, TypeScript em tudo, npm workspaces segurando os dois. Nenhum framework foi adotado sem o projeto precisar dele.

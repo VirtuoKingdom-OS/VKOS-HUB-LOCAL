@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!--
+  VKOS04 — TECH CLARO  (1080x1350)
+  Creme #F2ECDF + menta. Headline em camadas (sans + serifa itálica + caixa menta). Ar leve "tech".
+  Imagem opcional na capa. Ajuste cores em :root pelo Cérebro.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Inter:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{--cream:#F2ECDF;--cream2:#FAF7F0;--accent:#00C896;--accent-dk:#00875F;--ink:#15130F;--soft:#514d44;--on-accent:#04241b;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#000;font-family:'Inter',sans-serif;}
+  .slide{position:relative;width:1080px;height:1350px;overflow:hidden;background:linear-gradient(180deg,var(--cream2),var(--cream));color:var(--ink);}
+  .cnt{position:absolute;top:56px;right:60px;z-index:6;font-size:24px;font-weight:700;color:#8a8579;letter-spacing:.1em;}
+  .cat{position:absolute;top:64px;right:64px;z-index:6;font-size:34px;font-weight:700;letter-spacing:.08em;color:#fff;background:var(--accent-dk);border-radius:100px;padding:18px 40px;text-transform:uppercase;}
+  .brand{position:absolute;top:70px;left:64px;z-index:6;font-size:34px;font-weight:700;letter-spacing:.06em;color:#6b6b60;}
+  .cards{position:absolute;top:22%;left:0;right:0;height:30%;z-index:4;}
+  .card{position:absolute;border-radius:28px;background:rgba(255,255,255,.92);box-shadow:0 56px 120px -56px rgba(20,25,15,.18);border:2px solid #e6e0d2;}
+  .card.a{left:12%;top:0;width:44%;height:44%;} .card.b{right:14%;top:26%;width:26%;height:52%;}
+  .h{position:absolute;bottom:70px;left:82px;right:82px;z-index:6;}
+  .l1{font-weight:900;font-size:122px;letter-spacing:-.02em;color:var(--ink);line-height:1;}
+  .l2{font-family:'Playfair Display';font-style:italic;font-weight:700;font-size:130px;color:var(--accent-dk);line-height:1;}
+  .box{display:inline-block;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:98px;padding:8px 44px;border-radius:16px;margin-top:16px;text-decoration:underline;text-decoration-color:rgba(4,36,27,.4);}
+  /* página */
+  .page{background:var(--cream2);}
+  .ph{position:absolute;top:130px;left:90px;right:90px;z-index:6;font-weight:900;font-size:90px;letter-spacing:-.01em;color:var(--ink);line-height:1.05;}
+  .pbody{position:absolute;top:380px;left:90px;right:90px;z-index:6;color:var(--soft);font-size:53px;line-height:1.6;}
+  .pbody b{color:var(--accent-dk);}
+  .mock{position:absolute;bottom:90px;left:90px;right:90px;height:34%;z-index:5;border-radius:32px;background:linear-gradient(160deg,#fff,var(--cream));border:2px solid #e6e0d2;box-shadow:0 64px 140px -72px rgba(20,25,15,.18);}
+  /* final */
+  .final{background:linear-gradient(180deg,var(--cream2),var(--cream));}
+  .fh{position:absolute;top:300px;left:96px;right:96px;z-index:6;text-align:center;font-weight:900;font-size:106px;letter-spacing:-.02em;color:var(--ink);line-height:1.05;}
+  .fh em{font-family:'Playfair Display';font-style:italic;font-weight:700;color:var(--accent-dk);}
+  .fp{position:absolute;top:740px;left:120px;right:120px;z-index:6;text-align:center;color:var(--soft);font-size:50px;line-height:1.5;}
+  .cta{position:absolute;bottom:150px;left:50%;transform:translateX(-50%);z-index:6;white-space:nowrap;font-weight:800;font-size:48px;color:var(--on-accent);background:var(--accent);border-radius:100px;padding:44px 80px;}
+</style>
+</head>
+<body>
+<!-- CAPA -->
+<div class="slide">
+  <div class="cards"><div class="card a"></div><div class="card b"></div></div>
+  <div class="cnt">01 / 06</div>
+  <div class="brand">SEUNEGÓCIO</div><div class="cat">CATEGORIA</div>
+  <div class="h"><div class="l1">Palavra</div><div class="l2">a linha itálica</div><div class="box">destaque</div></div>
+</div>
+<!-- PÁGINA -->
+<div class="slide page">
+  <div class="cnt">02 / 06</div>
+  <div class="ph">O subtítulo forte.</div>
+  <div class="pbody">O corpo explica com leveza, uma <b>palavra em destaque</b> na menta. Sem parede de texto.</div>
+  <div class="mock"></div>
+</div>
+<!-- FINAL -->
+<div class="slide final">
+  <div class="cnt">06 / 06</div>
+  <div class="fh">Pronto pra ter o <em>seu</em>?</div>
+  <div class="fp">A chamada final, direta e sem hype.</div>
+  <div class="cta">Quero começar</div>
+</div>
+</body>
+</html>

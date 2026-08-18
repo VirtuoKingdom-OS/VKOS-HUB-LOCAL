@@ -39,7 +39,15 @@ import { raizWorkspaces } from "./pastas.js";
 
 // Nomes de pasta na raiz que nunca sao movidos, mesmo se aparecerem no
 // registro. O VKOS integrado e o principal: outros modulos o acham por caminho.
-const NOMES_INTOCAVEIS = new Set(["vkos", "vkos2", "app", "docs", "interno", "ferramentas"]);
+const NOMES_INTOCAVEIS = new Set([
+  "vkos",
+  "vkos2",
+  "vkos-modelo",
+  "app",
+  "docs",
+  "interno",
+  "ferramentas",
+]);
 
 export interface PastaMovida {
   id: string;

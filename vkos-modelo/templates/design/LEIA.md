@@ -1,0 +1,1 @@
+Aqui vive a camada de design comum a todos os formatos: a `cartela.md` é a fonte única de direções visuais (paleta, fontes e personalidade) que site, carrossel, stories e projetos leem antes de qualquer peça.

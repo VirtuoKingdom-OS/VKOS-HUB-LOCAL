@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  VKOS08 — VERDE MENTA  (1080x1350)
+  Verde profundo puxando pro preto + serifa itálica menta gigante, chips, CTA em vidro menta, mockups.
+  Vitrine/portfólio premium. Imagem-herói na capa (img/capa.png). Ajuste cores em :root pelo Cérebro.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,900&family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{--accent:#00C896;--accent-dk:#00875F;--text:#F5F5F5;--soft:#A1A1A1;--on-accent:#04241b;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#000;font-family:'Inter',sans-serif;}
+  .slide{position:relative;width:1080px;height:1350px;overflow:hidden;background:radial-gradient(120% 90% at 70% 10%,#10241a,#0a0a0a 72%);color:var(--text);}
+  .bimg{position:absolute;inset:0;z-index:0;background:#0a0a0a center/cover no-repeat;background-image:url('img/capa.png');}
+  .scrim{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(8,12,10,.3),rgba(6,8,7,.6));}
+  .cnt{position:absolute;top:56px;right:60px;z-index:6;font-size:24px;font-weight:700;color:var(--soft);letter-spacing:.1em;}
+  .chips{position:absolute;top:64px;left:64px;right:230px;z-index:6;display:flex;justify-content:space-between;font-size:34px;color:var(--soft);letter-spacing:.04em;}
+  .h{position:absolute;bottom:27%;left:90px;right:90px;z-index:6;}
+  .k{font-family:'Playfair Display';font-size:65px;color:var(--text);} .k em{font-style:italic;}
+  .big{font-family:'Playfair Display';font-style:italic;font-weight:900;font-size:180px;line-height:.9;color:var(--accent);letter-spacing:-.01em;}
+  .name{margin-top:32px;font-size:38px;letter-spacing:.26em;color:rgba(245,245,245,.42);text-transform:uppercase;}
+  .cta{position:absolute;bottom:15%;left:90px;z-index:6;display:inline-flex;align-items:center;gap:36px;white-space:nowrap;background:rgba(0,200,150,.14);border:2px solid rgba(0,200,150,.5);border-radius:100px;padding:26px 52px;font-size:46px;font-weight:600;}
+  .cta i{width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#00C896,#00875F);display:grid;place-items:center;color:var(--on-accent);font-size:40px;}
+  .bar{position:absolute;bottom:6%;left:90px;z-index:6;width:286px;height:82px;background:repeating-linear-gradient(90deg,#00C896 0 8px,transparent 8px 16px);opacity:.6;}
+  /* página */
+  .page{background:radial-gradient(120% 90% at 20% 10%,#10241a,#0a0a0a 72%);}
+  .top{position:absolute;top:64px;left:90px;right:230px;z-index:6;display:flex;justify-content:space-between;font-size:34px;color:var(--soft);letter-spacing:.04em;} .top b{color:var(--accent);}
+  .ph{position:absolute;top:250px;left:90px;z-index:6;font-family:'Playfair Display';font-size:180px;color:var(--accent);}
+  .pbody{position:absolute;top:560px;left:90px;right:90px;z-index:6;color:#d8d8d8;font-size:51px;line-height:1.6;} .pbody b{color:var(--accent);}
+  .tags{position:absolute;bottom:430px;left:90px;right:90px;z-index:6;display:flex;flex-wrap:wrap;gap:32px;font-size:40px;color:var(--soft);}
+  .tags span::before{content:"{ ";} .tags span::after{content:" }";}
+  .mock{position:absolute;bottom:90px;left:90px;right:90px;height:26%;z-index:5;border-radius:40px 40px 16px 16px;background:linear-gradient(160deg,#12211a,#0a0a0a);border:2px solid rgba(0,200,150,.25);}
+  /* final */
+  .final{background:radial-gradient(110% 80% at 50% 20%,#10241a,#0a0a0a 74%);}
+  .fh{position:absolute;top:320px;left:96px;right:96px;z-index:6;text-align:center;font-family:'Playfair Display';font-style:italic;font-weight:900;font-size:139px;color:var(--accent);line-height:.98;}
+  .fp{position:absolute;top:760px;left:110px;right:110px;z-index:6;text-align:center;color:var(--soft);font-size:50px;line-height:1.5;}
+  .final .cta{left:50%;bottom:150px;transform:translateX(-50%);}
+</style>
+</head>
+<body>
+<!-- CAPA -->
+<div class="slide">
+  <div class="bimg"></div><div class="scrim"></div>
+  <div class="cnt">01 / 07</div>
+  <div class="chips"><span>@2026</span><span>TEMA</span></div>
+  <div class="h"><div class="k">Vitri<em>ne</em></div><div class="big">Palavra</div><div class="name">seunegócio</div></div>
+  <div class="cta">CONFERIR <i>→</i></div>
+  <div class="bar"></div>
+</div>
+<!-- PÁGINA -->
+<div class="slide page">
+  <div class="cnt">03 / 07</div>
+  <div class="top"><span>SUBTÍTULO</span><span><b>SEÇÃO</b></span></div>
+  <div class="ph">Sobre</div>
+  <div class="pbody">O corpo apresenta a entrega com uma <b>palavra em destaque</b>, foco em clareza.</div>
+  <div class="tags"><span>UM</span><span>DOIS</span><span>TRÊS</span><span>QUATRO</span></div>
+  <div class="mock"></div>
+</div>
+<!-- FINAL -->
+<div class="slide final">
+  <div class="cnt">07 / 07</div>
+  <div class="fh">A chamada final?</div>
+  <div class="fp">O convite direto que fecha.</div>
+  <div class="cta">CONFERIR <i>→</i></div>
+</div>
+</body>
+</html>

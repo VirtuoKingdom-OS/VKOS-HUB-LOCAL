@@ -1,0 +1,13 @@
+{
+  "name": "vkos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VKOS 2: VirtuoKingdom Operational System. Sistema operacional de marketing e construção com IA, rodado via Claude Code.",
+  "type": "module",
+  "scripts": {
+    "carrossel": "node templates/carrossel/render.js"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

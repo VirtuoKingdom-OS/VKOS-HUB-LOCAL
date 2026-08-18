@@ -77,6 +77,8 @@ npm run dev
 
 Backend on `4600`, Vite on `5173`. Full guide, including the two-click Windows installer for non-technical users, in [docs/INSTALL.md](docs/INSTALL.md).
 
+**There is nothing to set up after that.** The repository ships a clean VKOS workspace at [`vkos-modelo/`](vkos-modelo/): the 33 commands, the carousel, stories and site templates, the design layer, and a Cérebro left deliberately blank. On the first start the server copies it to `workspaces/meu-negocio/` and opens that copy, so the Cockpit comes up with a Brain waiting to be filled. The template stays pristine and versioned; your copy lives in the git-ignored `workspaces/`, and `/instalar` fills the Cérebro through a guided interview.
+
 ## Stack
 
 Node and Fastify on the server, React and Vite in the browser, React Flow for the canvas, TypeScript everywhere, npm workspaces holding the two together. No framework was adopted that the project did not need.

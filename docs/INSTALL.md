@@ -64,6 +64,33 @@ Ports:
 In development, open **http://localhost:5173**. Hot reload comes from Vite, and
 the WebSocket stream is proxied through, so live session output works normally.
 
+### The workspace that comes with the Hub
+
+The Hub is the cockpit; the thing it drives is a **VKOS workspace**, a plain
+folder of markdown holding one business: its Cérebro, its brand, its templates
+and the commands that read them.
+
+You do not have to build one. The repository ships a clean template at
+`vkos-modelo/`. On the very first start, with no workspace registered yet, the
+server copies it to `workspaces/meu-negocio/` and opens that copy. Nothing else
+is needed: open the browser and the Cockpit already has a Brain to fill in.
+
+Three details worth knowing:
+
+- **The copy is what you edit, never the template.** `vkos-modelo/` is
+  versioned and stays pristine, so a later `git pull` never collides with your
+  business. `workspaces/` is git-ignored, so your Cérebro is yours.
+- **Seeding runs once.** If `workspaces/meu-negocio/` already exists, the server
+  adopts it as it is and copies nothing over it.
+- **An existing install wins.** If a `VKOS/` or `vkos/` folder sits next to
+  `app/`, which is what the Windows installer lays down, that one is adopted
+  instead and the template is left alone.
+
+The template arrives with the Cérebro and the design guide deliberately blank,
+marked with ✍️. Two filled examples sit beside it in `vkos-modelo/cerebro/` to
+show the level of detail that works. Running `/instalar` inside the workspace
+fills the Cérebro through a guided interview.
+
 ## 3. Running the local production build
 
 Build the frontend, then start the server. Port 4600 serves the built frontend
@@ -176,8 +203,10 @@ dev server left running on 5173 can shadow it.
 
 - `app/dados/` holds the app state: the workspace registry, the CRM, connection
   credentials, costs, styles, session transcripts and the assistant queue.
-- The VKOS workspace folder holds the business content: `cerebro/cerebro.md`,
-  the generated pieces under `conteudo/`, the reference material and templates.
+- `workspaces/` holds the business content, one folder per client:
+  `cerebro/cerebro.md`, the generated pieces under `conteudo/`, the reference
+  material and templates. The `vkos-modelo/` template beside it is versioned and
+  empty by design, so it is not something you need to back up.
 
 Back up both. Do not share either one once you have started using it: they hold
 your business data, your configuration and your credentials.
