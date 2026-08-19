@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "checar": "tsc --noEmit -p tsconfig.json",
-    "testar": "tsx --test src/**/*.test.ts"
+    "testar": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@xyflow/react": "^12.3.0",

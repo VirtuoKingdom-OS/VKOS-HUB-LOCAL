@@ -12,6 +12,13 @@ function pastaTemp(nome: string): string {
   return mkdtempSync(join(tmpdir(), `vkos-${nome}-`));
 }
 
+// Uma pasta absoluta FORA do Hub, na forma da plataforma que esta rodando.
+// A forma muda de proposito: doDisco() resolve contra a raiz do Hub tudo que
+// nao for absoluto, e "C:/..." nao e absoluto no Linux. Fixo no formato Windows,
+// este teste passava no Windows e media outra coisa no Linux, onde o caminho
+// voltava colado na raiz do repositorio.
+const PASTA_DE_FORA = process.platform === "win32" ? "C:/clientes/acme" : "/clientes/acme";
+
 function quarentenas(pasta: string): string[] {
   return readdirSync(pasta).filter((n) => n.startsWith(`${NOME}.corrompido-`));
 }
@@ -30,8 +37,8 @@ test("config valida devolve a pasta escolhida", () => {
   const pasta = pastaTemp("vkos-config-valida");
   const arquivo = join(pasta, NOME);
   try {
-    writeFileSync(arquivo, JSON.stringify({ pastaVkos: "C:/clientes/acme" }), "utf8");
-    assert.equal(lerPastaVkosDeArquivo(arquivo).pasta, "C:/clientes/acme");
+    writeFileSync(arquivo, JSON.stringify({ pastaVkos: PASTA_DE_FORA }), "utf8");
+    assert.equal(lerPastaVkosDeArquivo(arquivo).pasta, PASTA_DE_FORA);
     assert.equal(quarentenas(pasta).length, 0);
   } finally {
     rmSync(pasta, { recursive: true, force: true });
